@@ -70,6 +70,7 @@ export default function Sidebar({ visible }) {
           ))}
         </div>
       ))}
+      <div className="sidebar-version">v{version}</div>
     </nav>
   );
 }

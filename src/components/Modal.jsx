@@ -16,7 +16,7 @@ export default function Modal({ open, title, onClose, footer, children, size }) 
       className="modal-overlay open"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="modal" style={size === 'lg' ? { maxWidth: 620 } : undefined}>
+      <div className="modal" style={size === 'xl' ? { maxWidth: 780 } : size === 'lg' ? { maxWidth: 620 } : undefined}>
         <div className="modal-header">
           <h2 className="modal-title">{title}</h2>
           <button className="modal-close" onClick={onClose}><IconClose /></button>

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import Pagination from '../components/Pagination';
 import SortTh from '../components/SortTh';
-import { IconSearch, IconPlus, IconDelete } from '../components/icons';
+import { IconSearch, IconPlus, IconDelete, IconClose } from '../components/icons';
 import { wiData } from '../data/warehouseInventory';
 
 const PAGE_SIZE = 10;
@@ -13,14 +13,52 @@ function statusBadge(s) {
   return <span className="badge" style={{ background:'transparent', border:'1px solid var(--border)', color:'var(--text-muted)', fontWeight:400 }}>Not Set</span>;
 }
 
-function ImagePlaceholder() {
+function ImagePlaceholder({ onClick }) {
   return (
-    <div style={{ width:42, height:42, background:'var(--bg)', borderRadius:'var(--r)', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--border)', margin:'auto' }}>
+    <div
+      onClick={onClick}
+      title="View image"
+      style={{ width:42, height:42, background:'var(--bg)', borderRadius:'var(--r)', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--border)', margin:'auto', cursor:'pointer', transition:'background .15s' }}
+      onMouseEnter={e => e.currentTarget.style.background='#e2e8f0'}
+      onMouseLeave={e => e.currentTarget.style.background='var(--bg)'}
+    >
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width:18, height:18 }}>
         <rect x="3" y="3" width="18" height="18" rx="2"/>
         <circle cx="8.5" cy="8.5" r="1.5"/>
         <polyline points="21 15 16 10 5 21"/>
       </svg>
+    </div>
+  );
+}
+
+function ImageViewerModal({ open, name, src, onClose }) {
+  if (!open) return null;
+  return (
+    <div
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+      style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
+    >
+      <div style={{ background:'#fff', borderRadius:14, maxWidth:480, width:'100%', overflow:'hidden', boxShadow:'0 20px 60px rgba(0,0,0,.3)' }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 18px', borderBottom:'1px solid var(--border)' }}>
+          <span style={{ fontWeight:700, fontSize:14, color:'var(--text)' }}>{name}</span>
+          <button className="modal-close" onClick={onClose}><IconClose /></button>
+        </div>
+        <div style={{ padding:24, display:'flex', alignItems:'center', justifyContent:'center', minHeight:220, background:'var(--bg)' }}>
+          {src
+            ? <img src={src} alt={name} style={{ maxWidth:'100%', maxHeight:320, borderRadius:8, objectFit:'contain' }} />
+            : (
+              <div style={{ textAlign:'center', color:'var(--text-muted)' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" style={{ width:56, height:56, marginBottom:12, color:'var(--border)' }}>
+                  <rect x="3" y="3" width="18" height="18" rx="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <polyline points="21 15 16 10 5 21"/>
+                </svg>
+                <p style={{ fontSize:13, fontWeight:500 }}>No image uploaded</p>
+              </div>
+            )
+          }
+        </div>
+      </div>
     </div>
   );
 }
@@ -33,6 +71,7 @@ export default function WarehouseInventoryPage() {
   const [page,             setPage]             = useState(1);
   const [sortCol,          setSortCol]          = useState(0);
   const [sortAsc,          setSortAsc]          = useState(true);
+  const [imgPopup,         setImgPopup]         = useState({ open:false, name:'', src:null });
 
   const warehouseNames = useMemo(() => [...new Set(wiData.map(r => r.warehouseName))].sort(), []);
   const sortKeys = ['name','warehouseStock','warehouseName','itemStock','stokMin','stokUsed','valuation','totalValuation','minStatus','flag1','flag2','asile','rack','level','lantai','lorong','updatedAt'];
@@ -180,7 +219,7 @@ export default function WarehouseInventoryPage() {
                       <td style={{ textAlign:'center', color:'var(--text-muted)', fontSize:'12px' }}>{r.level}</td>
                       <td style={{ textAlign:'center', color:'var(--text-muted)', fontSize:'12px' }}>{r.lantai}</td>
                       <td style={{ textAlign:'center', color:'var(--text-muted)', fontSize:'12px' }}>{r.lorong}</td>
-                      <td style={{ textAlign:'center' }}><ImagePlaceholder /></td>
+                      <td style={{ textAlign:'center' }}><ImagePlaceholder onClick={() => setImgPopup({ open:true, name:r.name, src:r.image || null })} /></td>
                       <td style={{ color:'var(--text-muted)', fontSize:'12.5px' }}>{r.updatedAt}</td>
                       <td>
                         <div className="action-btns" style={{ justifyContent:'center' }}>
@@ -199,6 +238,13 @@ export default function WarehouseInventoryPage() {
           <Pagination currentPage={safePage} total={filtered.length} pageSize={PAGE_SIZE} onPage={p => setPage(p)} label="items" />
         </div>
       )}
+
+      <ImageViewerModal
+        open={imgPopup.open}
+        name={imgPopup.name}
+        src={imgPopup.src}
+        onClose={() => setImgPopup(p => ({ ...p, open:false }))}
+      />
 
       {tab === 'stockopname' && (
         <div className="card" style={{ padding:'64px 32px', textAlign:'center' }}>

@@ -107,6 +107,22 @@ export default function EventStatusPage() {
     setStatusModal(false);
   }
 
+  function moveOrder(id, dir) {
+    setStatuses(ss => {
+      const sorted = [...ss].sort((a, b) => a.order - b.order);
+      const idx = sorted.findIndex(s => s.id === id);
+      const swapIdx = idx + dir;
+      if (swapIdx < 0 || swapIdx >= sorted.length) return ss;
+      const aOrder = sorted[idx].order;
+      const bOrder = sorted[swapIdx].order;
+      return ss.map(s => {
+        if (s.id === sorted[idx].id)   return { ...s, order: bOrder };
+        if (s.id === sorted[swapIdx].id) return { ...s, order: aOrder };
+        return s;
+      });
+    });
+  }
+
   function openDelete(id) { setDeleteTarget(id); setDeleteModal(true); }
   function confirmDelete() { setStatuses(ss => ss.filter(s => s.id !== deleteTarget)); setDeleteModal(false); }
 
@@ -158,9 +174,10 @@ export default function EventStatusPage() {
             <thead>
               <tr>
                 <SortTh label="Order"         colIndex={0} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width:70, textAlign:'center' }} />
+                <th style={{ width:80, textAlign:'center' }}>Edit Order</th>
                 <SortTh label="Status"        colIndex={1} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} />
                 <th style={{ width:100, textAlign:'center' }}>Show Scan</th>
-                <th style={{ width:110, textAlign:'center' }}>Action</th>
+                <th style={{ width:110, textAlign:'center' }}>Scan Action</th>
                 <SortTh label="Event Running" colIndex={4} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width:120, textAlign:'right' }} />
                 <SortTh label="Updated At"    colIndex={5} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width:120 }} />
                 <th style={{ width:100, textAlign:'center' }}>Action</th>
@@ -168,11 +185,33 @@ export default function EventStatusPage() {
             </thead>
             <tbody>
               {pageData.length === 0
-                ? <tr><td colSpan={7} style={{ textAlign:'center', padding:40, color:'var(--text-muted)' }}>No statuses found.</td></tr>
-                : pageData.map(r => (
+                ? <tr><td colSpan={8} style={{ textAlign:'center', padding:40, color:'var(--text-muted)' }}>No statuses found.</td></tr>
+                : pageData.map((r, idx) => (
                   <tr key={r.id}>
                     <td style={{ textAlign:'center' }}>
                       <span style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:28, height:28, background:'var(--brand-bg)', color:'var(--brand)', borderRadius:6, fontWeight:700, fontSize:13 }}>{r.order}</span>
+                    </td>
+                    <td style={{ textAlign:'center' }}>
+                      <div style={{ display:'inline-flex', flexDirection:'column', gap:2 }}>
+                        <button
+                          className="btn-icon"
+                          title="Move up"
+                          style={{ padding:'2px 5px', color: idx === 0 ? 'var(--border)' : 'var(--text-muted)' }}
+                          disabled={idx === 0}
+                          onClick={() => moveOrder(r.id, -1)}
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width:12, height:12 }}><polyline points="18 15 12 9 6 15"/></svg>
+                        </button>
+                        <button
+                          className="btn-icon"
+                          title="Move down"
+                          style={{ padding:'2px 5px', color: idx === pageData.length - 1 ? 'var(--border)' : 'var(--text-muted)' }}
+                          disabled={idx === pageData.length - 1}
+                          onClick={() => moveOrder(r.id, 1)}
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width:12, height:12 }}><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                      </div>
                     </td>
                     <td className="name-cell">{r.status}</td>
                     <td style={{ textAlign:'center' }}><ScanBadge show={r.showScan} /></td>

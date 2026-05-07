@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Modal from '../components/Modal';
 import Pagination from '../components/Pagination';
 import SortTh from '../components/SortTh';
@@ -34,6 +35,7 @@ const BADGE_COLORS = {
 };
 
 export default function CategoryPage() {
+  const navigate = useNavigate();
   const [categories,   setCategories]   = useState(initialCategories);
   const [nextId,       setNextId]       = useState(initialCategories.length + 1);
   const [query,        setQuery]        = useState('');
@@ -173,6 +175,9 @@ export default function CategoryPage() {
                         <td style={{ color:'var(--text-muted)', fontSize:'12.5px' }}>{fmtDate(r.updatedAt)}</td>
                         <td>
                           <div className="action-btns" style={{ justifyContent:'center' }}>
+                            <button className="btn-icon" title="View Detail" style={{ color:'var(--brand)' }} onClick={() => navigate(`/category-detail?id=${r.id}`)}>
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width:14, height:14 }}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            </button>
                             <button className="btn-icon edit"   title="Edit"   onClick={() => openEdit(r.id)}><IconEdit /></button>
                             <button className="btn-icon delete" title="Delete" onClick={() => openDelete(r.id)}><IconDelete /></button>
                           </div>

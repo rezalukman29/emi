@@ -138,6 +138,16 @@ body {
   border-left-color: var(--brand);
 }
 .nav-item svg { width: 15px; height: 15px; flex-shrink: 0; }
+.sidebar-version {
+  margin-top: auto;
+  padding: 18px 18px 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+  letter-spacing: .03em;
+  border-top: 1px solid var(--border);
+  margin-top: 16px;
+}
 
 /* =========================================================
    MAIN

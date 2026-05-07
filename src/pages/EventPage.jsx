@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Modal from '../components/Modal';
 import Pagination from '../components/Pagination';
@@ -206,7 +206,8 @@ export default function EventPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editingId,  setEditingId]  = useState(null);
   const [deletingId, setDeletingId] = useState(null);
-  const [form, setForm] = useState({ name:'', code:'', desc:'', start:'', finish:'', date:'', location:'' });
+  const [form, setForm] = useState({ name:'', code:'', desc:'', start:'', finish:'', date:'', location:'', pic:'', status:'', address:'', qrType:'', note:'', image:'' });
+  const imgInputRef = useRef(null);
 
   const pastEvents = useMemo(() => {
     let data = events.filter(e => e.type === 'past');
@@ -252,14 +253,15 @@ export default function EventPage() {
 
   function openNew() {
     setEditingId(null);
-    setForm({ name:'', code:'', desc:'', start:'', finish:'', date:'', location:'' });
+    const today = new Date().toISOString().slice(0, 10);
+    setForm({ name:'', code:'', desc:'', start:today, finish:'', date:'', location:'', pic:'', status:'', address:'', qrType:'', note:'', image:'' });
     setModalOpen(true);
   }
   function openEdit(id) {
     const r = events.find(e => e.id === id);
     if (!r) return;
     setEditingId(id);
-    setForm({ name:r.name, code:r.code, desc:r.desc, start:r.start, finish:r.finish, date:r.date, location:r.location });
+    setForm({ name:r.name, code:r.code, desc:r.desc, start:r.start, finish:r.finish, date:r.date, location:r.location, pic:r.pic||'', status:r.status||'', address:r.address||'', qrType:r.qrType||'', note:r.note||'', image:r.image||'' });
     setModalOpen(true);
   }
   function saveEvent() {
@@ -429,14 +431,15 @@ export default function EventPage() {
         open={modalOpen}
         title={editingId ? 'Edit Event' : 'New Event'}
         onClose={() => setModalOpen(false)}
-        size="lg"
+        size="xl"
         footer={
           <>
             <button className="btn-cancel-modal" onClick={() => setModalOpen(false)}><IconClose /> Cancel</button>
-            <button className="btn-save-modal"   onClick={saveEvent}><IconCheck /> Save</button>
+            <button className="btn-save-modal"   onClick={saveEvent}><IconCheck /> Save Event</button>
           </>
         }
       >
+        {/* GENERAL */}
         <div className="form-row">
           <div className="form-group">
             <label>Event Name <span style={{ color:'var(--red)' }}>*</span></label>
@@ -469,6 +472,100 @@ export default function EventPage() {
           <div className="form-group">
             <label>Location</label>
             <input type="text" placeholder="City or venue" value={form.location} onChange={setF('location')} />
+          </div>
+        </div>
+
+        {/* DETAILS */}
+        <div style={{ display:'flex', alignItems:'center', gap:8, margin:'20px 0 16px' }}>
+          <span style={{ width:8, height:8, borderRadius:'50%', background:'var(--green)', flexShrink:0 }} />
+          <span style={{ fontSize:11, fontWeight:700, color:'var(--text-muted)', letterSpacing:'.07em', textTransform:'uppercase' }}>Details</span>
+          <div style={{ flex:1, height:1, background:'var(--border)' }} />
+        </div>
+        <div className="form-row">
+          <div className="form-group">
+            <label>PIC</label>
+            <input type="text" placeholder="Person in charge" value={form.pic} onChange={setF('pic')} />
+          </div>
+          <div className="form-group">
+            <label>Status</label>
+            <select value={form.status} onChange={setF('status')}>
+              <option value="">— Select Status —</option>
+              {['Created by admin up','On preparing items','Finish setup','Waiting scan in','Event running','Waiting scan out','Finished','Postphone','Disable'].map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="form-row">
+          <div className="form-group">
+            <label>Address</label>
+            <input type="text" placeholder="Event location / address" value={form.address} onChange={setF('address')} />
+          </div>
+          <div className="form-group">
+            <label>QR Type</label>
+            <select value={form.qrType} onChange={setF('qrType')}>
+              <option value="">Select QR Type</option>
+              <option value="scan_in">Scan In</option>
+              <option value="scan_out">Scan Out</option>
+              <option value="scan_both">Scan In &amp; Out</option>
+              <option value="none">No Scan</option>
+            </select>
+          </div>
+        </div>
+
+        {/* ADDITIONAL */}
+        <div style={{ display:'flex', alignItems:'center', gap:8, margin:'20px 0 16px' }}>
+          <span style={{ width:8, height:8, borderRadius:'50%', background:'var(--red)', flexShrink:0 }} />
+          <span style={{ fontSize:11, fontWeight:700, color:'var(--text-muted)', letterSpacing:'.07em', textTransform:'uppercase' }}>Additional</span>
+          <div style={{ flex:1, height:1, background:'var(--border)' }} />
+        </div>
+        <div className="form-row" style={{ alignItems:'flex-start' }}>
+          <div className="form-group">
+            <label>Note</label>
+            <textarea placeholder="Any additional notes…" value={form.note} onChange={setF('note')} rows={4} />
+          </div>
+          <div className="form-group">
+            <label>Image</label>
+            <input ref={imgInputRef} type="file" accept="image/png,image/jpeg,image/gif" style={{ display:'none' }}
+              onChange={e => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = ev => setForm(f => ({ ...f, image: ev.target.result }));
+                reader.readAsDataURL(file);
+              }}
+            />
+            <div
+              onClick={() => imgInputRef.current?.click()}
+              style={{
+                border:'2px dashed var(--border)', borderRadius:10, padding:'20px 16px',
+                display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+                cursor:'pointer', background:'var(--bg)', gap:8, minHeight:130,
+                transition:'border-color .15s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.borderColor='var(--brand)'}
+              onMouseLeave={e => e.currentTarget.style.borderColor='var(--border)'}
+            >
+              {form.image
+                ? <img src={form.image} alt="preview" style={{ maxWidth:'100%', maxHeight:120, borderRadius:6, objectFit:'contain' }} />
+                : <>
+                    <div style={{ width:44, height:44, background:'var(--brand-bg)', borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="var(--brand)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width:22, height:22 }}>
+                        <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
+                        <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+                      </svg>
+                    </div>
+                    <span style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>Click to upload image</span>
+                    <span style={{ fontSize:11.5, color:'var(--text-muted)' }}>PNG, JPG, GIF up to 10MB</span>
+                  </>
+              }
+            </div>
+            {form.image && (
+              <button
+                onClick={() => setForm(f => ({ ...f, image: '' }))}
+                style={{ marginTop:6, fontSize:12, color:'var(--red)', background:'none', border:'none', cursor:'pointer', padding:0 }}
+              >Remove image</button>
+            )}
           </div>
         </div>
       </Modal>
