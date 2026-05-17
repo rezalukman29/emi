@@ -499,4 +499,8 @@ export const InventoryService = {
     const response = await ax.get(`v1/event-summary/${eventId}`);
     return response.data.data;
   },
+  getAreaDetail: async (id: any): Promise<APIResponse<any>> => {
+    const response = await ax.get(`/v1/area/${id}`);
+    return response.data;
+  },
 };

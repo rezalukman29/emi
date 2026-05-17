@@ -56,6 +56,7 @@ export default function AreaPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isModify, setIsModify] = useState(false);
   const [selected, setSelecetd] = useState(null);
+  const [areaDetail, setAreaDetail] = useState(null);
 
   const [sort, setSort] = useState("ASC");
   const [sortBy, setSortBy] = useState("name");
@@ -125,6 +126,18 @@ export default function AreaPage() {
     }
   };
 
+  const getAreaDetail = async (id) => {
+    try {
+      setIsLoading(true);
+      const response = await InventoryService.getAreaDetail(id);
+      setAreaDetail(response.data);
+      setIsLoading(false);
+      setSubAreaModal(true);
+    } catch (error) {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     getListArea();
   }, [sort, sortBy]);
@@ -169,8 +182,6 @@ export default function AreaPage() {
     setAreaModal(true);
   }
 
-
-
   function openDelete(id) {
     setDeleteTarget(id);
     setDeleteModal(true);
@@ -186,7 +197,7 @@ export default function AreaPage() {
       setIsLoading(true);
       await InventoryService.deleteArea(selected.id);
       toast("Success delete area", { type: "success" });
-      setSelecetd(null)
+      setSelecetd(null);
       getListArea();
       setIsLoading(false);
     } catch (error) {
@@ -416,7 +427,7 @@ export default function AreaPage() {
                           <button
                             className="btn-icon"
                             title="View sub areas"
-                            onClick={() => openSubAreas(r.id)}
+                            onClick={() => getAreaDetail(r.id)}
                           >
                             <IconFolder />
                           </button>
@@ -435,8 +446,8 @@ export default function AreaPage() {
                             className="btn-icon delete"
                             title="Delete"
                             onClick={() => {
-                              setSelecetd(r)
-                              setDeleteModal(true)
+                              setSelecetd(r);
+                              setDeleteModal(true);
                             }}
                           >
                             <IconDelete />
@@ -519,15 +530,15 @@ export default function AreaPage() {
       >
         <p className="confirm-msg">
           Are you sure you want to delete{" "}
-          <strong>&ldquo;{selected?.name}&rdquo;</strong>? This action
-          cannot be undone.
+          <strong>&ldquo;{selected?.name}&rdquo;</strong>? This action cannot be
+          undone.
         </p>
       </Modal>
 
       {/* Sub Areas Modal */}
       <Modal
         open={subAreaModal}
-        title={`Sub Areas — ${subAreaRecord?.name || ""}`}
+        title={`Sub Areas — ${areaDetail?.name || ""}`}
         onClose={() => setSubAreaModal(false)}
         size="lg"
         footer={
@@ -539,7 +550,7 @@ export default function AreaPage() {
           </button>
         }
       >
-        {subs.length === 0 ? (
+        {areaDetail?.list_sub_area?.length === 0 ? (
           <p
             style={{
               textAlign: "center",
@@ -559,7 +570,7 @@ export default function AreaPage() {
               padding: "4px 0",
             }}
           >
-            {subs.map((s, i) => (
+            {areaDetail?.list_sub_area?.map((s, i) => (
               <span
                 key={i}
                 style={{
@@ -575,7 +586,7 @@ export default function AreaPage() {
                   color: "var(--text-2)",
                 }}
               >
-                {s}
+                {s?.sub_area_name}
               </span>
             ))}
           </div>
@@ -587,7 +598,8 @@ export default function AreaPage() {
             marginTop: 14,
           }}
         >
-          {subs.length} sub area{subs.length !== 1 ? "s" : ""} in{" "}
+          {areaDetail?.list_sub_area?.length} sub area
+          {areaDetail?.list_sub_area?.length !== 1 ? "s" : ""} in{" "}
           <strong>{subAreaRecord?.name}</strong>
         </p>
       </Modal>
