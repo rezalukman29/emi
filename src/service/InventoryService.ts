@@ -238,6 +238,8 @@ export const InventoryService = {
       params: {
         sort: filter.sort,
         sort_by: filter.sortBy,
+        page: 1,
+        limit: 999
       },
     });
     return response.data;

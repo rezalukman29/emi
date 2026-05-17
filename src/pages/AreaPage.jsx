@@ -50,8 +50,6 @@ export default function AreaPage() {
   const [areas, setAreas] = useState(initialAreas);
   const [nextId, setNextId] = useState(16);
   const [query, setQuery] = useState("");
-  const [sortCol, setSortCol] = useState(-1);
-  const [sortAsc, setSortAsc] = useState(true);
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [isModify, setIsModify] = useState(false);
@@ -182,10 +180,6 @@ export default function AreaPage() {
     setAreaModal(true);
   }
 
-  function openDelete(id) {
-    setDeleteTarget(id);
-    setDeleteModal(true);
-  }
   function openSubAreas(id) {
     setSubAreaTarget(id);
     setSubAreaModal(true);
@@ -207,8 +201,6 @@ export default function AreaPage() {
   };
 
   const subAreaRecord = areas.find((x) => x.id === subAreaTarget);
-  const subs = subAreaRecord ? SUB_AREAS[subAreaRecord.name] || [] : [];
-  const deleteRecord = areas.find((x) => x.id === deleteTarget);
 
   const totalSubAreas = areas.reduce((acc, arr) => acc + arr.total_sub_area, 0);
 

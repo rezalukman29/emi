@@ -4,7 +4,12 @@ import { APIResponse } from "../../interfaces/BaseApiResponse";
 import ax from "../../service/axios";
 
 export const getAreaList = async (): Promise<APIResponse<any>> => {
-  const response = await ax.get(`/v1/area`);
+  const response = await ax.get(`/v1/area`, {
+    params: {
+      sort: "ASC",
+      sort_by: "name",
+    },
+  });
   return response.data;
 };
 
