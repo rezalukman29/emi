@@ -11,9 +11,13 @@ import {
   IconCheck,
 } from "../components/icons";
 import { initialAreas, SUB_AREAS } from "../data/areas";
-import useGetAreaList from "../hooks/api/useGetAreaList";
+import Loading from "../components/Loading";
 import { useAreaController } from "./lib/useAreaController";
 import { InventoryService } from "../service/InventoryService";
+import { toast } from "react-toastify";
+import TextInput from "../components/TextInput";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 
 const PAGE_SIZE = 10;
 
@@ -67,7 +71,7 @@ export default function SubAreaPage() {
   const [sortCol, setSortCol] = useState(-1);
   const [sortAsc, setSortAsc] = useState(true);
   const [page, setPage] = useState(1);
-console.log(areaFilter)
+
   const [isLoading, setIsLoading] = useState(false);
   const [isModify, setIsModify] = useState(false);
   const [selected, setSelecetd] = useState(null);
@@ -80,7 +84,7 @@ console.log(areaFilter)
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [form, setForm] = useState({ name: "", area: "" });
 
-  const { areas } = useAreaController();
+  const { areas, areaOptions } = useAreaController();
 
   const getListSubArea = async () => {
     try {
@@ -101,12 +105,54 @@ console.log(areaFilter)
     }
   };
 
-
+  const formik = useFormik({
+    initialValues: {
+      area_id: isModify ? selected.area_id?.toString() : "",
+      sub_area_name: isModify ? selected.sub_area_name : "",
+    },
+    validationSchema: Yup.object({
+      area_id: Yup.string().required("Required"),
+      sub_area_name: Yup.string().required("Required"),
+    }),
+    validateOnChange: false,
+    enableReinitialize: true,
+    onSubmit: async (values) => {
+      setIsLoading(true);
+      setSubAreaModal(false);
+      const payload = {
+        area_id: Number(values.area_id),
+        sub_area_name: values.sub_area_name,
+      };
+      if (isModify) {
+        const result = await InventoryService.editSubArea({
+          ...payload,
+          id: selected.id,
+        });
+        if (result.success) {
+          setTimeout(() => {
+            setProductDialog(false);
+          }, 200);
+          toast("Success modify sub area", { type: "success" });
+        }
+      } else {
+        const result = await InventoryService.addSubArea(payload);
+        if (result.success) {
+          setTimeout(() => {
+            setProductDialog(false);
+          }, 200);
+          toast("Success adding sub area", { type: "success" });
+        }
+      }
+      setIsModify(false);
+      setIsLoading(false);
+      getListSubArea();
+      formik.resetForm();
+    },
+  });
 
   useEffect(() => {
     getListSubArea();
   }, [sort, sortBy]);
-
 
   const areaNames = useMemo(
     () =>
@@ -121,11 +167,11 @@ console.log(areaFilter)
         !q ||
         r.area_name.toLowerCase().includes(q) ||
         r.sub_area_name.toLowerCase().includes(q);
-      const mA = !areaFilter || r.area === areaFilter;
+      const mA = !areaFilter || Number(r.area_id) === Number(areaFilter);
       return mQ && mA;
     });
     return data;
-  }, [subAreas, query]);
+  }, [subAreas, query, areaFilter]);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const safePage = Math.min(page, Math.max(1, totalPages));
@@ -206,6 +252,7 @@ console.log(areaFilter)
 
   return (
     <>
+      {isLoading && <Loading />}
       <div
         style={{
           display: "flex",
@@ -282,9 +329,9 @@ console.log(areaFilter)
                 }}
               >
                 <option value="">All Areas</option>
-                {areaNames.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
+                {areaOptions.map((n) => (
+                  <option key={n.value} value={n.value}>
+                    {n.label}
                   </option>
                 ))}
               </select>
@@ -384,7 +431,11 @@ console.log(areaFilter)
                         <button
                           className="btn-icon edit"
                           title="Edit"
-                          onClick={() => openEdit(r.id)}
+                          onClick={() => {
+                            setSubAreaModal(true);
+                            setSelecetd(r);
+                            setIsModify(true);
+                          }}
                         >
                           <IconEdit />
                         </button>
@@ -424,38 +475,50 @@ console.log(areaFilter)
             >
               <IconClose /> Cancel
             </button>
-            <button className="btn-save-modal" onClick={save}>
+            <button
+              className="btn-save-modal"
+              type="submit"
+              onClick={() => formik.handleSubmit()}
+            >
               <IconCheck /> Save
             </button>
           </>
         }
       >
-        <div className="form-group">
-          <label>
-            Sub Area Name <span style={{ color: "var(--red)" }}>*</span>
-          </label>
-          <input
-            type="text"
-            placeholder="e.g. Altar Setup"
-            value={form.name}
-            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-          />
-        </div>
+        <TextInput
+          value={formik.values.sub_area_name}
+          onChange={(e) => formik.setFieldValue("sub_area_name", e)}
+          isRequired
+          label="SUB AREA NAME"
+          placeholder="e.g. Altar Setup"
+          errorText={formik.errors.sub_area_name}
+        />
         <div className="form-group">
           <label>
             Parent Area <span style={{ color: "var(--red)" }}>*</span>
           </label>
           <select
-            value={form.area}
-            onChange={(e) => setForm((f) => ({ ...f, area: e.target.value }))}
+            onChange={(e) => formik.setFieldValue("area_id", e.target.value)}
+            value={formik.values.area_id}
+            style={{
+              ...(formik.errors.area_id && {
+                borderWidth: 1,
+                borderColor: "var(--red)",
+              }),
+            }}
           >
             <option value="">— Select Area —</option>
-            {areaNames.map((n) => (
-              <option key={n} value={n}>
-                {n}
+            {areaOptions.map((n) => (
+              <option key={n.value} value={n.value}>
+                {n.label}
               </option>
             ))}
           </select>
+          {formik.errors.area_id?.trim() && (
+            <span style={{ color: "var(--red)", fontSize: 12 }}>
+              {formik.errors.area_id}
+            </span>
+          )}
         </div>
       </Modal>
 
