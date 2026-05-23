@@ -1,13 +1,13 @@
-import { IconChevronsLeft, IconChevronLeft, IconChevronRight, IconChevronsRight } from './icons';
+import { IconChevronsLeft, IconChevronLeft, IconChevronRight, IconChevronsRight } from './icons.js';
 
-function visiblePages(cur, total) {
+function visiblePages(cur: any, total: any) {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
   if (cur <= 4) return [1, 2, 3, 4, 5, '...', total];
   if (cur >= total - 3) return [1, '...', total - 4, total - 3, total - 2, total - 1, total];
   return [1, '...', cur - 1, cur, cur + 1, '...', total];
 }
 
-export default function Pagination({ currentPage, total, pageSize, onPage, label }) {
+export default function Pagination({ currentPage, total, pageSize, onPage, label }: any) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const from = (currentPage - 1) * pageSize + 1;
   const to = Math.min(currentPage * pageSize, total);

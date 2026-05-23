@@ -9,7 +9,7 @@ export const useAreaController = () => {
   });
 
   const areaOptions = useMemo(() => {
-    return areas?.data?.data?.length ? areas?.data?.data?.map((el) => {
+    return areas?.data?.data?.length ? areas?.data?.data?.map((el: any) => {
       return {
         value: el.id.toString(),
         label: el.name,
