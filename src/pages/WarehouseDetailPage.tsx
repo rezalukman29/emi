@@ -150,13 +150,8 @@ export default function WarehouseDetailPage() {
     );
   }
 
-  const items = useMemo(() => {
-    if (!data) {
-      return [];
-    } else {
-      return data?.data;
-    }
-  }, [data]);
+  const items = data?.data ?? []
+  console.log(items)
   const totalItems = items.reduce((a: any, i: any) => a + i.stok, 0);
   const lowStockCount = items.filter(
     (i: any) => i.status === "Low Stock"
@@ -202,7 +197,7 @@ export default function WarehouseDetailPage() {
           Back
         </button>
         <h1 className="page-title" style={{ margin: 0, flex: 1 }}>
-          {warehouse.nama_barang}
+          {warehouse.nama}
         </h1>
         <button
           className="btn-icon edit"
@@ -368,7 +363,7 @@ export default function WarehouseDetailPage() {
               <tbody>
                 {items.map((item: any, i: number) => (
                   <tr key={i}>
-                    <td className="name-cell">{item.name}</td>
+                    <td className="name-cell">{item.nama_barang}</td>
                     <td className="id-cell">{item.kode}</td>
                     <td
                       style={{
