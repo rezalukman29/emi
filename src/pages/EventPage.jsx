@@ -307,7 +307,7 @@ export default function EventPage() {
       enabled: true,
     },
   });
-  console.log(formik.values);
+
   const pastEvents = useMemo(() => {
     let data = pasts?.data?.data;
     if (pastQuery) {
@@ -574,7 +574,6 @@ export default function EventPage() {
             className="btn-icon edit"
             title="Edit"
             onClick={() => {
-              console.log("hooo");
               setIsModify(true);
               setEvent(r);
               setModalOpen(true);
