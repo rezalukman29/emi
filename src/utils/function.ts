@@ -14,3 +14,9 @@ export const isValidUrl = (urlString: string) => {
   ); // validate fragment locator
   return !!urlPattern.test(urlString);
 };
+
+export const currency = (value: number) => {
+  if (!value) return "";
+
+  return new Intl.NumberFormat("id-ID").format(value);
+};
