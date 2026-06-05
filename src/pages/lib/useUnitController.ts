@@ -3,7 +3,7 @@ import useGetAreaList from "../../hooks/api/useGetAreaList";
 import useGetUnit from "../../hooks/api/useGetUnit";
 
 export const useUnitController = () => {
-  const { data } = useGetUnit({
+  const { data, refetch } = useGetUnit({
     options: {
       enabled: true,
     },
@@ -20,6 +20,7 @@ export const useUnitController = () => {
 
   return {
     units: data?.data ?? [],
-    unitOptions
+    unitOptions,
+    refetchUnit: refetch
   };
 };

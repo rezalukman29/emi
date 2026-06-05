@@ -3,7 +3,7 @@ import useGetAreaList from "../../hooks/api/useGetAreaList";
 import useGetItemCategory from "../../hooks/api/useGetItemCategory";
 
 export const useCategoryController = () => {
-  const { data } = useGetItemCategory({
+  const { data, refetch } = useGetItemCategory({
     options: {
       enabled: true,
     },
@@ -20,6 +20,7 @@ export const useCategoryController = () => {
 
   return {
     categories: data?.data?.data,
-    categoryOptions
+    categoryOptions,
+    refetchCategory: refetch
   };
 };
