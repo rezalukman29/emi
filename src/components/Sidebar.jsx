@@ -42,6 +42,13 @@ const SECTIONS = [
     ],
   },
   {
+    label: 'AI Tools',
+    items: [
+      { to: '/ai-material-analyzer', label: 'Material Analyzer',
+        icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> },
+    ],
+  },
+  {
     label: 'System',
     items: [
       { to: '/log', label: 'Log',

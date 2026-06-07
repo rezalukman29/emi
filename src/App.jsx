@@ -19,6 +19,7 @@ import CategoryDetailPage from "./pages/CategoryDetailPage";
 import UnitPage from "./pages/UnitPage";
 import UnitDetailPage from "./pages/UnitDetailPage";
 import PlaceholderPage from "./pages/PlaceholderPage";
+import AiMaterialAnalyzerPage from "./pages/AiMaterialAnalyzerPage";
 import { ToastContainer } from "react-toastify";
 import LoginPage from "./pages/Login";
 import { Provider } from "react-redux";
@@ -74,6 +75,7 @@ export default function App() {
                 path="qr-code"
                 element={<PlaceholderPage title="QR Code" />}
               />
+              <Route path="ai-material-analyzer" element={<AiMaterialAnalyzerPage />} />
               <Route path="log" element={<PlaceholderPage title="Log" />} />
               <Route path="users" element={<PlaceholderPage title="Users" />} />
               <Route path="*" element={<Navigate to="/event" replace />} />
