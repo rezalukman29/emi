@@ -6,6 +6,7 @@ import {
   IconPlus,
   IconDelete,
   IconClose,
+  IconCheck,
 } from "../components/icons";
 import { wiData } from "../data/warehouseInventory";
 import { SortType } from "../interfaces/interfaces";
@@ -18,8 +19,48 @@ import {
   noImage,
 } from "../utils/function";
 import moment from "moment";
+import Modal from "../components/Modal";
+import { initialWarehouses } from "../data/warehouses";
+import { useFormik } from "formik";
+import * as Yup from "yup";
+import { toast } from "react-toastify";
+import { APIResponse } from "../interfaces/BaseApiResponse";
+import TextInput from "../components/TextInput";
+import { useWarehouseController } from "./lib/useWarehouseController";
 
 const PAGE_SIZE = 10;
+
+function tokenizeKeyword(value: any) {
+  return value.toLowerCase().trim().split(/\s+/).filter(Boolean);
+}
+
+function ItemThumb({ name }: any) {
+  const initials =
+    name
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part: any) => part[0]?.toUpperCase())
+      .join("") || "IT";
+  const hue =
+    name
+      .split("")
+      .reduce((sum: any, char: any) => sum + char.charCodeAt(0), 0) % 360;
+
+  return (
+    <div
+      className="inventory-item-thumb"
+      style={{
+        background: `linear-gradient(135deg, hsl(${hue} 55% 90%), hsl(${
+          (hue + 36) % 360
+        } 55% 76%))`,
+      }}
+      aria-hidden="true"
+    >
+      <span>{initials}</span>
+    </div>
+  );
+}
 
 function statusBadge(s: any) {
   if (s === "Safe") return <span className="badge badge-green">Safe</span>;
@@ -171,6 +212,7 @@ function ImageViewerModal({ open, name, src, onClose }: any) {
 }
 
 export default function WarehouseInventoryPage() {
+  const [inventoryRows, setInventoryRows] = useState(wiData);
   const [tab, setTab] = useState("inventory");
   const [query, setQuery] = useState("");
   const [warehouseFilter, setWarehouseFilter] = useState("");
@@ -184,6 +226,42 @@ export default function WarehouseInventoryPage() {
     src: null,
   });
 
+  const [modalOpen, setModalOpen] = useState(false);
+  const [itemSearchDraft, setItemSearchDraft] = useState("");
+  const [itemSearch, setItemSearch] = useState("");
+  const [selectedItemId, setSelectedItemId] = useState(null);
+  const [inventory, setInventory] = useState<any | null>(null);
+
+  const [form, setForm] = useState({
+    stock: "",
+    stokMin: "",
+    kode: "",
+    rack: "",
+    lantai: "",
+    lorong: "",
+    flag1: "",
+    flag2: "",
+    valuation: "",
+    warehouseName: "",
+  });
+
+  const { warehouseOptions } = useWarehouseController();
+
+  const warehouseNames = useMemo(() => {
+    const names = new Set([
+      ...inventoryRows.map((r) => r.warehouseName),
+      ...initialWarehouses.map((r: any) => r.name),
+    ]);
+    return [...names].filter(Boolean).sort();
+  }, [inventoryRows]);
+
+  const itemSearchTokens = useMemo(
+    () => tokenizeKeyword(itemSearch),
+    [itemSearch]
+  );
+  const draftKeyword = itemSearchDraft.trim();
+  const hasPendingItemSearch = itemSearch !== itemSearchDraft;
+
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isLoadingPrint, setIsLoadingPrint] = useState<boolean>(false);
   const [isModify, setIsModify] = useState<boolean>(false);
@@ -196,11 +274,105 @@ export default function WarehouseInventoryPage() {
   const [first, setFirst] = useState<number>(0);
   const [listCategory, setListCategory] = useState<ISelect[]>([]);
   const [barang, setBarang] = useState<any | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
   const [base64, setBase64] = useState<string>();
   const [selectedGudang, setSelectedGudang] = useState<any>({
     value: "All",
     label: "All warehouse",
+  });
+  const [listInventory, setListInventory] = useState<any[]>([]);
+
+  const formik = useFormik<any>({
+    initialValues: {
+      stok: isModify ? barang.stok_barang.toString() : "",
+      gudang_id: isModify ? barang.gudang_id.toString() : "",
+      kode: isModify ? barang.kode_gudang : "",
+      keyname: isModify ? barang.keyname : "",
+      asile: isModify ? barang.asile : "",
+      rack: isModify ? barang.asile : "",
+      level: isModify ? barang.level : "",
+      stok_minimum: isModify ? barang.stok_minimum.toString() : "",
+      lantai: isModify ? barang.lantai : "",
+      lorong: isModify ? barang.lorong : "",
+      flag_1: isModify ? barang.flag_1 : "",
+      flag_2: isModify ? barang.flag_2 : "",
+      valuation: isModify ? barang.valuation : "",
+    },
+    validationSchema: Yup.object({
+      stok: Yup.string().required("Required"),
+      gudang_id: Yup.string().required("Required"),
+      stok_minimum: Yup.string().required("Required"),
+    }),
+    validateOnChange: false,
+    enableReinitialize: true,
+    onSubmit: async (values) => {
+      if (!inventory) {
+        return toast("Please select item", { type: "error" });
+      }
+      setModalOpen(false);
+      setIsLoading(true);
+      const payload = {
+        ...values,
+        barang_id: inventory?.id,
+        gudang_id: Number(values.gudang_id),
+        stok: Number(values.stok),
+        stok_minimum: Number(values.stok_minimum),
+        code: values.kode,
+      };
+      setModalOpen(false);
+      if (isModify) {
+        try {
+          delete payload.kode;
+          const result: APIResponse<any> =
+            await InventoryService.editBarangGudang({
+              ...payload,
+              id: barang.barang_gudang_id,
+            });
+          if (result.success) {
+            toast("Modify warehouse item", { type: "success" });
+            setIsModify(false);
+            formik.resetForm();
+            setBarang(null);
+            setIsLoading(false);
+            getInventoryList();
+          }
+        } catch (error: any) {
+          setIsLoading(false);
+          if (
+            error.response.data.message ===
+            "Error 1062: Duplicate entry '123' for key 'barang.code'"
+          ) {
+            formik.setFieldError("code", error.response.data.message);
+          }
+          toast(error.response.data.message, { type: "error" });
+        }
+      } else {
+        try {
+          const result: APIResponse<any> =
+            await InventoryService.addBarangGudang(payload);
+          if (result.success) {
+            toast("Adding warehouse item", { type: "success" });
+            setIsModify(false);
+            formik.resetForm();
+            setBarang(null);
+            setIsLoading(false);
+            setInventory(null);
+            getInventoryList();
+            setItemSearch("");
+            setItemSearchDraft("");
+          }
+        } catch (error: any) {
+          setIsLoading(false);
+          if (
+            error.response.data.message ===
+            "Error 1062: Duplicate entry '123' for key 'barang.code'"
+          ) {
+            formik.setFieldError("code", error.response.data.message);
+          }
+
+          toast(error.response.data.message, { type: "error" });
+        }
+      }
+    },
   });
 
   const getInventoryList = async (size?: number) => {
@@ -232,57 +404,7 @@ export default function WarehouseInventoryPage() {
     getInventoryList();
   }, [page, sort, sortBy]);
 
-  const warehouseNames = useMemo(
-    () => [...new Set(wiData.map((r) => r.warehouseName))].sort(),
-    []
-  );
-  const sortKeys = [
-    "name",
-    "warehouseStock",
-    "warehouseName",
-    "itemStock",
-    "stokMin",
-    "stokUsed",
-    "valuation",
-    "totalValuation",
-    "minStatus",
-    "flag1",
-    "flag2",
-    "asile",
-    "rack",
-    "level",
-    "lantai",
-    "lorong",
-    "updatedAt",
-  ];
-
-  const filtered = useMemo(() => {
-    const q = query.toLowerCase();
-    const key = sortKeys[sortCol] || "name";
-    return wiData
-      .filter((r) => {
-        const mQ =
-          !q ||
-          r.name.toLowerCase().includes(q) ||
-          r.warehouseName.toLowerCase().includes(q);
-        const mW = !warehouseFilter || r.warehouseName === warehouseFilter;
-        const mS = !statusFilter || r.minStatus === statusFilter;
-        return mQ && mW && mS;
-      })
-      .sort((a: any, b: any) => {
-        const va = String(a[key] ?? ""),
-          vb = String(b[key] ?? "");
-        return sortAsc
-          ? va.localeCompare(vb, undefined, { numeric: true })
-          : vb.localeCompare(va, undefined, { numeric: true });
-      });
-  }, [query, warehouseFilter, statusFilter, sortCol, sortAsc]);
-
   const safePage = Math.min(page, totalPages);
-  const pageData = filtered.slice(
-    (safePage - 1) * PAGE_SIZE,
-    safePage * PAGE_SIZE
-  );
 
   function handleSort(col: any) {
     if (sortCol === col) setSortAsc((a) => !a);
@@ -296,6 +418,51 @@ export default function WarehouseInventoryPage() {
   const safeCount = wiData.filter((r) => r.minStatus === "Safe").length;
   const warningCount = wiData.filter((r) => r.minStatus === "Warning").length;
   const criticalCount = wiData.filter((r) => r.minStatus === "Critical").length;
+
+  function closeModal() {
+    setModalOpen(false);
+    setItemSearchDraft("");
+    setItemSearch("");
+    formik.resetForm();
+  }
+
+  function clearItemSearch() {
+    setItemSearchDraft("");
+    setItemSearch("");
+    getBarang(true);
+    setSelectedItemId(null);
+  }
+
+  const hasActiveItemSearch = itemSearchTokens.length > 0;
+
+  function openModal() {
+    setSelectedItemId(null);
+    formik.resetForm();
+    setItemSearchDraft("");
+    setItemSearch("");
+    setModalOpen(true);
+  }
+
+  const getBarang = async (resetSearch?: boolean) => {
+    try {
+      const response = await InventoryService.getInventory({
+        sort: "ASC",
+        page: 1,
+        limit: 50,
+        search: resetSearch ? "" : itemSearchDraft,
+        sortBy: "nama",
+      });
+      setListInventory(response.data.data);
+      !resetSearch && setItemSearch(itemSearchDraft);
+    } catch (error) {}
+  };
+
+  useEffect(() => {
+    getBarang(true);
+  }, []);
+
+  const selectedItem =
+    listInventory.find((item) => item.id === selectedItemId) || null;
 
   return (
     <>
@@ -420,7 +587,7 @@ export default function WarehouseInventoryPage() {
               <button className="btn-search">Search</button>
             </div>
             <div className="toolbar-right">
-              <button className="btn-new">
+              <button className="btn-new" onClick={openModal}>
                 <IconPlus /> New
               </button>
             </div>
@@ -784,6 +951,228 @@ export default function WarehouseInventoryPage() {
         src={imgPopup.src}
         onClose={() => setImgPopup((p) => ({ ...p, open: false }))}
       />
+
+      <Modal
+        open={modalOpen}
+        title="Add Warehouse Item"
+        onClose={closeModal}
+        size="xl"
+        footer={
+          <>
+            <button className="btn-cancel-modal" onClick={closeModal}>
+              <IconClose /> Cancel
+            </button>
+            <button
+              className="btn-save-modal"
+              type="submit"
+              onClick={() => formik.handleSubmit()}
+            >
+              <IconCheck /> Save Item
+            </button>
+          </>
+        }
+      >
+        <div className="inventory-modal-search-row">
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label>Keywords</label>
+            <input
+              type="text"
+              value={itemSearchDraft}
+              placeholder="Search by item name, e.g. acrylic ball"
+              onChange={(e) => setItemSearchDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  getBarang();
+                }
+              }}
+            />
+          </div>
+          <button
+            className="btn-search inventory-modal-search-btn"
+            onClick={() => getBarang()}
+          >
+            <IconSearch /> Search
+          </button>
+        </div>
+
+        <div className="inventory-search-feedback">
+          {hasPendingItemSearch ? (
+            <>
+              <span className="inventory-search-count">
+                Search not applied yet
+              </span>
+              {draftKeyword && (
+                <span className="inventory-search-chip">"{draftKeyword}"</span>
+              )}
+              <button
+                type="button"
+                className="inventory-search-clear"
+                onClick={clearItemSearch}
+              >
+                Reset
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="inventory-search-count">
+                {listInventory.length} item
+                {listInventory.length === 1 ? "" : "s"} found
+              </span>
+              {hasActiveItemSearch && (
+                <span className="inventory-search-chip">"{itemSearch}"</span>
+              )}
+              {(hasActiveItemSearch || itemSearchDraft) && (
+                <button
+                  type="button"
+                  className="inventory-search-clear"
+                  onClick={clearItemSearch}
+                >
+                  Clear
+                </button>
+              )}
+            </>
+          )}
+        </div>
+
+        <div
+          className="inventory-item-grid"
+          role="list"
+          aria-label="Inventory item list"
+        >
+          {listInventory.length === 0 ? (
+            <div className="inventory-search-empty">
+              <strong>No matching items</strong>
+              <span>
+                Try a shorter keyword or clear the search to browse all items.
+              </span>
+            </div>
+          ) : (
+            listInventory.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={`inventory-item-card${
+                  item.id === selectedItemId ? " selected" : ""
+                }`}
+                onClick={() => {
+                  if (item.stok_barang === 0) {
+                    toast("No stock", { type: "error" });
+                  } else {
+                    setSelectedItemId(item.id);
+                    setInventory(item);
+                  }
+                }}
+              >
+                <ItemThumb name={item.nama} />
+                <span className="inventory-item-meta">
+                  <span className="inventory-item-name">{item.nama}</span>
+                  <span className="inventory-item-stock">
+                    Stok: {item.stok_barang}
+                  </span>
+                </span>
+              </button>
+            ))
+          )}
+        </div>
+
+        <div className="inventory-selected-item">
+          <span>Selected Item</span>
+          <strong>{selectedItem?.nama || "No item selected"}</strong>
+        </div>
+
+        <div className="inventory-form-grid">
+          <TextInput
+            value={formik.values.stok}
+            onChange={(e) => formik.setFieldValue("stok", e)}
+            isRequired
+            label="Stok"
+            placeholder=""
+            errorText={formik.errors.stok as string}
+            isNumeric
+          />
+          <TextInput
+            value={formik.values.stok_minimum}
+            onChange={(e) => formik.setFieldValue("stok_minimum", e)}
+            isRequired
+            label="Stok Minimum"
+            placeholder=""
+            errorText={formik.errors.stok_minimum as string}
+            isNumeric
+          />
+          <TextInput
+            value={formik.values.kode}
+            onChange={(e) => formik.setFieldValue("kode", e)}
+            label="Kode"
+            placeholder=""
+          />
+          <TextInput
+            value={formik.values.rack}
+            onChange={(e) => formik.setFieldValue("rack", e)}
+            label="Rack"
+            placeholder=""
+          />
+          <TextInput
+            value={formik.values.lantai}
+            onChange={(e) => formik.setFieldValue("lantai", e)}
+            label="Lantai"
+            placeholder=""
+          />
+          <TextInput
+            value={formik.values.lorong}
+            onChange={(e) => formik.setFieldValue("lorong", e)}
+            label="Lorong"
+            placeholder=""
+          />
+          <TextInput
+            value={formik.values.flag_1}
+            onChange={(e) => formik.setFieldValue("flag_1", e)}
+            label="Flag 1"
+            placeholder=""
+          />
+          <TextInput
+            value={formik.values.flag_2}
+            onChange={(e) => formik.setFieldValue("flag_2", e)}
+            label="Flag 1"
+            placeholder=""
+          />
+          <TextInput
+            value={currency(Number(formik.values.valuation))}
+            onChange={(e) => formik.setFieldValue("valuation", e)}
+            label="Valuation"
+            placeholder=""
+          />
+          <div className="form-group">
+            <label>
+              Warehouse <span style={{ color: "var(--red)" }}>*</span>
+            </label>
+            <select
+              onChange={(e) =>
+                formik.setFieldValue("gudang_id", e.target.value)
+              }
+              value={formik.values.gudang_id}
+              style={{
+                ...(!formik.values.gudang_id && {
+                  borderWidth: 1,
+                  borderColor: "var(--red)",
+                }),
+              }}
+            >
+              <option value="">Select warehouse</option>
+              {warehouseOptions?.map((item: any, idx: number) => (
+                <option key={`${idx}_${item.value}`} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+            {(formik.errors.gudang_id as string)?.trim() && (
+              <span style={{ color: "var(--red)", fontSize: 12 }}>
+                {formik.errors.gudang_id as string}
+              </span>
+            )}
+          </div>
+        </div>
+      </Modal>
 
       {tab === "stockopname" && (
         <div

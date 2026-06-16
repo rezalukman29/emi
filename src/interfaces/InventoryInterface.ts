@@ -102,7 +102,7 @@ export interface InventoryFilterPropsI {
   category?: string;
   page: number;
   limit: number;
-  order: string;
+  order?: string;
   search?: string;
   sort?: string;
   sortBy?: string;

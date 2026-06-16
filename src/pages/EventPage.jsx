@@ -813,13 +813,13 @@ export default function EventPage() {
         {[
           {
             label: "Total Events",
-            value: upcomings?.data?.total_records + pasts?.data?.total_records,
+            value: (upcomings?.data?.total_records ?? 0) + pasts?.data?.total_records ,
             color: "var(--brand)",
             bg: "var(--brand-bg)",
           },
           {
             label: "Upcoming",
-            value: upcomings?.data?.total_records,
+            value: (upcomings?.data?.total_records ?? 0),
             color: "var(--green)",
             bg: "var(--green-bg)",
           },
