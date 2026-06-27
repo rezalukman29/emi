@@ -192,6 +192,16 @@ export const InventoryService = {
     const response = await ax.put(`/v1/barang`, data);
     return response.data;
   },
+  editBarangAITuneUp: async (data: {
+    id: number;
+    detail: string;
+    harga_rata_rata: string;
+    cara_pemakaian: string;
+    hal_perlu_diperhatikan: string;
+  }): Promise<APIResponse<any>> => {
+    const response = await ax.put(`/v1/barang/ai-tuneup`, data);
+    return response.data;
+  },
   deleteBarang: async (id: any): Promise<APIResponse<any>> => {
     const response = await ax.delete(`/v1/barang/${id}`);
     return response.data;
