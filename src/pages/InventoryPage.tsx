@@ -9,9 +9,11 @@ import {
   IconDelete,
   IconClose,
   IconCheck,
+  IconMagic,
 } from "../components/icons";
 import { SortType } from "../interfaces/interfaces";
 import { InventoryService } from "../service/InventoryService";
+import { AiService } from "../service/AiService";
 import { useCategoryController } from "./lib/useCategoryController";
 import moment from "moment";
 import { STORAGE_BOOQABLE, isValidUrl, noImage } from "../utils/function";
@@ -459,6 +461,26 @@ export default function InventoryPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [base64, setBase64] = useState<string>();
 
+  const emptyAiEdited = {
+    detail: "",
+    harga_rata_rata: "",
+    cara_pemakaian: "",
+    hal_perlu_diperhatikan: "",
+  };
+  const [aiTuneup, setAiTuneup] = useState<{
+    open: boolean;
+    loading: boolean;
+    saving: boolean;
+    barang: any | null;
+    edited: typeof emptyAiEdited;
+  }>({
+    open: false,
+    loading: false,
+    saving: false,
+    barang: null,
+    edited: emptyAiEdited,
+  });
+
   const sortKeys = [
     "name",
     "sku",
@@ -501,17 +523,17 @@ export default function InventoryPage() {
   const safePage = Math.min(page, totalPages);
   const pageData = filtered.slice(
     (safePage - 1) * PAGE_SIZE,
-    safePage * PAGE_SIZE
+    safePage * PAGE_SIZE,
   );
 
   const availableCount = inventoryData.filter(
-    (r) => r.stockStatus === "Available"
+    (r) => r.stockStatus === "Available",
   ).length;
   const lowStockCount = inventoryData.filter(
-    (r) => r.stockStatus === "Low Stock"
+    (r) => r.stockStatus === "Low Stock",
   ).length;
   const outOfStockCount = inventoryData.filter(
-    (r) => r.stockStatus === "Out of Stock"
+    (r) => r.stockStatus === "Out of Stock",
   ).length;
 
   const getInventoryList = async (size?: number) => {
@@ -632,6 +654,85 @@ export default function InventoryPage() {
       }
     },
   });
+
+  const handleAITuneUp = async (r: any) => {
+    if (!r.nama) {
+      toast("Nama produk harus diisi sebelum menggunakan AI tune-up.", {
+        type: "warning",
+      });
+      return;
+    }
+    if (!r.photo) {
+      toast("Foto produk harus diupload sebelum menggunakan AI tune-up.", {
+        type: "warning",
+      });
+      return;
+    }
+
+    const photoUrl = isValidUrl(r.photo)
+      ? r.photo?.replace("http://66.42.48.163:9000/booqable/", STORAGE_BOOQABLE)
+      : `https://democreation.site/home/public/${r.photo}`;
+
+    setAiTuneup({
+      open: true,
+      loading: true,
+      saving: false,
+      barang: r,
+      edited: {
+        detail: r.detail || "",
+        harga_rata_rata: r.harga_rata_rata || "",
+        cara_pemakaian: r.cara_pemakaian || "",
+        hal_perlu_diperhatikan: r.hal_perlu_diperhatikan || "",
+      },
+    });
+
+    try {
+      const result = await AiService.tuneUpProduct({
+        nama: r.nama,
+        photo_url: photoUrl,
+        detail: r.detail || "",
+        kategori: r?.kategori_barang?.name || "",
+      });
+      setAiTuneup((prev) => ({
+        ...prev,
+        loading: false,
+        edited: {
+          detail: result.detail ?? "",
+          harga_rata_rata: result.harga_rata_rata ?? "",
+          cara_pemakaian: result.cara_pemakaian ?? "",
+          hal_perlu_diperhatikan: result.hal_perlu_diperhatikan ?? "",
+        },
+      }));
+    } catch (err) {
+      setAiTuneup((prev) => ({ ...prev, loading: false }));
+      toast(err instanceof Error ? err.message : "Gagal menghubungi AI.", {
+        type: "error",
+      });
+    }
+  };
+
+  const handleSaveAITuneUp = async () => {
+    if (!aiTuneup.barang) return;
+    setAiTuneup((prev) => ({ ...prev, saving: true }));
+    try {
+      await InventoryService.editBarangAITuneUp({
+        id: aiTuneup.barang.id,
+        ...aiTuneup.edited,
+      });
+      setAiTuneup({
+        open: false,
+        loading: false,
+        saving: false,
+        barang: null,
+        edited: emptyAiEdited,
+      });
+      toast("AI tune-up berhasil disimpan!", { type: "success" });
+      getInventoryList();
+    } catch {
+      setAiTuneup((prev) => ({ ...prev, saving: false }));
+      toast("Gagal menyimpan data.", { type: "error" });
+    }
+  };
 
   useEffect(() => {
     getInventoryList();
@@ -874,7 +975,7 @@ export default function InventoryPage() {
                       >
                         {r?.kategori_barang?.name ??
                           categoryOptions?.find(
-                            (el: any) => Number(el.value) === r?.kategori_id
+                            (el: any) => Number(el.value) === r?.kategori_id,
                           )?.label ??
                           ""}
                       </span>
@@ -905,7 +1006,7 @@ export default function InventoryPage() {
                     >
                       {r.updated_at
                         ? moment(r.updated_at as any).format(
-                            "D MMM YYYY, HH:MM"
+                            "D MMM YYYY, HH:MM",
                           )
                         : "-"}
                     </td>
@@ -915,11 +1016,11 @@ export default function InventoryPage() {
                           isValidUrl(r.photo)
                             ? r.photo?.replace(
                                 "http://66.42.48.163:9000/booqable/",
-                                STORAGE_BOOQABLE
+                                STORAGE_BOOQABLE,
                               )
                             : r.photo
-                            ? `https://democreation.site/home/public/${r.photo}`
-                            : noImage
+                              ? `https://democreation.site/home/public/${r.photo}`
+                              : noImage
                         }
                         name={r.nama}
                         onClick={() =>
@@ -929,11 +1030,11 @@ export default function InventoryPage() {
                             src: isValidUrl(r.photo)
                               ? r.photo?.replace(
                                   "http://66.42.48.163:9000/booqable/",
-                                  STORAGE_BOOQABLE
+                                  STORAGE_BOOQABLE,
                                 )
                               : r.photo
-                              ? `https://democreation.site/home/public/${r.photo}`
-                              : noImage,
+                                ? `https://democreation.site/home/public/${r.photo}`
+                                : noImage,
                           })
                         }
                       />
@@ -943,6 +1044,14 @@ export default function InventoryPage() {
                         className="action-btns"
                         style={{ justifyContent: "center" }}
                       >
+                        <button
+                          className="btn-icon"
+                          title="AI Tune-Up"
+                          style={{ color: "#7c3aed" }}
+                          onClick={() => handleAITuneUp(r)}
+                        >
+                          <IconMagic />
+                        </button>
                         <button
                           className="btn-icon"
                           title="View Detail"
@@ -964,7 +1073,15 @@ export default function InventoryPage() {
                             <circle cx="12" cy="12" r="3" />
                           </svg>
                         </button>
-                        <button className="btn-icon edit" title="Edit">
+                        <button
+                          className="btn-icon edit"
+                          title="Edit"
+                          onClick={() => {
+                            setBarang(r);
+                            setIsModify(true);
+                            setModalOpen(true);
+                          }}
+                        >
                           <IconEdit />
                         </button>
                         <button className="btn-icon delete" title="Delete">
@@ -1257,6 +1374,368 @@ export default function InventoryPage() {
         src={imgPopup.src}
         onClose={() => setImgPopup((p) => ({ ...p, open: false }))}
       />
+
+      {/* AI Tune-Up Modal */}
+      {aiTuneup.open && (
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !aiTuneup.saving)
+              setAiTuneup((prev) => ({ ...prev, open: false }));
+          }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,.55)",
+            zIndex: 1000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 24,
+          }}
+        >
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 14,
+              width: "100%",
+              maxWidth: 560,
+              maxHeight: "90vh",
+              display: "flex",
+              flexDirection: "column",
+              boxShadow: "0 20px 60px rgba(0,0,0,.25)",
+              overflow: "hidden",
+            }}
+          >
+            {/* Header */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "16px 20px",
+                borderBottom: "1px solid var(--border)",
+                flexShrink: 0,
+              }}
+            >
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  background: "#f3f0ff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <IconMagic fill="var(--brand)" />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div
+                  style={{
+                    fontWeight: 700,
+                    fontSize: 14,
+                    color: "var(--text)",
+                  }}
+                >
+                  AI Tune-Up Produk
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "var(--text-muted)",
+                    marginTop: 1,
+                  }}
+                >
+                  {aiTuneup.barang?.nama}
+                </div>
+              </div>
+              {!aiTuneup.saving && (
+                <button
+                  className="modal-close"
+                  onClick={() =>
+                    setAiTuneup((prev) => ({ ...prev, open: false }))
+                  }
+                >
+                  <IconClose />
+                </button>
+              )}
+            </div>
+
+            {/* Body */}
+            <div style={{ overflowY: "auto", padding: "20px", flex: 1 }}>
+              {aiTuneup.loading ? (
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 14 }}
+                >
+                  <div
+                    style={{
+                      fontSize: 13,
+                      color: "var(--text-muted)",
+                      textAlign: "center",
+                      padding: "8px 0",
+                    }}
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#7c3aed"
+                      strokeWidth="2"
+                      style={{
+                        width: 20,
+                        height: 20,
+                        animation: "spin 1s linear infinite",
+                        display: "inline-block",
+                        verticalAlign: "middle",
+                        marginRight: 6,
+                      }}
+                    >
+                      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                    </svg>
+                    AI sedang menganalisa produk...
+                  </div>
+                  {[80, 100, 60, 90, 70, 85].map((w, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        height: i % 2 === 0 ? 36 : 60,
+                        width: `${w}%`,
+                        background: "var(--bg)",
+                        borderRadius: 6,
+                        animation: "pulse 1.4s ease-in-out infinite",
+                      }}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 16 }}
+                >
+                  {/* Deskripsi */}
+                  <div className="form-group">
+                    <label
+                      style={{ display: "flex", alignItems: "center", gap: 6 }}
+                    >
+                      Deskripsi Produk
+                      <span
+                        className="badge badge-purple"
+                        style={{ fontSize: 10 }}
+                      >
+                        AI
+                      </span>
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={aiTuneup.edited.detail}
+                      onChange={(e) =>
+                        setAiTuneup((prev) => ({
+                          ...prev,
+                          edited: { ...prev.edited, detail: e.target.value },
+                        }))
+                      }
+                      style={{
+                        width: "100%",
+                        padding: "8px 10px",
+                        border: "1px solid var(--border)",
+                        borderRadius: 8,
+                        fontSize: 13,
+                        fontFamily: "inherit",
+                        resize: "vertical",
+                        background: "var(--bg)",
+                      }}
+                    />
+                  </div>
+
+                  {/* Harga Rata-rata */}
+                  <div className="form-group">
+                    <label
+                      style={{ display: "flex", alignItems: "center", gap: 6 }}
+                    >
+                      Harga Rata-Rata Pasar
+                      <span
+                        className="badge badge-purple"
+                        style={{ fontSize: 10 }}
+                      >
+                        AI
+                      </span>
+                    </label>
+                    <input
+                      type="text"
+                      value={aiTuneup.edited.harga_rata_rata}
+                      onChange={(e) =>
+                        setAiTuneup((prev) => ({
+                          ...prev,
+                          edited: {
+                            ...prev.edited,
+                            harga_rata_rata: e.target.value,
+                          },
+                        }))
+                      }
+                      placeholder="contoh: Rp 150.000 - Rp 250.000 / pcs"
+                      style={{
+                        width: "100%",
+                        padding: "8px 10px",
+                        border: "1px solid var(--border)",
+                        borderRadius: 8,
+                        fontSize: 13,
+                        fontFamily: "inherit",
+                        background: "var(--bg)",
+                      }}
+                    />
+                  </div>
+
+                  {/* Cara Pemakaian */}
+                  <div className="form-group">
+                    <label
+                      style={{ display: "flex", alignItems: "center", gap: 6 }}
+                    >
+                      Cara Pemakaian
+                      <span
+                        className="badge badge-purple"
+                        style={{ fontSize: 10 }}
+                      >
+                        AI
+                      </span>
+                    </label>
+                    <textarea
+                      rows={4}
+                      value={aiTuneup.edited.cara_pemakaian}
+                      onChange={(e) =>
+                        setAiTuneup((prev) => ({
+                          ...prev,
+                          edited: {
+                            ...prev.edited,
+                            cara_pemakaian: e.target.value,
+                          },
+                        }))
+                      }
+                      style={{
+                        width: "100%",
+                        padding: "8px 10px",
+                        border: "1px solid var(--border)",
+                        borderRadius: 8,
+                        fontSize: 13,
+                        fontFamily: "inherit",
+                        resize: "vertical",
+                        background: "var(--bg)",
+                      }}
+                    />
+                  </div>
+
+                  {/* Hal Perlu Diperhatikan */}
+                  <div className="form-group">
+                    <label
+                      style={{ display: "flex", alignItems: "center", gap: 6 }}
+                    >
+                      Hal yang Perlu Diperhatikan
+                      <span
+                        className="badge badge-purple"
+                        style={{ fontSize: 10 }}
+                      >
+                        AI
+                      </span>
+                    </label>
+                    <textarea
+                      rows={4}
+                      value={aiTuneup.edited.hal_perlu_diperhatikan}
+                      onChange={(e) =>
+                        setAiTuneup((prev) => ({
+                          ...prev,
+                          edited: {
+                            ...prev.edited,
+                            hal_perlu_diperhatikan: e.target.value,
+                          },
+                        }))
+                      }
+                      style={{
+                        width: "100%",
+                        padding: "8px 10px",
+                        border: "1px solid var(--border)",
+                        borderRadius: 8,
+                        fontSize: 13,
+                        fontFamily: "inherit",
+                        resize: "vertical",
+                        background: "var(--bg)",
+                      }}
+                    />
+                  </div>
+
+                  <p
+                    style={{
+                      fontSize: 11.5,
+                      color: "var(--text-muted)",
+                      margin: 0,
+                    }}
+                  >
+                    Kamu bisa edit hasil AI sebelum disimpan.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            {!aiTuneup.loading && (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: 8,
+                  padding: "14px 20px",
+                  borderTop: "1px solid var(--border)",
+                  flexShrink: 0,
+                }}
+              >
+                <button
+                  className="btn-cancel-modal"
+                  onClick={() =>
+                    setAiTuneup((prev) => ({ ...prev, open: false }))
+                  }
+                  disabled={aiTuneup.saving}
+                >
+                  <IconClose /> Batal
+                </button>
+                <button
+                  className="btn-save-modal"
+                  onClick={handleSaveAITuneUp}
+                  disabled={aiTuneup.saving}
+                  style={{
+                    background: "#7c3aed",
+                    opacity: aiTuneup.saving ? 0.65 : 1,
+                  }}
+                >
+                  {aiTuneup.saving ? (
+                    <>
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        style={{
+                          width: 13,
+                          height: 13,
+                          animation: "spin 1s linear infinite",
+                        }}
+                      >
+                        <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                      </svg>
+                      Menyimpan...
+                    </>
+                  ) : (
+                    <>
+                      <IconCheck /> Simpan ke Inventori
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+      `}</style>
     </>
   );
 }
