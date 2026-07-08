@@ -473,12 +473,14 @@ export default function InventoryPage() {
     saving: boolean;
     barang: any | null;
     edited: typeof emptyAiEdited;
+    language: "id" | "en" | null;
   }>({
     open: false,
     loading: false,
     saving: false,
     barang: null,
     edited: emptyAiEdited,
+    language: null,
   });
 
   const sortKeys = [
@@ -655,36 +657,12 @@ export default function InventoryPage() {
     },
   });
 
-  const handleAITuneUp = async (r: any) => {
-    if (!r.nama) {
-      toast("Nama produk harus diisi sebelum menggunakan AI tune-up.", {
-        type: "warning",
-      });
-      return;
-    }
-    if (!r.photo) {
-      toast("Foto produk harus diupload sebelum menggunakan AI tune-up.", {
-        type: "warning",
-      });
-      return;
-    }
-
+  const runTuneUp = async (r: any, language: "id" | "en") => {
     const photoUrl = isValidUrl(r.photo)
       ? r.photo?.replace("http://66.42.48.163:9000/booqable/", STORAGE_BOOQABLE)
       : `https://democreation.site/home/public/${r.photo}`;
 
-    setAiTuneup({
-      open: true,
-      loading: true,
-      saving: false,
-      barang: r,
-      edited: {
-        detail: r.detail || "",
-        harga_rata_rata: r.harga_rata_rata || "",
-        cara_pemakaian: r.cara_pemakaian || "",
-        hal_perlu_diperhatikan: r.hal_perlu_diperhatikan || "",
-      },
-    });
+    setAiTuneup((prev) => ({ ...prev, loading: true, language }));
 
     try {
       const result = await AiService.tuneUpProduct({
@@ -692,6 +670,7 @@ export default function InventoryPage() {
         photo_url: photoUrl,
         detail: r.detail || "",
         kategori: r?.kategori_barang?.name || "",
+        language,
       });
       setAiTuneup((prev) => ({
         ...prev,
@@ -711,6 +690,41 @@ export default function InventoryPage() {
     }
   };
 
+  const handleAITuneUp = async (r: any) => {
+    if (!r.nama) {
+      toast("Nama produk harus diisi sebelum menggunakan AI tune-up.", {
+        type: "warning",
+      });
+      return;
+    }
+    if (!r.photo) {
+      toast("Foto produk harus diupload sebelum menggunakan AI tune-up.", {
+        type: "warning",
+      });
+      return;
+    }
+
+    setAiTuneup({
+      open: true,
+      loading: false,
+      saving: false,
+      barang: r,
+      edited: {
+        detail: r.detail || "",
+        harga_rata_rata: r.harga_rata_rata || "",
+        cara_pemakaian: r.cara_pemakaian || "",
+        hal_perlu_diperhatikan: r.hal_perlu_diperhatikan || "",
+      },
+      language: null,
+    });
+  };
+
+  const handleAITuneUpLanguageChange = (language: "id" | "en") => {
+    if (!aiTuneup.barang || aiTuneup.loading || aiTuneup.saving) return;
+    if (language === aiTuneup.language) return;
+    runTuneUp(aiTuneup.barang, language);
+  };
+
   const handleSaveAITuneUp = async () => {
     if (!aiTuneup.barang) return;
     setAiTuneup((prev) => ({ ...prev, saving: true }));
@@ -725,6 +739,7 @@ export default function InventoryPage() {
         saving: false,
         barang: null,
         edited: emptyAiEdited,
+        language: null,
       });
       toast("AI tune-up berhasil disimpan!", { type: "success" });
       getInventoryList();
@@ -1450,6 +1465,49 @@ export default function InventoryPage() {
                   {aiTuneup.barang?.nama}
                 </div>
               </div>
+              <div
+                style={{
+                  display: "flex",
+                  border: "1px solid var(--border)",
+                  borderRadius: 8,
+                  overflow: "hidden",
+                  flexShrink: 0,
+                  opacity: aiTuneup.loading || aiTuneup.saving ? 0.55 : 1,
+                }}
+              >
+                {(["id", "en"] as const).map((lang) => (
+                  <button
+                    key={lang}
+                    type="button"
+                    onClick={() => handleAITuneUpLanguageChange(lang)}
+                    disabled={aiTuneup.loading || aiTuneup.saving}
+                    title={
+                      lang === "id" ? "Bahasa Indonesia" : "English"
+                    }
+                    style={{
+                      border: "none",
+                      padding: "5px 10px",
+                      fontSize: 11.5,
+                      fontWeight: 700,
+                      cursor:
+                        aiTuneup.loading || aiTuneup.saving
+                          ? "default"
+                          : "pointer",
+                      background:
+                        aiTuneup.language === lang
+                          ? "var(--brand)"
+                          : "var(--white)",
+                      color:
+                        aiTuneup.language === lang
+                          ? "#fff"
+                          : "var(--text-muted)",
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    {lang.toUpperCase()}
+                  </button>
+                ))}
+              </div>
               {!aiTuneup.saving && (
                 <button
                   className="modal-close"
@@ -1464,7 +1522,67 @@ export default function InventoryPage() {
 
             {/* Body */}
             <div style={{ overflowY: "auto", padding: "20px", flex: 1 }}>
-              {aiTuneup.loading ? (
+              {aiTuneup.language === null ? (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 16,
+                    padding: "28px 12px",
+                    textAlign: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 12,
+                      background: "#f3f0ff",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <IconMagic fill="var(--brand)" />
+                  </div>
+                  <div>
+                    <div
+                      style={{
+                        fontSize: 13.5,
+                        fontWeight: 700,
+                        color: "var(--text)",
+                        marginBottom: 4,
+                      }}
+                    >
+                      Pilih bahasa hasil AI Tune-Up
+                    </div>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                      Deskripsi, harga, dan tips akan digenerate dalam bahasa
+                      yang dipilih.
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <button
+                      type="button"
+                      onClick={() => handleAITuneUpLanguageChange("id")}
+                      className="btn btn-primary"
+                      style={{ minWidth: 140, justifyContent: "center" }}
+                    >
+                      Bahasa Indonesia
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAITuneUpLanguageChange("en")}
+                      className="btn btn-ghost"
+                      style={{ minWidth: 140, justifyContent: "center" }}
+                    >
+                      English
+                    </button>
+                  </div>
+                </div>
+              ) : aiTuneup.loading ? (
                 <div
                   style={{ display: "flex", flexDirection: "column", gap: 14 }}
                 >
@@ -1674,7 +1792,7 @@ export default function InventoryPage() {
             </div>
 
             {/* Footer */}
-            {!aiTuneup.loading && (
+            {!aiTuneup.loading && aiTuneup.language !== null && (
               <div
                 style={{
                   display: "flex",

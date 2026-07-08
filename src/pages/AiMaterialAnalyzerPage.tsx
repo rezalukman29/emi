@@ -1,11 +1,13 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { toast } from "react-toastify";
 import type {
+  AiAnalysisContext,
   AiAnalysisResult,
   AiMaterial,
   AiMatchedBarang,
 } from "../interfaces/AiMaterialAnalyzerInterface";
 import { AiService } from "../service/AiService";
+import useSearchEvents from "../hooks/api/useSearchEvents";
 
 interface PageState {
   imageBase64: string | null;
@@ -13,6 +15,13 @@ interface PageState {
   imagePreviewUrl: string | null;
   loading: boolean;
   result: AiAnalysisResult | null;
+}
+
+type ContextMode = "none" | "event" | "manual";
+
+function validEventDate(value: string | undefined | null): string | undefined {
+  if (!value) return undefined;
+  return Number.isNaN(Date.parse(value)) ? undefined : value;
 }
 
 function compressImage(
@@ -298,6 +307,15 @@ function InventoryCard({ item }: { item: AiMatchedBarang }) {
               {item.kategori}
             </span>
           )}
+          {item.weather_relevant && (
+            <span
+              className="badge badge-green"
+              style={{ fontSize: 10.5 }}
+              title="Cocok dengan kondisi cuaca event"
+            >
+              Cocok Cuaca
+            </span>
+          )}
           <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
             Stok:{" "}
             <strong style={{ color: "var(--text-2)" }}>{item.stok}</strong>
@@ -323,6 +341,60 @@ export default function AiMaterialAnalyzerPage() {
     result: null,
   });
   const [dragOver, setDragOver] = useState(false);
+
+  const [contextMode, setContextMode] = useState<ContextMode>("none");
+  const [eventQuery, setEventQuery] = useState("");
+  const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
+  const [eventPickerOpen, setEventPickerOpen] = useState(false);
+  const [manualDate, setManualDate] = useState("");
+  const [manualLocation, setManualLocation] = useState("");
+
+  const eventsQuery = useSearchEvents({ enabled: contextMode === "event" });
+  const rawEvents = eventsQuery.data?.data?.data ?? [];
+  const events = useMemo(() => {
+    return [...rawEvents].sort((a: any, b: any) => {
+      const ta = Date.parse(a.date_event);
+      const tb = Date.parse(b.date_event);
+      const va = Number.isNaN(ta) ? -Infinity : ta;
+      const vb = Number.isNaN(tb) ? -Infinity : tb;
+      return vb - va;
+    });
+  }, [rawEvents]);
+  const filteredEvents = useMemo(() => {
+    const q = eventQuery.trim().toLowerCase();
+    const base = !q
+      ? events
+      : events.filter(
+          (e: any) =>
+            (e.name || "").toLowerCase().includes(q) ||
+            (e.address || "").toLowerCase().includes(q) ||
+            (e.event_code || "").toLowerCase().includes(q),
+        );
+    return base;
+  }, [events, eventQuery]);
+
+  const buildContext = (): AiAnalysisContext | undefined => {
+    if (contextMode === "event" && selectedEvent) {
+      const lat = parseFloat(selectedEvent.latitude);
+      const lon = parseFloat(selectedEvent.longitude);
+      return {
+        eventId: selectedEvent.id,
+        eventName: selectedEvent.name,
+        date: validEventDate(selectedEvent.date_event),
+        location: selectedEvent.address || undefined,
+        ...(Number.isFinite(lat) && Number.isFinite(lon)
+          ? { latitude: lat, longitude: lon }
+          : {}),
+      };
+    }
+    if (contextMode === "manual" && (manualDate || manualLocation)) {
+      return {
+        date: manualDate || undefined,
+        location: manualLocation || undefined,
+      };
+    }
+    return undefined;
+  };
 
   const handleFile = useCallback(async (file: File) => {
     if (!file.type.startsWith("image/")) {
@@ -360,6 +432,7 @@ export default function AiMaterialAnalyzerPage() {
       const result = await AiService.analyze(
         state.imageBase64,
         state.imageMimeType,
+        buildContext(),
       );
       setState((prev) => ({ ...prev, loading: false, result }));
     } catch (err) {
@@ -673,6 +746,268 @@ export default function AiMaterialAnalyzerPage() {
               </button>
             )}
           </div>
+
+          {/* Event/weather context (optional) */}
+          <div
+            style={{
+              borderTop: "1px solid var(--border)",
+              paddingTop: 14,
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: "var(--text-muted)",
+                textTransform: "uppercase",
+                letterSpacing: ".07em",
+              }}
+            >
+              Konteks Acara (opsional)
+            </div>
+
+            <div style={{ display: "flex", gap: 6 }}>
+              {(
+                [
+                  { key: "none", label: "Tanpa Konteks" },
+                  { key: "event", label: "Pilih Event" },
+                  { key: "manual", label: "Input Manual" },
+                ] as const
+              ).map((opt) => (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => {
+                    setContextMode(opt.key);
+                    setEventPickerOpen(false);
+                    setEventQuery("");
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: "6px 8px",
+                    fontSize: 11.5,
+                    fontWeight: 600,
+                    borderRadius: 7,
+                    border: `1px solid ${
+                      contextMode === opt.key ? "var(--brand)" : "var(--border)"
+                    }`,
+                    background:
+                      contextMode === opt.key ? "var(--brand-bg)" : "var(--white)",
+                    color:
+                      contextMode === opt.key ? "var(--brand)" : "var(--text-2)",
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            {contextMode === "event" && (
+              <div style={{ position: "relative" }}>
+                {selectedEvent && !eventPickerOpen ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEventQuery("");
+                      setEventPickerOpen(true);
+                    }}
+                    style={{
+                      width: "100%",
+                      textAlign: "left",
+                      padding: "7px 11px",
+                      border: "1px solid var(--border)",
+                      borderRadius: 8,
+                      background: "var(--white)",
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 8,
+                    }}
+                  >
+                    <span style={{ minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: "var(--text)",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {selectedEvent.name}
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                        {validEventDate(selectedEvent.date_event) ??
+                          "Tanggal tidak diketahui"}{" "}
+                        ·{" "}
+                        {selectedEvent.address || "Lokasi tidak diketahui"}
+                      </div>
+                    </span>
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{
+                        width: 14,
+                        height: 14,
+                        color: "var(--text-muted)",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
+                ) : (
+                  <>
+                    <input
+                      className="search-input"
+                      type="text"
+                      placeholder="Klik untuk pilih atau cari nama event..."
+                      value={eventQuery}
+                      onFocus={() => setEventPickerOpen(true)}
+                      onChange={(e) => {
+                        setEventPickerOpen(true);
+                        setEventQuery(e.target.value);
+                      }}
+                      onBlur={() =>
+                        setTimeout(() => setEventPickerOpen(false), 150)
+                      }
+                      style={{ paddingLeft: 11, paddingRight: 28 }}
+                    />
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{
+                        width: 14,
+                        height: 14,
+                        color: "var(--text-muted)",
+                        position: "absolute",
+                        right: 10,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        pointerEvents: "none",
+                      }}
+                    >
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                    {eventPickerOpen && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "calc(100% + 4px)",
+                          left: 0,
+                          right: 0,
+                          background: "var(--white)",
+                          border: "1px solid var(--border)",
+                          borderRadius: 8,
+                          boxShadow: "var(--shadow)",
+                          zIndex: 10,
+                          maxHeight: 220,
+                          overflowY: "auto",
+                        }}
+                      >
+                        {eventsQuery.isLoading ? (
+                          <div
+                            style={{
+                              padding: "10px 12px",
+                              fontSize: 12.5,
+                              color: "var(--text-muted)",
+                            }}
+                          >
+                            Memuat daftar event...
+                          </div>
+                        ) : filteredEvents.length === 0 ? (
+                          <div
+                            style={{
+                              padding: "10px 12px",
+                              fontSize: 12.5,
+                              color: "var(--text-muted)",
+                            }}
+                          >
+                            Tidak ada event ditemukan.
+                          </div>
+                        ) : (
+                          filteredEvents.map((ev: any) => (
+                            <div
+                              key={ev.id}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setSelectedEvent(ev);
+                                setEventQuery("");
+                                setEventPickerOpen(false);
+                              }}
+                              style={{
+                                padding: "8px 12px",
+                                cursor: "pointer",
+                                fontSize: 12.5,
+                                borderBottom: "1px solid var(--border)",
+                              }}
+                              onMouseEnter={(e) =>
+                                (e.currentTarget.style.background = "var(--bg)")
+                              }
+                              onMouseLeave={(e) =>
+                                (e.currentTarget.style.background = "transparent")
+                              }
+                            >
+                              <div style={{ fontWeight: 600, color: "var(--text)" }}>
+                                {ev.name}
+                              </div>
+                              <div style={{ color: "var(--text-muted)", fontSize: 11 }}>
+                                {validEventDate(ev.date_event) ?? "-"} ·{" "}
+                                {ev.address || "-"}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {contextMode === "manual" && (
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  type="date"
+                  value={manualDate}
+                  onChange={(e) => setManualDate(e.target.value)}
+                  style={{
+                    flex: 1,
+                    padding: "6px 10px",
+                    border: "1px solid var(--border)",
+                    borderRadius: 7,
+                    fontSize: 12.5,
+                    fontFamily: "inherit",
+                    color: "var(--text)",
+                  }}
+                />
+                <input
+                  type="text"
+                  placeholder="Lokasi (kota)"
+                  value={manualLocation}
+                  onChange={(e) => setManualLocation(e.target.value)}
+                  className="search-input"
+                  style={{ flex: 1, paddingLeft: 11 }}
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right: Result panel */}
@@ -681,6 +1016,77 @@ export default function AiMaterialAnalyzerPage() {
             <SkeletonResult />
           ) : state.result ? (
             <>
+              {state.result.context_used && (
+                <div
+                  style={{
+                    background: "var(--bg)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 8,
+                    padding: "10px 14px",
+                    marginBottom: 12,
+                    fontSize: 12,
+                    color: "var(--text-2)",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  <div
+                    style={{
+                      fontWeight: 700,
+                      color: "var(--text)",
+                      marginBottom: 4,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
+                  >
+                    Konteks digunakan
+                    {state.result.context_used.weather?.isEstimate && (
+                      <span
+                        className="badge badge-gray"
+                        style={{ fontSize: 10 }}
+                      >
+                        Estimasi musiman
+                      </span>
+                    )}
+                  </div>
+                  {(state.result.context_used.eventName ||
+                    state.result.context_used.date ||
+                    state.result.context_used.location) && (
+                    <div>
+                      {[
+                        state.result.context_used.eventName,
+                        state.result.context_used.date,
+                        state.result.context_used.location,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </div>
+                  )}
+                  {state.result.context_used.weather ? (
+                    <div>
+                      Cuaca: {state.result.context_used.weather.weatherDescription ?? "-"}
+                      {state.result.context_used.weather.tempMinC !== undefined &&
+                      state.result.context_used.weather.tempMaxC !== undefined
+                        ? `, ${Math.round(
+                            state.result.context_used.weather.tempMinC,
+                          )}-${Math.round(
+                            state.result.context_used.weather.tempMaxC,
+                          )}°C`
+                        : ""}
+                      {state.result.context_used.weather.precipitationProbability !==
+                      undefined
+                        ? `, kemungkinan hujan ${Math.round(
+                            state.result.context_used.weather.precipitationProbability,
+                          )}%`
+                        : ""}
+                    </div>
+                  ) : state.result.context_used.weatherError ? (
+                    <div>
+                      Cuaca tidak tersedia — analisa memakai gambar &amp; tanggal saja.
+                    </div>
+                  ) : null}
+                </div>
+              )}
               {state.result.deskripsi && (
                 <div
                   style={{

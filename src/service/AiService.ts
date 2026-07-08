@@ -1,4 +1,4 @@
-import type { AiAnalysisResult } from '../interfaces/AiMaterialAnalyzerInterface'
+import type { AiAnalysisContext, AiAnalysisResult } from '../interfaces/AiMaterialAnalyzerInterface'
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_AI_URL as string || 'http://localhost:3001'
 
@@ -7,6 +7,7 @@ export interface TuneUpProductPayload {
   photo_url: string | null
   detail?: string
   kategori?: string
+  language?: 'id' | 'en'
 }
 
 export interface TuneUpProductResult {
@@ -17,11 +18,15 @@ export interface TuneUpProductResult {
 }
 
 export const AiService = {
-  analyze: async (imageBase64: string, mimeType: string): Promise<AiAnalysisResult> => {
+  analyze: async (
+    imageBase64: string,
+    mimeType: string,
+    context?: AiAnalysisContext,
+  ): Promise<AiAnalysisResult> => {
     const response = await fetch(`${BACKEND_URL}/api/analyze`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ imageBase64, mimeType }),
+      body: JSON.stringify({ imageBase64, mimeType, ...(context && { context }) }),
     })
 
     if (!response.ok) {
