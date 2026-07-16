@@ -16,6 +16,31 @@ export interface AiMatchedBarang {
   kategori: string | null
   matched_material: string
   weather_relevant?: boolean
+  weather_tip?: string
+}
+
+export interface AiWeatherAdvisory {
+  level: 'ok' | 'warning' | 'danger'
+  summary: string
+  backup_plan?: string
+  tips: string[]
+}
+
+export interface AiAdditionalItemInventory {
+  id: number
+  nama: string
+  stok: number
+  photo: string | null
+  photo_url: string | null
+  kategori: string | null
+  code: string | null
+}
+
+export interface AiAdditionalItemMatched {
+  suggestion_nama: string
+  alasan: string
+  found: boolean
+  barang?: AiAdditionalItemInventory
 }
 
 export interface AiAnalysisContext {
@@ -50,4 +75,6 @@ export interface AiAnalysisResult {
   material: AiMaterial[]
   matched_barang?: AiMatchedBarang[]
   context_used?: AiAnalysisContextUsed
+  weather_advisory?: AiWeatherAdvisory
+  additional_items?: AiAdditionalItemMatched[]
 }
