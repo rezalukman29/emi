@@ -1,10 +1,12 @@
 import { useState, useRef, useCallback, useMemo } from "react";
 import { toast } from "react-toastify";
 import type {
+  AiAdditionalItemMatched,
   AiAnalysisContext,
   AiAnalysisResult,
   AiMaterial,
   AiMatchedBarang,
+  AiWeatherAdvisory,
 } from "../interfaces/AiMaterialAnalyzerInterface";
 import { AiService } from "../service/AiService";
 import useSearchEvents from "../hooks/api/useSearchEvents";
@@ -109,6 +111,430 @@ function SkeletonResult() {
           ))}
         </div>
       ))}
+    </div>
+  );
+}
+
+const ADVISORY_CONFIG = {
+  ok: {
+    bg: "#f0fdf4",
+    border: "#86efac",
+    text: "#166534",
+    badgeBg: "#dcfce7",
+    badgeText: "#15803d",
+    label: "Kondisi Aman",
+  },
+  warning: {
+    bg: "#fff7ed",
+    border: "#fdba74",
+    text: "#9a3412",
+    badgeBg: "#ffedd5",
+    badgeText: "#c2410c",
+    label: "Perlu Perhatian",
+  },
+  danger: {
+    bg: "#fef2f2",
+    border: "#fca5a5",
+    text: "#991b1b",
+    badgeBg: "#fee2e2",
+    badgeText: "#b91c1c",
+    label: "Risiko Tinggi",
+  },
+} as const;
+
+function AdvisoryIcon({ level }: { level: "ok" | "warning" | "danger" }) {
+  if (level === "ok")
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ width: 16, height: 16, flexShrink: 0 }}
+      >
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+        <polyline points="22 4 12 14.01 9 11.01" />
+      </svg>
+    );
+  if (level === "danger")
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ width: 16, height: 16, flexShrink: 0 }}
+      >
+        <circle cx="12" cy="12" r="10" />
+        <line x1="12" y1="8" x2="12" y2="12" />
+        <line x1="12" y1="16" x2="12.01" y2="16" />
+      </svg>
+    );
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ width: 16, height: 16, flexShrink: 0 }}
+    >
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  );
+}
+
+function WeatherAdvisoryBanner({ advisory }: { advisory: AiWeatherAdvisory }) {
+  const [tipsOpen, setTipsOpen] = useState(advisory.level === "danger");
+  const cfg = ADVISORY_CONFIG[advisory.level];
+
+  return (
+    <div
+      style={{
+        background: cfg.bg,
+        border: `1px solid ${cfg.border}`,
+        borderRadius: 10,
+        padding: "12px 14px",
+        marginBottom: 12,
+        color: cfg.text,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 7,
+          marginBottom: advisory.summary ? 6 : 0,
+        }}
+      >
+        <AdvisoryIcon level={advisory.level} />
+        <span style={{ fontWeight: 700, fontSize: 13 }}>{cfg.label}</span>
+        <span
+          style={{
+            fontSize: 10.5,
+            fontWeight: 700,
+            background: cfg.badgeBg,
+            color: cfg.badgeText,
+            borderRadius: 5,
+            padding: "1px 7px",
+            textTransform: "uppercase",
+            letterSpacing: ".05em",
+          }}
+        >
+          {advisory.level}
+        </span>
+      </div>
+
+      {advisory.summary && (
+        <p style={{ fontSize: 12.5, margin: "0 0 8px", lineHeight: 1.55 }}>
+          {advisory.summary}
+        </p>
+      )}
+
+      {advisory.backup_plan && (
+        <div
+          style={{
+            background: "rgba(0,0,0,0.05)",
+            borderRadius: 7,
+            padding: "8px 11px",
+            fontSize: 12.5,
+            marginBottom: 8,
+            lineHeight: 1.55,
+          }}
+        >
+          <strong>Backup Plan: </strong>
+          {advisory.backup_plan}
+        </div>
+      )}
+
+      {advisory.tips.length > 0 && (
+        <div>
+          <button
+            type="button"
+            onClick={() => setTipsOpen((v) => !v)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              fontSize: 12,
+              fontWeight: 600,
+              color: cfg.text,
+              fontFamily: "inherit",
+              opacity: 0.8,
+            }}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{
+                width: 12,
+                height: 12,
+                transform: tipsOpen ? "rotate(180deg)" : "none",
+                transition: "transform .15s",
+              }}
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+            {tipsOpen ? "Sembunyikan tips" : `Lihat ${advisory.tips.length} tips praktis`}
+          </button>
+          {tipsOpen && (
+            <ul
+              style={{
+                margin: "8px 0 0",
+                padding: "0 0 0 16px",
+                fontSize: 12.5,
+                lineHeight: 1.65,
+              }}
+            >
+              {advisory.tips.map((tip, i) => (
+                <li key={i} style={{ marginBottom: 3 }}>
+                  {tip}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WeatherTipChip({
+  tip,
+  urgent,
+}: {
+  tip: string;
+  urgent: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const color = urgent ? "#c2410c" : "#4f46e5";
+  const bg = urgent ? "#fff7ed" : "var(--brand-bg)";
+  const border = urgent ? "#fdba74" : "rgba(79,70,229,0.2)";
+
+  return (
+    <div style={{ marginTop: 5 }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 4,
+          background: bg,
+          border: `1px solid ${border}`,
+          borderRadius: 6,
+          padding: "2px 7px",
+          fontSize: 10.5,
+          fontWeight: 600,
+          color,
+          cursor: "pointer",
+          fontFamily: "inherit",
+        }}
+      >
+        {urgent ? (
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ width: 10, height: 10 }}
+          >
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+        ) : (
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ width: 10, height: 10 }}
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="16" x2="12" y2="12" />
+            <line x1="12" y1="8" x2="12.01" y2="8" />
+          </svg>
+        )}
+        Tip Cuaca
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{
+            width: 9,
+            height: 9,
+            transform: open ? "rotate(180deg)" : "none",
+            transition: "transform .15s",
+          }}
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+      {open && (
+        <div
+          style={{
+            marginTop: 5,
+            padding: "6px 9px",
+            background: bg,
+            border: `1px solid ${border}`,
+            borderRadius: 7,
+            fontSize: 11.5,
+            color,
+            lineHeight: 1.55,
+          }}
+        >
+          {tip}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AdditionalItemCard({ item }: { item: AiAdditionalItemMatched }) {
+  const [imgError, setImgError] = useState(false);
+  const barang = item.barang;
+  const photoUrl = barang?.photo_url ?? null;
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 12,
+        padding: "12px 14px",
+        background: item.found ? "var(--white)" : "var(--bg)",
+        border: `1px solid ${item.found ? "var(--border)" : "var(--border)"}`,
+        borderRadius: 10,
+        opacity: item.found ? 1 : 0.75,
+        transition: "box-shadow .15s",
+      }}
+      onMouseEnter={(e) =>
+        (e.currentTarget.style.boxShadow = "var(--shadow)")
+      }
+      onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "none")}
+    >
+      <div
+        style={{
+          width: 52,
+          height: 52,
+          flexShrink: 0,
+          background: item.found ? "var(--bg)" : "var(--border)",
+          borderRadius: 8,
+          border: "1px solid var(--border)",
+          overflow: "hidden",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {photoUrl && !imgError ? (
+          <img
+            src={photoUrl}
+            alt={barang?.nama}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            style={{ width: 20, height: 20, color: "var(--text-muted)" }}
+          >
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+          </svg>
+        )}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            fontWeight: 600,
+            fontSize: 13,
+            color: "var(--text)",
+            marginBottom: 3,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {item.found ? barang!.nama : item.suggestion_nama}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            marginBottom: 4,
+            flexWrap: "wrap",
+          }}
+        >
+          {item.found ? (
+            <>
+              {barang?.kategori && (
+                <span className="badge badge-gray" style={{ fontSize: 10.5 }}>
+                  {barang.kategori}
+                </span>
+              )}
+              <span className="badge badge-green" style={{ fontSize: 10.5 }}>
+                Ada di inventori
+              </span>
+              <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
+                Stok:{" "}
+                <strong style={{ color: "var(--text-2)" }}>
+                  {barang!.stok}
+                </strong>
+              </span>
+            </>
+          ) : (
+            <span
+              style={{
+                fontSize: 10.5,
+                fontWeight: 600,
+                background: "var(--bg)",
+                color: "var(--text-muted)",
+                border: "1px solid var(--border)",
+                borderRadius: 5,
+                padding: "1px 7px",
+              }}
+            >
+              Tidak tersedia
+            </span>
+          )}
+        </div>
+        <div
+          style={{
+            fontSize: 11.5,
+            color: "var(--text-muted)",
+            fontStyle: "italic",
+            lineHeight: 1.45,
+          }}
+        >
+          {item.alasan}
+        </div>
+      </div>
     </div>
   );
 }
@@ -326,6 +752,9 @@ function InventoryCard({ item }: { item: AiMatchedBarang }) {
         >
           ≈ {item.matched_material}
         </div>
+        {item.weather_tip && (
+          <WeatherTipChip tip={item.weather_tip} urgent={!!item.weather_relevant} />
+        )}
       </div>
     </div>
   );
@@ -1087,6 +1516,9 @@ export default function AiMaterialAnalyzerPage() {
                   ) : null}
                 </div>
               )}
+              {state.result.weather_advisory && (
+                <WeatherAdvisoryBanner advisory={state.result.weather_advisory} />
+              )}
               {state.result.deskripsi && (
                 <div
                   style={{
@@ -1163,7 +1595,7 @@ export default function AiMaterialAnalyzerPage() {
 
       {/* Inventory matches */}
       {state.result && (
-        <div className="card" style={{ padding: "20px 22px" }}>
+        <div className="card" style={{ padding: "20px 22px", marginBottom: 18 }}>
           <div
             style={{
               display: "flex",
@@ -1206,6 +1638,67 @@ export default function AiMaterialAnalyzerPage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Additional items recommended by AI */}
+      {state.result?.additional_items && state.result.additional_items.length > 0 && (
+        <div className="card" style={{ padding: "20px 22px" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: 16,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "var(--text)",
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                Barang Tambahan Disarankan
+              </div>
+              <span
+                style={{
+                  fontSize: 10.5,
+                  fontWeight: 600,
+                  background: "var(--brand-bg)",
+                  color: "var(--brand)",
+                  border: "1px solid rgba(79,70,229,0.2)",
+                  borderRadius: 5,
+                  padding: "1px 7px",
+                }}
+              >
+                AI
+              </span>
+            </div>
+            <span
+              style={{
+                fontSize: 11.5,
+                color: "var(--text-muted)",
+                fontStyle: "italic",
+              }}
+            >
+              {state.result.additional_items.filter((i) => i.found).length} dari{" "}
+              {state.result.additional_items.length} tersedia di inventori
+            </span>
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+              gap: 12,
+            }}
+          >
+            {state.result.additional_items.map((item, idx) => (
+              <AdditionalItemCard key={idx} item={item} />
+            ))}
+          </div>
         </div>
       )}
 
