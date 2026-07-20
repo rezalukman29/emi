@@ -40,6 +40,47 @@ export interface InventoryI {
   workspace_event_id: number;
 }
 
+export interface BarangDetailI {
+  id: number;
+  nama?: string;
+  code?: string;
+  detail?: string;
+  photo?: string;
+  created_at?: string;
+  kategori_id?: number;
+  satuan_id?: number;
+  stok?: number;
+  stok_barang?: number;
+  updated_at?: string;
+  workspace_event_id?: number;
+  panjang?: string;
+  lebar?: string;
+  tinggi?: string;
+  berat?: string;
+  lantai?: string;
+  lorong?: string;
+  rack?: string;
+  harga_rata_rata?: string;
+  cara_pemakaian?: string;
+  hal_perlu_diperhatikan?: string;
+  kategori_barang?: {
+    id?: number;
+    name?: string;
+    nama?: string;
+  };
+  satuan?: {
+    id?: number;
+    name?: string;
+    nama?: string;
+  };
+  stock_summary?: {
+    total_stock?: number;
+    available?: number;
+    reserved?: number;
+    on_event?: number;
+  };
+}
+
 export interface InventoryImage {
   id: number;
   detail: string;
