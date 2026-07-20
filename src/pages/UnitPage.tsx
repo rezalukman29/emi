@@ -247,7 +247,7 @@ export default function UnitPage() {
   };
 
   const deleteRecord = units?.find((x: any) => x.id === deleteTarget);
-  const totalItems = units?.reduce((a: any, u: any) => a + u.itemCount, 0);
+  const totalItems = units?.reduce((a: any, u: any) => a + u.item_count, 0);
 
   return (
     <>
@@ -412,10 +412,10 @@ export default function UnitPage() {
                         fontVariantNumeric: "tabular-nums",
                         fontWeight: 600,
                         color:
-                          r.itemCount > 0 ? "var(--text)" : "var(--text-muted)",
+                          r.item_count > 0 ? "var(--text)" : "var(--text-muted)",
                       }}
                     >
-                      {r.itemCount}
+                      {r.item_count}
                     </td>
                     <td
                       style={{ color: "var(--text-muted)", fontSize: "12.5px" }}

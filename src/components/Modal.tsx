@@ -7,7 +7,7 @@ export interface ModalProps {
   onClose: () => void;
   footer: JSX.Element;
   children: React.ReactElement | React.ReactElement[];
-  size?: any;
+  size?: "lg" | "xl" | "wide";
 }
 
 export default function Modal({
@@ -39,7 +39,9 @@ export default function Modal({
       <div
         className="modal"
         style={
-          size === "xl"
+          size === "wide"
+            ? { width: "75vw", maxWidth: "75vw" }
+            : size === "xl"
             ? { maxWidth: 780 }
             : size === "lg"
             ? { maxWidth: 620 }

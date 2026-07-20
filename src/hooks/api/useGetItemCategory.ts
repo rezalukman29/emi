@@ -8,6 +8,7 @@ export const getItemcategory = async (): Promise<APIResponse<any>> => {
     params: {
       sort: "ASC",
       sort_by: "name",
+      limit: 9999
     },
   });
   return response.data;

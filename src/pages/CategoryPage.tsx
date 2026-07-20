@@ -262,7 +262,7 @@ export default function CategoryPage() {
   };
 
   const deleteRecord = categories?.find((x: any) => x.id === deleteTarget);
-  const totalItems = categories?.reduce((a: any, c: any) => a + c.itemCount, 0);
+  const totalItems = categories?.reduce((a: any, c: any) => a + c.item_count, 0);
 
   return (
     <>
@@ -433,12 +433,12 @@ export default function CategoryPage() {
                           fontVariantNumeric: "tabular-nums",
                           fontWeight: 600,
                           color:
-                            r.itemCount > 0
+                            r.item_count > 0
                               ? "var(--text)"
                               : "var(--text-muted)",
                         }}
                       >
-                        {r.itemCount}
+                        {r.item_count}
                       </td>
                       <td
                         style={{

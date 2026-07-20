@@ -7,6 +7,8 @@ import { IconDelete, IconEdit } from "../components/icons";
 import useGetBarangDetail from "../hooks/api/useGetBarangDetail";
 import { BarangDetailI } from "../interfaces/InventoryInterface";
 import { STORAGE_BOOQABLE, isValidUrl } from "../utils/function";
+import { useUnitController } from "./lib/useUnitController";
+import { useCategoryController } from "./lib/useCategoryController";
 
 function statusBadge(s: string) {
   if (s === "Available") return <span className="badge badge-green">{s}</span>;
@@ -54,7 +56,8 @@ export default function InventoryDetailPage() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const id = Number(params.get("id"));
-
+  const { categories } = useCategoryController();
+  const { units } = useUnitController();
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const { data, isLoading } = useGetBarangDetail({
@@ -97,12 +100,15 @@ export default function InventoryDetailPage() {
 
   const itemName = item.nama ?? "-";
   const itemDetail = item.detail;
+  // const category = useMemo(() => {
+  //   return categories?.find((el: any) => el.id === item?.kategori_id)?.name ?? ""
+  // }, [item, categories])
+
   const category =
-    item.kategori_barang?.name ??
-    item.kategori_barang?.nama ??
-    item.kategori_id;
+    categories?.find((el: any) => el.id === item?.kategori_id)?.name ?? ""
   const unit =
-    item.satuan?.name ?? item.satuan?.nama ?? item.satuan_id;
+    units?.find((el: any) => el.id === item?.satuan_id)?.name ?? ""
+
   const warehouse = "-";
   const totalStock =
     item.stock_summary?.total_stock ??
@@ -113,8 +119,11 @@ export default function InventoryDetailPage() {
   const reservedStock = item.stock_summary?.reserved ?? 0;
   const onEventStock = item.stock_summary?.on_event ?? 0;
   const stockStatus = getStockStatus(totalStock);
-  const imageUrl = getImageUrl(item.photo);
+  const imageUrl = item?.photo && isValidUrl(item?.photo)
+    ? item?.photo?.replace("http://66.42.48.163:9000/booqable/", STORAGE_BOOQABLE)
+    : `https://democreation.site/home/public/${item?.photo}`;
   const updatedAt = item.updated_at ?? item.created_at;
+
 
   return (
     <>
@@ -158,7 +167,7 @@ export default function InventoryDetailPage() {
         <h1 className="page-title" style={{ margin: 0, flex: 1 }}>
           {itemName}
         </h1>
-        <button
+        {/* <button
           className="btn-icon edit"
           title="Edit"
           style={{
@@ -190,7 +199,7 @@ export default function InventoryDetailPage() {
           }}
         >
           <IconDelete /> Delete
-        </button>
+        </button> */}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>

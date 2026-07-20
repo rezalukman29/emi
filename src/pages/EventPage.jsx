@@ -547,9 +547,7 @@ export default function EventPage() {
             title="Detail / Cart"
             onClick={() =>
               navigate(
-                `/event-detail?name=${encodeURIComponent(
-                  r.date + " | " + r.name.toUpperCase()
-                )}`
+                `/event-detail?id=${r.id}`
               )
             }
           >
@@ -738,9 +736,7 @@ export default function EventPage() {
             title="Detail / Cart"
             onClick={() =>
               navigate(
-                `/event-detail?name=${encodeURIComponent(
-                  r.date + " | " + r.name.toUpperCase()
-                )}`
+                `/event-detail?id=${r.id}`
               )
             }
           >
