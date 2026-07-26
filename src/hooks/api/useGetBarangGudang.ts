@@ -44,6 +44,7 @@ export interface ParamsGetBarangGudangInterface {
   page: number;
   limit: number;
   search?: string;
+  gudang_id?: number;
 }
 
 export const getBarangGudang = async ({

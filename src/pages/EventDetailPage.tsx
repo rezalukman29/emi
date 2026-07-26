@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import Modal from "../components/Modal";
 import {
@@ -18,6 +18,7 @@ import useGetAreaList from "../hooks/api/useGetAreaList";
 import useGetEventItem, { type EventItem } from "../hooks/api/useGetEventItem";
 import useGetSubArea from "../hooks/api/useGetSubArea";
 import { STORAGE_BOOQABLE, isValidUrl, noImage } from "../utils/function";
+import { useWarehouseController } from "./lib/useWarehouseController";
 
 const STATUSES = ["Preparation", "During Event", "After Event"] as const;
 
@@ -57,6 +58,7 @@ interface CartItem {
   subArea?: string;
   qty: number;
   note: string;
+  additionalCode?: string;
 }
 
 interface ItemCardProps {
@@ -241,7 +243,7 @@ function ItemCard({ item, onScan, onDelete }: ItemCardProps) {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><path d="M14 14h.01M14 17h3v3M17 14h3" /></svg>
               Scan
             </button>
-            <button className="btn-ia-del" title="Hapus" onClick={() => onDelete(item.id)}>
+            <button className="btn-ia-del" title="Delete" onClick={() => onDelete(item.id)}>
               <IconDelete />
             </button>
           </div>
@@ -264,6 +266,8 @@ export default function EventDetailPage() {
     },
   });
 
+  const { warehouseOptions } = useWarehouseController();
+
   const [createdItems, setCreatedItems] = useState<DisplayItem[]>([]);
   const [hiddenItemIds, setHiddenItemIds] = useState<number[]>([]);
   const [scanOverrides, setScanOverrides] = useState<Record<number, Pick<DisplayItem, "scanIn" | "scanOut">>>({});
@@ -281,6 +285,9 @@ export default function EventDetailPage() {
   const [atcForm, setAtcForm] = useState({ status: "Preparation", area: "ENTRANCE", qty: 1, note: "" });
 
   const [newItemOpen, setNewItemOpen] = useState(false);
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState("");
+  const [barangSearch, setBarangSearch] = useState("");
+  const [debouncedBarangSearch, setDebouncedBarangSearch] = useState("");
   const [selectedBarangGudang, setSelectedBarangGudang] =
     useState<BarangGudangItem | null>(null);
   const [newItemForm, setNewItemForm] = useState({
@@ -288,7 +295,19 @@ export default function EventDetailPage() {
     subAreaId: "",
     status: "Preparation",
     qty: 1,
+    additionalCode: "",
+    memo: "",
   });
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedBarangSearch(
+        barangSearch.trim().length > 2 ? barangSearch.trim() : ""
+      );
+    }, 500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [barangSearch]);
 
   const {
     data: areaListResponse,
@@ -316,9 +335,14 @@ export default function EventDetailPage() {
     isLoading: isBarangGudangLoading,
     isError: isBarangGudangError,
   } = useGetBarangGudang({
-    params: { page: 1, limit: 30 },
+    params: {
+      page: 1,
+      limit: 30,
+      gudang_id: Number(selectedWarehouseId),
+      search: debouncedBarangSearch || undefined,
+    },
     options: {
-      enabled: newItemOpen,
+      enabled: newItemOpen && !!selectedWarehouseId,
     },
   });
 
@@ -416,7 +440,7 @@ export default function EventDetailPage() {
   }
 
   function deleteItem(id: number) {
-    if (!window.confirm("Hapus item ini dari event?")) return;
+    if (!window.confirm("Delete this item from the event?")) return;
     setCreatedItems((currentItems) => currentItems.filter((item) => item.id !== id));
     setHiddenItemIds((currentIds) => (id > 0 ? [...currentIds, id] : currentIds));
   }
@@ -498,7 +522,8 @@ export default function EventDetailPage() {
         subAreaId: selectedSubArea.id,
         subArea: selectedSubArea.sub_area_name,
         qty: newItemForm.qty,
-        note: "",
+        note: newItemForm.memo,
+        additionalCode: newItemForm.additionalCode,
       },
     ]);
     setSelectedBarangGudang(null);
@@ -507,6 +532,8 @@ export default function EventDetailPage() {
       subAreaId: "",
       status: "Preparation",
       qty: 1,
+      additionalCode: "",
+      memo: "",
     });
     setNewItemOpen(false);
   }
@@ -521,7 +548,7 @@ export default function EventDetailPage() {
         <div style={{ marginBottom: 14 }}>
           <button onClick={() => navigate("/event")} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: "12.5px", color: "var(--brand)", background: "none", border: "none", cursor: "pointer", fontWeight: 600, fontFamily: "inherit" }}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}><polyline points="15 18 9 12 15 6" /></svg>
-            Kembali ke Event
+            Back to Events
           </button>
         </div>
 
@@ -577,20 +604,20 @@ export default function EventDetailPage() {
             <button className="btn btn-cart" onClick={() => setCartOpen(true)}>
               <IconCart /> Cart ({cart.length})
             </button>
-            <button className="btn-new" onClick={() => { setSelectedBarangGudang(null); setNewItemForm({ areaId: "", subAreaId: "", status: "Preparation", qty: 1 }); setNewItemOpen(true); }}>
+            <button className="btn-new" onClick={() => { setSelectedWarehouseId(""); setBarangSearch(""); setDebouncedBarangSearch(""); setSelectedBarangGudang(null); setNewItemForm({ areaId: "", subAreaId: "", status: "Preparation", qty: 1, additionalCode: "", memo: "" }); setNewItemOpen(true); }}>
               <IconPlus /> New
             </button>
           </div>
         </div>
 
         <p className="summary-text">
-          <strong>{filtered.length}</strong> pcs item untuk state <strong>&ldquo;{statusLabel}&rdquo;</strong> di Area <strong>&ldquo;{areaLabel}&rdquo;</strong>
+          <strong>{filtered.length}</strong> item(s) with status <strong>&ldquo;{statusLabel}&rdquo;</strong> in area <strong>&ldquo;{areaLabel}&rdquo;</strong>
         </p>
 
         {isLoading ? (
           <div className="no-data">Loading...</div>
         ) : isError ? (
-          <div className="no-data">Gagal memuat data item event.</div>
+          <div className="no-data">Failed to load event items.</div>
         ) : filtered.length === 0 ? (
           <div className="no-data">No Data</div>
         ) : (
@@ -602,11 +629,11 @@ export default function EventDetailPage() {
         )}
       </div>
 
-      <Modal open={atcOpen} title="Tambah ke Keranjang" onClose={() => setAtcOpen(false)}
+      <Modal open={atcOpen} title="Add to Cart" onClose={() => setAtcOpen(false)}
         footer={
           <>
-            <button className="btn-cancel-m" onClick={() => setAtcOpen(false)}><IconClose /> Batal</button>
-            <button className="btn-add-cart" onClick={confirmAddToCart}><IconCart /> Tambah ke Keranjang</button>
+            <button className="btn-cancel-m" onClick={() => setAtcOpen(false)}><IconClose /> Cancel</button>
+            <button className="btn-add-cart" onClick={confirmAddToCart}><IconCart /> Add to Cart</button>
           </>
         }
       >
@@ -631,22 +658,22 @@ export default function EventDetailPage() {
             <input type="number" min={1} value={atcForm.qty} onChange={(event) => setAtcForm((form) => ({ ...form, qty: parseInt(event.target.value, 10) || 1 }))} />
           </div>
           <div className="form-group">
-            <label>Catatan</label>
-            <input type="text" placeholder="Opsional" value={atcForm.note} onChange={(event) => setAtcForm((form) => ({ ...form, note: event.target.value }))} />
+            <label>Notes</label>
+            <input type="text" placeholder="Optional" value={atcForm.note} onChange={(event) => setAtcForm((form) => ({ ...form, note: event.target.value }))} />
           </div>
         </div>
       </Modal>
 
-      <Modal open={cartOpen} title="Keranjang Event" onClose={() => setCartOpen(false)} size="wide"
+      <Modal open={cartOpen} title="Event Cart" onClose={() => setCartOpen(false)} size="wide"
         footer={
           <>
-            <button className="btn-cancel-m" onClick={() => setCartOpen(false)}>Tutup</button>
-            <button className="btn-checkout" onClick={checkout}><IconCheck /> Simpan ke Event</button>
+            <button className="btn-cancel-m" onClick={() => setCartOpen(false)}>Close</button>
+            <button className="btn-checkout" onClick={checkout}><IconCheck /> Save to Event</button>
           </>
         }
       >
         {cart.length === 0 ? (
-          <div className="cart-empty">Keranjang masih kosong</div>
+          <div className="cart-empty">The cart is empty.</div>
         ) : (
           <div className="cart-list">
             {cart.map((cartItem, index) => (
@@ -680,23 +707,58 @@ export default function EventDetailPage() {
         )}
       </Modal>
 
-      <Modal open={newItemOpen} title="Tambah Item Baru" onClose={() => setNewItemOpen(false)}
+      <Modal open={newItemOpen} title="Add New Item" onClose={() => setNewItemOpen(false)}
         footer={
           <>
-            <button className="btn-cancel-m" onClick={() => setNewItemOpen(false)}>Batal</button>
-            <button className="btn-add-cart" style={{ background: "#16a34a", opacity: canSaveNewItem ? 1 : 0.6 }} onClick={saveNewItem} disabled={!canSaveNewItem}><IconCheck /> Simpan</button>
+            <button className="btn-cancel-m" onClick={() => setNewItemOpen(false)}>Cancel</button>
+            <button className="btn-add-cart" style={{ background: "#16a34a", opacity: canSaveNewItem ? 1 : 0.6 }} onClick={saveNewItem} disabled={!canSaveNewItem}><IconCheck /> Save</button>
           </>
         }
       >
         <div className="form-group">
-          <label>Pilih Barang</label>
+          <label>Select Warehouse</label>
+          <select
+            value={selectedWarehouseId}
+            onChange={(event) => {
+              setSelectedWarehouseId(event.target.value);
+              setBarangSearch("");
+              setDebouncedBarangSearch("");
+              setSelectedBarangGudang(null);
+            }}
+          >
+            <option value="">Select a warehouse</option>
+            {warehouseOptions.map((warehouse) => (
+              <option key={warehouse.value} value={warehouse.value}>
+                {warehouse.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label>Search Items</label>
+          <input
+            type="search"
+            value={barangSearch}
+            disabled={!selectedWarehouseId}
+            placeholder="Enter at least 3 characters"
+            onChange={(event) => setBarangSearch(event.target.value)}
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Select Item</label>
           <div className="event-master-item-list">
-            {isBarangGudangLoading ? (
-              <div className="event-master-item-empty">Loading barang...</div>
+            {!selectedWarehouseId ? (
+              <div className="event-master-item-empty">
+                Select a warehouse first.
+              </div>
+            ) : isBarangGudangLoading ? (
+              <div className="event-master-item-empty">Loading items...</div>
             ) : isBarangGudangError ? (
-              <div className="event-master-item-empty">Gagal memuat barang.</div>
+              <div className="event-master-item-empty">Failed to load items.</div>
             ) : barangGudangItems.length === 0 ? (
-              <div className="event-master-item-empty">Barang tidak tersedia.</div>
+              <div className="event-master-item-empty">No items available.</div>
             ) : (
               barangGudangItems.map((barang) => {
                 const isSelected =
@@ -719,7 +781,7 @@ export default function EventDetailPage() {
                     />
                     <div className="event-master-item-info">
                       <span className="event-master-item-name">{barang.nama_barang}</span>
-                      <span className="event-master-item-stock">Stok: {barang.stok_barang}</span>
+                      <span className="event-master-item-stock">Stock: {barang.stok_barang}</span>
                     </div>
                   </button>
                 );
@@ -745,8 +807,8 @@ export default function EventDetailPage() {
                 {isAreaListLoading
                   ? "Loading area..."
                   : isAreaListError
-                    ? "Gagal memuat area"
-                    : "Pilih area"}
+                    ? "Failed to load areas"
+                    : "Select an area"}
               </option>
               {masterAreas.map((area) => (
                 <option key={area.id} value={area.id}>
@@ -769,14 +831,14 @@ export default function EventDetailPage() {
             >
               <option value="">
                 {!newItemForm.areaId
-                  ? "Pilih area dulu"
+                  ? "Select an area first"
                   : isSubAreaLoading
                     ? "Loading sub area..."
                     : isSubAreaError
-                      ? "Gagal memuat sub area"
+                      ? "Failed to load sub-areas"
                       : filteredSubAreas.length === 0
-                        ? "Sub area tidak tersedia"
-                        : "Pilih sub area"}
+                        ? "No sub-areas available"
+                        : "Select a sub-area"}
               </option>
               {filteredSubAreas.map((subArea) => (
                 <option key={subArea.id} value={subArea.id}>
@@ -796,6 +858,40 @@ export default function EventDetailPage() {
           <div className="form-group">
             <label>Qty</label>
             <input type="number" min={1} value={newItemForm.qty} onChange={(event) => setNewItemForm((form) => ({ ...form, qty: parseInt(event.target.value, 10) || 1 }))} />
+          </div>
+        </div>
+        <div className="form-row">
+          <div className="form-group">
+            <label>Additional Code</label>
+            <select
+              value={newItemForm.additionalCode}
+              onChange={(event) =>
+                setNewItemForm((form) => ({
+                  ...form,
+                  additionalCode: event.target.value,
+                }))
+              }
+            >
+              <option value="">Select additional code</option>
+              {["IHC", "IHO", "O", "S", "B", "F", "Venue"].map((code) => (
+                <option key={code} value={code}>
+                  {code}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label>Memo</label>
+            <input
+              type="text"
+              value={newItemForm.memo}
+              onChange={(event) =>
+                setNewItemForm((form) => ({
+                  ...form,
+                  memo: event.target.value,
+                }))
+              }
+            />
           </div>
         </div>
       </Modal>

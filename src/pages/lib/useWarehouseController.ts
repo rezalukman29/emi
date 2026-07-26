@@ -9,7 +9,7 @@ export const useWarehouseController = () => {
     },
   });
 
-  const warehouseOptions = useMemo(() => {
+  const warehouseOptions = useMemo<{ value: string; label: string }[]>(() => {
     return warehouses?.data?.data?.length ? warehouses?.data?.data?.map((el: any) => {
       return {
         value: el.id.toString(),
