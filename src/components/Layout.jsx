@@ -5,6 +5,7 @@ import { IconMenu, IconLogout } from "./icons";
 import { localStorageService } from "../service/localStorage";
 import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
+import ChatBot from "./ChatBot";
 import { setProfile } from "../store/profile";
 
 export default function Layout() {
@@ -60,6 +61,7 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+      <ChatBot />
     </>
   );
 }
