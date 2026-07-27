@@ -678,6 +678,42 @@
      border-color: var(--brand);
      box-shadow: 0 0 0 3px rgba(79,70,229,0.09);
    }
+   .form-checkbox-group {
+     display: flex;
+     align-items: center;
+     margin-bottom: 14px !important;
+   }
+   .form-group .form-checkbox-label {
+     display: inline-flex;
+     align-items: center;
+     gap: 8px;
+     margin-bottom: 0;
+     cursor: pointer;
+   }
+   .form-group .form-checkbox-input {
+     width: 16px;
+     height: 16px;
+     padding: 0;
+     margin: 0;
+     flex: 0 0 16px;
+     border-radius: 4px;
+     appearance: auto;
+     -webkit-appearance: checkbox;
+     accent-color: var(--brand);
+     cursor: pointer;
+   }
+   .form-group .form-checkbox-input:focus {
+     box-shadow: none;
+   }
+   .event-item-image-preview img {
+     display: block;
+     width: 100%;
+     max-height: 240px;
+     object-fit: contain;
+     border: 1px solid var(--border);
+     border-radius: var(--r);
+     background: #f8fafc;
+   }
    
    /* =========================================================
       PAGINATION

@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
+import axios from "axios";
+import { toast } from "react-toastify";
 import Modal from "../components/Modal";
 import {
   IconSearch,
@@ -15,6 +17,8 @@ import useGetBarangGudang, {
   type BarangGudangItem,
 } from "../hooks/api/useGetBarangGudang";
 import useGetAreaList from "../hooks/api/useGetAreaList";
+import useCreateFixEventList from "../hooks/api/useCreateFixEventList";
+import useCreateFixListItem from "../hooks/api/useCreateFixListItem";
 import useGetEventItem, { type EventItem } from "../hooks/api/useGetEventItem";
 import useGetSubArea from "../hooks/api/useGetSubArea";
 import { STORAGE_BOOQABLE, isValidUrl, noImage } from "../utils/function";
@@ -30,6 +34,22 @@ const AREA_BADGE_CLASS: Record<string, string> = {
   "GUEST TABLE": "guest",
 };
 
+function getCheckoutErrorMessage(error: unknown): string {
+  if (axios.isAxiosError<{ message?: string }>(error)) {
+    return (
+      error.response?.data?.message ||
+      error.message ||
+      "Failed to save items to the event."
+    );
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "Failed to save items to the event.";
+}
+
 interface DisplayItem {
   id: number;
   photo: string;
@@ -43,6 +63,9 @@ interface DisplayItem {
   scanIn: string | null;
   scanOut: string | null;
   note: string;
+  areaId?: number;
+  subAreaId?: number;
+  barangGudangId?: number;
 }
 
 interface CartItem {
@@ -58,7 +81,12 @@ interface CartItem {
   subArea?: string;
   qty: number;
   note: string;
+  memo?: string;
   additionalCode?: string;
+  checked: boolean;
+  warehouseItem: boolean;
+  input_by: string | null;
+  image: string | null;
 }
 
 interface ItemCardProps {
@@ -119,6 +147,9 @@ function mapEventItem(item: EventItem): DisplayItem {
     scanIn: formatApiDate(item.scan_in_date),
     scanOut: formatApiDate(item.scan_out_date),
     note: item.notes,
+    areaId: item.list_id,
+    subAreaId: item.sub_list_id.Valid ? item.sub_list_id.Int64 : undefined,
+    barangGudangId: item.barang_gudang_id,
   };
 }
 
@@ -259,7 +290,12 @@ export default function EventDetailPage() {
   const eventId = Number(searchParams.get("id"));
   const eventName = searchParams.get("name") || "03/06/2023 | GUNTUR + CLARISSA";
 
-  const { data: eventItemResponse, isLoading, isError } = useGetEventItem({
+  const {
+    data: eventItemResponse,
+    isLoading,
+    isError,
+    refetch: refetchEventItems,
+  } = useGetEventItem({
     params: { event_id: eventId, order: "asc" },
     options: {
       enabled: !!eventId,
@@ -267,6 +303,14 @@ export default function EventDetailPage() {
   });
 
   const { warehouseOptions } = useWarehouseController();
+  const {
+    mutateAsync: createFixEventList,
+    isLoading: isCreatingFixEventList,
+  } = useCreateFixEventList();
+  const {
+    mutateAsync: createFixListItem,
+    isLoading: isCreatingFixListItem,
+  } = useCreateFixListItem();
 
   const [createdItems, setCreatedItems] = useState<DisplayItem[]>([]);
   const [hiddenItemIds, setHiddenItemIds] = useState<number[]>([]);
@@ -297,6 +341,10 @@ export default function EventDetailPage() {
     qty: 1,
     additionalCode: "",
     memo: "",
+    checked: false,
+    warehouseItem: false,
+    inputBy: "",
+    image: null as string | null,
   });
 
   useEffect(() => {
@@ -481,9 +529,17 @@ export default function EventDetailPage() {
           photo: item.photo,
           name: item.name,
           status: atcForm.status,
+          areaId: item.areaId,
           area: atcForm.area,
+          subAreaId: item.subAreaId,
+          barangGudangId: item.barangGudangId,
           qty: atcForm.qty,
           note: atcForm.note,
+          memo: atcForm.note,
+          checked: false,
+          warehouseItem: false,
+          input_by: null,
+          image: null,
         },
       ];
     });
@@ -494,10 +550,59 @@ export default function EventDetailPage() {
     setCart((currentCart) => currentCart.filter((_, itemIndex) => itemIndex !== idx));
   }
 
-  function checkout() {
-    setCart([]);
-    setCartOpen(false);
+  async function checkout() {
+    if (!eventId || cart.length === 0) return;
+
+    try {
+      for (const item of cart) {
+        if (
+          !item.areaId ||
+          !item.subAreaId ||
+          !item.barangGudangId
+        ) {
+          throw new Error(`Incomplete event data for "${item.name}".`);
+        }
+
+        const eventListResponse = await createFixEventList({
+          list_id: item.areaId,
+          event_id: eventId,
+          sub_list_id: item.subAreaId,
+        });
+        const { data } = eventListResponse;
+
+        if (!data.id) {
+          throw new Error(`Event list ID was not returned for "${item.name}".`);
+        }
+
+        await createFixListItem({
+          fix_event_list_id: data.id,
+          barang_gudang_id: Number(item.barangGudangId),
+          qty: item.qty,
+          scan_in: 0,
+          scan_out: 0,
+          notes: item.memo ?? item.note,
+          input_by: item.input_by,
+          image: item.image,
+          event_status_id: 1,
+          additional_code: item.additionalCode ?? "",
+          is_checking: item.checked ? 1 : 0,
+          is_ware_house_item: item.warehouseItem ? 1 : 0,
+        });
+
+        setCart((currentCart) =>
+          currentCart.filter((cartItem) => cartItem !== item)
+        );
+      }
+
+      setCartOpen(false);
+      await refetchEventItems();
+      toast.success("Items saved to the event.");
+    } catch (error) {
+      toast.error(getCheckoutErrorMessage(error));
+    }
   }
+
+  const isSavingCart = isCreatingFixEventList || isCreatingFixListItem;
 
   function saveNewItem() {
     const selectedArea = masterAreas.find(
@@ -523,7 +628,12 @@ export default function EventDetailPage() {
         subArea: selectedSubArea.sub_area_name,
         qty: newItemForm.qty,
         note: newItemForm.memo,
+        memo: newItemForm.memo,
         additionalCode: newItemForm.additionalCode,
+        checked: newItemForm.checked,
+        warehouseItem: newItemForm.warehouseItem,
+        input_by: newItemForm.checked ? newItemForm.inputBy : null,
+        image: newItemForm.checked ? newItemForm.image : null,
       },
     ]);
     setSelectedBarangGudang(null);
@@ -534,10 +644,14 @@ export default function EventDetailPage() {
       qty: 1,
       additionalCode: "",
       memo: "",
+      checked: false,
+      warehouseItem: false,
+      inputBy: "",
+      image: null,
     });
     setNewItemOpen(false);
   }
-
+console.log(cart)
   const canSaveNewItem =
     !!selectedBarangGudang && !!newItemForm.areaId && !!newItemForm.subAreaId;
 
@@ -604,7 +718,7 @@ export default function EventDetailPage() {
             <button className="btn btn-cart" onClick={() => setCartOpen(true)}>
               <IconCart /> Cart ({cart.length})
             </button>
-            <button className="btn-new" onClick={() => { setSelectedWarehouseId(""); setBarangSearch(""); setDebouncedBarangSearch(""); setSelectedBarangGudang(null); setNewItemForm({ areaId: "", subAreaId: "", status: "Preparation", qty: 1, additionalCode: "", memo: "" }); setNewItemOpen(true); }}>
+            <button className="btn-new" onClick={() => { setSelectedWarehouseId(""); setBarangSearch(""); setDebouncedBarangSearch(""); setSelectedBarangGudang(null); setNewItemForm({ areaId: "", subAreaId: "", status: "Preparation", qty: 1, additionalCode: "", memo: "", checked: false, warehouseItem: false, inputBy: "", image: null }); setNewItemOpen(true); }}>
               <IconPlus /> New
             </button>
           </div>
@@ -667,8 +781,10 @@ export default function EventDetailPage() {
       <Modal open={cartOpen} title="Event Cart" onClose={() => setCartOpen(false)} size="wide"
         footer={
           <>
-            <button className="btn-cancel-m" onClick={() => setCartOpen(false)}>Close</button>
-            <button className="btn-checkout" onClick={checkout}><IconCheck /> Save to Event</button>
+            <button className="btn-cancel-m" onClick={() => setCartOpen(false)} disabled={isSavingCart}>Close</button>
+            <button className="btn-checkout" onClick={checkout} disabled={isSavingCart || cart.length === 0}>
+              <IconCheck /> {isSavingCart ? "Saving..." : "Save to Event"}
+            </button>
           </>
         }
       >
@@ -894,6 +1010,95 @@ export default function EventDetailPage() {
             />
           </div>
         </div>
+        <div className="form-row">
+          <div className="form-group form-checkbox-group">
+            <label className="form-checkbox-label">
+              <input
+                className="form-checkbox-input"
+                type="checkbox"
+                checked={newItemForm.checked}
+                onChange={(event) =>
+                  setNewItemForm((form) => ({
+                    ...form,
+                    checked: event.target.checked,
+                    inputBy: event.target.checked ? form.inputBy : "",
+                    image: event.target.checked ? form.image : null,
+                  }))
+                }
+              />
+              <span>Checked</span>
+            </label>
+          </div>
+          <div className="form-group form-checkbox-group">
+            <label className="form-checkbox-label">
+              <input
+                className="form-checkbox-input"
+                type="checkbox"
+                checked={newItemForm.warehouseItem}
+                onChange={(event) =>
+                  setNewItemForm((form) => ({
+                    ...form,
+                    warehouseItem: event.target.checked,
+                  }))
+                }
+              />
+              <span>Warehouse Item</span>
+            </label>
+          </div>
+        </div>
+        {newItemForm.checked ? (
+          <div className="form-row">
+            <div className="form-group">
+              <label>Input By</label>
+              <input
+                type="text"
+                value={newItemForm.inputBy}
+                onChange={(event) =>
+                  setNewItemForm((form) => ({
+                    ...form,
+                    inputBy: event.target.value,
+                  }))
+                }
+              />
+            </div>
+            <div className="form-group">
+              <label>Image</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+
+                  if (!file) {
+                    setNewItemForm((form) => ({ ...form, image: null }));
+                    return;
+                  }
+
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    setNewItemForm((form) => ({
+                      ...form,
+                      image:
+                        form.checked && typeof reader.result === "string"
+                          ? reader.result
+                          : null,
+                    }));
+                  };
+                  reader.onerror = () => {
+                    setNewItemForm((form) => ({ ...form, image: null }));
+                  };
+                  reader.readAsDataURL(file);
+                }}
+              />
+            </div>
+          </div>
+        ) : <></>}
+        {newItemForm.checked && newItemForm.image ? (
+          <div className="form-group event-item-image-preview">
+            <label>Image Preview</label>
+            <img src={newItemForm.image} alt="Uploaded item preview" />
+          </div>
+        ) : <></>}
       </Modal>
     </>
   );
