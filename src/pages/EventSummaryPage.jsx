@@ -2,6 +2,8 @@ import { useState, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import Pagination from '../components/Pagination';
 import { IconSearch, IconPrint, IconChevronLeft } from '../components/icons';
+import useGetEventDetail from '../hooks/api/useGetEventDetail';
+import useGetEventSummary from '../hooks/api/useGetEventSummary';
 
 const TABLE_PAGE_SIZE = 12;
 
@@ -74,6 +76,35 @@ function fmtDate(d) {
   return new Date(d).toLocaleDateString('en-US', { day:'numeric', month:'short', year:'numeric' });
 }
 
+function toBoolean(value) {
+  if (value && typeof value === 'object' && 'Valid' in value) {
+    return Boolean(value.Valid && value.Int64);
+  }
+  return value === true || value === 1 || value === '1';
+}
+
+function hasScanValue(value) {
+  if (value && typeof value === 'object' && 'Valid' in value) {
+    return Boolean(value.Valid);
+  }
+  return Boolean(value && value !== '0001-01-01 00:00:00');
+}
+
+function mapSummaryItem(item, index) {
+  return {
+    id: item.id ?? item.fix_list_item_id ?? index,
+    name: item.name ?? item.item_name ?? item.nama_barang ?? '—',
+    area: item.area ?? item.area_name ?? item.list_name ?? '—',
+    qty: Number(item.qty ?? item.quantity ?? 0),
+    status: item.status || item.status_name || '—',
+    checking: toBoolean(item.checking ?? item.checked ?? item.is_checking),
+    warehouseItem: toBoolean(item.warehouseItem ?? item.is_ware_house_item),
+    scanIn: hasScanValue(item.scanIn ?? item.is_scan_in ?? item.scan_in ?? item.scan_in_date),
+    scanOut: hasScanValue(item.scanOut ?? item.is_scan_out ?? item.scan_out ?? item.scan_out_date),
+    pic: item.pic ?? item.PIC ?? item.input_by ?? '—',
+  };
+}
+
 function DotOk() {
   return <span style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:20, height:20, borderRadius:4, background:'var(--brand)' }}>
     <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ width:9, height:9 }}><polyline points="20 6 9 17 4 12"/></svg>
@@ -86,29 +117,69 @@ function DotNo() {
 export default function EventSummaryPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [eventIdx, setEventIdx] = useState(0);
+  const eventId = Number(searchParams.get('id'));
   const [tableSearch, setTableSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [areaFilter, setAreaFilter] = useState('');
   const [tablePage, setTablePage] = useState(1);
 
-  const items = RAW_ITEMS[eventIdx] || [];
-  const ev = EVENTS[eventIdx];
+  const {
+    data: eventSummaryResponse,
+    isLoading: isSummaryLoading,
+    isError: isSummaryError,
+  } = useGetEventSummary({
+    id: eventId,
+    options: { enabled: Boolean(eventId) },
+  });
+  const {
+    data: eventDetailResponse,
+    isLoading: isDetailLoading,
+    isError: isDetailError,
+  } = useGetEventDetail({
+    id: eventId,
+    options: { enabled: Boolean(eventId) },
+  });
 
-  const total    = items.length;
-  const checked  = items.filter(i => i.checking).length;
-  const scanIn   = items.filter(i => i.scanIn).length;
-  const scanOut  = items.filter(i => i.scanOut).length;
-  const missing  = items.filter(i => i.status === 'Missing').length;
-  const damaged  = items.filter(i => i.status === 'Damaged').length;
-  const totalQty = items.reduce((s, i) => s + i.qty, 0);
+  const summary = eventSummaryResponse?.data;
+  const totalSummary = summary?.total_summary;
+  const eventDetail = eventDetailResponse?.data;
+  const items = useMemo(
+    () => (summary?.item_details ?? []).map(mapSummaryItem),
+    [summary?.item_details]
+  );
 
-  const areaNames = useMemo(() => [...new Set(items.map(i => i.area))].sort(), [eventIdx]);
+  const total = totalSummary?.total_items ?? 0;
+  const checked = totalSummary?.checked ?? 0;
+  const scanIn = totalSummary?.scan_in ?? 0;
+  const scanOut = totalSummary?.scan_out ?? 0;
+  const missing = totalSummary?.missing ?? 0;
+  const damaged = totalSummary?.damaged ?? 0;
+  const totalQty = totalSummary?.total_qty ?? 0;
+
+  const areaNames = useMemo(() => [...new Set(items.map(i => i.area))].sort(), [items]);
+  const statusNames = useMemo(
+    () => [...new Set(items.map(i => i.status).filter(status => status && status !== '—'))].sort(),
+    [items]
+  );
 
   const areaMap = useMemo(() => {
     const m = {};
+
+    (summary?.area_summary ?? []).forEach(area => {
+      m[area.area_name] = {
+        total: Number(area.total_items),
+        checked: Number(area.checked),
+        checkedPercentage: Number(area.checked_percentage),
+        scanIn: Number(area.scan_in),
+        scanInPercentage: Number(area.scan_in_percentage),
+        scanOut: Number(area.scan_out),
+        statuses: area.status_counts ?? {},
+      };
+    });
+
     items.forEach(it => {
       if (!m[it.area]) m[it.area] = { total:0, checked:0, scanIn:0, statuses:{} };
+      if ((summary?.area_summary ?? []).length > 0) return;
       const a = m[it.area];
       a.total++;
       if (it.checking) a.checked++;
@@ -116,7 +187,7 @@ export default function EventSummaryPage() {
       a.statuses[it.status] = (a.statuses[it.status] || 0) + 1;
     });
     return m;
-  }, [eventIdx]);
+  }, [items, summary?.area_summary]);
 
   const tableFiltered = useMemo(() => {
     const q = tableSearch.toLowerCase();
@@ -131,13 +202,14 @@ export default function EventSummaryPage() {
   const safePage = Math.min(tablePage, tableTotalPages);
   const pageData = tableFiltered.slice((safePage - 1) * TABLE_PAGE_SIZE, safePage * TABLE_PAGE_SIZE);
 
-  const statusBadge = ev.status === 'Completed' ? 'badge-green' : ev.status === 'Upcoming' ? 'badge-blue' : 'badge-orange';
+  const eventStatus = eventDetail?.is_complete === 1 ? 'Completed' : eventDetail?.status === 1 ? 'Active' : 'Inactive';
+  const statusBadge = eventStatus === 'Completed' ? 'badge-green' : eventStatus === 'Active' ? 'badge-blue' : 'badge-orange';
 
   const kpis = [
     { label:'Total Items',  value:total,    sub:`Total qty: ${totalQty} units`, accent:'brand',  style:{} },
-    { label:'Checked',      value:checked,  sub:`${pct(checked,total)}% of all items`, accent:'green', style:{} },
-    { label:'Scan In',      value:scanIn,   sub:`${pct(scanIn,total)}% scanned in`, accent:'brand', style:{ borderLeftColor:'var(--purple)' } },
-    { label:'Scan Out',     value:scanOut,  sub:`${pct(scanOut,total)}% scanned out`, accent:'green', style:{ borderLeftColor:'var(--green)' } },
+    { label:'Checked',      value:checked,  sub:`${totalSummary?.checked_percentage ?? pct(checked,total)}% of all items`, accent:'green', style:{} },
+    { label:'Scan In',      value:scanIn,   sub:`${totalSummary?.scan_in_percentage ?? pct(scanIn,total)}% scanned in`, accent:'brand', style:{ borderLeftColor:'var(--purple)' } },
+    { label:'Scan Out',     value:scanOut,  sub:`${totalSummary?.scan_out_percentage ?? pct(scanOut,total)}% scanned out`, accent:'green', style:{ borderLeftColor:'var(--green)' } },
     { label:'Missing',      value:missing,  sub:`${pct(missing,total)}% of items`, accent:'red',   style:{}, valueStyle:{ color:'var(--red)' } },
     { label:'Damaged',      value:damaged,  sub:`${pct(damaged,total)}% of items`, accent:'orange', style:{}, valueStyle:{ color:'var(--orange)' } },
   ];
@@ -158,26 +230,29 @@ export default function EventSummaryPage() {
           <h1 className="page-title" style={{ margin:0 }}>Event Summary</h1>
         </div>
         <div style={{ display:'flex', gap:8 }}>
-          <div className="wi-select-wrap">
-            <select style={{ minWidth:220 }} value={eventIdx} onChange={e => { setEventIdx(parseInt(e.target.value)); setTablePage(1); }}>
-              {EVENTS.map((ev, i) => <option key={i} value={i}>{ev.name}</option>)}
-            </select>
-          </div>
           <button className="btn-print" onClick={() => window.print()}><IconPrint /> Print Report</button>
         </div>
       </div>
 
+      {!eventId ? (
+        <div className="card" style={{ marginBottom:22 }}>Invalid or missing event ID.</div>
+      ) : isSummaryLoading || isDetailLoading ? (
+        <div className="card" style={{ marginBottom:22 }}>Loading event summary...</div>
+      ) : isSummaryError || isDetailError ? (
+        <div className="card" style={{ marginBottom:22 }}>Failed to load event summary.</div>
+      ) : null}
+
       {/* Event Info */}
       <div className="event-info-block" style={{ display:'flex', flexWrap:'wrap', alignItems:'center', gap:'14px 32px', background:'var(--white)', border:'1px solid var(--border)', borderRadius:'var(--r-lg)', padding:'18px 22px', marginBottom:22, boxShadow:'0 1px 4px rgba(0,0,0,.05)' }}>
         <div>
-          <div className="event-info-name">{ev.name}</div>
+          <div className="event-info-name">{eventDetail?.name ?? '—'}</div>
         </div>
         <div className="event-info-meta" style={{ display:'flex', flexWrap:'wrap', gap:'6px 16px', alignItems:'center' }}>
-          <div className="event-info-chip"><span>{fmtDate(ev.date)}</span></div>
-          <div className="event-info-chip"><span>{ev.venue}</span></div>
-          <div className="event-info-chip"><span>{ev.pic}</span></div>
-          <div className="event-info-chip"><span>Code: <strong>{ev.code}</strong></span></div>
-          <span className={`badge ${statusBadge}`}>{ev.status}</span>
+          <div className="event-info-chip"><span>{fmtDate(eventDetail?.event_start)} - {fmtDate(eventDetail?.event_end)}</span></div>
+          <div className="event-info-chip"><span>{eventDetail?.address || '—'}</span></div>
+          <div className="event-info-chip"><span>{eventDetail?.PIC || '—'}</span></div>
+          <div className="event-info-chip"><span>Code: <strong>{eventDetail?.event_code || '—'}</strong></span></div>
+          <span className={`badge ${statusBadge}`}>{eventStatus}</span>
         </div>
       </div>
 
@@ -217,22 +292,27 @@ export default function EventSummaryPage() {
       <div className="section-title">Items by Area</div>
       <div className="area-grid">
         {Object.entries(areaMap).sort(([a],[b]) => a.localeCompare(b)).map(([name, a]) => {
-          const cp = pct(a.checked, a.total);
-          const sp = pct(a.scanIn, a.total);
+          const cp = a.checkedPercentage ?? pct(a.checked, a.total);
+          const sp = a.scanInPercentage ?? pct(a.scanIn, a.total);
+          const sop = pct(a.scanOut ?? 0, a.total);
           return (
             <div key={name} className="area-stat-card" style={{ background:'var(--white)', border:'1px solid var(--border)', borderRadius:'var(--r-lg)', padding:'14px 16px', boxShadow:'0 1px 4px rgba(0,0,0,.04)' }}>
               <div className="area-stat-header">
                 <span className="area-stat-name">{name}</span>
                 <span className="area-stat-count">{a.total} item{a.total !== 1 ? 's' : ''}</span>
               </div>
-              {[{ label:'Checked', color:'var(--brand)', val:cp }, { label:'Scan In', color:'var(--purple)', val:sp }].map(row => (
+              {[
+                { label:'Checked', color:'var(--brand)', val:cp },
+                { label:'Scan In', color:'var(--purple)', val:sp },
+                { label:'Scan Out', color:'var(--green)', val:sop },
+              ].map(row => (
                 <div key={row.label} className="area-stat-row">
                   <span className="area-dot" style={{ background:row.color, width:8, height:8, borderRadius:'50%', flexShrink:0 }} />
                   {row.label}
                   <div className="progress-bar-track" style={{ flex:1, height:5, margin:'0 6px' }}>
                     <div className="progress-bar-fill" style={{ width:`${row.val}%`, background:row.color }} />
                   </div>
-                  <span className="area-stat-pct">{row.val}%</span>
+                  <span className="area-stat-pct">{Number(row.val).toFixed(2)}%</span>
                 </div>
               ))}
               <div style={{ marginTop:8, display:'flex', flexWrap:'wrap', gap:4 }}>
@@ -257,7 +337,7 @@ export default function EventSummaryPage() {
             <div className="wi-select-wrap">
               <select style={{ width:140 }} value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setTablePage(1); }}>
                 <option value="">All Status</option>
-                <option>In Use</option><option>Ready</option><option>Missing</option><option>Damaged</option>
+                {statusNames.map(status => <option key={status}>{status}</option>)}
               </select>
             </div>
             <div className="wi-select-wrap">

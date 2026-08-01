@@ -698,7 +698,7 @@ console.log(cart)
             <button className="btn btn-check" onClick={() => {}}>
               <IconSearch /> Check
             </button>
-            <button className="btn" style={{ background: "var(--purple)", color: "#fff" }} onClick={() => navigate(`/event-summary?name=${encodeURIComponent(eventName)}`)}>
+            <button className="btn" style={{ background: "var(--purple)", color: "#fff" }} onClick={() => navigate(`/event-summary?id=${eventId}`)}>
               <IconBarChart /> Summary
             </button>
             <button className="btn btn-print" onClick={() => window.print()}><IconPrint /> Print</button>

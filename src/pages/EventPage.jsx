@@ -14,7 +14,6 @@ import {
   IconBarChart,
   IconClose,
   IconCheck,
-  IconCalendar,
 } from "../components/icons";
 import { initialEvents, TODAY } from "../data/events";
 import useGetUpcomingEvents from "../hooks/api/useGetUpcomingEvents";
@@ -22,7 +21,7 @@ import useGetPastEvents from "../hooks/api/useGetPastEvents";
 import useGetEventStatus from "..//hooks/api/useGetEventStatus";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { Day, utils } from "react-modern-calendar-datepicker";
+import {  utils } from "react-modern-calendar-datepicker";
 import { InventoryService } from "../service/InventoryService";
 
 const PAGE_SIZE = 8;
@@ -70,11 +69,6 @@ function fmtRange(start, finish) {
   } ${fy}`;
 }
 
-function fmtDateShort(d) {
-  if (!d || d === "-") return "—";
-  const [y, m, day] = d.split("-");
-  return `${parseInt(day)} ${MONTHS_SHORT[parseInt(m) - 1]} ${y}`;
-}
 
 function daysUntil(start) {
   if (!start) return null;
@@ -158,10 +152,9 @@ export default function EventPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("upcoming");
   const [events, setEvents] = useState(initialEvents);
-  const [nextId, setNextId] = useState(90);
+  
   const [isModify, setIsModify] = useState(false);
   const [event, setEvent] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [pastQuery, setPastQuery] = useState("");
   const [pastPage, setPastPage] = useState(1);
   const [upQuery, setUpQuery] = useState("");
@@ -170,21 +163,6 @@ export default function EventPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
-  const [form, setForm] = useState({
-    name: "",
-    code: "",
-    desc: "",
-    start: "",
-    finish: "",
-    date: "",
-    location: "",
-    pic: "",
-    status: "",
-    address: "",
-    qrType: "",
-    note: "",
-    image: "",
-  });
 
   const formik = useFormik({
     initialValues: {
@@ -221,7 +199,6 @@ export default function EventPage() {
     validateOnChange: false,
     enableReinitialize: true,
     onSubmit: async (values) => {
-      setIsLoading(true);
       const payload = {
         description: values.description,
         name: values.name,
@@ -278,7 +255,6 @@ export default function EventPage() {
       }
       formik.resetForm();
       setBase64("");
-      setIsLoading(false);
       setIsModify(false);
       setEvent(null);
       refetchPasts();
@@ -325,20 +301,7 @@ export default function EventPage() {
     );
   }, [pasts?.data?.data, pastQuery]);
 
-  const upEvents = useMemo(() => {
-    let data = events.filter((e) => e.type === "upcoming");
-    if (upQuery) {
-      const q = upQuery.toLowerCase();
-      data = data.filter(
-        (e) =>
-          e.name.toLowerCase().includes(q) ||
-          e.code.toLowerCase().includes(q) ||
-          e.location.toLowerCase().includes(q) ||
-          e.desc.toLowerCase().includes(q)
-      );
-    }
-    return data.sort((a, b) => (a.start || "").localeCompare(b.start || ""));
-  }, [events, upQuery]);
+  
 
   const groupedPast = useMemo(() => {
     if (pastQuery) return null;
@@ -358,65 +321,21 @@ export default function EventPage() {
     [pastEvents, pastPage]
   );
 
-  function setF(field) {
-    return (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
-  }
+  
 
   function openNew() {
     setEditingId(null);
-    const today = new Date().toISOString().slice(0, 10);
-    setForm({
-      name: "",
-      code: "",
-      desc: "",
-      start: today,
-      finish: "",
-      date: "",
-      location: "",
-      pic: "",
-      status: "",
-      address: "",
-      qrType: "",
-      note: "",
-      image: "",
-    });
+
     setModalOpen(true);
   }
   function openEdit(id) {
     const r = events.find((e) => e.id === id);
     if (!r) return;
     setEditingId(id);
-    setForm({
-      name: r.name,
-      code: r.code,
-      desc: r.desc,
-      start: r.start,
-      finish: r.finish,
-      date: r.date,
-      location: r.location,
-      pic: r.pic || "",
-      status: r.status || "",
-      address: r.address || "",
-      qrType: r.qrType || "",
-      note: r.note || "",
-      image: r.image || "",
-    });
+
     setModalOpen(true);
   }
-  function saveEvent() {
-    if (!form.name.trim()) return;
-    if (editingId) {
-      setEvents((es) =>
-        es.map((e) => (e.id === editingId ? { ...e, ...form } : e))
-      );
-    } else {
-      const type =
-        form.start && new Date(form.start) < TODAY ? "past" : "upcoming";
-      setEvents((es) => [{ id: nextId, ...form, type }, ...es]);
-      setNextId((n) => n + 1);
-    }
-    setModalOpen(false);
-  }
+  
   function openDelete(id) {
     setDeletingId(id);
     setDeleteOpen(true);
@@ -427,10 +346,10 @@ export default function EventPage() {
   }
 
   const delTarget = events.find((e) => e.id === deletingId);
-  const totalUp = events.filter((e) => e.type === "upcoming").length;
-  const totalPast = events.filter((e) => e.type === "past").length;
+  
+  
 
-  function EventCard({ r, onEdit, onDelete, navigate }) {
+  function EventCard({ r, onDelete, navigate }) {
     const days = daysUntil(r.event_start);
     const accent =
       days !== null && days <= 7
@@ -559,9 +478,7 @@ export default function EventPage() {
             style={{ color: "var(--purple)" }}
             onClick={() =>
               navigate(
-                `/event-summary?name=${encodeURIComponent(
-                  r.name.toUpperCase()
-                )}`
+                `/event-summary?id=${r.id}`
               )
             }
           >
@@ -748,9 +665,7 @@ export default function EventPage() {
             style={{ color: "var(--purple)" }}
             onClick={() =>
               navigate(
-                `/event-summary?name=${encodeURIComponent(
-                  r.name.toUpperCase()
-                )}`
+                `/event-summary?id=${r.id}`
               )
             }
           >
