@@ -1,0 +1,52 @@
+const baseData = [
+  { event: 'Wedding Thamrin',  location: 'Jakarta Pusat', status: 'Created by admin up', item: 'Tealight Holder Lama Tinggi 15cm',                 stockItem: 27,  stockCart: 3   },
+  { event: 'Wedding Thamrin',  location: 'Jakarta Pusat', status: 'Created by admin up', item: 'Tealight Holder Lama Tinggi 15cm',                 stockItem: 27,  stockCart: 3   },
+  { event: 'Wedding Thamrin',  location: 'Jakarta Pusat', status: 'Created by admin up', item: 'Kain Putih',                                       stockItem: 1,   stockCart: 10  },
+  { event: 'Wedding Thamrin',  location: 'Jakarta Pusat', status: 'Created by admin up', item: 'Artificial Flower Lunaria White',                  stockItem: 342, stockCart: 342 },
+  { event: 'Wedding Thamrin',  location: 'Jakarta Pusat', status: 'Created by admin up', item: 'Artificial Flower Chrysant Spikey Giant White (*)', stockItem: 57,  stockCart: 177 },
+  { event: 'Wedding Thamrin',  location: 'Jakarta Pusat', status: 'Created by admin up', item: 'namaw',                                            stockItem: 1,   stockCart: 1   },
+  { event: 'Wedding Thamrin',  location: 'Jakarta Pusat', status: 'Created by admin up', item: 'crystal bentuk tabung',                           stockItem: 100, stockCart: 100 },
+  { event: 'Wedding Thamrin',  location: 'Jakarta Pusat', status: 'Created by admin up', item: 'Artificial Flower Lunaria White',                  stockItem: 342, stockCart: 342 },
+  { event: 'Wedding Thamrin',  location: 'Jakarta Pusat', status: 'Created by admin up', item: 'Atificial Flower Crysant Orange',                  stockItem: 180, stockCart: 120 },
+  { event: 'Wedding Thamrin',  location: 'Jakarta Pusat', status: 'Created by admin up', item: 'Artificial Rose Pink',                             stockItem: 182, stockCart: 182 },
+  { event: 'Gala Dinner Bali', location: 'Bali',          status: 'Created by admin up', item: 'Lilin Merah',                                      stockItem: 50,  stockCart: 20  },
+  { event: 'Gala Dinner Bali', location: 'Bali',          status: 'Created by admin up', item: 'Bunga Mawar Putih',                                stockItem: 200, stockCart: 150 },
+  { event: 'Gala Dinner Bali', location: 'Bali',          status: 'Created by admin up', item: 'Taplak Meja Putih',                                stockItem: 30,  stockCart: 30  },
+  { event: 'Gala Dinner Bali', location: 'Bali',          status: 'Created by admin up', item: 'Pita Emas',                                        stockItem: 100, stockCart: 75  },
+  { event: 'Gala Dinner Bali', location: 'Bali',          status: 'Created by admin up', item: 'Kursi Tiffany',                                    stockItem: 80,  stockCart: 80  },
+  { event: 'Birthday Party',   location: 'Surabaya',      status: 'Created by admin up', item: 'Balon Latex Putih',                                stockItem: 500, stockCart: 300 },
+  { event: 'Birthday Party',   location: 'Surabaya',      status: 'Created by admin up', item: 'Backdrop Floral',                                  stockItem: 5,   stockCart: 5   },
+  { event: 'Birthday Party',   location: 'Surabaya',      status: 'Created by admin up', item: 'Artificial Flower Mix',                            stockItem: 120, stockCart: 90  },
+  { event: 'Birthday Party',   location: 'Surabaya',      status: 'Created by admin up', item: 'Standing Flower',                                  stockItem: 10,  stockCart: 10  },
+  { event: 'Birthday Party',   location: 'Surabaya',      status: 'Created by admin up', item: 'Meja Buffet',                                      stockItem: 8,   stockCart: 8   },
+  { event: 'Corporate Event',  location: 'Bandung',       status: 'Created by admin up', item: 'Banner Roll Up',                                   stockItem: 15,  stockCart: 15  },
+  { event: 'Corporate Event',  location: 'Bandung',       status: 'Created by admin up', item: 'Podium',                                           stockItem: 2,   stockCart: 2   },
+  { event: 'Corporate Event',  location: 'Bandung',       status: 'Created by admin up', item: 'Proyektor',                                        stockItem: 3,   stockCart: 3   },
+  { event: 'Corporate Event',  location: 'Bandung',       status: 'Created by admin up', item: 'Microphone',                                       stockItem: 10,  stockCart: 6   },
+  { event: 'Corporate Event',  location: 'Bandung',       status: 'Created by admin up', item: 'Layar Proyektor',                                  stockItem: 3,   stockCart: 3   },
+  { event: 'Seminar Nasional', location: 'Yogyakarta',    status: 'Created by admin up', item: 'Name Tag',                                         stockItem: 200, stockCart: 180 },
+  { event: 'Seminar Nasional', location: 'Yogyakarta',    status: 'Created by admin up', item: 'Goodie Bag',                                       stockItem: 200, stockCart: 170 },
+  { event: 'Seminar Nasional', location: 'Yogyakarta',    status: 'Created by admin up', item: 'Kursi Lipat',                                      stockItem: 250, stockCart: 200 },
+  { event: 'Seminar Nasional', location: 'Yogyakarta',    status: 'Created by admin up', item: 'Meja Registrasi',                                  stockItem: 4,   stockCart: 4   },
+  { event: 'Seminar Nasional', location: 'Yogyakarta',    status: 'Created by admin up', item: 'Spanduk',                                          stockItem: 5,   stockCart: 5   },
+  { event: 'Pernikahan Adat',  location: 'Solo',          status: 'Created by admin up', item: 'Janur Kuning',                                     stockItem: 50,  stockCart: 50  },
+  { event: 'Pernikahan Adat',  location: 'Solo',          status: 'Created by admin up', item: 'Gebyok Jati',                                      stockItem: 2,   stockCart: 2   },
+  { event: 'Pernikahan Adat',  location: 'Solo',          status: 'Created by admin up', item: 'Kain Batik',                                       stockItem: 100, stockCart: 80  },
+  { event: 'Pernikahan Adat',  location: 'Solo',          status: 'Created by admin up', item: 'Sesaji',                                           stockItem: 20,  stockCart: 20  },
+  { event: 'Pernikahan Adat',  location: 'Solo',          status: 'Created by admin up', item: 'Payung Pengantin',                                 stockItem: 4,   stockCart: 4   },
+  { event: 'Festival Kuliner', location: 'Medan',         status: 'Created by admin up', item: 'Tenda 3x3',                                        stockItem: 20,  stockCart: 18  },
+  { event: 'Festival Kuliner', location: 'Medan',         status: 'Created by admin up', item: 'Meja Lipat',                                       stockItem: 60,  stockCart: 55  },
+];
+
+for (let i = baseData.length; i < 364; i++) {
+  baseData.push({
+    event: 'Event ' + (i + 1),
+    location: 'Location',
+    status: 'Created by admin up',
+    item: 'Item ' + (i + 1),
+    stockItem: Math.floor(Math.random() * 200) + 1,
+    stockCart: Math.floor(Math.random() * 100) + 1,
+  });
+}
+
+export const eiData = baseData;

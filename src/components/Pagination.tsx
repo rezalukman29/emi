@@ -1,4 +1,4 @@
-import { IconChevronsLeft, IconChevronLeft, IconChevronRight, IconChevronsRight } from './icons.js';
+import { IconChevronsLeft, IconChevronLeft, IconChevronRight, IconChevronsRight } from './icons';
 
 function visiblePages(cur: any, total: any) {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);

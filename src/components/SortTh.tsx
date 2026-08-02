@@ -1,4 +1,4 @@
-import { IconSortUp, IconSortDown } from './icons.js';
+import { IconSortUp, IconSortDown } from './icons';
 
 export default function SortTh({ label, colIndex, sortCol, sortAsc, onSort, style, id }: any) {
   return (

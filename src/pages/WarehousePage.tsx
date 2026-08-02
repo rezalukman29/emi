@@ -10,7 +10,7 @@ import {
   IconEdit,
   IconPlus,
   IconSearch,
-} from "../components/icons.js";
+} from "../components/icons";
 import SortTh from "../components/SortTh.js";
 import { initialWarehouses } from "../data/warehouses.js";
 import { useWarehouseController } from "./lib/useWarehouseController.js";

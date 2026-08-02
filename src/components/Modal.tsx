@@ -1,5 +1,5 @@
 import React, { useEffect, type JSX } from "react";
-import { IconClose } from "./icons.js";
+import { IconClose } from "./icons";
 
 export interface ModalProps {
   open: boolean;

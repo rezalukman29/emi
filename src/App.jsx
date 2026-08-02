@@ -25,6 +25,15 @@ import LoginPage from "./pages/Login";
 import { Provider } from "react-redux";
 import { store } from "./store/store";
 import { QueryClient, QueryClientProvider } from "react-query";
+import RequireAuth from './components/RequireAuth';
+import SuperAdminLogin from './pages/superadmin/SuperAdminLogin';
+import SuperAdminLayout from './pages/superadmin/SuperAdminLayout';
+import DashboardPage from './pages/superadmin/DashboardPage';
+import CustomersPage from './pages/superadmin/CustomersPage';
+import PaymentsPage from './pages/superadmin/PaymentsPage';
+import PricingPage from './pages/superadmin/PricingPage';
+import DefaultCategoriesPage from './pages/superadmin/DefaultCategoriesPage';
+import DefaultUnitsPage from './pages/superadmin/DefaultUnitsPage';
 
 export default function App() {
   const queryClient = new QueryClient({
@@ -41,6 +50,17 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <Routes>
+                    <Route path="/superadmin/login" element={<SuperAdminLogin />} />
+        <Route path="/superadmin" element={<RequireAuth><SuperAdminLayout /></RequireAuth>}>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<DashboardPage />} />
+          <Route path="customers" element={<CustomersPage />} />
+          <Route path="payments" element={<PaymentsPage />} />
+          <Route path="pricing" element={<PricingPage />} />
+          <Route path="categories" element={<DefaultCategoriesPage />} />
+          <Route path="units" element={<DefaultUnitsPage />} />
+          <Route path="*" element={<Navigate to="dashboard" replace />} />
+        </Route>
             <Route path="login" element={<LoginPage />} />
             <Route path="/" element={<Layout />}>
               <Route index element={<Navigate to="/login" replace />} />
