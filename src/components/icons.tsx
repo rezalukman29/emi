@@ -209,3 +209,9 @@ export const IconRuler = () => (
     <path d="m7.5 10.5 2 2M10.5 7.5l2 2M13.5 4.5l2 2"/>
   </svg>
 );
+
+export const IconMoreVertical = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor">
+    <circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/>
+  </svg>
+);
