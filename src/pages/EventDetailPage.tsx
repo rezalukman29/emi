@@ -13,9 +13,10 @@ import {
   IconPrint,
   IconBarChart,
 } from "../components/icons";
-import useGetBarangGudang, {
-  type BarangGudangItem,
-} from "../hooks/api/useGetBarangGudang";
+import useGetBarangGudangV2, {
+  type BarangGudangItemV2,
+  type BarangGudangWarehouseV2,
+} from "../hooks/api/useGetBarangGudangV2";
 import useGetAreaList from "../hooks/api/useGetAreaList";
 import useCreateFixEventList from "../hooks/api/useCreateFixEventList";
 import useCreateFixListItem from "../hooks/api/useCreateFixListItem";
@@ -23,6 +24,7 @@ import useGetEventItem, { type EventItem } from "../hooks/api/useGetEventItem";
 import useGetSubArea from "../hooks/api/useGetSubArea";
 import { STORAGE_BOOQABLE, isValidUrl, noImage } from "../utils/function";
 import { useWarehouseController } from "./lib/useWarehouseController";
+import { useCategoryController } from "./lib/useCategoryController";
 
 const STATUSES = ["Preparation", "During Event", "After Event"] as const;
 
@@ -338,6 +340,7 @@ export default function EventDetailPage() {
   });
 
   const { warehouseOptions } = useWarehouseController();
+  const { categoryOptions } = useCategoryController();
   const { mutateAsync: createFixEventList, isLoading: isCreatingFixEventList } =
     useCreateFixEventList();
   const { mutateAsync: createFixListItem, isLoading: isCreatingFixListItem } =
@@ -371,12 +374,13 @@ export default function EventDetailPage() {
   const [barangSearch, setBarangSearch] = useState("");
   const [debouncedBarangSearch, setDebouncedBarangSearch] = useState("");
   const [selectedBarangGudang, setSelectedBarangGudang] =
-    useState<BarangGudangItem | null>(null);
+    useState<BarangGudangItemV2 | null>(null);
 
   // Inventory picker
   const [pickerQuery, setPickerQuery] = useState("");
   const [pickerCategory, setPickerCategory] = useState("");
   const [pickerQty, setPickerQty] = useState<Record<number, number>>({});
+  const [pickerWarehouseIds, setPickerWarehouseIds] = useState<Record<number, number>>({});
   const [selectedCartIds, setSelectedCartIds] = useState<string[]>([]);
   const [bulkPanelOpen, setBulkPanelOpen] = useState(false);
   const [bulkAreaId, setBulkAreaId] = useState("");
@@ -440,11 +444,12 @@ export default function EventDetailPage() {
     data: barangGudangResponse,
     isLoading: isBarangGudangLoading,
     isError: isBarangGudangError,
-  } = useGetBarangGudang({
+  } = useGetBarangGudangV2({
     params: {
       page: 1,
       limit: 30,
       gudang_id: selectedWarehouseId ? Number(selectedWarehouseId) : undefined,
+      categoryId: pickerCategory ? Number(pickerCategory) : undefined,
       search: debouncedBarangSearch || undefined,
     },
     options: {
@@ -485,26 +490,15 @@ export default function EventDetailPage() {
     );
   }, [newItemForm.areaId, subAreaResponse?.data?.data]);
 
-  const pickerCategories = useMemo(
-    () =>
-      [
-        ...new Set(
-          barangGudangItems.map((item) => item.nama_kategori).filter(Boolean),
-        ),
-      ].sort(),
-    [barangGudangItems],
-  );
-
   const pickerFiltered = useMemo(() => {
     const query = pickerQuery.trim().toLowerCase();
     return barangGudangItems.filter((item) => {
-      if (pickerCategory && item.nama_kategori !== pickerCategory) return false;
       if (query.length < 3) return true;
-      return `${item.nama_barang} ${item.kode_gudang} ${item.barang_id}`
+      return `${item.nama_barang} ${item.code} ${item.barang_id}`
         .toLowerCase()
         .includes(query);
     });
-  }, [barangGudangItems, pickerCategory, pickerQuery]);
+  }, [barangGudangItems, pickerQuery]);
 
   const bulkSubAreas = useMemo(() => {
     const areaId = Number(bulkAreaId);
@@ -707,6 +701,17 @@ export default function EventDetailPage() {
 
   const isSavingCart = isCreatingFixEventList || isCreatingFixListItem;
 
+  function getSelectedItemWarehouse(
+    item: BarangGudangItemV2,
+  ): BarangGudangWarehouseV2 | undefined {
+    const selectedId = pickerWarehouseIds[item.barang_id];
+    return (
+      item.warehouses.find(
+        (warehouse) => warehouse.barang_gudang_id === selectedId,
+      ) ?? item.warehouses[0]
+    );
+  }
+
   function saveNewItem() {
     const selectedArea = masterAreas.find(
       (area) => String(area.id) === newItemForm.areaId,
@@ -715,19 +720,20 @@ export default function EventDetailPage() {
       (subArea) => String(subArea.id) === newItemForm.subAreaId,
     );
     if (!selectedBarangGudang || !selectedArea || !selectedSubArea) return;
+    const selectedWarehouse =
+      selectedBarangGudang.warehouses.find(
+        (warehouse) => warehouse.gudang_id === Number(selectedWarehouseId),
+      ) ?? selectedBarangGudang.warehouses[0];
+    if (!selectedWarehouse) return;
 
     setCart((currentCart) => [
       ...currentCart,
       {
         cartId: crypto.randomUUID(),
         itemId: null,
-        warehouseId:
-          selectedBarangGudang.gudang?.gudang_id ??
-          selectedBarangGudang.gudang_id,
-        warehouseName:
-          selectedBarangGudang.gudang?.gudang_name ??
-          selectedBarangGudang.gudang_name,
-        barangGudangId: selectedBarangGudang.barang_gudang_id,
+        warehouseId: selectedWarehouse.gudang_id,
+        warehouseName: selectedWarehouse.gudang_name,
+        barangGudangId: selectedWarehouse.barang_gudang_id,
         barangId: selectedBarangGudang.barang_id,
         photo: getPhotoUrl(selectedBarangGudang.photo),
         name: selectedBarangGudang.nama_barang,
@@ -762,12 +768,14 @@ export default function EventDetailPage() {
     setNewItemOpen(false);
   }
 
-  function addInventoryItem(item: BarangGudangItem) {
-    const qty = pickerQty[item.barang_gudang_id] ?? 1;
+  function addInventoryItem(item: BarangGudangItemV2) {
+    const selectedWarehouse = getSelectedItemWarehouse(item);
+    if (!selectedWarehouse) return;
+    const qty = pickerQty[item.barang_id] ?? 1;
     setCart((currentCart) => {
       const existing = currentCart.find(
         (cartItem) =>
-          cartItem.barangGudangId === item.barang_gudang_id &&
+          cartItem.barangGudangId === selectedWarehouse.barang_gudang_id &&
           cartItem.areaId === null,
       );
       if (existing) {
@@ -782,10 +790,10 @@ export default function EventDetailPage() {
         {
           cartId: crypto.randomUUID(),
           itemId: null,
-          barangGudangId: item.barang_gudang_id,
+          barangGudangId: selectedWarehouse.barang_gudang_id,
           barangId: item.barang_id,
-          warehouseId: item.gudang?.gudang_id ?? item.gudang_id,
-          warehouseName: item.gudang?.gudang_name ?? item.gudang_name,
+          warehouseId: selectedWarehouse.gudang_id,
+          warehouseName: selectedWarehouse.gudang_name,
           photo: getPhotoUrl(item.photo),
           name: item.nama_barang,
           status: "Preparation",
@@ -880,6 +888,7 @@ export default function EventDetailPage() {
     setPickerQuery("");
     setPickerCategory("");
     setPickerQty({});
+    setPickerWarehouseIds({});
     setSelectedCartIds([]);
     setBulkPanelOpen(false);
     setBulkAreaId("");
@@ -1299,12 +1308,11 @@ export default function EventDetailPage() {
             ) : (
               barangGudangItems.map((barang) => {
                 const isSelected =
-                  selectedBarangGudang?.barang_gudang_id ===
-                  barang.barang_gudang_id;
+                  selectedBarangGudang?.barang_id === barang.barang_id;
 
                 return (
                   <button
-                    key={barang.barang_gudang_id}
+                    key={barang.barang_id}
                     type="button"
                     className={`event-master-item${isSelected ? " selected" : ""}`}
                     onClick={() => setSelectedBarangGudang(barang)}
@@ -1598,9 +1606,9 @@ export default function EventDetailPage() {
                   onChange={(e) => setPickerCategory(e.target.value)}
                 >
                   <option value="">Semua Kategori</option>
-                  {pickerCategories.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
+                  {categoryOptions.map((category: { value: string; label: string }) => (
+                    <option key={category.value} value={category.value}>
+                      {category.label}
                     </option>
                   ))}
                 </select>
@@ -1612,13 +1620,12 @@ export default function EventDetailPage() {
                 <div className="no-data">Tidak ada barang ditemukan.</div>
               ) : (
                 pickerFiltered.map((inv) => {
-                  const qty = pickerQty[inv.barang_gudang_id] ?? 1;
-                  const outOfStock = inv.stok_gudang <= 0;
-                  const warehouseId = inv.gudang?.gudang_id ?? inv.gudang_id;
-                  const warehouseName =
-                    inv.gudang?.gudang_name ?? inv.gudang_name;
+                  const selectedWarehouse = getSelectedItemWarehouse(inv);
+                  const qty = pickerQty[inv.barang_id] ?? 1;
+                  const warehouseStock = selectedWarehouse?.stok_gudang ?? 0;
+                  const outOfStock = warehouseStock <= 0;
                   return (
-                    <div className="inv-pick-row" key={inv.barang_gudang_id}>
+                    <div className="inv-pick-row" key={inv.barang_id}>
                       <ImagePlaceholder
                         src={getPhotoUrl(inv.photo)}
                         alt={inv.nama_barang}
@@ -1629,37 +1636,52 @@ export default function EventDetailPage() {
                             {inv.nama_barang}
                           </span>
                           <span
-                            className={`inv-stock-badge ${outOfStock ? "out" : inv.stok_gudang < 10 ? "low" : "available"}`}
+                            className={`inv-stock-badge ${outOfStock ? "out" : warehouseStock < 10 ? "low" : "available"}`}
                           >
                             {outOfStock
                               ? "Out of Stock"
-                              : inv.stok_gudang < 10
+                              : warehouseStock < 10
                                 ? "Low Stock"
                                 : "Available"}
                           </span>
                         </div>
                         <div className="inv-pick-meta">
                           <span style={{ fontFamily: "monospace" }}>
-                            {inv.kode_gudang || `#${inv.barang_id}`}
+                            {inv.code || `#${inv.barang_id}`}
                           </span>{" "}
                           · {inv.nama_kategori} · {inv.nama_satuan}
                         </div>
                         <div className="inv-pick-stock">
                           Stok tersedia:{" "}
                           <strong>
-                            {inv.stok_gudang} {inv.nama_satuan}
+                            {warehouseStock} {inv.nama_satuan}
                           </strong>
                         </div>
                         <div className="inv-pick-warehouse-row">
                           <label>Ambil dari gudang</label>
                           <div className="wi-select-wrap">
                             <select
-                              value={String(warehouseId)}
-                              onChange={() => undefined}
+                              value={selectedWarehouse?.barang_gudang_id ?? ""}
+                              onChange={(event) => {
+                                const barangGudangId = Number(event.target.value);
+                                setPickerWarehouseIds((current) => ({
+                                  ...current,
+                                  [inv.barang_id]: barangGudangId,
+                                }));
+                                setPickerQty((current) => ({
+                                  ...current,
+                                  [inv.barang_id]: 1,
+                                }));
+                              }}
                             >
-                              <option value={warehouseId}>
-                                {warehouseName}
-                              </option>
+                              {inv.warehouses.map((warehouse) => (
+                                <option
+                                  key={warehouse.barang_gudang_id}
+                                  value={warehouse.barang_gudang_id}
+                                >
+                                  {warehouse.gudang_name}
+                                </option>
+                              ))}
                             </select>
                           </div>
                         </div>
@@ -1669,16 +1691,16 @@ export default function EventDetailPage() {
                           className="inv-pick-qty"
                           type="number"
                           min={1}
-                          max={inv.stok_gudang}
+                          max={warehouseStock}
                           value={qty}
                           disabled={outOfStock}
                           onChange={(e) =>
                             setPickerQty((q) => ({
                               ...q,
-                              [inv.barang_gudang_id]: Math.max(
+                              [inv.barang_id]: Math.max(
                                 1,
                                 Math.min(
-                                  inv.stok_gudang,
+                                  warehouseStock,
                                   parseInt(e.target.value) || 1,
                                 ),
                               ),
