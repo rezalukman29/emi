@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, Link } from 'react-router-dom';
 import { version } from '../../package.json';
 
 const SECTIONS = [
@@ -29,6 +29,8 @@ const SECTIONS = [
         icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> },
       { to: '/sync-inventory', label: 'Sync Inventory',
         icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg> },
+      { to: '/item-loan', label: 'Item Loan',
+        icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
     ],
   },
   {
@@ -75,7 +77,7 @@ const SECTIONS = [
   },
 ];
 
-export default function Sidebar({ visible }) {
+export default function Sidebar({ visible }: { visible: boolean }) {
   return (
     <nav className="sidebar" style={visible ? {} : { display: 'none' }}>
       {SECTIONS.map(section => (
@@ -93,7 +95,13 @@ export default function Sidebar({ visible }) {
           ))}
         </div>
       ))}
-      <div className="sidebar-version">v{version}</div>
+      <div className="sidebar-footer">
+        <Link to="/superadmin/login" className="sidebar-owner-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>Owner Panel</span>
+        </Link>
+        <div className="sidebar-version">v{version}</div>
+      </div>
     </nav>
   );
 }

@@ -23,6 +23,9 @@ import AiMaterialAnalyzerPage from "./pages/AiMaterialAnalyzerPage";
 import MainDashboardPage from "./pages/DashboardPage";
 import InventoryReportPage from "./pages/InventoryReportPage";
 import OverviewReportPage from "./pages/OverviewReportPage";
+import ItemLoanPage from "./pages/ItemLoanPage";
+import LogPage from "./pages/LogPage";
+import UsersPage from "./pages/UsersPage";
 import { ToastContainer } from "react-toastify";
 import LoginPage from "./pages/Login";
 import { Provider } from "react-redux";
@@ -99,6 +102,7 @@ export default function App() {
                 element={<InventoryDetailPage />}
               />
               <Route path="sync-inventory" element={<SyncInventoryPage />} />
+              <Route path="item-loan" element={<ItemLoanPage />} />
               <Route path="area" element={<AreaPage />} />
               <Route path="area-detail" element={<AreaDetailPage />} />
               <Route path="sub-area" element={<SubAreaPage />} />
@@ -115,8 +119,8 @@ export default function App() {
                 path="ai-material-analyzer"
                 element={<AiMaterialAnalyzerPage />}
               />
-              <Route path="log" element={<PlaceholderPage title="Log" />} />
-              <Route path="users" element={<PlaceholderPage title="Users" />} />
+              <Route path="log" element={<LogPage />} />
+              <Route path="users" element={<UsersPage />} />
               <Route path="*" element={<Navigate to="/event" replace />} />
             </Route>
           </Routes>

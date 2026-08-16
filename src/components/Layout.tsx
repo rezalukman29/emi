@@ -7,6 +7,7 @@ import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import ChatBot from "./ChatBot";
 import { setProfile } from "../store/profile";
+import GlobalSearch from "./GlobalSearch";
 
 export default function Layout() {
   const [sidebarVisible, setSidebarVisible] = useState(true);
@@ -51,6 +52,7 @@ export default function Layout() {
           </button>
           <span className="header-title">EMI Inventory</span>
         </div>
+        <GlobalSearch />
         <button className="header-btn" title="Logout" onClick={onSignOut}>
           <IconLogout />
         </button>

@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
 import Modal from "../components/Modal";
+import Stepper from "../components/Stepper";
 import {
   IconSearch,
   IconPlus,
@@ -58,6 +59,7 @@ interface DisplayItem {
   name: string;
   area: string;
   status: string;
+  stage: string;
   qty: number;
   pic: string;
   checking: boolean;
@@ -144,6 +146,7 @@ function mapEventItem(item: EventItem): DisplayItem {
     name: item.nama_barang,
     area: item.area_name || item.sub_list_name || "-",
     status: getStatusName(item.event_status_id),
+    stage: getStatusName(item.event_status_id),
     qty: item.qty,
     pic: item.input_by,
     checking: item.is_checking.Valid && item.is_checking.Int64 === 1,
@@ -354,8 +357,10 @@ export default function EventDetailPage() {
   const [nextId, setNextId] = useState(-1);
 
   const [selectedArea, setSelectedArea] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState("");
   const [areaDropOpen, setAreaDropOpen] = useState(false);
+  const [areaSearch, setAreaSearch] = useState("");
+  const [eventStatus, setEventStatus] = useState<(typeof STATUSES)[number]>("Preparation");
+  const [stageFilter, setStageFilter] = useState<"all" | "previous" | "current">("all");
   const [kwSearch, setKwSearch] = useState("");
 
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -472,6 +477,15 @@ export default function EventDetailPage() {
     [items],
   );
 
+  const areaCounts = useMemo(() => items.reduce<Record<string, number>>((counts, item) => {
+    if (item.area) counts[item.area] = (counts[item.area] || 0) + 1;
+    return counts;
+  }, {}), [items]);
+  const visibleAreas = areas.filter((area) => area.toLowerCase().includes(areaSearch.toLowerCase()));
+  const currentStageIndex = STATUSES.indexOf(eventStatus);
+  const previousStageCount = items.filter((item) => STATUSES.indexOf(item.stage as (typeof STATUSES)[number]) < currentStageIndex).length;
+  const currentStageCount = items.filter((item) => item.stage === eventStatus).length;
+
   const barangGudangItems = useMemo(
     () => barangGudangResponse?.data ?? [],
     [barangGudangResponse?.data],
@@ -513,7 +527,9 @@ export default function EventDetailPage() {
     () =>
       items.filter((item) => {
         if (selectedArea && item.area !== selectedArea) return false;
-        if (selectedStatus && item.status !== selectedStatus) return false;
+        const itemStageIndex = STATUSES.indexOf(item.stage as (typeof STATUSES)[number]);
+        if (stageFilter === "previous" && itemStageIndex >= currentStageIndex) return false;
+        if (stageFilter === "current" && item.stage !== eventStatus) return false;
         if (
           kwSearch &&
           !item.name.toLowerCase().includes(kwSearch.toLowerCase()) &&
@@ -523,11 +539,15 @@ export default function EventDetailPage() {
         }
         return true;
       }),
-    [items, kwSearch, selectedArea, selectedStatus],
+    [currentStageIndex, eventStatus, items, kwSearch, selectedArea, stageFilter],
   );
 
   const areaLabel = selectedArea || "All Place";
-  const statusLabel = selectedStatus || "All Status";
+
+  function changeEventStatus(step: string) {
+    setEventStatus(step as (typeof STATUSES)[number]);
+    setStageFilter("all");
+  }
 
   function getNowLabel() {
     return new Date().toLocaleString("en-US", {
@@ -969,31 +989,14 @@ export default function EventDetailPage() {
           </div>
         </div>
 
-        <div className="filter-row">
-          <div className="custom-select" style={{ flex: 1 }}>
-            <select
-              value={selectedStatus}
-              onChange={(event) => setSelectedStatus(event.target.value)}
-            >
-              <option value="">All Status</option>
-              {STATUSES.map((status) => (
-                <option key={status}>{status}</option>
-              ))}
-            </select>
-            <span className="chevron">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
-            </span>
+        <div className="event-status-section">
+          <div className="event-status-section-label">Event Status</div>
+          <div className="event-status-stepper">
+            <Stepper steps={[...STATUSES]} currentIndex={currentStageIndex} onStepClick={changeEventStatus} />
           </div>
+        </div>
 
+        <div className="filter-row">
           <div
             className="dropdown-wrap"
             style={{ flex: 1, position: "relative", minWidth: 190 }}
@@ -1016,6 +1019,8 @@ export default function EventDetailPage() {
             </div>
             {areaDropOpen && (
               <div className="dropdown-menu open">
+                <div className="dropdown-search"><IconSearch /><input autoFocus placeholder="Cari area…" value={areaSearch} onChange={(event) => setAreaSearch(event.target.value)} onClick={(event) => event.stopPropagation()} /></div>
+                <div className="dropdown-list">
                 <div
                   className={`dropdown-item${!selectedArea ? " selected" : ""}`}
                   onClick={() => {
@@ -1023,9 +1028,9 @@ export default function EventDetailPage() {
                     setAreaDropOpen(false);
                   }}
                 >
-                  All Area
+                  <span>All Area</span><span className="dropdown-item-count">{items.length}</span>
                 </div>
-                {areas.map((area) => (
+                {visibleAreas.map((area) => (
                   <div
                     key={area}
                     className={`dropdown-item${selectedArea === area ? " selected" : ""}`}
@@ -1034,9 +1039,10 @@ export default function EventDetailPage() {
                       setAreaDropOpen(false);
                     }}
                   >
-                    {area}
+                    <span>{area}</span><span className="dropdown-item-count">{areaCounts[area] || 0}</span>
                   </div>
                 ))}
+                </div>
               </div>
             )}
           </div>
@@ -1071,9 +1077,15 @@ export default function EventDetailPage() {
           </div>
         </div>
 
+        <div className="stage-tabs">
+          <button className={`stage-tab${stageFilter === "all" ? " active" : ""}`} onClick={() => setStageFilter("all")}>Semua <span className="stage-tab-count">{items.length}</span></button>
+          <button className={`stage-tab${stageFilter === "previous" ? " active" : ""}`} onClick={() => setStageFilter("previous")}>Dari Tahap Sebelumnya <span className="stage-tab-count">{previousStageCount}</span></button>
+          <button className={`stage-tab${stageFilter === "current" ? " active" : ""}`} onClick={() => setStageFilter("current")}>Baru di &ldquo;{eventStatus}&rdquo; <span className="stage-tab-count">{currentStageCount}</span></button>
+        </div>
+
         <p className="summary-text">
           <strong>{filtered.length}</strong> item(s) with status{" "}
-          <strong>&ldquo;{statusLabel}&rdquo;</strong> in area{" "}
+          <strong>&ldquo;{eventStatus}&rdquo;</strong> in area{" "}
           <strong>&ldquo;{areaLabel}&rdquo;</strong>
         </p>
 

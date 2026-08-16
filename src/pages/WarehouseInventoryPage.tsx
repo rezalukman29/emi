@@ -30,6 +30,19 @@ import { useWarehouseController } from "./lib/useWarehouseController";
 
 const PAGE_SIZE = 10;
 
+function formatUpdatedAt() {
+  const date = new Date();
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${String(date.getDate()).padStart(2, "0")} ${months[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+function deriveStatus(stock: number, minimum: number) {
+  if (!minimum) return "Not Set";
+  if (stock <= minimum) return "Critical";
+  if (stock <= minimum * 1.5) return "Warning";
+  return "Safe";
+}
+
 function tokenizeKeyword(value: any) {
   return value.toLowerCase().trim().split(/\s+/).filter(Boolean);
 }
@@ -217,6 +230,11 @@ export default function WarehouseInventoryPage() {
   const [query, setQuery] = useState("");
   const [warehouseFilter, setWarehouseFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [opnameQuery, setOpnameQuery] = useState("");
+  const [opnameWarehouse, setOpnameWarehouse] = useState("");
+  const [actualStock, setActualStock] = useState<Record<number, number | "">>({});
+  const [opnameNote, setOpnameNote] = useState<Record<number, string>>({});
+  const [opnameConfirmOpen, setOpnameConfirmOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [sortCol, setSortCol] = useState(0);
   const [sortAsc, setSortAsc] = useState(true);
@@ -418,6 +436,46 @@ export default function WarehouseInventoryPage() {
   const safeCount = wiData.filter((r) => r.minStatus === "Safe").length;
   const warningCount = wiData.filter((r) => r.minStatus === "Warning").length;
   const criticalCount = wiData.filter((r) => r.minStatus === "Critical").length;
+
+  const opnameRows = useMemo(() => {
+    const q = opnameQuery.toLowerCase();
+    return inventoryRows.filter((row) =>
+      (!opnameWarehouse || row.warehouseName === opnameWarehouse) &&
+      (!q || row.name.toLowerCase().includes(q))
+    );
+  }, [inventoryRows, opnameWarehouse, opnameQuery]);
+
+  function getActual(row: (typeof inventoryRows)[number]) {
+    const value = actualStock[row.id];
+    return value === undefined || value === "" ? row.itemStock : value;
+  }
+
+  function variance(row: (typeof inventoryRows)[number]) {
+    return Number(getActual(row)) - row.itemStock;
+  }
+
+  const opnameChanged = opnameRows.filter((row) => variance(row) !== 0);
+  const opnameMatched = opnameRows.length - opnameChanged.length;
+
+  function applyOpname() {
+    const now = formatUpdatedAt();
+    setInventoryRows((rows) => rows.map((row) => {
+      const value = actualStock[row.id];
+      if (value === undefined || value === "" || value === row.itemStock) return row;
+      const newStock = Number(value);
+      return {
+        ...row,
+        itemStock: newStock,
+        warehouseStock: newStock,
+        minStatus: deriveStatus(newStock, row.stokMin),
+        totalValuation: row.valuation * newStock,
+        updatedAt: now,
+      };
+    }));
+    setActualStock({});
+    setOpnameNote({});
+    setOpnameConfirmOpen(false);
+  }
 
   function closeModal() {
     setModalOpen(false);
@@ -1175,36 +1233,46 @@ export default function WarehouseInventoryPage() {
       </Modal>
 
       {tab === "stockopname" && (
-        <div
-          className="card"
-          style={{ padding: "64px 32px", textAlign: "center" }}
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="var(--border)"
-            strokeWidth="1.5"
-            style={{ width: 48, height: 48, marginBottom: 14 }}
-          >
-            <line x1="18" y1="20" x2="18" y2="10" />
-            <line x1="12" y1="20" x2="12" y2="4" />
-            <line x1="6" y1="20" x2="6" y2="14" />
-          </svg>
-          <p
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              color: "var(--text)",
-              marginBottom: 6,
-            }}
-          >
-            Stock Opname
-          </p>
-          <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
-            Feature ini akan segera tersedia
-          </p>
+        <div className="card">
+          <div className="stats-bar" style={{ gridTemplateColumns: "repeat(3,1fr)", marginBottom: 18 }}>
+            {[
+              { label: "Item Diperiksa", value: opnameRows.length, color: "var(--brand)", bg: "var(--brand-bg)" },
+              { label: "Sesuai", value: opnameMatched, color: "var(--green)", bg: "var(--green-bg)" },
+              { label: "Ada Selisih", value: opnameChanged.length, color: "var(--orange)", bg: "var(--orange-bg)" },
+            ].map((stat) => (
+              <div className="stat-card" key={stat.label}>
+                <div className="stat-icon" style={{ background: stat.bg }}><span className="stat-value" style={{ color: stat.color }}>{stat.value}</span></div>
+                <span className="stat-label">{stat.label}</span>
+              </div>
+            ))}
+          </div>
+          <div className="toolbar">
+            <div className="toolbar-left">
+              <div className="search-wrap"><IconSearch /><input className="search-input" placeholder="Cari nama barang…" value={opnameQuery} onChange={(e) => setOpnameQuery(e.target.value)} /></div>
+              <div className="wi-select-wrap"><select value={opnameWarehouse} onChange={(e) => setOpnameWarehouse(e.target.value)}><option value="">Semua Warehouse</option>{warehouseNames.map((name) => <option key={name} value={name}>{name}</option>)}</select></div>
+            </div>
+            <div className="toolbar-right"><button className="btn-save-modal" disabled={!opnameChanged.length} onClick={() => setOpnameConfirmOpen(true)}><IconCheck /> Terapkan Hasil Opname ({opnameChanged.length})</button></div>
+          </div>
+          <div className="table-wrap"><table>
+            <thead><tr><th>Nama Barang</th><th>Warehouse</th><th style={{ textAlign: "right" }}>Stok Sistem</th><th style={{ textAlign: "right" }}>Stok Aktual</th><th style={{ textAlign: "right" }}>Selisih</th><th>Status</th><th>Catatan</th></tr></thead>
+            <tbody>{opnameRows.length === 0 ? <tr><td colSpan={7} style={{ textAlign: "center", padding: 32 }}>Tidak ada item ditemukan.</td></tr> : opnameRows.map((row) => {
+              const difference = variance(row);
+              return <tr key={row.id}>
+                <td className="name-cell">{row.name}</td><td>{row.warehouseName}</td><td style={{ textAlign: "right" }}>{row.itemStock}</td>
+                <td style={{ textAlign: "right" }}><input type="number" min="0" className="inv-pick-qty" style={{ width: 76 }} value={getActual(row)} onChange={(e) => setActualStock((state) => ({ ...state, [row.id]: e.target.value === "" ? "" : Number(e.target.value) }))} /></td>
+                <td style={{ textAlign: "right", fontWeight: 700, color: difference === 0 ? "var(--text-muted)" : difference > 0 ? "var(--brand)" : "var(--red)" }}>{difference > 0 ? `+${difference}` : difference}</td>
+                <td>{difference === 0 ? <span className="badge badge-green">Sesuai</span> : difference > 0 ? <span className="badge badge-blue">Lebih</span> : <span className="badge badge-red">Kurang</span>}</td>
+                <td><input placeholder="Opsional" value={opnameNote[row.id] || ""} onChange={(e) => setOpnameNote((state) => ({ ...state, [row.id]: e.target.value }))} /></td>
+              </tr>;
+            })}</tbody>
+          </table></div>
         </div>
       )}
+
+      <Modal open={opnameConfirmOpen} title="Terapkan Hasil Stock Opname" onClose={() => setOpnameConfirmOpen(false)} footer={<><button className="btn-cancel-modal" onClick={() => setOpnameConfirmOpen(false)}>Batal</button><button className="btn-save-modal" onClick={applyOpname}><IconCheck /> Terapkan</button></>}>
+        <p className="confirm-msg" style={{ marginBottom: 12 }}><strong>{opnameChanged.length}</strong> item akan diperbarui stoknya sesuai hasil hitung fisik:</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 240, overflowY: "auto" }}>{opnameChanged.map((row) => { const difference = variance(row); return <div key={row.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, padding: "6px 0", borderBottom: "1px solid var(--border-2)" }}><span>{row.name}</span><span style={{ fontWeight: 700, color: difference > 0 ? "var(--brand)" : "var(--red)" }}>{row.itemStock} → {getActual(row)} ({difference > 0 ? "+" : ""}{difference})</span></div>; })}</div>
+      </Modal>
     </>
   );
 }
