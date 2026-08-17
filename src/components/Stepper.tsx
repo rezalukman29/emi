@@ -13,7 +13,8 @@ export default function Stepper({ steps, currentIndex, onStepClick }: StepperPro
             <button
               type="button"
               className={`stepper-dot${idx < currentIndex ? ' done' : idx === currentIndex ? ' active' : ''}`}
-              onClick={() => onStepClick && onStepClick(step, idx)}
+              onClick={() => onStepClick?.(step, idx)}
+              disabled={!onStepClick}
               title={step}
             >
               {idx + 1}

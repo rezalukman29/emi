@@ -45,6 +45,8 @@ export interface ParamsGetBarangGudangInterface {
   limit: number;
   search?: string;
   gudang_id?: number;
+  sort?: "ASC" | "DESC";
+  sortBy?: string;
 }
 
 export const getBarangGudang = async ({

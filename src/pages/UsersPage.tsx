@@ -1,126 +1,238 @@
-import { useState, useMemo } from 'react';
-import Modal from '../components/Modal';
-import Pagination from '../components/Pagination';
-import { IconSearch, IconPlus, IconEdit, IconDelete, IconClose, IconCheck, IconBan } from '../components/icons';
-import { initialUsers } from '../data/users';
+import { useEffect, useMemo, useState } from "react";
+import { useFormik } from "formik";
+import * as Yup from "yup";
+import { toast } from "react-toastify";
 
-const PAGE_SIZE = 8;
-const ROLES = ['Admin', 'Staff', 'Viewer'];
-type UserRole = 'Admin' | 'Staff' | 'Viewer';
-type UserStatus = 'active' | 'inactive';
-interface UserForm { name: string; email: string; role: UserRole; status: UserStatus }
+import { IconCheck, IconClose, IconDelete, IconEdit, IconPlus, IconSearch } from "../components/icons";
+import Modal from "../components/Modal";
+import Pagination from "../components/Pagination";
+import SortTh from "../components/SortTh";
+import TextInput from "../components/TextInput";
+import useGetUsers, { type UserListItem } from "../hooks/api/useGetUsers";
+import usePostRegister from "../hooks/api/usePostRegister";
+import usePutUser from "../hooks/api/usePutUser";
+import useDeleteUser from "../hooks/api/useDeleteUser";
+
+const PAGE_SIZE = 10;
+const ROLES = ["ADMIN", "EMPLOYEE"] as const;
+type UserRole = (typeof ROLES)[number];
+type UserStatus = "active" | "inactive";
+
+interface UserForm {
+  fullname: string;
+  email: string;
+  password: string;
+  user_type: UserRole;
+  status: UserStatus;
+}
+
+function emptyForm(): UserForm {
+  return { fullname: "", email: "", password: "", user_type: "EMPLOYEE", status: "active" };
+}
+
+function roleLabel(userType: string): "Admin" | "Staff" {
+  return userType.toUpperCase() === "ADMIN" ? "Admin" : "Staff";
+}
 
 function roleBadgeClass(role: string) {
-  if (role === 'Admin') return 'badge-purple';
-  if (role === 'Staff') return 'badge-blue';
-  return 'badge-gray';
+  return role === "Admin" ? "badge-purple" : "badge-blue";
+}
+
+function displayName(user: UserListItem) {
+  return user.fullname?.trim() || user.username?.trim() || "-";
 }
 
 function initials(name: string) {
-  return name.split(' ').filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase()).join('');
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0].toUpperCase())
+    .join("");
 }
 
 function Avatar({ name }: { name: string }) {
   return (
-    <div style={{
-      width: 32, height: 32, borderRadius: '50%', background: 'var(--brand-bg)', color: 'var(--brand)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0,
-    }}>
+    <div
+      style={{
+        width: 32,
+        height: 32,
+        borderRadius: "50%",
+        background: "var(--brand-bg)",
+        color: "var(--brand)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 12,
+        fontWeight: 700,
+        flexShrink: 0,
+      }}
+    >
       {initials(name)}
     </div>
   );
 }
 
-function emptyForm(): UserForm {
-  return { name: '', email: '', role: 'Staff', status: 'active' };
-}
-
 export default function UsersPage() {
-  const [users, setUsers] = useState(initialUsers);
-  const [nextId, setNextId] = useState(initialUsers.length + 1);
-  const [query, setQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState('');
   const [page, setPage] = useState(1);
-
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState("created_at");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [roleFilter, setRoleFilter] = useState<"" | "ADMIN" | "EMPLOYEE">("");
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [deletingId, setDeletingId] = useState<number | null>(null);
-  const [form, setForm] = useState(emptyForm());
+  const [editingUser, setEditingUser] = useState<UserListItem | null>(null);
+  const [deletingUser, setDeletingUser] = useState<UserListItem | null>(null);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return users.filter(u =>
-      (!q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)) &&
-      (!roleFilter || u.role === roleFilter)
-    );
-  }, [users, query, roleFilter]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setSearch(searchInput.trim());
+      setPage(1);
+    }, 400);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const pageData = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+    return () => window.clearTimeout(timeoutId);
+  }, [searchInput]);
 
-  const activeCount = users.filter(u => u.status === 'active').length;
-  const adminCount = users.filter(u => u.role === 'Admin').length;
+  const { data: response, isLoading, isError, refetch: refetchUsers } = useGetUsers({
+    params: {
+      page,
+      limit: PAGE_SIZE,
+      search,
+      sort_dir: sortDir,
+      sort_by: sortBy,
+      user_type: roleFilter || undefined,
+    },
+    options: { keepPreviousData: true },
+  });
+
+  const users = response?.data?.users ?? [];
+  const total = response?.data?.total ?? 0;
+  const currentPage = response?.data?.page ?? page;
+  const adminCount = useMemo(
+    () => users.filter((user) => user.user_type.toUpperCase() === "ADMIN").length,
+    [users],
+  );
+  const { mutateAsync: postRegister, isLoading: isRegistering } = usePostRegister();
+  const { mutateAsync: putUser, isLoading: isUpdatingUser } = usePutUser();
+  const { mutateAsync: deleteUser, isLoading: isDeletingUser } = useDeleteUser();
+  const isSavingUser = isRegistering || isUpdatingUser;
+
+  const userFormik = useFormik<UserForm>({
+    initialValues: emptyForm(),
+    validationSchema: Yup.object({
+      fullname: Yup.string().trim().required("Required"),
+      email: Yup.string().trim().email("Email tidak valid").required("Required"),
+      password: Yup.string().required("Required"),
+      user_type: Yup.string().oneOf(ROLES).required("Required"),
+      status: Yup.string().required("Required"),
+    }),
+    validateOnChange: false,
+    onSubmit: async (values, { resetForm }) => {
+      try {
+        const payload = {
+          fullname: values.fullname.trim(),
+          password: values.password,
+          email: values.email.trim(),
+          user_type: values.user_type,
+        };
+        const response = editingUser
+          ? await putUser({ id: editingUser.id, payload })
+          : await postRegister(payload);
+
+        toast(response.message, { type: "success" });
+        setModalOpen(false);
+        setEditingUser(null);
+        resetForm();
+        await refetchUsers();
+      } catch (error) {
+        toast(
+          error instanceof Error
+            ? error.message
+            : editingUser
+              ? "Gagal mengubah user."
+              : "Gagal menambahkan user.",
+          { type: "error" },
+        );
+      }
+    },
+  });
+
+  function handleSort(field: string) {
+    if (sortBy === field) {
+      setSortDir((direction) => (direction === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(field);
+      setSortDir("asc");
+    }
+    setPage(1);
+  }
 
   function openNew() {
-    setEditingId(null);
-    setForm(emptyForm());
+    setEditingUser(null);
+    userFormik.resetForm();
     setModalOpen(true);
   }
 
-  function openEdit(id: number) {
-    const u = users.find(x => x.id === id);
-    if (!u) return;
-    setEditingId(id);
-    setForm({ name: u.name, email: u.email, role: u.role as UserRole, status: u.status as UserStatus });
+  function openEdit(user: UserListItem) {
+    setEditingUser(user);
+    userFormik.setValues({
+      fullname: displayName(user),
+      email: user.email,
+      password: "",
+      user_type: user.user_type.toUpperCase() === "ADMIN" ? "ADMIN" : "EMPLOYEE",
+      status: "active",
+    });
     setModalOpen(true);
   }
 
-  function saveRow() {
-    if (!form.name.trim() || !form.email.trim()) return;
-    if (editingId) {
-      setUsers(us => us.map(u => u.id === editingId
-        ? { ...u, name: form.name.trim(), email: form.email.trim(), role: form.role, status: form.status }
-        : u
-      ));
-    } else {
-      setUsers(us => [...us, {
-        id: nextId, name: form.name.trim(), email: form.email.trim(), role: form.role, status: form.status,
-        lastActive: '-',
-      }]);
-      setNextId(n => n + 1);
-    }
+  function openDelete(user: UserListItem) {
+    setDeletingUser(user);
+    setDeleteOpen(true);
+  }
+
+  function closeUserModal() {
+    if (isSavingUser) return;
     setModalOpen(false);
+    setEditingUser(null);
+    userFormik.resetForm();
   }
 
-  function toggleStatus(id: number) {
-    setUsers(us => us.map(u => u.id === id ? { ...u, status: u.status === 'active' ? 'inactive' : 'active' } : u));
+  async function confirmDelete() {
+    if (!deletingUser) return;
+
+    try {
+      const response = await deleteUser(deletingUser.id);
+      toast(response.message, { type: "success" });
+      setDeleteOpen(false);
+      setDeletingUser(null);
+      await refetchUsers();
+    } catch (error) {
+      toast(
+        error instanceof Error ? error.message : "Gagal menghapus user.",
+        { type: "error" },
+      );
+    }
   }
-
-  function openDelete(id: number) { setDeletingId(id); setDeleteOpen(true); }
-  function confirmDelete() { setUsers(us => us.filter(u => u.id !== deletingId)); setDeleteOpen(false); }
-
-  const delTarget = users.find(u => u.id === deletingId);
 
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22 }}>
         <h1 className="page-title" style={{ margin: 0 }}>Users</h1>
         <button className="btn-new" onClick={openNew}><IconPlus /> New User</button>
       </div>
 
-      <div className="stats-bar" style={{ gridTemplateColumns: 'repeat(3,1fr)' }}>
+      <div className="stats-bar" style={{ gridTemplateColumns: "repeat(3,1fr)" }}>
         {[
-          { label: 'Total Users', value: users.length,  color: 'var(--brand)',  bg: 'var(--brand-bg)' },
-          { label: 'Active',      value: activeCount,   color: 'var(--green)',  bg: 'var(--green-bg)' },
-          { label: 'Admin',       value: adminCount,    color: 'var(--purple)', bg: 'var(--purple-bg)' },
-        ].map(s => (
-          <div key={s.label} className="stat-card">
-            <div className="stat-icon" style={{ background: s.bg }}>
-              <span className="stat-value" style={{ color: s.color }}>{s.value}</span>
+          { label: "Total Users", value: total, color: "var(--brand)", bg: "var(--brand-bg)" },
+          { label: "Active", value: total, color: "var(--green)", bg: "var(--green-bg)" },
+          { label: "Admin di Halaman Ini", value: adminCount, color: "var(--purple)", bg: "var(--purple-bg)" },
+        ].map((stat) => (
+          <div key={stat.label} className="stat-card">
+            <div className="stat-icon" style={{ background: stat.bg }}>
+              <span className="stat-value" style={{ color: stat.color }}>{stat.value}</span>
             </div>
-            <span className="stat-label">{s.label}</span>
+            <span className="stat-label">{stat.label}</span>
           </div>
         ))}
       </div>
@@ -131,14 +243,24 @@ export default function UsersPage() {
             <div className="search-wrap">
               <IconSearch />
               <input
-                className="search-input" type="text" placeholder="Cari nama atau email…"
-                value={query} onChange={e => { setQuery(e.target.value); setPage(1); }}
+                className="search-input"
+                type="text"
+                placeholder="Cari nama atau email…"
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
               />
             </div>
             <div className="wi-select-wrap">
-              <select value={roleFilter} onChange={e => { setRoleFilter(e.target.value); setPage(1); }}>
+              <select
+                value={roleFilter}
+                onChange={(event) => {
+                  setRoleFilter(event.target.value as "" | "ADMIN" | "EMPLOYEE");
+                  setPage(1);
+                }}
+              >
                 <option value="">Semua Role</option>
-                {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                <option value="ADMIN">Admin</option>
+                <option value="EMPLOYEE">Staff</option>
               </select>
             </div>
           </div>
@@ -151,79 +273,85 @@ export default function UsersPage() {
           <table>
             <thead>
               <tr>
-                <th>Nama</th>
-                <th style={{ width: 110 }}>Role</th>
+                <SortTh label="Nama" id="fullname" sortCol={sortBy} sortAsc={sortDir === "asc"} onSort={handleSort} />
+                <SortTh label="Email" id="email" sortCol={sortBy} sortAsc={sortDir === "asc"} onSort={handleSort} style={{ minWidth: 190 }} />
+                <SortTh label="Role" id="user_type" sortCol={sortBy} sortAsc={sortDir === "asc"} onSort={handleSort} style={{ width: 110 }} />
                 <th style={{ width: 100 }}>Status</th>
                 <th style={{ width: 140 }}>Terakhir Aktif</th>
-                <th style={{ width: 120, textAlign: 'center' }}>Aksi</th>
+                <th style={{ width: 100, textAlign: "center" }}>Aksi</th>
               </tr>
             </thead>
             <tbody>
-              {pageData.length === 0
-                ? <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>Tidak ada user ditemukan.</td></tr>
-                : pageData.map(u => (
-                  <tr key={u.id}>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <Avatar name={u.name} />
-                        <div>
-                          <div className="name-cell" style={{ fontWeight: 600 }}>{u.name}</div>
-                          <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{u.email}</div>
+              {isLoading && users.length === 0 ? (
+                <tr><td colSpan={6} style={{ textAlign: "center", padding: 32 }}>Memuat data users…</td></tr>
+              ) : isError ? (
+                <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--red)", padding: 32 }}>Gagal memuat data users.</td></tr>
+              ) : users.length === 0 ? (
+                <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--text-muted)", padding: 32 }}>Tidak ada user ditemukan.</td></tr>
+              ) : (
+                users.map((user) => {
+                  const name = displayName(user);
+                  const role = roleLabel(user.user_type);
+                  return (
+                    <tr key={user.id}>
+                      <td>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <Avatar name={name} />
+                          <div className="name-cell" style={{ fontWeight: 600 }}>{name}</div>
                         </div>
-                      </div>
-                    </td>
-                    <td><span className={`badge ${roleBadgeClass(u.role)}`}>{u.role}</span></td>
-                    <td><span className={`badge ${u.status === 'active' ? 'badge-green' : 'badge-gray'}`}>{u.status}</span></td>
-                    <td style={{ color: 'var(--text-muted)', fontSize: '12.5px' }}>{u.lastActive}</td>
-                    <td>
-                      <div className="action-btns" style={{ justifyContent: 'center' }}>
-                        <button className="btn-icon edit" title="Edit" onClick={() => openEdit(u.id)}><IconEdit /></button>
-                        <button
-                          className="btn-icon" title={u.status === 'active' ? 'Nonaktifkan' : 'Aktifkan'}
-                          style={{ color: u.status === 'active' ? 'var(--orange)' : 'var(--green)' }}
-                          onClick={() => toggleStatus(u.id)}
-                        ><IconBan /></button>
-                        <button className="btn-icon delete" title="Delete" onClick={() => openDelete(u.id)}><IconDelete /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              }
+                      </td>
+                      <td style={{ color: "var(--text-2)" }}>{user.email || "-"}</td>
+                      <td><span className={`badge ${roleBadgeClass(role)}`}>{role}</span></td>
+                      <td><span className="badge badge-green">Active</span></td>
+                      <td style={{ color: "var(--text-muted)", fontSize: "12.5px" }}>-</td>
+                      <td>
+                        <div className="action-btns" style={{ justifyContent: "center" }}>
+                          <button className="btn-icon edit" title="Edit" onClick={() => openEdit(user)}><IconEdit /></button>
+                          <button className="btn-icon delete" title="Delete" onClick={() => openDelete(user)}><IconDelete /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
-        <Pagination currentPage={safePage} total={filtered.length} pageSize={PAGE_SIZE} onPage={(p: number) => setPage(p)} label="users" />
+
+        <Pagination
+          currentPage={currentPage}
+          total={total}
+          pageSize={PAGE_SIZE}
+          onPage={(nextPage: number) => setPage(nextPage)}
+          label="users"
+        />
       </div>
 
       <Modal
         open={modalOpen}
-        title={editingId ? 'Edit User' : 'Add User'}
-        onClose={() => setModalOpen(false)}
+        title={editingUser ? "Edit User" : "Add User"}
+        onClose={closeUserModal}
         footer={
           <>
-            <button className="btn-cancel-modal" onClick={() => setModalOpen(false)}><IconClose /> Cancel</button>
-            <button className="btn-save-modal" onClick={saveRow}><IconCheck /> Save</button>
+            <button className="btn-cancel-modal" disabled={isSavingUser} onClick={closeUserModal}><IconClose /> Cancel</button>
+            <button className="btn-save-modal" type="submit" disabled={isSavingUser} onClick={() => userFormik.handleSubmit()}><IconCheck /> {isSavingUser ? "Saving…" : "Save"}</button>
           </>
         }
       >
-        <div className="form-group">
-          <label>Nama <span style={{ color: 'var(--red)' }}>*</span></label>
-          <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
-        </div>
-        <div className="form-group">
-          <label>Email <span style={{ color: 'var(--red)' }}>*</span></label>
-          <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
-        </div>
+        <TextInput value={userFormik.values.fullname} onChange={(value) => userFormik.setFieldValue("fullname", value)} isRequired label="Nama" placeholder="Nama lengkap" errorText={userFormik.errors.fullname} />
+        <TextInput value={userFormik.values.email} onChange={(value) => userFormik.setFieldValue("email", value)} isRequired inputType="email" label="Email" placeholder="user@example.com" errorText={userFormik.errors.email} />
+        <TextInput value={userFormik.values.password} onChange={(value) => userFormik.setFieldValue("password", value)} isRequired inputType="password" label="Password" placeholder="Masukkan password" errorText={userFormik.errors.password} />
         <div className="form-row">
           <div className="form-group">
-            <label>Role</label>
-            <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value as UserRole }))}>
-              {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+            <label>Role <span style={{ color: "var(--red)" }}>*</span></label>
+            <select value={userFormik.values.user_type} onChange={(event) => userFormik.setFieldValue("user_type", event.target.value as UserRole)}>
+              {ROLES.map((role) => <option key={role} value={role}>{role}</option>)}
             </select>
+            {userFormik.errors.user_type && <span style={{ color: "var(--red)", fontSize: 12 }}>{userFormik.errors.user_type}</span>}
           </div>
           <div className="form-group">
-            <label>Status</label>
-            <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as UserStatus }))}>
+            <label>Status <span style={{ color: "var(--red)" }}>*</span></label>
+            <select value={userFormik.values.status} onChange={(event) => userFormik.setFieldValue("status", event.target.value as UserStatus)}>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
             </select>
@@ -234,16 +362,16 @@ export default function UsersPage() {
       <Modal
         open={deleteOpen}
         title="Delete User"
-        onClose={() => setDeleteOpen(false)}
+        onClose={() => { if (!isDeletingUser) { setDeleteOpen(false); setDeletingUser(null); } }}
         footer={
           <>
-            <button className="btn-cancel-modal" onClick={() => setDeleteOpen(false)}>Cancel</button>
-            <button className="btn-del-ok" onClick={confirmDelete}>Delete</button>
+            <button className="btn-cancel-modal" disabled={isDeletingUser} onClick={() => { setDeleteOpen(false); setDeletingUser(null); }}>Cancel</button>
+            <button className="btn-del-ok" disabled={isDeletingUser} onClick={confirmDelete}>{isDeletingUser ? "Deleting…" : "Delete"}</button>
           </>
         }
       >
         <p className="confirm-msg">
-          Are you sure you want to delete <strong>&ldquo;{delTarget?.name}&rdquo;</strong>? This action cannot be undone.
+          Are you sure you want to delete <strong>&ldquo;{deletingUser ? displayName(deletingUser) : ""}&rdquo;</strong>? This action cannot be undone.
         </p>
       </Modal>
     </>

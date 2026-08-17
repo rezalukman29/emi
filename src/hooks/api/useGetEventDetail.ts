@@ -24,7 +24,8 @@ export interface EventDetailData {
   updated_at: string;
   notes: string;
   scan_type: string;
-  date_event: string;
+  date_event: string | null;
+  date_start?: string | null;
   admins: unknown;
   valuation: number;
 }

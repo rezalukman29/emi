@@ -26,8 +26,61 @@ import useGetSubArea from "../hooks/api/useGetSubArea";
 import { STORAGE_BOOQABLE, isValidUrl, noImage } from "../utils/function";
 import { useWarehouseController } from "./lib/useWarehouseController";
 import { useCategoryController } from "./lib/useCategoryController";
+import useGetEventDetail from "../hooks/api/useGetEventDetail";
 
 const STATUSES = ["Preparation", "During Event", "After Event"] as const;
+type EventStatus = (typeof STATUSES)[number];
+
+function formatEventDate(value?: string | null): string {
+  const backendDate = value?.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (backendDate) {
+    const [, year, month, day] = backendDate;
+    return `${day}/${month}/${year}`;
+  }
+
+  const displayDate = value?.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  return displayDate?.[0] ?? "";
+}
+
+function parseBackendDate(value?: string): number | null {
+  const match = value?.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(year, month - 1, day);
+
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return date.getTime();
+}
+
+function resolveEventStatus(
+  eventStart?: string,
+  eventEnd?: string,
+  now = new Date(),
+): EventStatus {
+  const start = parseBackendDate(eventStart);
+  const end = parseBackendDate(eventEnd);
+  if (start === null || end === null) return "Preparation";
+
+  const today = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  ).getTime();
+
+  if (today < start) return "Preparation";
+  if (today > end) return "After Event";
+  return "During Event";
+}
 
 const AREA_BADGE_CLASS: Record<string, string> = {
   CEREMONY: "ceremony",
@@ -327,7 +380,7 @@ export default function EventDetailPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const eventId = Number(searchParams.get("id"));
-  const eventName =
+  const fallbackEventName =
     searchParams.get("name") || "03/06/2023 | GUNTUR + CLARISSA";
 
   const {
@@ -341,6 +394,19 @@ export default function EventDetailPage() {
       enabled: !!eventId,
     },
   });
+
+  const { data: eventDetailResponse } = useGetEventDetail({
+    id: eventId,
+    options: { enabled: Boolean(eventId) },
+  });
+  const eventDetail = eventDetailResponse?.data;
+  const eventDate = formatEventDate(
+    eventDetail?.date_event ?? eventDetail?.date_start,
+  );
+  const eventName =
+    eventDetail?.name && eventDate
+      ? `${eventDate} | ${eventDetail.name}`
+      : fallbackEventName;
 
   const { warehouseOptions } = useWarehouseController();
   const { categoryOptions } = useCategoryController();
@@ -359,7 +425,6 @@ export default function EventDetailPage() {
   const [selectedArea, setSelectedArea] = useState("");
   const [areaDropOpen, setAreaDropOpen] = useState(false);
   const [areaSearch, setAreaSearch] = useState("");
-  const [eventStatus, setEventStatus] = useState<(typeof STATUSES)[number]>("Preparation");
   const [stageFilter, setStageFilter] = useState<"all" | "previous" | "current">("all");
   const [kwSearch, setKwSearch] = useState("");
 
@@ -482,6 +547,10 @@ export default function EventDetailPage() {
     return counts;
   }, {}), [items]);
   const visibleAreas = areas.filter((area) => area.toLowerCase().includes(areaSearch.toLowerCase()));
+  const eventStatus = resolveEventStatus(
+    eventDetail?.event_start,
+    eventDetail?.event_end,
+  );
   const currentStageIndex = STATUSES.indexOf(eventStatus);
   const previousStageCount = items.filter((item) => STATUSES.indexOf(item.stage as (typeof STATUSES)[number]) < currentStageIndex).length;
   const currentStageCount = items.filter((item) => item.stage === eventStatus).length;
@@ -544,11 +613,6 @@ export default function EventDetailPage() {
 
   const areaLabel = selectedArea || "All Place";
 
-  function changeEventStatus(step: string) {
-    setEventStatus(step as (typeof STATUSES)[number]);
-    setStageFilter("all");
-  }
-
   function getNowLabel() {
     return new Date().toLocaleString("en-US", {
       month: "short",
@@ -559,7 +623,7 @@ export default function EventDetailPage() {
       hour12: true,
     });
   }
-  console.log(cart);
+
   function doScan(id: number) {
     const now = getNowLabel();
     const updateScan = (item: DisplayItem) => {
@@ -992,7 +1056,7 @@ export default function EventDetailPage() {
         <div className="event-status-section">
           <div className="event-status-section-label">Event Status</div>
           <div className="event-status-stepper">
-            <Stepper steps={[...STATUSES]} currentIndex={currentStageIndex} onStepClick={changeEventStatus} />
+            <Stepper steps={[...STATUSES]} currentIndex={currentStageIndex} />
           </div>
         </div>
 

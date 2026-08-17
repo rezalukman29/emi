@@ -27,21 +27,13 @@ import { toast } from "react-toastify";
 import { APIResponse } from "../interfaces/BaseApiResponse";
 import TextInput from "../components/TextInput";
 import { useWarehouseController } from "./lib/useWarehouseController";
+import useGetBarangGudang, {
+  type BarangGudangItem,
+} from "../hooks/api/useGetBarangGudang";
+import usePostStockOpname from "../hooks/api/usePostStockOpname";
+import usePutApplyStockOpname from "../hooks/api/usePutApplyStockOpname";
 
 const PAGE_SIZE = 10;
-
-function formatUpdatedAt() {
-  const date = new Date();
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  return `${String(date.getDate()).padStart(2, "0")} ${months[date.getMonth()]} ${date.getFullYear()}`;
-}
-
-function deriveStatus(stock: number, minimum: number) {
-  if (!minimum) return "Not Set";
-  if (stock <= minimum) return "Critical";
-  if (stock <= minimum * 1.5) return "Warning";
-  return "Safe";
-}
 
 function tokenizeKeyword(value: any) {
   return value.toLowerCase().trim().split(/\s+/).filter(Boolean);
@@ -225,14 +217,13 @@ function ImageViewerModal({ open, name, src, onClose }: any) {
 }
 
 export default function WarehouseInventoryPage() {
-  const [inventoryRows, setInventoryRows] = useState(wiData);
   const [tab, setTab] = useState("inventory");
   const [query, setQuery] = useState("");
   const [warehouseFilter, setWarehouseFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [opnameQuery, setOpnameQuery] = useState("");
   const [opnameWarehouse, setOpnameWarehouse] = useState("");
-  const [actualStock, setActualStock] = useState<Record<number, number | "">>({});
+  const [actualStock, setActualStock] = useState<Record<number, string>>({});
   const [opnameNote, setOpnameNote] = useState<Record<number, string>>({});
   const [opnameConfirmOpen, setOpnameConfirmOpen] = useState(false);
   const [page, setPage] = useState(1);
@@ -267,11 +258,11 @@ export default function WarehouseInventoryPage() {
 
   const warehouseNames = useMemo(() => {
     const names = new Set([
-      ...inventoryRows.map((r) => r.warehouseName),
+      ...wiData.map((r) => r.warehouseName),
       ...initialWarehouses.map((r: any) => r.name),
     ]);
     return [...names].filter(Boolean).sort();
-  }, [inventoryRows]);
+  }, []);
 
   const itemSearchTokens = useMemo(
     () => tokenizeKeyword(itemSearch),
@@ -298,6 +289,55 @@ export default function WarehouseInventoryPage() {
     label: "All warehouse",
   });
   const [listInventory, setListInventory] = useState<any[]>([]);
+
+  const {
+    data: opnameResponse,
+    isLoading: isOpnameLoading,
+    isError: isOpnameError,
+    refetch: refetchOpname,
+  } = useGetBarangGudang({
+    params: {
+      page: 1,
+      limit: 99999,
+      search: opnameQuery.trim() || undefined,
+      gudang_id: opnameWarehouse ? Number(opnameWarehouse) : undefined,
+      sort,
+      sortBy,
+    },
+    options: {
+      enabled: tab === "stockopname",
+      keepPreviousData: true,
+    },
+  });
+
+  const opnameRows = useMemo(
+    () => opnameResponse?.data ?? [],
+    [opnameResponse?.data],
+  );
+
+  useEffect(() => {
+    if (!opnameRows.length) return;
+    setActualStock((current) => {
+      const next = { ...current };
+      opnameRows.forEach((row) => {
+        if (next[row.barang_gudang_id] === undefined) {
+          next[row.barang_gudang_id] = String(row.stok_gudang);
+        }
+      });
+      return next;
+    });
+  }, [opnameRows]);
+
+  const {
+    mutateAsync: postStockOpname,
+    isLoading: isPostingStockOpname,
+  } = usePostStockOpname();
+  const {
+    mutateAsync: putApplyStockOpname,
+    isLoading: isApplyingStockOpname,
+  } = usePutApplyStockOpname();
+  const isSubmittingStockOpname =
+    isPostingStockOpname || isApplyingStockOpname;
 
   const formik = useFormik<any>({
     initialValues: {
@@ -437,43 +477,68 @@ export default function WarehouseInventoryPage() {
   const warningCount = wiData.filter((r) => r.minStatus === "Warning").length;
   const criticalCount = wiData.filter((r) => r.minStatus === "Critical").length;
 
-  const opnameRows = useMemo(() => {
-    const q = opnameQuery.toLowerCase();
-    return inventoryRows.filter((row) =>
-      (!opnameWarehouse || row.warehouseName === opnameWarehouse) &&
-      (!q || row.name.toLowerCase().includes(q))
-    );
-  }, [inventoryRows, opnameWarehouse, opnameQuery]);
-
-  function getActual(row: (typeof inventoryRows)[number]) {
-    const value = actualStock[row.id];
-    return value === undefined || value === "" ? row.itemStock : value;
+  function getActual(row: BarangGudangItem) {
+    return actualStock[row.barang_gudang_id] ?? String(row.stok_gudang);
   }
 
-  function variance(row: (typeof inventoryRows)[number]) {
-    return Number(getActual(row)) - row.itemStock;
+  function variance(row: BarangGudangItem) {
+    return Number(getActual(row) || 0) - row.stok_gudang;
   }
 
   const opnameChanged = opnameRows.filter((row) => variance(row) !== 0);
   const opnameMatched = opnameRows.length - opnameChanged.length;
 
-  function applyOpname() {
-    const now = formatUpdatedAt();
-    setInventoryRows((rows) => rows.map((row) => {
-      const value = actualStock[row.id];
-      if (value === undefined || value === "" || value === row.itemStock) return row;
-      const newStock = Number(value);
-      return {
-        ...row,
-        itemStock: newStock,
-        warehouseStock: newStock,
-        minStatus: deriveStatus(newStock, row.stokMin),
-        totalValuation: row.valuation * newStock,
-        updatedAt: now,
-      };
-    }));
-    setActualStock({});
-    setOpnameNote({});
+  const stockOpnameFormik = useFormik({
+    initialValues: {
+      period: "",
+      remark: "",
+    },
+    validationSchema: Yup.object({
+      period: Yup.string().trim().required("Required"),
+      remark: Yup.string().trim().required("Required"),
+    }),
+    validateOnChange: false,
+    onSubmit: async (values, { resetForm }) => {
+      try {
+        const response = await postStockOpname({
+          period: values.period.trim(),
+          remark: values.remark.trim(),
+          data: opnameChanged.map((row) => ({
+            id: row.barang_gudang_id,
+            stok: Number(getActual(row)),
+          })),
+        });
+
+        if (!response.data?.id) {
+          throw new Error("ID stock opname tidak ditemukan pada response.");
+        }
+
+        const applyResponse = await putApplyStockOpname(response.data.id);
+
+        toast(applyResponse.message, { type: "success" });
+        setOpnameConfirmOpen(false);
+        resetForm();
+        setOpnameNote({});
+        setActualStock({});
+        await refetchOpname();
+      } catch (error) {
+        toast(
+          error instanceof Error
+            ? error.message
+            : "Gagal menyimpan stock opname.",
+          { type: "error" },
+        );
+      }
+    },
+  });
+
+  function openOpnameConfirm() {
+    stockOpnameFormik.resetForm();
+    setOpnameConfirmOpen(true);
+  }
+
+  function closeOpnameConfirm() {
+    stockOpnameFormik.resetForm();
     setOpnameConfirmOpen(false);
   }
 
@@ -1249,29 +1314,52 @@ export default function WarehouseInventoryPage() {
           <div className="toolbar">
             <div className="toolbar-left">
               <div className="search-wrap"><IconSearch /><input className="search-input" placeholder="Cari nama barang…" value={opnameQuery} onChange={(e) => setOpnameQuery(e.target.value)} /></div>
-              <div className="wi-select-wrap"><select value={opnameWarehouse} onChange={(e) => setOpnameWarehouse(e.target.value)}><option value="">Semua Warehouse</option>{warehouseNames.map((name) => <option key={name} value={name}>{name}</option>)}</select></div>
+              <div className="wi-select-wrap">
+                <select value={opnameWarehouse} onChange={(e) => setOpnameWarehouse(e.target.value)}>
+                  <option value="">Semua Warehouse</option>
+                  {warehouseOptions.map((warehouse) => (
+                    <option key={warehouse.value} value={warehouse.value}>{warehouse.label}</option>
+                  ))}
+                </select>
+              </div>
             </div>
-            <div className="toolbar-right"><button className="btn-save-modal" disabled={!opnameChanged.length} onClick={() => setOpnameConfirmOpen(true)}><IconCheck /> Terapkan Hasil Opname ({opnameChanged.length})</button></div>
+            <div className="toolbar-right"><button className="btn-save-modal" disabled={!opnameChanged.length} onClick={openOpnameConfirm}><IconCheck /> Terapkan Hasil Opname ({opnameChanged.length})</button></div>
           </div>
           <div className="table-wrap"><table>
             <thead><tr><th>Nama Barang</th><th>Warehouse</th><th style={{ textAlign: "right" }}>Stok Sistem</th><th style={{ textAlign: "right" }}>Stok Aktual</th><th style={{ textAlign: "right" }}>Selisih</th><th>Status</th><th>Catatan</th></tr></thead>
-            <tbody>{opnameRows.length === 0 ? <tr><td colSpan={7} style={{ textAlign: "center", padding: 32 }}>Tidak ada item ditemukan.</td></tr> : opnameRows.map((row) => {
+            <tbody>{isOpnameLoading ? <tr><td colSpan={7} style={{ textAlign: "center", padding: 32 }}>Memuat data stock opname…</td></tr> : isOpnameError ? <tr><td colSpan={7} style={{ textAlign: "center", padding: 32, color: "var(--red)" }}>Gagal memuat data stock opname.</td></tr> : opnameRows.length === 0 ? <tr><td colSpan={7} style={{ textAlign: "center", padding: 32 }}>Tidak ada item ditemukan.</td></tr> : opnameRows.map((row) => {
               const difference = variance(row);
-              return <tr key={row.id}>
-                <td className="name-cell">{row.name}</td><td>{row.warehouseName}</td><td style={{ textAlign: "right" }}>{row.itemStock}</td>
-                <td style={{ textAlign: "right" }}><input type="number" min="0" className="inv-pick-qty" style={{ width: 76 }} value={getActual(row)} onChange={(e) => setActualStock((state) => ({ ...state, [row.id]: e.target.value === "" ? "" : Number(e.target.value) }))} /></td>
+              return <tr key={row.barang_gudang_id}>
+                <td className="name-cell">{row.nama_barang}</td><td>{row.gudang_name || row.gudang?.gudang_name || "-"}</td><td style={{ textAlign: "right" }}>{row.stok_gudang}</td>
+                <td style={{ textAlign: "right" }}><input type="text" inputMode="numeric" className="inv-pick-qty" style={{ width: 76 }} value={getActual(row)} onChange={(e) => setActualStock((state) => ({ ...state, [row.barang_gudang_id]: e.target.value.replace(/\D/g, "") }))} /></td>
                 <td style={{ textAlign: "right", fontWeight: 700, color: difference === 0 ? "var(--text-muted)" : difference > 0 ? "var(--brand)" : "var(--red)" }}>{difference > 0 ? `+${difference}` : difference}</td>
                 <td>{difference === 0 ? <span className="badge badge-green">Sesuai</span> : difference > 0 ? <span className="badge badge-blue">Lebih</span> : <span className="badge badge-red">Kurang</span>}</td>
-                <td><input placeholder="Opsional" value={opnameNote[row.id] || ""} onChange={(e) => setOpnameNote((state) => ({ ...state, [row.id]: e.target.value }))} /></td>
+                <td><input placeholder="Opsional" value={opnameNote[row.barang_gudang_id] || ""} onChange={(e) => setOpnameNote((state) => ({ ...state, [row.barang_gudang_id]: e.target.value }))} /></td>
               </tr>;
             })}</tbody>
           </table></div>
         </div>
       )}
 
-      <Modal open={opnameConfirmOpen} title="Terapkan Hasil Stock Opname" onClose={() => setOpnameConfirmOpen(false)} footer={<><button className="btn-cancel-modal" onClick={() => setOpnameConfirmOpen(false)}>Batal</button><button className="btn-save-modal" onClick={applyOpname}><IconCheck /> Terapkan</button></>}>
+      <Modal open={opnameConfirmOpen} title="Terapkan Hasil Stock Opname" onClose={closeOpnameConfirm} footer={<><button className="btn-cancel-modal" disabled={isSubmittingStockOpname} onClick={closeOpnameConfirm}>Batal</button><button className="btn-save-modal" type="submit" disabled={isSubmittingStockOpname} onClick={() => stockOpnameFormik.handleSubmit()}><IconCheck /> {isSubmittingStockOpname ? "Menyimpan…" : "Terapkan"}</button></>}>
+        <TextInput
+          value={stockOpnameFormik.values.period}
+          onChange={(value) => stockOpnameFormik.setFieldValue("period", value)}
+          isRequired
+          label="Period"
+          placeholder="Contoh: Juli 2026"
+          errorText={stockOpnameFormik.errors.period}
+        />
+        <TextInput
+          value={stockOpnameFormik.values.remark}
+          onChange={(value) => stockOpnameFormik.setFieldValue("remark", value)}
+          isRequired
+          label="Remark"
+          placeholder="Contoh: Testing Remark"
+          errorText={stockOpnameFormik.errors.remark}
+        />
         <p className="confirm-msg" style={{ marginBottom: 12 }}><strong>{opnameChanged.length}</strong> item akan diperbarui stoknya sesuai hasil hitung fisik:</p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 240, overflowY: "auto" }}>{opnameChanged.map((row) => { const difference = variance(row); return <div key={row.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, padding: "6px 0", borderBottom: "1px solid var(--border-2)" }}><span>{row.name}</span><span style={{ fontWeight: 700, color: difference > 0 ? "var(--brand)" : "var(--red)" }}>{row.itemStock} → {getActual(row)} ({difference > 0 ? "+" : ""}{difference})</span></div>; })}</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 240, overflowY: "auto" }}>{opnameChanged.map((row) => { const difference = variance(row); return <div key={row.barang_gudang_id} style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, padding: "6px 0", borderBottom: "1px solid var(--border-2)" }}><span>{row.nama_barang}</span><span style={{ fontWeight: 700, color: difference > 0 ? "var(--brand)" : "var(--red)" }}>{row.stok_gudang} → {getActual(row)} ({difference > 0 ? "+" : ""}{difference})</span></div>; })}</div>
       </Modal>
     </>
   );
