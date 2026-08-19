@@ -9,7 +9,7 @@ export const deleteUser = async (
   const response = await ax.delete(`/v1/user/${id}`);
 
   if (response.data?.success === false) {
-    throw new Error(response.data.message || "Gagal menghapus user.");
+    throw new Error(response.data.message || "Failed to delete user.");
   }
 
   return response.data;

@@ -41,7 +41,7 @@ function search(query: string): SearchGroup[] {
   const warehouseInventory = wiData
     .filter(r => r.name.toLowerCase().includes(q) || r.warehouseName.toLowerCase().includes(q))
     .slice(0, MAX_PER_GROUP)
-    .map(r => ({ label: r.name, sub: `${r.warehouseName} · Stok ${r.itemStock}`, to: '/warehouse-inventory' }));
+    .map(r => ({ label: r.name, sub: `${r.warehouseName} · Stock ${r.itemStock}`, to: '/warehouse-inventory' }));
   if (warehouseInventory.length) groups.push({ type: 'Warehouse Inventory', items: warehouseInventory });
 
   const areas = initialAreas
@@ -65,7 +65,7 @@ function search(query: string): SearchGroup[] {
   const loans = initialItemLoans
     .filter(l => l.itemName.toLowerCase().includes(q) || l.borrowerName.toLowerCase().includes(q))
     .slice(0, MAX_PER_GROUP)
-    .map(l => ({ label: l.itemName, sub: `Dipinjam oleh ${l.borrowerName}`, to: '/item-loan' }));
+    .map(l => ({ label: l.itemName, sub: `Loaned to ${l.borrowerName}`, to: '/item-loan' }));
   if (loans.length) groups.push({ type: 'Item Loan', items: loans });
 
   return groups;
@@ -100,7 +100,7 @@ export default function GlobalSearch() {
         <IconSearch />
         <input
           type="text"
-          placeholder="Cari event, barang, gudang…"
+          placeholder="Search events, items, warehouses…"
           value={query}
           onChange={e => { setQuery(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
@@ -116,7 +116,7 @@ export default function GlobalSearch() {
       {open && query.trim() && (
         <div className="global-search-dropdown">
           {totalCount === 0
-            ? <div className="global-search-empty">Tidak ada hasil untuk &ldquo;{query}&rdquo;</div>
+            ? <div className="global-search-empty">No results for &ldquo;{query}&rdquo;</div>
             : groups.map(g => (
               <div key={g.type} className="global-search-group">
                 <div className="global-search-group-label">{g.type}</div>

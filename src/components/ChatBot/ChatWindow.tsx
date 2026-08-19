@@ -83,7 +83,7 @@ export default function ChatWindow({ messages, isLoading, onSend, onClose }: Pro
             <div className="chatbot-header-subtitle">Tanya soal stok & event</div>
           </div>
         </div>
-        <button className="chatbot-close-btn" onClick={onClose} title="Tutup">
+        <button className="chatbot-close-btn" onClick={onClose} title="Close">
           <IconClose />
         </button>
       </div>
@@ -95,12 +95,12 @@ export default function ChatWindow({ messages, isLoading, onSend, onClose }: Pro
             <div className="chatbot-empty-icon">
               <IconChat />
             </div>
-            <div className="chatbot-empty-title">Halo! Saya EMI Assistant</div>
+            <div className="chatbot-empty-title">Hello! I'm EMI Assistant</div>
             <div className="chatbot-empty-text">
-              Tanya saya soal stok barang, jadwal event, atau informasi gudang. Contoh:
+              Ask me about item stock, event schedules, or warehouse information. Examples:
               <br /><br />
-              <em>"Stok meja bulat ada berapa?"</em><br />
-              <em>"Event minggu ini ada apa saja?"</em>
+              <em>"How many round tables are in stock?"</em><br />
+              <em>"What events are happening this week?"</em>
             </div>
           </div>
         ) : (
@@ -123,7 +123,7 @@ export default function ChatWindow({ messages, isLoading, onSend, onClose }: Pro
         <textarea
           ref={textareaRef}
           className="chatbot-input"
-          placeholder="Ketik pertanyaan... (Enter untuk kirim)"
+          placeholder="Type a question... (Press Enter to send)"
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -135,7 +135,7 @@ export default function ChatWindow({ messages, isLoading, onSend, onClose }: Pro
           className="chatbot-send-btn"
           onClick={handleSend}
           disabled={!input.trim() || isLoading}
-          title="Kirim"
+          title="Send"
         >
           <IconSend />
         </button>

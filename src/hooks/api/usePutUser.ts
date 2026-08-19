@@ -16,7 +16,7 @@ export const putUser = async ({
   const response = await ax.put(`/v1/user/${id}`, payload);
 
   if (response.data?.success === false) {
-    throw new Error(response.data.message || "Gagal mengubah user.");
+    throw new Error(response.data.message || "Failed to update user.");
   }
 
   return response.data;

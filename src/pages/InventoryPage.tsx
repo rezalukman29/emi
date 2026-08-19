@@ -684,7 +684,7 @@ export default function InventoryPage() {
       }));
     } catch (err) {
       setAiTuneup((prev) => ({ ...prev, loading: false }));
-      toast(err instanceof Error ? err.message : "Gagal menghubungi AI.", {
+      toast(err instanceof Error ? err.message : "Failed to contact AI.", {
         type: "error",
       });
     }
@@ -692,13 +692,13 @@ export default function InventoryPage() {
 
   const handleAITuneUp = async (r: any) => {
     if (!r.nama) {
-      toast("Nama produk harus diisi sebelum menggunakan AI tune-up.", {
+      toast("Product name is required before using AI tune-up.", {
         type: "warning",
       });
       return;
     }
     if (!r.photo) {
-      toast("Foto produk harus diupload sebelum menggunakan AI tune-up.", {
+      toast("A product photo must be uploaded before using AI tune-up.", {
         type: "warning",
       });
       return;
@@ -741,11 +741,11 @@ export default function InventoryPage() {
         edited: emptyAiEdited,
         language: null,
       });
-      toast("AI tune-up berhasil disimpan!", { type: "success" });
+      toast("AI tune-up saved successfully!", { type: "success" });
       getInventoryList();
     } catch {
       setAiTuneup((prev) => ({ ...prev, saving: false }));
-      toast("Gagal menyimpan data.", { type: "error" });
+      toast("Failed to save data.", { type: "error" });
     }
   };
 
@@ -1243,7 +1243,7 @@ export default function InventoryPage() {
           </div>
           <div className="form-group">
             <label>
-              Unit <span style={{ color: "var(--red)" }}>*</span>
+              Category <span style={{ color: "var(--red)" }}>*</span>
             </label>
             <select
               onChange={(e) =>
@@ -1257,7 +1257,7 @@ export default function InventoryPage() {
                 }),
               }}
             >
-              <option value="">— Select Kategori —</option>
+              <option value="">— Select Category —</option>
               {categoryOptions.map((n: ISelect) => (
                 <option key={n.value} value={n.value}>
                   {n.label}
@@ -1556,11 +1556,11 @@ export default function InventoryPage() {
                         marginBottom: 4,
                       }}
                     >
-                      Pilih bahasa hasil AI Tune-Up
+                      Select the AI Tune-Up output language
                     </div>
                     <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                      Deskripsi, harga, dan tips akan digenerate dalam bahasa
-                      yang dipilih.
+                      Descriptions, prices, and tips will be generated in the
+                      selected language.
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 10 }}>
@@ -1610,7 +1610,7 @@ export default function InventoryPage() {
                     >
                       <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                     </svg>
-                    AI sedang menganalisa produk...
+                    AI is analyzing the product...
                   </div>
                   {[80, 100, 60, 90, 70, 85].map((w, i) => (
                     <div
@@ -1634,7 +1634,7 @@ export default function InventoryPage() {
                     <label
                       style={{ display: "flex", alignItems: "center", gap: 6 }}
                     >
-                      Deskripsi Produk
+                      Product Description
                       <span
                         className="badge badge-purple"
                         style={{ fontSize: 10 }}
@@ -1745,7 +1745,7 @@ export default function InventoryPage() {
                     <label
                       style={{ display: "flex", alignItems: "center", gap: 6 }}
                     >
-                      Hal yang Perlu Diperhatikan
+                      Important Considerations
                       <span
                         className="badge badge-purple"
                         style={{ fontSize: 10 }}
@@ -1785,7 +1785,7 @@ export default function InventoryPage() {
                       margin: 0,
                     }}
                   >
-                    Kamu bisa edit hasil AI sebelum disimpan.
+                    You can edit the AI results before saving.
                   </p>
                 </div>
               )}
@@ -1810,7 +1810,7 @@ export default function InventoryPage() {
                   }
                   disabled={aiTuneup.saving}
                 >
-                  <IconClose /> Batal
+                  <IconClose /> Cancel
                 </button>
                 <button
                   className="btn-save-modal"
@@ -1836,11 +1836,11 @@ export default function InventoryPage() {
                       >
                         <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                       </svg>
-                      Menyimpan...
+                      Saving...
                     </>
                   ) : (
                     <>
-                      <IconCheck /> Simpan ke Inventori
+                      <IconCheck /> Save to Inventory
                     </>
                   )}
                 </button>

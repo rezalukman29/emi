@@ -1051,7 +1051,7 @@ export default function EventPage() {
             Invite User
           </p>
           <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
-            Feature ini akan segera tersedia
+            This feature will be available soon
           </p>
         </div>
       )}

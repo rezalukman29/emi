@@ -16,7 +16,7 @@ export const postRegister = async (
   const response = await ax.post("/v1/register", payload);
 
   if (response.data?.success === false) {
-    throw new Error(response.data.message || "Gagal menambahkan user.");
+    throw new Error(response.data.message || "Failed to add user.");
   }
 
   return response.data;

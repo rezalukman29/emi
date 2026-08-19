@@ -60,37 +60,37 @@ export default function OverviewReportPage() {
         <div className="kpi-card brand-accent">
           <div className="kpi-label">Total Events</div>
           <div className="kpi-value">{initialEvents.length}</div>
-          <div className="kpi-sub">sepanjang tercatat</div>
+          <div className="kpi-sub">all recorded events</div>
         </div>
         <div className="kpi-card green-accent">
           <div className="kpi-label">Upcoming</div>
           <div className="kpi-value">{upcomingCount}</div>
-          <div className="kpi-sub">{pct(upcomingCount, initialEvents.length)}% dari total</div>
+          <div className="kpi-sub">{pct(upcomingCount, initialEvents.length)}% of total</div>
         </div>
         <div className="kpi-card orange-accent">
           <div className="kpi-label">Past Events</div>
           <div className="kpi-value">{pastCount}</div>
-          <div className="kpi-sub">{pct(pastCount, initialEvents.length)}% dari total</div>
+          <div className="kpi-sub">{pct(pastCount, initialEvents.length)}% of total</div>
         </div>
         <div className="kpi-card red-accent">
           <div className="kpi-label">Warehouses</div>
           <div className="kpi-value">{warehouseCount}</div>
-          <div className="kpi-sub">lokasi gudang aktif</div>
+          <div className="kpi-sub">active warehouse locations</div>
         </div>
         <div className="kpi-card brand-accent">
           <div className="kpi-label">Areas</div>
           <div className="kpi-value">{initialAreas.length}</div>
-          <div className="kpi-sub">area setup terdaftar</div>
+          <div className="kpi-sub">registered setup areas</div>
         </div>
         <div className="kpi-card green-accent">
           <div className="kpi-label">Inventory SKU</div>
           <div className="kpi-value">{inventoryData.length}</div>
-          <div className="kpi-sub">{totalItemCount.toLocaleString('id-ID')} item di event upcoming</div>
+          <div className="kpi-sub">{totalItemCount.toLocaleString('id-ID')} items in upcoming events</div>
         </div>
       </div>
 
       <div className="card" style={{ marginBottom: 22 }}>
-        <div className="section-title">Progress Event</div>
+        <div className="section-title">Event Progress</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 16 }}>
           {[
             { label: 'Upcoming', value: upcomingCount, color: 'var(--brand)' },
@@ -113,7 +113,7 @@ export default function OverviewReportPage() {
       </div>
 
       <div className="card" style={{ marginBottom: 22 }}>
-        <div className="section-title">Event per Lokasi</div>
+        <div className="section-title">Events by Location</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {locationBreakdown.map(([location, count]) => (
             <div key={location}>
@@ -135,13 +135,13 @@ export default function OverviewReportPage() {
             <div className="search-wrap">
               <IconSearch />
               <input
-                className="search-input" type="text" placeholder="Cari nama, kode, atau lokasi…"
+                className="search-input" type="text" placeholder="Search name, code, or location…"
                 value={query} onChange={e => { setQuery(e.target.value); setPage(1); }}
               />
             </div>
             <div className="wi-select-wrap">
               <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1); }}>
-                <option value="">Semua Tipe</option>
+                <option value="">All Types</option>
                 <option value="upcoming">Upcoming</option>
                 <option value="past">Past</option>
               </select>
@@ -153,17 +153,17 @@ export default function OverviewReportPage() {
           <table>
             <thead>
               <tr>
-                <th>Nama Event</th>
-                <th style={{ width: 90 }}>Kode</th>
-                <th style={{ width: 130 }}>Tanggal</th>
-                <th>Lokasi</th>
+                <th>Event Name</th>
+                <th style={{ width: 90 }}>Code</th>
+                <th style={{ width: 130 }}>Date</th>
+                <th>Location</th>
                 <th style={{ width: 90, textAlign: 'right' }}>Items</th>
-                <th style={{ width: 100 }}>Tipe</th>
+                <th style={{ width: 100 }}>Type</th>
               </tr>
             </thead>
             <tbody>
               {pageData.length === 0
-                ? <tr><td colSpan={6} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>Tidak ada event ditemukan.</td></tr>
+                ? <tr><td colSpan={6} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>No events found.</td></tr>
                 : pageData.map(e => (
                   <tr key={e.id}>
                     <td className="name-cell">{e.name}</td>

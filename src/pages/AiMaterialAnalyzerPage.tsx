@@ -375,7 +375,7 @@ function WeatherTipChip({
             <line x1="12" y1="8" x2="12.01" y2="8" />
           </svg>
         )}
-        Tip Cuaca
+        Weather Tip
         <svg
           viewBox="0 0 24 24"
           fill="none"
@@ -499,10 +499,10 @@ function AdditionalItemCard({ item }: { item: AiAdditionalItemMatched }) {
                 </span>
               )}
               <span className="badge badge-green" style={{ fontSize: 10.5 }}>
-                Ada di inventori
+                Available in inventory
               </span>
               <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
-                Stok:{" "}
+                Stock:{" "}
                 <strong style={{ color: "var(--text-2)" }}>
                   {barang!.stok}
                 </strong>
@@ -520,7 +520,7 @@ function AdditionalItemCard({ item }: { item: AiAdditionalItemMatched }) {
                 padding: "1px 7px",
               }}
             >
-              Tidak tersedia
+              Unavailable
             </span>
           )}
         </div>
@@ -542,10 +542,10 @@ function AdditionalItemCard({ item }: { item: AiAdditionalItemMatched }) {
 function MaterialTable({ materials }: { materials: AiMaterial[] }) {
   const handleCopy = () => {
     const headers = [
-      "Nama Material",
+      "Material Name",
       "Est. Qty",
-      "Satuan",
-      "Catatan Penggunaan",
+      "Unit",
+      "Usage Notes",
     ];
     const rows = materials.map((m) =>
       [m.nama, m.estimasi_qty, m.satuan, m.catatan].join("\t"),
@@ -553,7 +553,7 @@ function MaterialTable({ materials }: { materials: AiMaterial[] }) {
     navigator.clipboard
       .writeText([headers.join("\t"), ...rows].join("\n"))
       .then(() => {
-        toast("Tabel berhasil disalin!", { type: "success", autoClose: 1800 });
+        toast("Table copied successfully!", { type: "success", autoClose: 1800 });
       });
   };
 
@@ -575,7 +575,7 @@ function MaterialTable({ materials }: { materials: AiMaterial[] }) {
             letterSpacing: "-0.01em",
           }}
         >
-          Hasil Analisa
+          Analysis Results
         </span>
         <button
           onClick={handleCopy}
@@ -613,17 +613,17 @@ function MaterialTable({ materials }: { materials: AiMaterial[] }) {
             <rect x="9" y="9" width="13" height="13" rx="2" />
             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
           </svg>
-          Salin tabel
+          Copy table
         </button>
       </div>
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>Nama Material</th>
+              <th>Material Name</th>
               <th style={{ width: 80 }}>Est. Qty</th>
-              <th style={{ width: 80 }}>Satuan</th>
-              <th>Catatan Penggunaan</th>
+              <th style={{ width: 80 }}>Unit</th>
+              <th>Usage Notes</th>
             </tr>
           </thead>
           <tbody>
@@ -737,13 +737,13 @@ function InventoryCard({ item }: { item: AiMatchedBarang }) {
             <span
               className="badge badge-green"
               style={{ fontSize: 10.5 }}
-              title="Cocok dengan kondisi cuaca event"
+              title="Suitable for the event weather conditions"
             >
-              Cocok Cuaca
+              Weather Suitable
             </span>
           )}
           <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
-            Stok:{" "}
+            Stock:{" "}
             <strong style={{ color: "var(--text-2)" }}>{item.stok}</strong>
           </span>
         </div>
@@ -827,7 +827,7 @@ export default function AiMaterialAnalyzerPage() {
 
   const handleFile = useCallback(async (file: File) => {
     if (!file.type.startsWith("image/")) {
-      toast("File harus berupa gambar (JPG, PNG, WEBP).", { type: "error" });
+      toast("The file must be an image (JPG, PNG, WEBP).", { type: "error" });
       return;
     }
     try {
@@ -840,7 +840,7 @@ export default function AiMaterialAnalyzerPage() {
         result: null,
       }));
     } catch {
-      toast("Gagal memproses gambar.", { type: "error" });
+      toast("Failed to process the image.", { type: "error" });
     }
   }, []);
 
@@ -869,7 +869,7 @@ export default function AiMaterialAnalyzerPage() {
       toast(
         err instanceof Error
           ? err.message
-          : "Terjadi kesalahan. Silakan coba lagi.",
+          : "An error occurred. Please try again.",
         { type: "error" },
       );
     }
@@ -910,8 +910,8 @@ export default function AiMaterialAnalyzerPage() {
           <p
             style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 4 }}
           >
-            Upload gambar dekorasi untuk menganalisa material yang dibutuhkan
-            menggunakan AI.
+            Upload a decoration image to analyze the materials needed using
+            AI.
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -961,7 +961,7 @@ export default function AiMaterialAnalyzerPage() {
               letterSpacing: ".07em",
             }}
           >
-            Upload Gambar Dekorasi
+            Upload Decoration Image
           </div>
 
           <input
@@ -1053,7 +1053,7 @@ export default function AiMaterialAnalyzerPage() {
                     onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
                     onMouseLeave={(e) => (e.currentTarget.style.opacity = "0")}
                   >
-                    Ganti Gambar
+                    Change Image
                   </button>
                 </div>
               </>
@@ -1094,9 +1094,9 @@ export default function AiMaterialAnalyzerPage() {
                   }}
                 >
                   <span style={{ color: "var(--brand)" }}>
-                    Klik untuk upload
+                    Click to upload
                   </span>{" "}
-                  atau drag &amp; drop
+                  or drag &amp; drop
                 </div>
                 <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
                   JPG, PNG, WEBP
@@ -1134,7 +1134,7 @@ export default function AiMaterialAnalyzerPage() {
                   >
                     <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                   </svg>
-                  Menganalisa...
+                  Analyzing...
                 </>
               ) : (
                 <>
@@ -1150,7 +1150,7 @@ export default function AiMaterialAnalyzerPage() {
                     <circle cx="11" cy="11" r="8" />
                     <path d="m21 21-4.35-4.35" />
                   </svg>
-                  Analisa Material
+                  Analyze Materials
                 </>
               )}
             </button>
@@ -1195,15 +1195,15 @@ export default function AiMaterialAnalyzerPage() {
                 letterSpacing: ".07em",
               }}
             >
-              Konteks Acara (opsional)
+              Event Context (optional)
             </div>
 
             <div style={{ display: "flex", gap: 6 }}>
               {(
                 [
-                  { key: "none", label: "Tanpa Konteks" },
-                  { key: "event", label: "Pilih Event" },
-                  { key: "manual", label: "Input Manual" },
+                  { key: "none", label: "No Context" },
+                  { key: "event", label: "Select Event" },
+                  { key: "manual", label: "Manual Input" },
                 ] as const
               ).map((opt) => (
                 <button
@@ -1275,9 +1275,9 @@ export default function AiMaterialAnalyzerPage() {
                       </div>
                       <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
                         {validEventDate(selectedEvent.date_event) ??
-                          "Tanggal tidak diketahui"}{" "}
+                          "Date unknown"}{" "}
                         ·{" "}
-                        {selectedEvent.address || "Lokasi tidak diketahui"}
+                        {selectedEvent.address || "Location unknown"}
                       </div>
                     </span>
                     <svg
@@ -1302,7 +1302,7 @@ export default function AiMaterialAnalyzerPage() {
                     <input
                       className="search-input"
                       type="text"
-                      placeholder="Klik untuk pilih atau cari nama event..."
+                      placeholder="Click to select or search for an event..."
                       value={eventQuery}
                       onFocus={() => setEventPickerOpen(true)}
                       onChange={(e) => {
@@ -1358,7 +1358,7 @@ export default function AiMaterialAnalyzerPage() {
                               color: "var(--text-muted)",
                             }}
                           >
-                            Memuat daftar event...
+                            Loading event list...
                           </div>
                         ) : filteredEvents.length === 0 ? (
                           <div
@@ -1368,7 +1368,7 @@ export default function AiMaterialAnalyzerPage() {
                               color: "var(--text-muted)",
                             }}
                           >
-                            Tidak ada event ditemukan.
+                            No events found.
                           </div>
                         ) : (
                           filteredEvents.map((ev: any) => (
@@ -1428,7 +1428,7 @@ export default function AiMaterialAnalyzerPage() {
                 />
                 <input
                   type="text"
-                  placeholder="Lokasi (kota)"
+                  placeholder="Location (city)"
                   value={manualLocation}
                   onChange={(e) => setManualLocation(e.target.value)}
                   className="search-input"
@@ -1468,13 +1468,13 @@ export default function AiMaterialAnalyzerPage() {
                       gap: 6,
                     }}
                   >
-                    Konteks digunakan
+                    Context Used
                     {state.result.context_used.weather?.isEstimate && (
                       <span
                         className="badge badge-gray"
                         style={{ fontSize: 10 }}
                       >
-                        Estimasi musiman
+                        Seasonal Estimate
                       </span>
                     )}
                   </div>
@@ -1493,7 +1493,7 @@ export default function AiMaterialAnalyzerPage() {
                   )}
                   {state.result.context_used.weather ? (
                     <div>
-                      Cuaca: {state.result.context_used.weather.weatherDescription ?? "-"}
+                      Weather: {state.result.context_used.weather.weatherDescription ?? "-"}
                       {state.result.context_used.weather.tempMinC !== undefined &&
                       state.result.context_used.weather.tempMaxC !== undefined
                         ? `, ${Math.round(
@@ -1504,14 +1504,14 @@ export default function AiMaterialAnalyzerPage() {
                         : ""}
                       {state.result.context_used.weather.precipitationProbability !==
                       undefined
-                        ? `, kemungkinan hujan ${Math.round(
+                        ? `, ${Math.round(
                             state.result.context_used.weather.precipitationProbability,
-                          )}%`
+                          )}% chance of rain`
                         : ""}
                     </div>
                   ) : state.result.context_used.weatherError ? (
                     <div>
-                      Cuaca tidak tersedia — analisa memakai gambar &amp; tanggal saja.
+                      Weather unavailable — the analysis uses only the image and date.
                     </div>
                   ) : null}
                 </div>
@@ -1532,7 +1532,7 @@ export default function AiMaterialAnalyzerPage() {
                     lineHeight: 1.55,
                   }}
                 >
-                  <strong>Deskripsi: </strong>
+                  <strong>Description: </strong>
                   {state.result.deskripsi}
                 </div>
               )}
@@ -1579,14 +1579,14 @@ export default function AiMaterialAnalyzerPage() {
                 </svg>
               </div>
               <p style={{ fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
-                Hasil Analisa
+                Analysis Results
               </p>
               <p
                 style={{ fontSize: 12.5, textAlign: "center", lineHeight: 1.5 }}
               >
-                Upload gambar dekorasi untuk
+                Upload a decoration image to
                 <br />
-                memulai analisa.
+                start the analysis.
               </p>
             </div>
           )}
@@ -1612,18 +1612,18 @@ export default function AiMaterialAnalyzerPage() {
                 letterSpacing: "-0.01em",
               }}
             >
-              Ketersediaan di Inventori
+              Inventory Availability
             </div>
             {(state.result.matched_barang?.length ?? 0) > 0 && (
               <span className="badge badge-green">
-                {state.result.matched_barang!.length} item ditemukan
+                {state.result.matched_barang!.length} items found
               </span>
             )}
           </div>
 
           {(state.result.matched_barang?.length ?? 0) === 0 ? (
             <div className="no-data">
-              Tidak ada material yang cocok di inventori.
+              No matching materials found in inventory.
             </div>
           ) : (
             <div
@@ -1661,7 +1661,7 @@ export default function AiMaterialAnalyzerPage() {
                   letterSpacing: "-0.01em",
                 }}
               >
-                Barang Tambahan Disarankan
+                Recommended Additional Items
               </div>
               <span
                 style={{
@@ -1684,8 +1684,8 @@ export default function AiMaterialAnalyzerPage() {
                 fontStyle: "italic",
               }}
             >
-              {state.result.additional_items.filter((i) => i.found).length} dari{" "}
-              {state.result.additional_items.length} tersedia di inventori
+              {state.result.additional_items.filter((i) => i.found).length} of{" "}
+              {state.result.additional_items.length} available in inventory
             </span>
           </div>
           <div

@@ -60,9 +60,9 @@ const MODULE_DOT: Record<string, string> = {
 };
 
 const QUICK_ACTIONS = [
-  { to: '/event', label: 'Buat Event Baru', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="12" y1="14" x2="12" y2="18"/><line x1="10" y1="16" x2="14" y2="16"/></svg> },
-  { to: '/inventory', label: 'Tambah Inventory', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg> },
-  { to: '/item-loan', label: 'Pinjam Barang', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
+  { to: '/event', label: 'Create New Event', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="12" y1="14" x2="12" y2="18"/><line x1="10" y1="16" x2="14" y2="16"/></svg> },
+  { to: '/inventory', label: 'Add Inventory', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg> },
+  { to: '/item-loan', label: 'Loan Item', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
   { to: '/warehouse-inventory', label: 'Stock Opname', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="17"/><line x1="9.5" y1="14.5" x2="14.5" y2="14.5"/></svg> },
 ];
 
@@ -110,11 +110,11 @@ export default function MainDashboardPage() {
     <>
       <div className="dash-hero">
         <div>
-          <div className="dash-hero-title">Selamat datang kembali</div>
+          <div className="dash-hero-title">Welcome back</div>
           <div className="dash-hero-sub">
-            Anda punya <strong>{upcomingEvents.length} event mendatang</strong>
-            {nextEvent && <> — terdekat <strong>{nextEvent.name}</strong> dalam {daysUntil(nextEvent.start)} hari</>}
-            {needsAttention.length > 0 && <> dan <strong>{needsAttention.length} barang</strong> perlu direstock.</>}
+            You have <strong>{upcomingEvents.length} upcoming events</strong>
+            {nextEvent && <> — the nearest is <strong>{nextEvent.name}</strong> in {daysUntil(nextEvent.start)} days</>}
+            {needsAttention.length > 0 && <> and <strong>{needsAttention.length} items</strong> need restocking.</>}
           </div>
         </div>
         <div className="dash-hero-date">{fmtToday(TODAY)}</div>
@@ -125,37 +125,37 @@ export default function MainDashboardPage() {
           <div className="kpi-label">Total Events</div>
           <div className="kpi-value">{initialEvents.length}</div>
           <div className="kpi-sub">{upcomingEvents.length} upcoming · {pastCount} past</div>
-          <KpiDelta direction="up" good>+3 bulan ini</KpiDelta>
+          <KpiDelta direction="up" good>+3 this month</KpiDelta>
         </div>
         <div className="kpi-card green-accent">
           <div className="kpi-label">Inventory SKU</div>
           <div className="kpi-value">{inventoryData.length}</div>
-          <div className="kpi-sub">{totalStockUnits.toLocaleString('id-ID')} total unit</div>
-          <KpiDelta direction="up" good>+2 SKU baru</KpiDelta>
+          <div className="kpi-sub">{totalStockUnits.toLocaleString('id-ID')} total units</div>
+          <KpiDelta direction="up" good>+2 new SKUs</KpiDelta>
         </div>
         <div className="kpi-card orange-accent">
           <div className="kpi-label">Low Stock</div>
           <div className="kpi-value">{lowStock.length}</div>
-          <div className="kpi-sub">perlu direstock</div>
-          <KpiDelta direction="up" good={false}>+2 minggu ini</KpiDelta>
+          <div className="kpi-sub">need restocking</div>
+          <KpiDelta direction="up" good={false}>+2 this week</KpiDelta>
         </div>
         <div className="kpi-card brand-accent">
-          <div className="kpi-label">Sedang Dipinjam</div>
+          <div className="kpi-label">Currently Loaned</div>
           <div className="kpi-value">{activeLoans.length}</div>
-          <div className="kpi-sub">dari {initialItemLoans.length} total peminjaman</div>
-          <KpiDelta direction="flat">stabil</KpiDelta>
+          <div className="kpi-sub">of {initialItemLoans.length} total loans</div>
+          <KpiDelta direction="flat">stable</KpiDelta>
         </div>
         <div className="kpi-card red-accent">
-          <div className="kpi-label">Peminjaman Terlambat</div>
+          <div className="kpi-label">Overdue Loans</div>
           <div className="kpi-value">{overdueLoans.length}</div>
-          <div className="kpi-sub">perlu ditindaklanjuti</div>
-          <KpiDelta direction="up" good={false}>butuh perhatian</KpiDelta>
+          <div className="kpi-sub">need follow-up</div>
+          <KpiDelta direction="up" good={false}>needs attention</KpiDelta>
         </div>
         <div className="kpi-card red-accent">
           <div className="kpi-label">Warehouses</div>
           <div className="kpi-value">{warehouseCount}</div>
-          <div className="kpi-sub">lokasi gudang aktif</div>
-          <KpiDelta direction="flat">tidak berubah</KpiDelta>
+          <div className="kpi-sub">active warehouse locations</div>
+          <KpiDelta direction="flat">unchanged</KpiDelta>
         </div>
       </div>
 
@@ -179,7 +179,7 @@ export default function MainDashboardPage() {
                     <div className="dash-mini-name">{ev.name}</div>
                     <div className="dash-mini-sub">{fmtDate(ev.date)} · {ev.location}</div>
                   </div>
-                  <div className="viz-bar-track" title={`${days} hari lagi`}>
+                  <div className="viz-bar-track" title={`${days} days remaining`}>
                     <div className="viz-bar-fill" style={{ width: `${pct(days, maxDaysAway)}%` }} />
                   </div>
                   <span className="badge badge-blue viz-event-days">{days}d</span>
@@ -190,7 +190,7 @@ export default function MainDashboardPage() {
         </div>
 
         <div className="card">
-          <div className="section-title">Kesehatan Stok</div>
+          <div className="section-title">Stock Health</div>
           <div className="viz-stacked-bar">
             <div className="viz-stacked-segment" style={{ width: `${pct(availableCount, inventoryData.length)}%`, background: 'var(--green)' }} title={`Available: ${availableCount} SKU`} />
             <div className="viz-stacked-segment" style={{ width: `${pct(lowStock.length, inventoryData.length)}%`, background: 'var(--orange)' }} title={`Low Stock: ${lowStock.length} SKU`} />
@@ -202,14 +202,14 @@ export default function MainDashboardPage() {
             <span className="viz-legend-item"><i style={{ background: 'var(--red)' }} /> Out of Stock <strong>{outOfStock.length}</strong></span>
           </div>
           <p className="summary-text" style={{ marginTop: 14, marginBottom: 0 }}>
-            <strong>{pct(availableCount, inventoryData.length).toFixed(0)}%</strong> dari {inventoryData.length} SKU dalam kondisi stok aman.
+            <strong>{pct(availableCount, inventoryData.length).toFixed(0)}%</strong> of {inventoryData.length} SKUs have healthy stock levels.
           </p>
         </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 18, marginBottom: 18 }}>
         <div className="card">
-          <div className="section-title">Distribusi Stok per Gudang</div>
+          <div className="section-title">Stock Distribution by Warehouse</div>
           <div className="viz-bar-chart">
             {warehouseBreakdown.map(([warehouse, stock]) => (
               <div key={warehouse} className="viz-bar-row">
@@ -224,7 +224,7 @@ export default function MainDashboardPage() {
         </div>
 
         <div className="card">
-          <div className="section-title">Aktivitas Terbaru</div>
+          <div className="section-title">Recent Activity</div>
           <div className="dash-activity-list">
             {recentActivity.map(log => (
               <div key={log.id} className="dash-activity-row">
@@ -240,7 +240,7 @@ export default function MainDashboardPage() {
       </div>
 
       <div className="card" style={{ marginBottom: 18 }}>
-        <div className="section-title">Stok per Kategori</div>
+        <div className="section-title">Stock by Category</div>
         <div className="viz-bar-chart">
           {categoryBreakdown.map(([category, stock]) => (
             <div key={category} className="viz-bar-row">
@@ -255,21 +255,21 @@ export default function MainDashboardPage() {
       </div>
 
       <div className="card">
-        <div className="section-title">Perlu Perhatian — Stok Menipis &amp; Habis</div>
+        <div className="section-title">Needs Attention — Low &amp; Out of Stock</div>
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Nama Barang</th>
-                <th>Kategori</th>
-                <th>Gudang</th>
-                <th style={{ width: 90, textAlign: 'right' }}>Stok</th>
+                <th>Item Name</th>
+                <th>Category</th>
+                <th>Warehouse</th>
+                <th style={{ width: 90, textAlign: 'right' }}>Stock</th>
                 <th style={{ width: 120 }}>Status</th>
               </tr>
             </thead>
             <tbody>
               {needsAttention.length === 0
-                ? <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>Semua stok aman.</td></tr>
+                ? <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>All stock levels are healthy.</td></tr>
                 : needsAttention.map(i => (
                   <tr key={i.id}>
                     <td className="name-cell">{i.name}</td>

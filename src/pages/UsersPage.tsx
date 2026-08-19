@@ -122,7 +122,7 @@ export default function UsersPage() {
     initialValues: emptyForm(),
     validationSchema: Yup.object({
       fullname: Yup.string().trim().required("Required"),
-      email: Yup.string().trim().email("Email tidak valid").required("Required"),
+      email: Yup.string().trim().email("Invalid email address").required("Required"),
       password: Yup.string().required("Required"),
       user_type: Yup.string().oneOf(ROLES).required("Required"),
       status: Yup.string().required("Required"),
@@ -150,8 +150,8 @@ export default function UsersPage() {
           error instanceof Error
             ? error.message
             : editingUser
-              ? "Gagal mengubah user."
-              : "Gagal menambahkan user.",
+              ? "Failed to update user."
+              : "Failed to add user.",
           { type: "error" },
         );
       }
@@ -209,7 +209,7 @@ export default function UsersPage() {
       await refetchUsers();
     } catch (error) {
       toast(
-        error instanceof Error ? error.message : "Gagal menghapus user.",
+        error instanceof Error ? error.message : "Failed to delete user.",
         { type: "error" },
       );
     }
@@ -226,7 +226,7 @@ export default function UsersPage() {
         {[
           { label: "Total Users", value: total, color: "var(--brand)", bg: "var(--brand-bg)" },
           { label: "Active", value: total, color: "var(--green)", bg: "var(--green-bg)" },
-          { label: "Admin di Halaman Ini", value: adminCount, color: "var(--purple)", bg: "var(--purple-bg)" },
+          { label: "Admins on This Page", value: adminCount, color: "var(--purple)", bg: "var(--purple-bg)" },
         ].map((stat) => (
           <div key={stat.label} className="stat-card">
             <div className="stat-icon" style={{ background: stat.bg }}>
@@ -245,7 +245,7 @@ export default function UsersPage() {
               <input
                 className="search-input"
                 type="text"
-                placeholder="Cari nama atau email…"
+                placeholder="Search name or email…"
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
               />
@@ -258,7 +258,7 @@ export default function UsersPage() {
                   setPage(1);
                 }}
               >
-                <option value="">Semua Role</option>
+                <option value="">All Roles</option>
                 <option value="ADMIN">Admin</option>
                 <option value="EMPLOYEE">Staff</option>
               </select>
@@ -273,21 +273,21 @@ export default function UsersPage() {
           <table>
             <thead>
               <tr>
-                <SortTh label="Nama" id="fullname" sortCol={sortBy} sortAsc={sortDir === "asc"} onSort={handleSort} />
+                <SortTh label="Name" id="fullname" sortCol={sortBy} sortAsc={sortDir === "asc"} onSort={handleSort} />
                 <SortTh label="Email" id="email" sortCol={sortBy} sortAsc={sortDir === "asc"} onSort={handleSort} style={{ minWidth: 190 }} />
                 <SortTh label="Role" id="user_type" sortCol={sortBy} sortAsc={sortDir === "asc"} onSort={handleSort} style={{ width: 110 }} />
                 <th style={{ width: 100 }}>Status</th>
-                <th style={{ width: 140 }}>Terakhir Aktif</th>
-                <th style={{ width: 100, textAlign: "center" }}>Aksi</th>
+                <th style={{ width: 140 }}>Last Active</th>
+                <th style={{ width: 100, textAlign: "center" }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {isLoading && users.length === 0 ? (
-                <tr><td colSpan={6} style={{ textAlign: "center", padding: 32 }}>Memuat data users…</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: "center", padding: 32 }}>Loading users…</td></tr>
               ) : isError ? (
-                <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--red)", padding: 32 }}>Gagal memuat data users.</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--red)", padding: 32 }}>Failed to load users.</td></tr>
               ) : users.length === 0 ? (
-                <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--text-muted)", padding: 32 }}>Tidak ada user ditemukan.</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--text-muted)", padding: 32 }}>No users found.</td></tr>
               ) : (
                 users.map((user) => {
                   const name = displayName(user);
@@ -338,9 +338,9 @@ export default function UsersPage() {
           </>
         }
       >
-        <TextInput value={userFormik.values.fullname} onChange={(value) => userFormik.setFieldValue("fullname", value)} isRequired label="Nama" placeholder="Nama lengkap" errorText={userFormik.errors.fullname} />
+        <TextInput value={userFormik.values.fullname} onChange={(value) => userFormik.setFieldValue("fullname", value)} isRequired label="Name" placeholder="Full name" errorText={userFormik.errors.fullname} />
         <TextInput value={userFormik.values.email} onChange={(value) => userFormik.setFieldValue("email", value)} isRequired inputType="email" label="Email" placeholder="user@example.com" errorText={userFormik.errors.email} />
-        <TextInput value={userFormik.values.password} onChange={(value) => userFormik.setFieldValue("password", value)} isRequired inputType="password" label="Password" placeholder="Masukkan password" errorText={userFormik.errors.password} />
+        <TextInput value={userFormik.values.password} onChange={(value) => userFormik.setFieldValue("password", value)} isRequired inputType="password" label="Password" placeholder="Enter password" errorText={userFormik.errors.password} />
         <div className="form-row">
           <div className="form-group">
             <label>Role <span style={{ color: "var(--red)" }}>*</span></label>

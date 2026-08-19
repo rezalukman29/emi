@@ -510,7 +510,7 @@ export default function WarehouseInventoryPage() {
         });
 
         if (!response.data?.id) {
-          throw new Error("ID stock opname tidak ditemukan pada response.");
+          throw new Error("Stock opname ID was not found in the response.");
         }
 
         const applyResponse = await putApplyStockOpname(response.data.id);
@@ -525,7 +525,7 @@ export default function WarehouseInventoryPage() {
         toast(
           error instanceof Error
             ? error.message
-            : "Gagal menyimpan stock opname.",
+            : "Failed to save stock opname.",
           { type: "error" },
         );
       }
@@ -1191,7 +1191,7 @@ export default function WarehouseInventoryPage() {
                 <span className="inventory-item-meta">
                   <span className="inventory-item-name">{item.nama}</span>
                   <span className="inventory-item-stock">
-                    Stok: {item.stok_barang}
+                    Stock: {item.stok_barang}
                   </span>
                 </span>
               </button>
@@ -1209,7 +1209,7 @@ export default function WarehouseInventoryPage() {
             value={formik.values.stok}
             onChange={(e) => formik.setFieldValue("stok", e)}
             isRequired
-            label="Stok"
+            label="Stock"
             placeholder=""
             errorText={formik.errors.stok as string}
             isNumeric
@@ -1218,7 +1218,7 @@ export default function WarehouseInventoryPage() {
             value={formik.values.stok_minimum}
             onChange={(e) => formik.setFieldValue("stok_minimum", e)}
             isRequired
-            label="Stok Minimum"
+            label="Minimum Stock"
             placeholder=""
             errorText={formik.errors.stok_minimum as string}
             isNumeric
@@ -1301,9 +1301,9 @@ export default function WarehouseInventoryPage() {
         <div className="card">
           <div className="stats-bar" style={{ gridTemplateColumns: "repeat(3,1fr)", marginBottom: 18 }}>
             {[
-              { label: "Item Diperiksa", value: opnameRows.length, color: "var(--brand)", bg: "var(--brand-bg)" },
-              { label: "Sesuai", value: opnameMatched, color: "var(--green)", bg: "var(--green-bg)" },
-              { label: "Ada Selisih", value: opnameChanged.length, color: "var(--orange)", bg: "var(--orange-bg)" },
+              { label: "Items Checked", value: opnameRows.length, color: "var(--brand)", bg: "var(--brand-bg)" },
+              { label: "Matched", value: opnameMatched, color: "var(--green)", bg: "var(--green-bg)" },
+              { label: "With Variance", value: opnameChanged.length, color: "var(--orange)", bg: "var(--orange-bg)" },
             ].map((stat) => (
               <div className="stat-card" key={stat.label}>
                 <div className="stat-icon" style={{ background: stat.bg }}><span className="stat-value" style={{ color: stat.color }}>{stat.value}</span></div>
@@ -1313,35 +1313,35 @@ export default function WarehouseInventoryPage() {
           </div>
           <div className="toolbar">
             <div className="toolbar-left">
-              <div className="search-wrap"><IconSearch /><input className="search-input" placeholder="Cari nama barang…" value={opnameQuery} onChange={(e) => setOpnameQuery(e.target.value)} /></div>
+              <div className="search-wrap"><IconSearch /><input className="search-input" placeholder="Search item name…" value={opnameQuery} onChange={(e) => setOpnameQuery(e.target.value)} /></div>
               <div className="wi-select-wrap">
                 <select value={opnameWarehouse} onChange={(e) => setOpnameWarehouse(e.target.value)}>
-                  <option value="">Semua Warehouse</option>
+                  <option value="">All Warehouses</option>
                   {warehouseOptions.map((warehouse) => (
                     <option key={warehouse.value} value={warehouse.value}>{warehouse.label}</option>
                   ))}
                 </select>
               </div>
             </div>
-            <div className="toolbar-right"><button className="btn-save-modal" disabled={!opnameChanged.length} onClick={openOpnameConfirm}><IconCheck /> Terapkan Hasil Opname ({opnameChanged.length})</button></div>
+            <div className="toolbar-right"><button className="btn-save-modal" disabled={!opnameChanged.length} onClick={openOpnameConfirm}><IconCheck /> Apply Opname Results ({opnameChanged.length})</button></div>
           </div>
           <div className="table-wrap"><table>
-            <thead><tr><th>Nama Barang</th><th>Warehouse</th><th style={{ textAlign: "right" }}>Stok Sistem</th><th style={{ textAlign: "right" }}>Stok Aktual</th><th style={{ textAlign: "right" }}>Selisih</th><th>Status</th><th>Catatan</th></tr></thead>
-            <tbody>{isOpnameLoading ? <tr><td colSpan={7} style={{ textAlign: "center", padding: 32 }}>Memuat data stock opname…</td></tr> : isOpnameError ? <tr><td colSpan={7} style={{ textAlign: "center", padding: 32, color: "var(--red)" }}>Gagal memuat data stock opname.</td></tr> : opnameRows.length === 0 ? <tr><td colSpan={7} style={{ textAlign: "center", padding: 32 }}>Tidak ada item ditemukan.</td></tr> : opnameRows.map((row) => {
+            <thead><tr><th>Item Name</th><th>Warehouse</th><th style={{ textAlign: "right" }}>System Stock</th><th style={{ textAlign: "right" }}>Actual Stock</th><th style={{ textAlign: "right" }}>Variance</th><th>Status</th><th>Notes</th></tr></thead>
+            <tbody>{isOpnameLoading ? <tr><td colSpan={7} style={{ textAlign: "center", padding: 32 }}>Loading stock opname data…</td></tr> : isOpnameError ? <tr><td colSpan={7} style={{ textAlign: "center", padding: 32, color: "var(--red)" }}>Failed to load stock opname data.</td></tr> : opnameRows.length === 0 ? <tr><td colSpan={7} style={{ textAlign: "center", padding: 32 }}>No items found.</td></tr> : opnameRows.map((row) => {
               const difference = variance(row);
               return <tr key={row.barang_gudang_id}>
                 <td className="name-cell">{row.nama_barang}</td><td>{row.gudang_name || row.gudang?.gudang_name || "-"}</td><td style={{ textAlign: "right" }}>{row.stok_gudang}</td>
                 <td style={{ textAlign: "right" }}><input type="text" inputMode="numeric" className="inv-pick-qty" style={{ width: 76 }} value={getActual(row)} onChange={(e) => setActualStock((state) => ({ ...state, [row.barang_gudang_id]: e.target.value.replace(/\D/g, "") }))} /></td>
                 <td style={{ textAlign: "right", fontWeight: 700, color: difference === 0 ? "var(--text-muted)" : difference > 0 ? "var(--brand)" : "var(--red)" }}>{difference > 0 ? `+${difference}` : difference}</td>
-                <td>{difference === 0 ? <span className="badge badge-green">Sesuai</span> : difference > 0 ? <span className="badge badge-blue">Lebih</span> : <span className="badge badge-red">Kurang</span>}</td>
-                <td><input placeholder="Opsional" value={opnameNote[row.barang_gudang_id] || ""} onChange={(e) => setOpnameNote((state) => ({ ...state, [row.barang_gudang_id]: e.target.value }))} /></td>
+                <td>{difference === 0 ? <span className="badge badge-green">Matched</span> : difference > 0 ? <span className="badge badge-blue">Surplus</span> : <span className="badge badge-red">Shortage</span>}</td>
+                <td><input placeholder="Optional" value={opnameNote[row.barang_gudang_id] || ""} onChange={(e) => setOpnameNote((state) => ({ ...state, [row.barang_gudang_id]: e.target.value }))} /></td>
               </tr>;
             })}</tbody>
           </table></div>
         </div>
       )}
 
-      <Modal open={opnameConfirmOpen} title="Terapkan Hasil Stock Opname" onClose={closeOpnameConfirm} footer={<><button className="btn-cancel-modal" disabled={isSubmittingStockOpname} onClick={closeOpnameConfirm}>Batal</button><button className="btn-save-modal" type="submit" disabled={isSubmittingStockOpname} onClick={() => stockOpnameFormik.handleSubmit()}><IconCheck /> {isSubmittingStockOpname ? "Menyimpan…" : "Terapkan"}</button></>}>
+      <Modal open={opnameConfirmOpen} title="Apply Stock Opname Results" onClose={closeOpnameConfirm} footer={<><button className="btn-cancel-modal" disabled={isSubmittingStockOpname} onClick={closeOpnameConfirm}>Cancel</button><button className="btn-save-modal" type="submit" disabled={isSubmittingStockOpname} onClick={() => stockOpnameFormik.handleSubmit()}><IconCheck /> {isSubmittingStockOpname ? "Saving…" : "Apply"}</button></>}>
         <TextInput
           value={stockOpnameFormik.values.period}
           onChange={(value) => stockOpnameFormik.setFieldValue("period", value)}
@@ -1358,7 +1358,7 @@ export default function WarehouseInventoryPage() {
           placeholder="Contoh: Testing Remark"
           errorText={stockOpnameFormik.errors.remark}
         />
-        <p className="confirm-msg" style={{ marginBottom: 12 }}><strong>{opnameChanged.length}</strong> item akan diperbarui stoknya sesuai hasil hitung fisik:</p>
+        <p className="confirm-msg" style={{ marginBottom: 12 }}><strong>{opnameChanged.length}</strong> items will have their stock updated based on the physical count:</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 240, overflowY: "auto" }}>{opnameChanged.map((row) => { const difference = variance(row); return <div key={row.barang_gudang_id} style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, padding: "6px 0", borderBottom: "1px solid var(--border-2)" }}><span>{row.nama_barang}</span><span style={{ fontWeight: 700, color: difference > 0 ? "var(--brand)" : "var(--red)" }}>{row.stok_gudang} → {getActual(row)} ({difference > 0 ? "+" : ""}{difference})</span></div>; })}</div>
       </Modal>
     </>

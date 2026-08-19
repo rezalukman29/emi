@@ -24,7 +24,7 @@ export const postStockOpname = async (
   const response = await ax.post("/v1/stock-opname", payload);
 
   if (response.data?.success === false) {
-    throw new Error(response.data.message || "Gagal menyimpan stock opname.");
+    throw new Error(response.data.message || "Failed to save stock opname.");
   }
 
   return response.data;

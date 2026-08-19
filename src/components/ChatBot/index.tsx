@@ -51,7 +51,7 @@ export default function ChatBot() {
     } catch (err) {
       const errMsg: ChatMessage = {
         role: 'assistant',
-        content: 'Maaf, terjadi kesalahan saat menghubungi server. Silakan coba lagi.',
+        content: 'Sorry, an error occurred while contacting the server. Please try again.',
         timestamp: new Date(),
       }
       setMessages(prev => [...prev, errMsg])
@@ -74,7 +74,7 @@ export default function ChatBot() {
       <button
         className="chatbot-trigger"
         onClick={() => setIsOpen(v => !v)}
-        title={isOpen ? 'Tutup chat' : 'Buka EMI Assistant'}
+        title={isOpen ? 'Close chat' : 'Open EMI Assistant'}
       >
         {isOpen ? <IconClose /> : <IconChatBubble />}
       </button>

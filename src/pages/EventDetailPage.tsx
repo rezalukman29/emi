@@ -1048,7 +1048,7 @@ export default function EventDetailPage() {
               <IconCart />
             </button>
             <button className="btn-new" onClick={openCart}>
-              <IconPlus /> Tambah Barang
+              <IconPlus /> Add Item
             </button>
           </div>
         </div>
@@ -1083,7 +1083,7 @@ export default function EventDetailPage() {
             </div>
             {areaDropOpen && (
               <div className="dropdown-menu open">
-                <div className="dropdown-search"><IconSearch /><input autoFocus placeholder="Cari area…" value={areaSearch} onChange={(event) => setAreaSearch(event.target.value)} onClick={(event) => event.stopPropagation()} /></div>
+                <div className="dropdown-search"><IconSearch /><input autoFocus placeholder="Search areas…" value={areaSearch} onChange={(event) => setAreaSearch(event.target.value)} onClick={(event) => event.stopPropagation()} /></div>
                 <div className="dropdown-list">
                 <div
                   className={`dropdown-item${!selectedArea ? " selected" : ""}`}
@@ -1142,9 +1142,9 @@ export default function EventDetailPage() {
         </div>
 
         <div className="stage-tabs">
-          <button className={`stage-tab${stageFilter === "all" ? " active" : ""}`} onClick={() => setStageFilter("all")}>Semua <span className="stage-tab-count">{items.length}</span></button>
-          <button className={`stage-tab${stageFilter === "previous" ? " active" : ""}`} onClick={() => setStageFilter("previous")}>Dari Tahap Sebelumnya <span className="stage-tab-count">{previousStageCount}</span></button>
-          <button className={`stage-tab${stageFilter === "current" ? " active" : ""}`} onClick={() => setStageFilter("current")}>Baru di &ldquo;{eventStatus}&rdquo; <span className="stage-tab-count">{currentStageCount}</span></button>
+          <button className={`stage-tab${stageFilter === "all" ? " active" : ""}`} onClick={() => setStageFilter("all")}>All <span className="stage-tab-count">{items.length}</span></button>
+          <button className={`stage-tab${stageFilter === "previous" ? " active" : ""}`} onClick={() => setStageFilter("previous")}>From Previous Stage <span className="stage-tab-count">{previousStageCount}</span></button>
+          <button className={`stage-tab${stageFilter === "current" ? " active" : ""}`} onClick={() => setStageFilter("current")}>New in &ldquo;{eventStatus}&rdquo; <span className="stage-tab-count">{currentStageCount}</span></button>
         </div>
 
         <p className="summary-text">
@@ -1638,7 +1638,7 @@ export default function EventDetailPage() {
       {/* Inventory Picker + Cart Modal — two panels, no popping in/out */}
       <Modal
         open={newItemOpen}
-        title="Tambah Barang dari Inventory"
+        title="Add Items from Inventory"
         onClose={() => setNewItemOpen(false)}
         size="4xl"
         className="inv-pick-modal"
@@ -1649,7 +1649,7 @@ export default function EventDetailPage() {
               className="btn-cancel-m"
               onClick={() => setNewItemOpen(false)}
             >
-              <IconClose /> Tutup
+              <IconClose /> Close
             </button>
             <button
               className="btn-checkout"
@@ -1657,7 +1657,7 @@ export default function EventDetailPage() {
               disabled={cart.length === 0 || isSavingCart}
             >
               <IconCheck />{" "}
-              {hasMissingArea ? "Lengkapi Lokasi" : "Simpan ke Event"}
+              {hasMissingArea ? "Complete Locations" : "Save to Event"}
             </button>
           </>
         }
@@ -1671,7 +1671,7 @@ export default function EventDetailPage() {
                 <input
                   className="search-input"
                   type="text"
-                  placeholder="Cari nama atau SKU…"
+                  placeholder="Search name or SKU…"
                   value={pickerQuery}
                   onChange={(e) => setPickerQuery(e.target.value)}
                 />
@@ -1681,7 +1681,7 @@ export default function EventDetailPage() {
                   value={pickerCategory}
                   onChange={(e) => setPickerCategory(e.target.value)}
                 >
-                  <option value="">Semua Kategori</option>
+                  <option value="">All Categories</option>
                   {categoryOptions.map((category: { value: string; label: string }) => (
                     <option key={category.value} value={category.value}>
                       {category.label}
@@ -1693,7 +1693,7 @@ export default function EventDetailPage() {
 
             <div className="inv-pick-list">
               {pickerFiltered.length === 0 ? (
-                <div className="no-data">Tidak ada barang ditemukan.</div>
+                <div className="no-data">No items found.</div>
               ) : (
                 pickerFiltered.map((inv) => {
                   const selectedWarehouse = getSelectedItemWarehouse(inv);
@@ -1728,13 +1728,13 @@ export default function EventDetailPage() {
                           · {inv.nama_kategori} · {inv.nama_satuan}
                         </div>
                         <div className="inv-pick-stock">
-                          Stok tersedia:{" "}
+                          Available stock:{" "}
                           <strong>
                             {warehouseStock} {inv.nama_satuan}
                           </strong>
                         </div>
                         <div className="inv-pick-warehouse-row">
-                          <label>Ambil dari gudang</label>
+                          <label>Take from warehouse</label>
                           <div className="wi-select-wrap">
                             <select
                               value={selectedWarehouse?.barang_gudang_id ?? ""}
@@ -1788,7 +1788,7 @@ export default function EventDetailPage() {
                           disabled={outOfStock}
                           onClick={() => addInventoryItem(inv)}
                         >
-                          <IconCart /> {outOfStock ? "Stok Habis" : "Tambah"}
+                          <IconCart /> {outOfStock ? "Out of Stock" : "Add"}
                         </button>
                       </div>
                     </div>
@@ -1801,12 +1801,12 @@ export default function EventDetailPage() {
           {/* Right panel — cart / keranjang, always visible alongside the list */}
           <div className="inv-pick-right">
             <div className="inv-cart-header">
-              <IconCart /> Keranjang{" "}
+              <IconCart /> Cart{" "}
               <span className="inv-cart-count">{cart.length}</span>
             </div>
 
             {cart.length === 0 ? (
-              <div className="cart-empty">Keranjang masih kosong</div>
+              <div className="cart-empty">The cart is empty</div>
             ) : (
               <>
                 <div
@@ -1837,7 +1837,7 @@ export default function EventDetailPage() {
                       }
                       onChange={toggleSelectAllCart}
                     />
-                    Pilih Semua ({selectedCartIds.length}/{cart.length})
+                    Select All ({selectedCartIds.length}/{cart.length})
                   </label>
                   <button
                     className="btn btn-ghost"
@@ -1849,7 +1849,7 @@ export default function EventDetailPage() {
                       alignSelf: "flex-start",
                     }}
                   >
-                    Assign Lokasi ({selectedCartIds.length})
+                    Assign Locations ({selectedCartIds.length})
                   </button>
                 </div>
 
@@ -1875,7 +1875,7 @@ export default function EventDetailPage() {
                           setBulkSubAreaId("");
                         }}
                       >
-                        <option value="">Pilih Area</option>
+                        <option value="">Select Area</option>
                         {masterAreas.map((a) => (
                           <option key={a.id} value={a.id}>
                             {a.name}
@@ -1891,8 +1891,8 @@ export default function EventDetailPage() {
                       >
                         <option value="">
                           {bulkSubAreas.length
-                            ? "Pilih Sub Area"
-                            : "(Tidak ada Sub Area)"}
+                            ? "Select Sub Area"
+                            : "(No Sub Areas)"}
                         </option>
                         {bulkSubAreas.map((s) => (
                           <option key={s.id} value={s.id}>
@@ -1906,13 +1906,13 @@ export default function EventDetailPage() {
                       disabled={!bulkAreaId || !bulkSubAreaId}
                       onClick={applyBulkAssign}
                     >
-                      <IconCheck /> Terapkan ke {selectedCartIds.length} item
+                      <IconCheck /> Apply to {selectedCartIds.length} items
                     </button>
                     <button
                       className="btn-cancel-m"
                       onClick={() => setBulkPanelOpen(false)}
                     >
-                      Batal
+                      Cancel
                     </button>
                   </div>
                 )}
@@ -1966,8 +1966,8 @@ export default function EventDetailPage() {
                       {c.areaId === null && (
                         <button
                           className="cart-item-remove"
-                          title="Assign lokasi"
-                          aria-label={`Assign lokasi untuk ${c.name}`}
+                          title="Assign location"
+                          aria-label={`Assign location for ${c.name}`}
                           onClick={() => {
                             setSelectedCartIds([c.cartId]);
                             setBulkPanelOpen(true);

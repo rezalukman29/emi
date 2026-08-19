@@ -10,7 +10,7 @@ import { TODAY } from '../data/events';
 const PAGE_SIZE = 8;
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-type LoanStatus = 'Dikembalikan' | 'Terlambat' | 'Dipinjam';
+type LoanStatus = 'Returned' | 'Overdue' | 'Loaned';
 interface LoanForm {
   inventoryId: number | string;
   qty: number | string;
@@ -32,13 +32,13 @@ function todayIso() {
 }
 
 function loanStatus(loan: ItemLoan): LoanStatus {
-  if (loan.returnDate) return 'Dikembalikan';
-  return new Date(loan.dueDate) < TODAY ? 'Terlambat' : 'Dipinjam';
+  if (loan.returnDate) return 'Returned';
+  return new Date(loan.dueDate) < TODAY ? 'Overdue' : 'Loaned';
 }
 
 function statusBadgeClass(status: LoanStatus) {
-  if (status === 'Dikembalikan') return 'badge-green';
-  if (status === 'Terlambat') return 'badge-red';
+  if (status === 'Returned') return 'badge-green';
+  if (status === 'Overdue') return 'badge-red';
   return 'badge-blue';
 }
 
@@ -69,9 +69,9 @@ export default function ItemLoanPage() {
   const safePage = Math.min(page, totalPages);
   const pageData = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  const dipinjamCount = withStatus.filter(l => l.computedStatus === 'Dipinjam').length;
-  const terlambatCount = withStatus.filter(l => l.computedStatus === 'Terlambat').length;
-  const dikembalikanCount = withStatus.filter(l => l.computedStatus === 'Dikembalikan').length;
+  const dipinjamCount = withStatus.filter(l => l.computedStatus === 'Loaned').length;
+  const terlambatCount = withStatus.filter(l => l.computedStatus === 'Overdue').length;
+  const dikembalikanCount = withStatus.filter(l => l.computedStatus === 'Returned').length;
 
   function openNew() {
     setForm(emptyForm());
@@ -100,15 +100,15 @@ export default function ItemLoanPage() {
     <>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
         <h1 className="page-title" style={{ margin: 0 }}>Item Loan</h1>
-        <button className="btn-new" onClick={openNew}><IconPlus /> Pinjam Barang</button>
+        <button className="btn-new" onClick={openNew}><IconPlus /> Loan Item</button>
       </div>
 
       <div className="stats-bar" style={{ gridTemplateColumns: 'repeat(4,1fr)' }}>
         {[
-          { label: 'Total Peminjaman', value: loans.length,        color: 'var(--brand)',  bg: 'var(--brand-bg)' },
-          { label: 'Sedang Dipinjam',  value: dipinjamCount,       color: 'var(--brand)',  bg: 'var(--brand-bg)' },
-          { label: 'Terlambat',        value: terlambatCount,      color: 'var(--red)',    bg: 'var(--red-bg)' },
-          { label: 'Dikembalikan',     value: dikembalikanCount,   color: 'var(--green)',  bg: 'var(--green-bg)' },
+          { label: 'Total Loans', value: loans.length,        color: 'var(--brand)',  bg: 'var(--brand-bg)' },
+          { label: 'Currently Loaned',  value: dipinjamCount,       color: 'var(--brand)',  bg: 'var(--brand-bg)' },
+          { label: 'Overdue',        value: terlambatCount,      color: 'var(--red)',    bg: 'var(--red-bg)' },
+          { label: 'Returned',     value: dikembalikanCount,   color: 'var(--green)',  bg: 'var(--green-bg)' },
         ].map(s => (
           <div key={s.label} className="stat-card">
             <div className="stat-icon" style={{ background: s.bg }}>
@@ -125,16 +125,16 @@ export default function ItemLoanPage() {
             <div className="search-wrap">
               <IconSearch />
               <input
-                className="search-input" type="text" placeholder="Cari barang atau peminjam…"
+                className="search-input" type="text" placeholder="Search items or borrowers…"
                 value={query} onChange={e => { setQuery(e.target.value); setPage(1); }}
               />
             </div>
             <div className="wi-select-wrap">
               <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}>
-                <option value="">Semua Status</option>
-                <option value="Dipinjam">Dipinjam</option>
-                <option value="Terlambat">Terlambat</option>
-                <option value="Dikembalikan">Dikembalikan</option>
+                <option value="">All Statuses</option>
+                <option value="Loaned">Loaned</option>
+                <option value="Overdue">Overdue</option>
+                <option value="Returned">Returned</option>
               </select>
             </div>
           </div>
@@ -144,19 +144,19 @@ export default function ItemLoanPage() {
           <table>
             <thead>
               <tr>
-                <th>Barang</th>
-                <th>Peminjam</th>
+                <th>Item</th>
+                <th>Borrower</th>
                 <th style={{ width: 70, textAlign: 'right' }}>Qty</th>
-                <th>Gudang</th>
-                <th style={{ width: 110 }}>Tgl Pinjam</th>
-                <th style={{ width: 110 }}>Jatuh Tempo</th>
+                <th>Warehouse</th>
+                <th style={{ width: 110 }}>Loan Date</th>
+                <th style={{ width: 110 }}>Due Date</th>
                 <th style={{ width: 110 }}>Status</th>
-                <th style={{ width: 100, textAlign: 'center' }}>Aksi</th>
+                <th style={{ width: 100, textAlign: 'center' }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {pageData.length === 0
-                ? <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>Tidak ada peminjaman ditemukan.</td></tr>
+                ? <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>No loans found.</td></tr>
                 : pageData.map(l => (
                   <tr key={l.id}>
                     <td className="name-cell">{l.itemName}<div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{l.purpose}</div></td>
@@ -167,9 +167,9 @@ export default function ItemLoanPage() {
                     <td style={{ color: 'var(--text-muted)', fontSize: '12.5px' }}>{fmtDate(l.dueDate)}</td>
                     <td><span className={`badge ${statusBadgeClass(l.computedStatus)}`}>{l.computedStatus}</span></td>
                     <td style={{ textAlign: 'center' }}>
-                      {l.computedStatus === 'Dikembalikan'
+                      {l.computedStatus === 'Returned'
                         ? <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{fmtDate(l.returnDate)}</span>
-                        : <button className="btn-icon" title="Tandai Dikembalikan" style={{ color: 'var(--green)' }} onClick={() => returnLoan(l.id)}><IconCheck /></button>
+                        : <button className="btn-icon" title="Mark as Returned" style={{ color: 'var(--green)' }} onClick={() => returnLoan(l.id)}><IconCheck /></button>
                       }
                     </td>
                   </tr>
@@ -178,23 +178,23 @@ export default function ItemLoanPage() {
             </tbody>
           </table>
         </div>
-        <Pagination currentPage={safePage} total={filtered.length} pageSize={PAGE_SIZE} onPage={(p: number) => setPage(p)} label="peminjaman" />
+        <Pagination currentPage={safePage} total={filtered.length} pageSize={PAGE_SIZE} onPage={(p: number) => setPage(p)} label="loans" />
       </div>
 
       <Modal
         open={modalOpen}
-        title="Pinjam Barang"
+        title="Loan Item"
         onClose={() => setModalOpen(false)}
         footer={
           <>
-            <button className="btn-cancel-modal" onClick={() => setModalOpen(false)}><IconClose /> Batal</button>
-            <button className="btn-save-modal" onClick={saveLoan}><IconCheck /> Simpan</button>
+            <button className="btn-cancel-modal" onClick={() => setModalOpen(false)}><IconClose /> Cancel</button>
+            <button className="btn-save-modal" onClick={saveLoan}><IconCheck /> Save</button>
           </>
         }
       >
         <div className="form-row">
           <div className="form-group">
-            <label>Barang <span style={{ color: 'var(--red)' }}>*</span></label>
+            <label>Item <span style={{ color: 'var(--red)' }}>*</span></label>
             <select value={form.inventoryId} onChange={e => setForm(f => ({ ...f, inventoryId: e.target.value }))}>
               {inventoryData.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
             </select>
@@ -206,25 +206,25 @@ export default function ItemLoanPage() {
         </div>
         <div className="form-row">
           <div className="form-group">
-            <label>Nama Peminjam <span style={{ color: 'var(--red)' }}>*</span></label>
+            <label>Borrower Name <span style={{ color: 'var(--red)' }}>*</span></label>
             <input type="text" value={form.borrowerName} onChange={e => setForm(f => ({ ...f, borrowerName: e.target.value }))} />
           </div>
           <div className="form-group">
-            <label>Kontak</label>
-            <input type="text" placeholder="No. HP / email" value={form.borrowerContact} onChange={e => setForm(f => ({ ...f, borrowerContact: e.target.value }))} />
+            <label>Contact</label>
+            <input type="text" placeholder="Phone number / email" value={form.borrowerContact} onChange={e => setForm(f => ({ ...f, borrowerContact: e.target.value }))} />
           </div>
         </div>
         <div className="form-group">
-          <label>Keperluan</label>
-          <input type="text" placeholder="Untuk keperluan apa barang dipinjam" value={form.purpose} onChange={e => setForm(f => ({ ...f, purpose: e.target.value }))} />
+          <label>Purpose</label>
+          <input type="text" placeholder="What is the item being borrowed for?" value={form.purpose} onChange={e => setForm(f => ({ ...f, purpose: e.target.value }))} />
         </div>
         <div className="form-row">
           <div className="form-group">
-            <label>Tanggal Pinjam</label>
+            <label>Loan Date</label>
             <input type="date" value={form.loanDate} onChange={e => setForm(f => ({ ...f, loanDate: e.target.value }))} />
           </div>
           <div className="form-group">
-            <label>Jatuh Tempo <span style={{ color: 'var(--red)' }}>*</span></label>
+            <label>Due Date <span style={{ color: 'var(--red)' }}>*</span></label>
             <input type="date" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} />
           </div>
         </div>

@@ -72,28 +72,28 @@ export default function InventoryReportPage() {
         <div className="kpi-card brand-accent">
           <div className="kpi-label">Total SKU</div>
           <div className="kpi-value">{inventoryData.length}</div>
-          <div className="kpi-sub">jenis barang terdaftar</div>
+          <div className="kpi-sub">registered item types</div>
         </div>
         <div className="kpi-card green-accent">
-          <div className="kpi-label">Total Stok</div>
+          <div className="kpi-label">Total Stock</div>
           <div className="kpi-value">{totalStockUnits.toLocaleString('id-ID')}</div>
-          <div className="kpi-sub">unit di semua gudang</div>
+          <div className="kpi-sub">units across all warehouses</div>
         </div>
         <div className="kpi-card orange-accent">
           <div className="kpi-label">Low Stock</div>
           <div className="kpi-value">{lowStockCount}</div>
-          <div className="kpi-sub">butuh restock segera</div>
+          <div className="kpi-sub">need immediate restocking</div>
         </div>
         <div className="kpi-card red-accent">
           <div className="kpi-label">Out of Stock</div>
           <div className="kpi-value">{outOfStockCount}</div>
-          <div className="kpi-sub">stok kosong total</div>
+          <div className="kpi-sub">completely out of stock</div>
         </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginBottom: 22 }}>
         <div className="card">
-          <div className="section-title">Stok per Kategori</div>
+          <div className="section-title">Stock by Category</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {categoryBreakdown.map(([category, v]) => (
               <div key={category}>
@@ -110,7 +110,7 @@ export default function InventoryReportPage() {
         </div>
 
         <div className="card">
-          <div className="section-title">Stok per Gudang</div>
+          <div className="section-title">Stock by Warehouse</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {warehouseBreakdown.map(([warehouse, v]) => (
               <div key={warehouse}>
@@ -133,19 +133,19 @@ export default function InventoryReportPage() {
             <div className="search-wrap">
               <IconSearch />
               <input
-                className="search-input" type="text" placeholder="Cari nama atau SKU…"
+                className="search-input" type="text" placeholder="Search name or SKU…"
                 value={query} onChange={e => { setQuery(e.target.value); setPage(1); }}
               />
             </div>
             <div className="wi-select-wrap">
               <select value={categoryFilter} onChange={e => { setCategoryFilter(e.target.value); setPage(1); }}>
-                <option value="">Semua Kategori</option>
+                <option value="">All Categories</option>
                 {categories.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div className="wi-select-wrap">
               <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}>
-                <option value="">Semua Status</option>
+                <option value="">All Statuses</option>
                 {stockStatuses.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
@@ -156,18 +156,18 @@ export default function InventoryReportPage() {
           <table>
             <thead>
               <tr>
-                <th>Nama Barang</th>
+                <th>Item Name</th>
                 <th style={{ width: 90 }}>SKU</th>
-                <th style={{ width: 110 }}>Kategori</th>
+                <th style={{ width: 110 }}>Category</th>
                 <th style={{ width: 70 }}>Unit</th>
-                <th>Gudang</th>
-                <th style={{ width: 80, textAlign: 'right' }}>Stok</th>
+                <th>Warehouse</th>
+                <th style={{ width: 80, textAlign: 'right' }}>Stock</th>
                 <th style={{ width: 120 }}>Status</th>
               </tr>
             </thead>
             <tbody>
               {pageData.length === 0
-                ? <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>Tidak ada barang ditemukan.</td></tr>
+                ? <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>No items found.</td></tr>
                 : pageData.map(i => (
                   <tr key={i.id}>
                     <td className="name-cell">{i.name}</td>
@@ -183,7 +183,7 @@ export default function InventoryReportPage() {
             </tbody>
           </table>
         </div>
-        <Pagination currentPage={safePage} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} label="barang" />
+        <Pagination currentPage={safePage} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} label="items" />
       </div>
     </>
   );
