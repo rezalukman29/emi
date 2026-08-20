@@ -1,15 +1,11 @@
-import { useMemo } from 'react';
-import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { initialEvents, TODAY } from '../data/events';
+import { TODAY } from '../data/events';
 import { inventoryData } from '../data/inventory';
-import { initialWarehouses } from '../data/warehouses';
-import { initialItemLoans } from '../data/itemLoans';
-import { initialActivityLogs } from '../data/activityLogs';
+import useGetDashboard from '../hooks/api/useGetDashboard';
 
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const MONTHS_LONG = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-const DAYS_LONG = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+const MONTHS_LONG = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DAYS_LONG = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
 function fmtDate(d: string | null | undefined) {
   if (!d || d === '-') return '—';
@@ -22,35 +18,20 @@ function fmtToday(d: Date) {
 }
 
 function daysUntil(date: string) {
-  return Math.ceil((new Date(date).getTime() - TODAY.getTime()) / 86400000);
+  const parsedDate = new Date(date.replace(' ', 'T'));
+  if (Number.isNaN(parsedDate.getTime())) return 0;
+  return Math.max(0, Math.ceil((parsedDate.getTime() - TODAY.getTime()) / 86400000));
 }
 
 function stockBadgeClass(status: string) {
-  if (status === 'Low Stock') return 'badge-orange';
-  if (status === 'Out of Stock') return 'badge-red';
+  const normalized = status.toLowerCase().replace(/_/g, ' ');
+  if (normalized === 'low stock') return 'badge-orange';
+  if (normalized === 'out of stock') return 'badge-red';
   return 'badge-green';
 }
 
 function pct(n: number, total: number) {
   return total === 0 ? 0 : (n / total) * 100;
-}
-
-function ArrowUp() {
-  return <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 10V2M2 5l4-4 4 4"/></svg>;
-}
-function ArrowDown() {
-  return <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2v8M2 7l4 4 4-4"/></svg>;
-}
-
-function KpiDelta({ direction, good = false, children }: { direction: 'up' | 'down' | 'flat'; good?: boolean; children: ReactNode }) {
-  const cls = direction === 'flat' ? 'neutral' : (good ? 'up-good' : 'up-bad');
-  return (
-    <div className={`kpi-delta ${cls}`}>
-      {direction === 'up' && <ArrowUp />}
-      {direction === 'down' && <ArrowDown />}
-      {children}
-    </div>
-  );
 }
 
 const MODULE_DOT: Record<string, string> = {
@@ -68,43 +49,23 @@ const QUICK_ACTIONS = [
 
 export default function MainDashboardPage() {
   const navigate = useNavigate();
-
-  const upcomingEvents = useMemo(
-    () => initialEvents.filter(e => e.type === 'upcoming').sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()),
-    []
-  );
-  const pastCount = initialEvents.filter(e => e.type === 'past').length;
-  const maxDaysAway = Math.max(...upcomingEvents.map(ev => daysUntil(ev.start)), 1);
+  const { data: response, isLoading, isError } = useGetDashboard();
+  const dashboard = response?.data;
+  const summary = dashboard?.summary;
+  const upcomingEvents = dashboard?.upcoming_events ?? [];
+  const needsAttention = dashboard?.needs_attention ?? [];
+  const warehouseBreakdown = dashboard?.stock_by_warehouse ?? [];
+  const recentActivity = dashboard?.recent_activity ?? [];
+  const categoryBreakdown = dashboard?.stock_by_category ?? [];
+  const maxDaysAway = Math.max(...upcomingEvents.map(ev => daysUntil(ev.event_start)), 1);
   const nextEvent = upcomingEvents[0];
 
+  // Stock Health intentionally still uses dummy data until BE provides it.
   const lowStock = inventoryData.filter(i => i.stockStatus === 'Low Stock');
   const outOfStock = inventoryData.filter(i => i.stockStatus === 'Out of Stock');
   const availableCount = inventoryData.length - lowStock.length - outOfStock.length;
-  const needsAttention = [...outOfStock, ...lowStock];
-  const totalStockUnits = inventoryData.reduce((s, i) => s + i.totalStock, 0);
-  const warehouseCount = useMemo(() => new Set(initialWarehouses.map(w => w.name)).size, []);
-
-  const activeLoans = initialItemLoans.filter(l => !l.returnDate);
-  const overdueLoans = activeLoans.filter(l => new Date(l.dueDate) < TODAY);
-
-  const categoryBreakdown = useMemo(() => {
-    const map: Record<string, number> = {};
-    inventoryData.forEach(i => { map[i.category] = (map[i.category] || 0) + i.totalStock; });
-    return Object.entries(map).sort((a, b) => b[1] - a[1]);
-  }, []);
-  const maxCategoryStock = Math.max(...categoryBreakdown.map(([, v]) => v), 1);
-
-  const warehouseBreakdown = useMemo(() => {
-    const map: Record<string, number> = {};
-    inventoryData.forEach(i => { map[i.warehouse] = (map[i.warehouse] || 0) + i.totalStock; });
-    return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 5);
-  }, []);
-  const maxWarehouseStock = Math.max(...warehouseBreakdown.map(([, v]) => v), 1);
-
-  const recentActivity = useMemo(
-    () => [...initialActivityLogs].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 5),
-    []
-  );
+  const maxCategoryStock = Math.max(...categoryBreakdown.map(item => item.total_stock), 1);
+  const maxWarehouseStock = Math.max(...warehouseBreakdown.map(item => item.total_stock), 1);
 
   return (
     <>
@@ -112,8 +73,8 @@ export default function MainDashboardPage() {
         <div>
           <div className="dash-hero-title">Welcome back</div>
           <div className="dash-hero-sub">
-            You have <strong>{upcomingEvents.length} upcoming events</strong>
-            {nextEvent && <> — the nearest is <strong>{nextEvent.name}</strong> in {daysUntil(nextEvent.start)} days</>}
+            You have <strong>{summary?.upcoming_count ?? 0} upcoming events</strong>
+            {nextEvent && <> — the nearest is <strong>{nextEvent.name}</strong> in {daysUntil(nextEvent.event_start)} days</>}
             {needsAttention.length > 0 && <> and <strong>{needsAttention.length} items</strong> need restocking.</>}
           </div>
         </div>
@@ -123,39 +84,33 @@ export default function MainDashboardPage() {
       <div className="kpi-grid" style={{ marginBottom: 18 }}>
         <div className="kpi-card brand-accent">
           <div className="kpi-label">Total Events</div>
-          <div className="kpi-value">{initialEvents.length}</div>
-          <div className="kpi-sub">{upcomingEvents.length} upcoming · {pastCount} past</div>
-          <KpiDelta direction="up" good>+3 this month</KpiDelta>
+          <div className="kpi-value">{isLoading ? '—' : (summary?.total_events ?? 0)}</div>
+          <div className="kpi-sub">{summary?.upcoming_count ?? 0} upcoming · {summary?.past_count ?? 0} past</div>
         </div>
         <div className="kpi-card green-accent">
           <div className="kpi-label">Inventory SKU</div>
-          <div className="kpi-value">{inventoryData.length}</div>
-          <div className="kpi-sub">{totalStockUnits.toLocaleString('id-ID')} total units</div>
-          <KpiDelta direction="up" good>+2 new SKUs</KpiDelta>
+          <div className="kpi-value">{isLoading ? '—' : (summary?.inventory_sku ?? 0)}</div>
+          <div className="kpi-sub">{(summary?.total_stock ?? 0).toLocaleString('id-ID')} total units</div>
         </div>
         <div className="kpi-card orange-accent">
           <div className="kpi-label">Low Stock</div>
-          <div className="kpi-value">{lowStock.length}</div>
-          <div className="kpi-sub">need restocking</div>
-          <KpiDelta direction="up" good={false}>+2 this week</KpiDelta>
+          <div className="kpi-value">{isLoading ? '—' : (summary?.low_stock ?? 0)}</div>
+          <div className="kpi-sub">{summary?.out_of_stock ?? 0} out of stock</div>
         </div>
         <div className="kpi-card brand-accent">
           <div className="kpi-label">Currently Loaned</div>
-          <div className="kpi-value">{activeLoans.length}</div>
-          <div className="kpi-sub">of {initialItemLoans.length} total loans</div>
-          <KpiDelta direction="flat">stable</KpiDelta>
+          <div className="kpi-value">{isLoading ? '—' : (summary?.loaned ?? 0)}</div>
+          <div className="kpi-sub">of {summary?.total_loans ?? 0} total loans</div>
         </div>
         <div className="kpi-card red-accent">
           <div className="kpi-label">Overdue Loans</div>
-          <div className="kpi-value">{overdueLoans.length}</div>
+          <div className="kpi-value">{isLoading ? '—' : (summary?.overdue ?? 0)}</div>
           <div className="kpi-sub">need follow-up</div>
-          <KpiDelta direction="up" good={false}>needs attention</KpiDelta>
         </div>
         <div className="kpi-card red-accent">
           <div className="kpi-label">Warehouses</div>
-          <div className="kpi-value">{warehouseCount}</div>
+          <div className="kpi-value">{isLoading ? '—' : (summary?.warehouse_count ?? 0)}</div>
           <div className="kpi-sub">active warehouse locations</div>
-          <KpiDelta direction="flat">unchanged</KpiDelta>
         </div>
       </div>
 
@@ -171,13 +126,19 @@ export default function MainDashboardPage() {
         <div className="card">
           <div className="section-title">Upcoming Events</div>
           <div className="viz-event-list">
-            {upcomingEvents.map(ev => {
-              const days = daysUntil(ev.start);
+            {isLoading ? (
+              <div className="no-data">Loading upcoming events…</div>
+            ) : isError ? (
+              <div className="no-data">Failed to load upcoming events.</div>
+            ) : upcomingEvents.length === 0 ? (
+              <div className="no-data">No upcoming events.</div>
+            ) : upcomingEvents.map(ev => {
+              const days = daysUntil(ev.event_start);
               return (
-                <div key={ev.id} className="viz-event-row" onClick={() => navigate(`/event-detail?name=${encodeURIComponent(ev.name)}`)}>
+                <div key={ev.id} className="viz-event-row" onClick={() => navigate(`/event-detail?id=${ev.id}`)}>
                   <div className="viz-event-info">
                     <div className="dash-mini-name">{ev.name}</div>
-                    <div className="dash-mini-sub">{fmtDate(ev.date)} · {ev.location}</div>
+                    <div className="dash-mini-sub">{fmtDate(ev.event_start)} · {ev.location || '—'}</div>
                   </div>
                   <div className="viz-bar-track" title={`${days} days remaining`}>
                     <div className="viz-bar-fill" style={{ width: `${pct(days, maxDaysAway)}%` }} />
@@ -211,30 +172,42 @@ export default function MainDashboardPage() {
         <div className="card">
           <div className="section-title">Stock Distribution by Warehouse</div>
           <div className="viz-bar-chart">
-            {warehouseBreakdown.map(([warehouse, stock]) => (
-              <div key={warehouse} className="viz-bar-row">
-                <div className="viz-bar-label">{warehouse}</div>
-                <div className="viz-bar-track" title={`${warehouse}: ${stock.toLocaleString('id-ID')} unit`}>
-                  <div className="viz-bar-fill" style={{ width: `${pct(stock, maxWarehouseStock)}%` }} />
+            {isLoading ? (
+              <div className="no-data">Loading warehouse stock…</div>
+            ) : isError ? (
+              <div className="no-data">Failed to load warehouse stock.</div>
+            ) : warehouseBreakdown.length === 0 ? (
+              <div className="no-data">No warehouse stock data.</div>
+            ) : warehouseBreakdown.map(item => (
+                <div key={item.warehouse} className="viz-bar-row">
+                  <div className="viz-bar-label">{item.warehouse || '—'}</div>
+                  <div className="viz-bar-track" title={`${item.warehouse}: ${item.total_stock.toLocaleString('id-ID')} units`}>
+                    <div className="viz-bar-fill" style={{ width: `${pct(item.total_stock, maxWarehouseStock)}%` }} />
+                  </div>
+                  <div className="viz-bar-value">{item.total_stock.toLocaleString('id-ID')}</div>
                 </div>
-                <div className="viz-bar-value">{stock.toLocaleString('id-ID')}</div>
-              </div>
-            ))}
+              ))}
           </div>
         </div>
 
         <div className="card">
           <div className="section-title">Recent Activity</div>
           <div className="dash-activity-list">
-            {recentActivity.map(log => (
-              <div key={log.id} className="dash-activity-row">
-                <span className="dash-activity-dot" style={{ background: MODULE_DOT[log.module] || 'var(--text-muted)' }} />
-                <div className="dash-activity-body">
-                  <div className="dash-activity-text"><strong>{log.userName}</strong> · {log.description}</div>
-                  <div className="dash-activity-time">{log.timestamp}</div>
+            {isLoading ? (
+              <div className="no-data">Loading recent activity…</div>
+            ) : isError ? (
+              <div className="no-data">Failed to load recent activity.</div>
+            ) : recentActivity.length === 0 ? (
+              <div className="no-data">No recent activity.</div>
+            ) : recentActivity.map(log => (
+                <div key={log.id} className="dash-activity-row">
+                  <span className="dash-activity-dot" style={{ background: MODULE_DOT[log.module] || 'var(--text-muted)' }} />
+                  <div className="dash-activity-body">
+                    <div className="dash-activity-text"><strong>{log.user_name || '—'}</strong> · {log.description}</div>
+                    <div className="dash-activity-time">{log.timestamp}</div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
         </div>
       </div>
@@ -242,15 +215,21 @@ export default function MainDashboardPage() {
       <div className="card" style={{ marginBottom: 18 }}>
         <div className="section-title">Stock by Category</div>
         <div className="viz-bar-chart">
-          {categoryBreakdown.map(([category, stock]) => (
-            <div key={category} className="viz-bar-row">
-              <div className="viz-bar-label">{category}</div>
-              <div className="viz-bar-track" title={`${category}: ${stock.toLocaleString('id-ID')} unit`}>
-                <div className="viz-bar-fill" style={{ width: `${pct(stock, maxCategoryStock)}%` }} />
+          {isLoading ? (
+            <div className="no-data">Loading category stock…</div>
+          ) : isError ? (
+            <div className="no-data">Failed to load category stock.</div>
+          ) : categoryBreakdown.length === 0 ? (
+            <div className="no-data">No category stock data.</div>
+          ) : categoryBreakdown.map(item => (
+              <div key={item.category} className="viz-bar-row">
+                <div className="viz-bar-label">{item.category || '—'}</div>
+                <div className="viz-bar-track" title={`${item.category}: ${item.total_stock.toLocaleString('id-ID')} units across ${item.sku_count} SKUs`}>
+                  <div className="viz-bar-fill" style={{ width: `${pct(item.total_stock, maxCategoryStock)}%` }} />
+                </div>
+                <div className="viz-bar-value">{item.total_stock.toLocaleString('id-ID')}</div>
               </div>
-              <div className="viz-bar-value">{stock.toLocaleString('id-ID')}</div>
-            </div>
-          ))}
+            ))}
         </div>
       </div>
 
@@ -268,18 +247,21 @@ export default function MainDashboardPage() {
               </tr>
             </thead>
             <tbody>
-              {needsAttention.length === 0
-                ? <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>All stock levels are healthy.</td></tr>
-                : needsAttention.map(i => (
+              {isLoading ? (
+                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32 }}>Loading items…</td></tr>
+              ) : isError ? (
+                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: 'var(--red)' }}>Failed to load items requiring attention.</td></tr>
+              ) : needsAttention.length === 0 ? (
+                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>All stock levels are healthy.</td></tr>
+              ) : needsAttention.map(i => (
                   <tr key={i.id}>
                     <td className="name-cell">{i.name}</td>
                     <td>{i.category}</td>
                     <td style={{ color: 'var(--text-muted)' }}>{i.warehouse}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{i.totalStock} {i.unit}</td>
-                    <td><span className={`badge ${stockBadgeClass(i.stockStatus)}`}>{i.stockStatus}</span></td>
+                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{i.total_stock} {i.unit}</td>
+                    <td><span className={`badge ${stockBadgeClass(i.status)}`}>{i.status}</span></td>
                   </tr>
-                ))
-              }
+                ))}
             </tbody>
           </table>
         </div>

@@ -1,120 +1,230 @@
-import { useState, useMemo } from 'react';
-import Modal from '../components/Modal';
-import Pagination from '../components/Pagination';
-import { IconSearch, IconPlus, IconClose, IconCheck } from '../components/icons';
-import { initialItemLoans } from '../data/itemLoans';
-import type { ItemLoan } from '../data/itemLoans';
-import { inventoryData } from '../data/inventory';
-import { TODAY } from '../data/events';
+import { useEffect, useState } from "react";
+import { useFormik } from "formik";
+import { useQueryClient } from "react-query";
+import { toast } from "react-toastify";
+import * as Yup from "yup";
 
-const PAGE_SIZE = 8;
-const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+import Modal from "../components/Modal";
+import Pagination from "../components/Pagination";
+import TextInput from "../components/TextInput";
+import { IconCheck, IconClose, IconPlus, IconSearch } from "../components/icons";
+import useGetBarangGudang from "../hooks/api/useGetBarangGudang";
+import useGetItemLoans, {
+  type ItemLoanStatus,
+} from "../hooks/api/useGetItemLoans";
+import usePostItemLoan from "../hooks/api/usePostItemLoan";
+import usePutReturnItemLoan from "../hooks/api/usePutReturnItemLoan";
 
-type LoanStatus = 'Returned' | 'Overdue' | 'Loaned';
-interface LoanForm {
-  inventoryId: number | string;
-  qty: number | string;
-  borrowerName: string;
-  borrowerContact: string;
-  purpose: string;
-  loanDate: string;
-  dueDate: string;
-}
+const PAGE_SIZE = 10;
+const ITEM_PAGE_SIZE = 30;
+const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-function fmtDate(d: string | null) {
-  if (!d) return '—';
-  const [y, m, day] = d.split('-');
-  return `${parseInt(day)} ${MONTHS_SHORT[parseInt(m) - 1]} ${y}`;
+function fmtDate(value: string | null) {
+  if (!value) return "—";
+  const [year, month, day] = value.split("-");
+  const monthIndex = Number(month) - 1;
+  const date = Number.parseInt(day, 10);
+  if (!year || !MONTHS_SHORT[monthIndex] || Number.isNaN(date)) return value;
+  return `${date} ${MONTHS_SHORT[monthIndex]} ${year}`;
 }
 
 function todayIso() {
-  return TODAY.toISOString().slice(0, 10);
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
-function loanStatus(loan: ItemLoan): LoanStatus {
-  if (loan.returnDate) return 'Returned';
-  return new Date(loan.dueDate) < TODAY ? 'Overdue' : 'Loaned';
+function statusBadgeClass(status: string) {
+  if (status.toLowerCase() === "returned") return "badge-green";
+  if (status.toLowerCase() === "overdue") return "badge-red";
+  return "badge-blue";
 }
 
-function statusBadgeClass(status: LoanStatus) {
-  if (status === 'Returned') return 'badge-green';
-  if (status === 'Overdue') return 'badge-red';
-  return 'badge-blue';
+function statusLabel(status: string) {
+  if (!status) return "-";
+  return `${status.charAt(0).toUpperCase()}${status.slice(1).toLowerCase()}`;
 }
 
-function emptyForm(): LoanForm {
-  return { inventoryId: inventoryData[0]?.id ?? '', qty: 1, borrowerName: '', borrowerContact: '', purpose: '', loanDate: todayIso(), dueDate: '' };
+function errorMessage(error: unknown, fallback: string) {
+  const apiMessage = (error as { response?: { data?: { message?: string } } })
+    ?.response?.data?.message;
+  if (apiMessage) return apiMessage;
+  return error instanceof Error ? error.message : fallback;
 }
 
 export default function ItemLoanPage() {
-  const [loans, setLoans] = useState(initialItemLoans);
-  const [nextId, setNextId] = useState(initialItemLoans.length + 1);
-  const [query, setQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const queryClient = useQueryClient();
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<ItemLoanStatus | "">("");
   const [page, setPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState(emptyForm());
+  const [itemSearchInput, setItemSearchInput] = useState("");
+  const [itemSearch, setItemSearch] = useState("");
+  const [returningId, setReturningId] = useState<number | null>(null);
 
-  const withStatus = useMemo(() => loans.map(l => ({ ...l, computedStatus: loanStatus(l) })), [loans]);
+  const {
+    data: loansResponse,
+    isLoading: isLoansLoading,
+    isError: isLoansError,
+  } = useGetItemLoans({
+    params: {
+      page,
+      limit: PAGE_SIZE,
+      search: search || undefined,
+      status: statusFilter || undefined,
+    },
+    options: { keepPreviousData: true },
+  });
+  const { data: loanedResponse } = useGetItemLoans({
+    params: { page: 1, limit: 1, status: "Loaned" },
+  });
+  const { data: overdueResponse } = useGetItemLoans({
+    params: { page: 1, limit: 1, status: "Overdue" },
+  });
+  const { data: returnedResponse } = useGetItemLoans({
+    params: { page: 1, limit: 1, status: "Returned" },
+  });
+  const {
+    data: inventoryResponse,
+    isLoading: isInventoryLoading,
+    isError: isInventoryError,
+  } = useGetBarangGudang({
+    params: {
+      page: 1,
+      limit: ITEM_PAGE_SIZE,
+      search: itemSearch || undefined,
+      sort: "ASC",
+      sortBy: "name",
+    },
+    options: {
+      enabled: modalOpen,
+      keepPreviousData: true,
+    },
+  });
+  const { mutateAsync: createItemLoan, isLoading: isCreating } = usePostItemLoan();
+  const { mutateAsync: returnItemLoan } = usePutReturnItemLoan();
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return withStatus.filter(l =>
-      (!q || l.itemName.toLowerCase().includes(q) || l.borrowerName.toLowerCase().includes(q)) &&
-      (!statusFilter || l.computedStatus === statusFilter)
-    );
-  }, [withStatus, query, statusFilter]);
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setSearch(searchInput.trim());
+      setPage(1);
+    }, 400);
+    return () => window.clearTimeout(timeout);
+  }, [searchInput]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setItemSearch(itemSearchInput.trim());
+    }, 400);
+    return () => window.clearTimeout(timeout);
+  }, [itemSearchInput]);
+
+  const loans = loansResponse?.data.data ?? [];
+  const totalRecords = loansResponse?.data.total_records ?? 0;
+  const totalPages = Math.max(1, loansResponse?.data.total_pages ?? 1);
   const safePage = Math.min(page, totalPages);
-  const pageData = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const inventoryRows = inventoryResponse?.data ?? [];
+  const loanedCount = loanedResponse?.data.total_records ?? 0;
+  const overdueCount = overdueResponse?.data.total_records ?? 0;
+  const returnedCount = returnedResponse?.data.total_records ?? 0;
+  const totalLoanCount = loanedCount + overdueCount + returnedCount;
 
-  const dipinjamCount = withStatus.filter(l => l.computedStatus === 'Loaned').length;
-  const terlambatCount = withStatus.filter(l => l.computedStatus === 'Overdue').length;
-  const dikembalikanCount = withStatus.filter(l => l.computedStatus === 'Returned').length;
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const formik = useFormik({
+    initialValues: {
+      barang_gudang_id: "",
+      qty: "1",
+      borrower_name: "",
+      borrower_contact: "",
+      purpose: "",
+      loan_date: todayIso(),
+      due_date: "",
+    },
+    validationSchema: Yup.object({
+      barang_gudang_id: Yup.string().required("Required"),
+      qty: Yup.number().typeError("Must be a number").integer("Must be a whole number").min(1, "Minimum quantity is 1").required("Required"),
+      borrower_name: Yup.string().trim().required("Required"),
+      borrower_contact: Yup.string().trim().required("Required"),
+      purpose: Yup.string().trim().required("Required"),
+      loan_date: Yup.string().required("Required"),
+      due_date: Yup.string().required("Required"),
+    }),
+    validateOnChange: false,
+    onSubmit: async (values, { resetForm }) => {
+      try {
+        const response = await createItemLoan({
+          barang_gudang_id: Number(values.barang_gudang_id),
+          borrower_contact: values.borrower_contact.trim(),
+          borrower_name: values.borrower_name.trim(),
+          due_date: values.due_date,
+          loan_date: values.loan_date,
+          purpose: values.purpose.trim(),
+          qty: Number(values.qty),
+        });
+        toast(response.message, { type: "success" });
+        setModalOpen(false);
+        resetForm();
+        setItemSearchInput("");
+        setItemSearch("");
+        setPage(1);
+        await queryClient.invalidateQueries(["useGetItemLoans"]);
+      } catch (error) {
+        toast(errorMessage(error, "Failed to create item loan."), { type: "error" });
+      }
+    },
+  });
 
   function openNew() {
-    setForm(emptyForm());
+    formik.resetForm();
+    setItemSearchInput("");
+    setItemSearch("");
     setModalOpen(true);
   }
 
-  function saveLoan() {
-    if (!form.borrowerName.trim() || !form.dueDate) return;
-    const inv = inventoryData.find(i => i.id === Number(form.inventoryId));
-    if (!inv) return;
-    setLoans(ls => [{
-      id: nextId, itemName: inv.name, sku: inv.sku, category: inv.category, unit: inv.unit,
-      warehouse: inv.warehouse, qty: Math.max(1, Number(form.qty) || 1),
-      borrowerName: form.borrowerName.trim(), borrowerContact: form.borrowerContact.trim(),
-      purpose: form.purpose.trim(), loanDate: form.loanDate, dueDate: form.dueDate, returnDate: null,
-    }, ...ls]);
-    setNextId(n => n + 1);
+  function closeModal() {
+    if (isCreating) return;
+    formik.resetForm();
     setModalOpen(false);
   }
 
-  function returnLoan(id: number) {
-    setLoans(ls => ls.map(l => l.id === id ? { ...l, returnDate: todayIso() } : l));
+  async function handleReturn(id: number) {
+    try {
+      setReturningId(id);
+      const response = await returnItemLoan(id);
+      toast(response.message, { type: "success" });
+      await queryClient.invalidateQueries(["useGetItemLoans"]);
+    } catch (error) {
+      toast(errorMessage(error, "Failed to return item loan."), { type: "error" });
+    } finally {
+      setReturningId(null);
+    }
   }
 
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22 }}>
         <h1 className="page-title" style={{ margin: 0 }}>Item Loan</h1>
         <button className="btn-new" onClick={openNew}><IconPlus /> Loan Item</button>
       </div>
 
-      <div className="stats-bar" style={{ gridTemplateColumns: 'repeat(4,1fr)' }}>
+      <div className="stats-bar" style={{ gridTemplateColumns: "repeat(4,1fr)" }}>
         {[
-          { label: 'Total Loans', value: loans.length,        color: 'var(--brand)',  bg: 'var(--brand-bg)' },
-          { label: 'Currently Loaned',  value: dipinjamCount,       color: 'var(--brand)',  bg: 'var(--brand-bg)' },
-          { label: 'Overdue',        value: terlambatCount,      color: 'var(--red)',    bg: 'var(--red-bg)' },
-          { label: 'Returned',     value: dikembalikanCount,   color: 'var(--green)',  bg: 'var(--green-bg)' },
-        ].map(s => (
-          <div key={s.label} className="stat-card">
-            <div className="stat-icon" style={{ background: s.bg }}>
-              <span className="stat-value" style={{ color: s.color }}>{s.value}</span>
+          { label: "Total Loans", value: totalLoanCount, color: "var(--brand)", bg: "var(--brand-bg)" },
+          { label: "Currently Loaned", value: loanedCount, color: "var(--brand)", bg: "var(--brand-bg)" },
+          { label: "Overdue", value: overdueCount, color: "var(--red)", bg: "var(--red-bg)" },
+          { label: "Returned", value: returnedCount, color: "var(--green)", bg: "var(--green-bg)" },
+        ].map((stat) => (
+          <div key={stat.label} className="stat-card">
+            <div className="stat-icon" style={{ background: stat.bg }}>
+              <span className="stat-value" style={{ color: stat.color }}>{stat.value}</span>
             </div>
-            <span className="stat-label">{s.label}</span>
+            <span className="stat-label">{stat.label}</span>
           </div>
         ))}
       </div>
@@ -124,13 +234,10 @@ export default function ItemLoanPage() {
           <div className="toolbar-left">
             <div className="search-wrap">
               <IconSearch />
-              <input
-                className="search-input" type="text" placeholder="Search items or borrowers…"
-                value={query} onChange={e => { setQuery(e.target.value); setPage(1); }}
-              />
+              <input className="search-input" type="text" placeholder="Search items or borrowers…" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} />
             </div>
             <div className="wi-select-wrap">
-              <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}>
+              <select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value as ItemLoanStatus | ""); setPage(1); }}>
                 <option value="">All Statuses</option>
                 <option value="Loaned">Loaned</option>
                 <option value="Overdue">Overdue</option>
@@ -146,87 +253,101 @@ export default function ItemLoanPage() {
               <tr>
                 <th>Item</th>
                 <th>Borrower</th>
-                <th style={{ width: 70, textAlign: 'right' }}>Qty</th>
+                <th style={{ width: 80, textAlign: "right" }}>Qty</th>
                 <th>Warehouse</th>
                 <th style={{ width: 110 }}>Loan Date</th>
                 <th style={{ width: 110 }}>Due Date</th>
                 <th style={{ width: 110 }}>Status</th>
-                <th style={{ width: 100, textAlign: 'center' }}>Action</th>
+                <th style={{ width: 100, textAlign: "center" }}>Action</th>
               </tr>
             </thead>
             <tbody>
-              {pageData.length === 0
-                ? <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>No loans found.</td></tr>
-                : pageData.map(l => (
-                  <tr key={l.id}>
-                    <td className="name-cell">{l.itemName}<div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{l.purpose}</div></td>
-                    <td>{l.borrowerName}<div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{l.borrowerContact}</div></td>
-                    <td style={{ textAlign: 'right' }}>{l.qty} {l.unit}</td>
-                    <td style={{ color: 'var(--text-muted)' }}>{l.warehouse}</td>
-                    <td style={{ color: 'var(--text-muted)', fontSize: '12.5px' }}>{fmtDate(l.loanDate)}</td>
-                    <td style={{ color: 'var(--text-muted)', fontSize: '12.5px' }}>{fmtDate(l.dueDate)}</td>
-                    <td><span className={`badge ${statusBadgeClass(l.computedStatus)}`}>{l.computedStatus}</span></td>
-                    <td style={{ textAlign: 'center' }}>
-                      {l.computedStatus === 'Returned'
-                        ? <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{fmtDate(l.returnDate)}</span>
-                        : <button className="btn-icon" title="Mark as Returned" style={{ color: 'var(--green)' }} onClick={() => returnLoan(l.id)}><IconCheck /></button>
-                      }
+              {isLoansLoading && !loans.length ? (
+                <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--text-muted)", padding: 32 }}>Loading loans…</td></tr>
+              ) : isLoansError ? (
+                <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--red)", padding: 32 }}>Unable to load loans.</td></tr>
+              ) : !loans.length ? (
+                <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--text-muted)", padding: 32 }}>No loans found.</td></tr>
+              ) : loans.map((loan) => {
+                const isReturned = loan.status.toLowerCase() === "returned";
+                return (
+                  <tr key={loan.id}>
+                    <td className="name-cell">{loan.item_name}<div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>{loan.purpose || "-"}</div></td>
+                    <td>{loan.borrower_name}<div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>{loan.borrower_contact || "-"}</div></td>
+                    <td style={{ textAlign: "right" }}>{loan.qty} {loan.unit_name}</td>
+                    <td style={{ color: "var(--text-muted)" }}>{loan.warehouse_name || "-"}</td>
+                    <td style={{ color: "var(--text-muted)", fontSize: 12.5 }}>{fmtDate(loan.loan_date)}</td>
+                    <td style={{ color: "var(--text-muted)", fontSize: 12.5 }}>{fmtDate(loan.due_date)}</td>
+                    <td><span className={`badge ${statusBadgeClass(loan.status)}`}>{statusLabel(loan.status)}</span></td>
+                    <td style={{ textAlign: "center" }}>
+                      {isReturned ? (
+                        <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>{fmtDate(loan.return_date)}</span>
+                      ) : (
+                        <button className="btn-icon" title="Mark as Returned" disabled={returningId === loan.id} style={{ color: "var(--green)" }} onClick={() => handleReturn(loan.id)}>
+                          <IconCheck />
+                        </button>
+                      )}
                     </td>
                   </tr>
-                ))
-              }
+                );
+              })}
             </tbody>
           </table>
         </div>
-        <Pagination currentPage={safePage} total={filtered.length} pageSize={PAGE_SIZE} onPage={(p: number) => setPage(p)} label="loans" />
+        <Pagination currentPage={safePage} total={totalRecords} pageSize={PAGE_SIZE} onPage={setPage} label="loans" />
       </div>
 
       <Modal
         open={modalOpen}
         title="Loan Item"
-        onClose={() => setModalOpen(false)}
-        footer={
+        onClose={closeModal}
+        footer={(
           <>
-            <button className="btn-cancel-modal" onClick={() => setModalOpen(false)}><IconClose /> Cancel</button>
-            <button className="btn-save-modal" onClick={saveLoan}><IconCheck /> Save</button>
+            <button className="btn-cancel-modal" disabled={isCreating} onClick={closeModal}><IconClose /> Cancel</button>
+            <button className="btn-save-modal" disabled={isCreating} onClick={() => formik.handleSubmit()}><IconCheck /> {isCreating ? "Saving…" : "Save"}</button>
           </>
-        }
+        )}
       >
-        <div className="form-row">
-          <div className="form-group">
-            <label>Item <span style={{ color: 'var(--red)' }}>*</span></label>
-            <select value={form.inventoryId} onChange={e => setForm(f => ({ ...f, inventoryId: e.target.value }))}>
-              {inventoryData.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
-            </select>
-          </div>
-          <div className="form-group">
-            <label>Qty</label>
-            <input type="number" min={1} value={form.qty} onChange={e => setForm(f => ({ ...f, qty: e.target.value }))} />
-          </div>
-        </div>
-        <div className="form-row">
-          <div className="form-group">
-            <label>Borrower Name <span style={{ color: 'var(--red)' }}>*</span></label>
-            <input type="text" value={form.borrowerName} onChange={e => setForm(f => ({ ...f, borrowerName: e.target.value }))} />
-          </div>
-          <div className="form-group">
-            <label>Contact</label>
-            <input type="text" placeholder="Phone number / email" value={form.borrowerContact} onChange={e => setForm(f => ({ ...f, borrowerContact: e.target.value }))} />
+        <div className="form-group">
+          <label>Search Item</label>
+          <div className="search-wrap" style={{ width: "100%" }}>
+            <IconSearch />
+            <input
+              className="search-input"
+              style={{ paddingLeft: 36 }}
+              placeholder="Search item name…"
+              value={itemSearchInput}
+              onChange={(event) => setItemSearchInput(event.target.value)}
+            />
           </div>
         </div>
         <div className="form-group">
-          <label>Purpose</label>
-          <input type="text" placeholder="What is the item being borrowed for?" value={form.purpose} onChange={e => setForm(f => ({ ...f, purpose: e.target.value }))} />
+          <label>Item <span style={{ color: "var(--red)" }}>*</span></label>
+          <select
+            value={formik.values.barang_gudang_id}
+            onChange={(event) => formik.setFieldValue("barang_gudang_id", event.target.value)}
+            style={{ borderColor: formik.errors.barang_gudang_id ? "var(--red)" : undefined }}
+          >
+            <option value="">Select an item</option>
+            {inventoryRows.map((item) => (
+              <option key={item.barang_gudang_id} value={item.barang_gudang_id}>
+                {item.nama_barang} — {item.gudang_name || item.gudang?.gudang_name || "Unknown warehouse"} ({item.stok_gudang} {item.nama_satuan})
+              </option>
+            ))}
+          </select>
+          {isInventoryLoading && <span style={{ color: "var(--text-muted)", fontSize: 12 }}>Loading items…</span>}
+          {isInventoryError && <span style={{ color: "var(--red)", fontSize: 12 }}>Unable to load items.</span>}
+          {formik.errors.barang_gudang_id && <span style={{ color: "var(--red)", fontSize: 12 }}>{formik.errors.barang_gudang_id}</span>}
         </div>
         <div className="form-row">
-          <div className="form-group">
-            <label>Loan Date</label>
-            <input type="date" value={form.loanDate} onChange={e => setForm(f => ({ ...f, loanDate: e.target.value }))} />
-          </div>
-          <div className="form-group">
-            <label>Due Date <span style={{ color: 'var(--red)' }}>*</span></label>
-            <input type="date" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} />
-          </div>
+          <TextInput value={formik.values.qty} onChange={(value) => formik.setFieldValue("qty", value)} isRequired isNumeric label="Qty" errorText={formik.errors.qty as string} />
+          <TextInput value={formik.values.borrower_name} onChange={(value) => formik.setFieldValue("borrower_name", value)} isRequired label="Borrower Name" errorText={formik.errors.borrower_name} />
+        </div>
+        <TextInput value={formik.values.borrower_contact} onChange={(value) => formik.setFieldValue("borrower_contact", value)} isRequired label="Contact" placeholder="Phone number / email" errorText={formik.errors.borrower_contact} />
+        <TextInput value={formik.values.purpose} onChange={(value) => formik.setFieldValue("purpose", value)} isRequired label="Purpose" placeholder="What is the item being borrowed for?" errorText={formik.errors.purpose} />
+        <div className="form-row">
+          <TextInput value={formik.values.loan_date} onChange={(value) => formik.setFieldValue("loan_date", value)} isRequired inputType="date" label="Loan Date" errorText={formik.errors.loan_date} />
+          <TextInput value={formik.values.due_date} onChange={(value) => formik.setFieldValue("due_date", value)} isRequired inputType="date" label="Due Date" errorText={formik.errors.due_date} />
         </div>
       </Modal>
     </>

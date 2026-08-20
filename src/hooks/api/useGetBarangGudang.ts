@@ -37,14 +37,23 @@ export interface BarangGudangItem {
   flag_2: string;
   valuation: string;
   status: string;
+  kode_barang?: string;
+  kode?: string;
   gudang: BarangGudangWarehouse;
 }
+
+export type BarangGudangStatus =
+  | "SAFE"
+  | "WARNING"
+  | "CRITICAL";
 
 export interface ParamsGetBarangGudangInterface {
   page: number;
   limit: number;
   search?: string;
   gudang_id?: number;
+  category?: number;
+  status?: BarangGudangStatus;
   sort?: "ASC" | "DESC";
   sortBy?: string;
 }
@@ -54,8 +63,12 @@ export const getBarangGudang = async ({
 }: {
   params: ParamsGetBarangGudangInterface;
 }): Promise<BaseResponsePagination<BarangGudangItem[]>> => {
+  const { sortBy, ...requestParams } = params;
   const response = await ax.get("/v1/barang-gudang/detail", {
-    params,
+    params: {
+      ...requestParams,
+      ...(sortBy && { sort_by: sortBy }),
+    },
   });
 
   return response.data.data;

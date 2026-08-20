@@ -114,7 +114,8 @@ export const InventoryService = {
     search: string,
     limit: number,
     sort?: string,
-    sortBy?: string
+    sortBy?: string,
+    status?: "SAFE" | "WARNING" | "CRITICAL"
   ): Promise<BaseResponsePagination<BarangGudangI[]>> => {
     const response = await ax.get(
       `v1/barang-gudang/detail?${
@@ -124,6 +125,7 @@ export const InventoryService = {
         params: {
           ...(sort && { sort: sort }),
           ...(sortBy && { sort_by: sortBy }),
+          ...(status && { status }),
         },
       }
     );

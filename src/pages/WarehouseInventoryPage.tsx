@@ -20,7 +20,6 @@ import {
 } from "../utils/function";
 import moment from "moment";
 import Modal from "../components/Modal";
-import { initialWarehouses } from "../data/warehouses";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { toast } from "react-toastify";
@@ -29,6 +28,7 @@ import TextInput from "../components/TextInput";
 import { useWarehouseController } from "./lib/useWarehouseController";
 import useGetBarangGudang, {
   type BarangGudangItem,
+  type BarangGudangStatus,
 } from "../hooks/api/useGetBarangGudang";
 import usePostStockOpname from "../hooks/api/usePostStockOpname";
 import usePutApplyStockOpname from "../hooks/api/usePutApplyStockOpname";
@@ -68,10 +68,11 @@ function ItemThumb({ name }: any) {
 }
 
 function statusBadge(s: any) {
-  if (s === "Safe") return <span className="badge badge-green">Safe</span>;
-  if (s === "Warning")
+  const status = String(s || "").toUpperCase();
+  if (status === "SAFE") return <span className="badge badge-green">Safe</span>;
+  if (status === "WARNING")
     return <span className="badge badge-orange">Warning</span>;
-  if (s === "Critical")
+  if (status === "CRITICAL")
     return <span className="badge badge-red">Critical</span>;
   return (
     <span
@@ -220,7 +221,9 @@ export default function WarehouseInventoryPage() {
   const [tab, setTab] = useState("inventory");
   const [query, setQuery] = useState("");
   const [warehouseFilter, setWarehouseFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<BarangGudangStatus | "">("");
+  const [appliedWarehouseFilter, setAppliedWarehouseFilter] = useState("");
+  const [appliedStatusFilter, setAppliedStatusFilter] = useState<BarangGudangStatus | "">("");
   const [opnameQuery, setOpnameQuery] = useState("");
   const [opnameWarehouse, setOpnameWarehouse] = useState("");
   const [actualStock, setActualStock] = useState<Record<number, string>>({});
@@ -256,14 +259,6 @@ export default function WarehouseInventoryPage() {
 
   const { warehouseOptions } = useWarehouseController();
 
-  const warehouseNames = useMemo(() => {
-    const names = new Set([
-      ...wiData.map((r) => r.warehouseName),
-      ...initialWarehouses.map((r: any) => r.name),
-    ]);
-    return [...names].filter(Boolean).sort();
-  }, []);
-
   const itemSearchTokens = useMemo(
     () => tokenizeKeyword(itemSearch),
     [itemSearch]
@@ -284,10 +279,6 @@ export default function WarehouseInventoryPage() {
   const [listCategory, setListCategory] = useState<ISelect[]>([]);
   const [barang, setBarang] = useState<any | null>(null);
   const [base64, setBase64] = useState<string>();
-  const [selectedGudang, setSelectedGudang] = useState<any>({
-    value: "All",
-    label: "All warehouse",
-  });
   const [listInventory, setListInventory] = useState<any[]>([]);
 
   const {
@@ -437,12 +428,13 @@ export default function WarehouseInventoryPage() {
     try {
       setIsLoading(true);
       const response = await InventoryService.getBarangGudang(
-        selectedGudang.value,
+        appliedWarehouseFilter || "All",
         page,
         searchValue,
         size ?? 10,
         sort,
-        sortBy
+        sortBy,
+        appliedStatusFilter || undefined,
       );
       setListBarang(response.data);
       setTotal(response.total_records);
@@ -460,7 +452,14 @@ export default function WarehouseInventoryPage() {
 
   useEffect(() => {
     getInventoryList();
-  }, [page, sort, sortBy]);
+  }, [page, sort, sortBy, searchValue, appliedWarehouseFilter, appliedStatusFilter]);
+
+  function applyInventoryFilters() {
+    setSearchValue(query.trim());
+    setAppliedWarehouseFilter(warehouseFilter);
+    setAppliedStatusFilter(statusFilter);
+    setPage(1);
+  }
 
   const safePage = Math.min(page, totalPages);
 
@@ -671,24 +670,24 @@ export default function WarehouseInventoryPage() {
                   type="text"
                   placeholder="Search item or warehouse…"
                   value={query}
-                  onChange={(e) => {
-                    setQuery(e.target.value);
-                    setPage(1);
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      applyInventoryFilters();
+                    }
                   }}
                 />
               </div>
               <div className="wi-select-wrap">
                 <select
                   value={warehouseFilter}
-                  onChange={(e) => {
-                    setWarehouseFilter(e.target.value);
-                    setPage(1);
-                  }}
+                  onChange={(e) => setWarehouseFilter(e.target.value)}
                 >
                   <option value="">All Warehouses</option>
-                  {warehouseNames.map((n) => (
-                    <option key={n} value={n}>
-                      {n}
+                  {warehouseOptions.map((warehouse) => (
+                    <option key={warehouse.value} value={warehouse.value}>
+                      {warehouse.label}
                     </option>
                   ))}
                 </select>
@@ -696,18 +695,17 @@ export default function WarehouseInventoryPage() {
               <div className="wi-select-wrap">
                 <select
                   value={statusFilter}
-                  onChange={(e) => {
-                    setStatusFilter(e.target.value);
-                    setPage(1);
-                  }}
+                  onChange={(e) => setStatusFilter(e.target.value as BarangGudangStatus | "")}
                 >
                   <option value="">All Status</option>
-                  <option>Safe</option>
-                  <option>Warning</option>
-                  <option>Critical</option>
+                  <option value="SAFE">Safe</option>
+                  <option value="WARNING">Warning</option>
+                  <option value="CRITICAL">Critical</option>
                 </select>
               </div>
-              <button className="btn-search">Search</button>
+              <button className="btn-search" onClick={applyInventoryFilters}>
+                <IconSearch /> Search
+              </button>
             </div>
             <div className="toolbar-right">
               <button className="btn-new" onClick={openModal}>
@@ -929,7 +927,7 @@ export default function WarehouseInventoryPage() {
                           ? currency(Number(r.valuation) * r.stok_barang)
                           : "0"}
                       </td>
-                      <td>{statusBadge(r.minStatus)}</td>
+                      <td>{statusBadge(r.status ?? r.minStatus)}</td>
                       <td
                         style={{
                           textAlign: "center",
