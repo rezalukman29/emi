@@ -66,7 +66,7 @@ export default function InventoryReportPage() {
       page,
       limit: PAGE_SIZE,
       search: search || undefined,
-      category: categoryFilter ? Number(categoryFilter) : undefined,
+      category_id: categoryFilter ? Number(categoryFilter) : undefined,
       status: statusFilter || undefined,
       sort: "ASC",
       sortBy: "name",

@@ -52,7 +52,7 @@ export interface ParamsGetBarangGudangInterface {
   limit: number;
   search?: string;
   gudang_id?: number;
-  category?: number;
+  category_id?: number;
   status?: BarangGudangStatus;
   sort?: "ASC" | "DESC";
   sortBy?: string;
