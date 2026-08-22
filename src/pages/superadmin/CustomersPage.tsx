@@ -1,11 +1,12 @@
 // TypeScript page component.
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Modal from '../../components/Modal';
 import Pagination from '../../components/Pagination';
 import SortTh from '../../components/SortTh';
 import { IconSearch, IconPlus, IconEdit, IconDelete, IconClose, IconCheck, IconBan, IconEye } from '../../components/icons';
-import { initialCustomers, type Customer } from '../../data/customers';
+import type { Customer } from '../../data/customers';
 import { initialCustomerUsers, type CustomerUser } from '../../data/customerUsers';
+import useGetAdminUserPlan from '../../hooks/api/useGetAdminUserPlan';
 import { formatIDR, customerStatusBadge } from '../../lib/superAdminUtils';
 
 const cols: (keyof Customer)[] = ['company', 'contact', 'plan', 'status', 'mrr', 'users', 'joinedAt'];
@@ -23,9 +24,20 @@ function emptySubForm() {
   return { name: '', email: '', role: 'Staff', status: 'active' };
 }
 
+function formatDate(value: string | null) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
 export default function CustomersPage() {
-  const [customers, setCustomers] = useState(initialCustomers);
-  const [nextId, setNextId] = useState(initialCustomers.length + 1);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [nextId, setNextId] = useState(1);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [sortCol, setSortCol] = useState(0);
@@ -43,6 +55,30 @@ export default function CustomersPage() {
   const [usersModalId, setUsersModalId] = useState<number | null>(null);
   const [editingSubId, setEditingSubId] = useState<number | null>(null);
   const [subForm, setSubForm] = useState(emptySubForm());
+
+  const {
+    data: userPlansResponse,
+    isLoading: isCustomersLoading,
+    isError: isCustomersError,
+  } = useGetAdminUserPlan();
+
+  useEffect(() => {
+    if (!userPlansResponse?.data) return;
+    const mappedCustomers: Customer[] = userPlansResponse.data.map((item) => ({
+      id: item.user_emi_id,
+      company: '-',
+      contact: '-',
+      email: item.email,
+      plan: item.plan_name,
+      status: item.status,
+      mrr: item.price,
+      users: 0,
+      joinedAt: formatDate(item.started_at),
+      nextBilling: formatDate(item.expires_at),
+    }));
+    setCustomers(mappedCustomers);
+    setNextId(Math.max(0, ...mappedCustomers.map((customer) => customer.id)) + 1);
+  }, [userPlansResponse?.data]);
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
@@ -211,7 +247,11 @@ export default function CustomersPage() {
               </tr>
             </thead>
             <tbody>
-              {pageData.length === 0
+              {isCustomersLoading
+                ? <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>Loading customers…</td></tr>
+                : isCustomersError
+                  ? <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--red)', padding: 32 }}>Unable to load customers.</td></tr>
+                  : pageData.length === 0
                 ? <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>No customers found.</td></tr>
                 : pageData.map(c => (
                   <tr key={c.id}>

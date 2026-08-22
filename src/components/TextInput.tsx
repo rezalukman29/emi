@@ -9,6 +9,7 @@ type Props = {
   errorText?: string;
   isNumeric?: boolean;
   inputType?: HTMLInputTypeAttribute;
+  variant?: "primary" | "secondary";
 };
 
 const TextInput = ({
@@ -20,6 +21,7 @@ const TextInput = ({
   label,
   isNumeric,
   inputType = "text",
+  variant = "primary",
 }: Props) => {
   return (
     <div className="form-group">
@@ -34,6 +36,7 @@ const TextInput = ({
         onChange={(e) => onChange(e.target.value)}
         style={{
           borderColor: errorText?.trim() ? "var(--red)" : undefined,
+          background: variant === "secondary" ? "var(--bg)" : undefined,
         }}
       />
       {errorText?.trim() && (
