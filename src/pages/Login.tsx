@@ -226,7 +226,7 @@ const spinKeyframes = `
 export default function LoginPage() {
   const dispatch = useDispatch();
   const [isLoading, setIsLoading] = useState(false);
-  const navigate = useNavigate()
+  const navigate = useNavigate();
   // const router = useRouter();
   const [activeMenu, setActiveMenu] = useState("LOGIN");
   const [token, setTokens] = useState<any>();
@@ -263,15 +263,15 @@ export default function LoginPage() {
       setIsLoading(true);
       const response = await InventoryService.postLogin(payload);
       if (response.success) {
-        dispatch(
-          setProfile({
-            id: response?.data?.id,
-            fullname: response?.data?.fullname,
-            email: response?.data?.email,
-            user_type: response?.data?.user_type,
-          })
-        );
-        localStorage.setItem("auth", JSON.stringify(response.data));
+        const data = {
+          id: response?.data?.id,
+          fullname: response?.data?.fullname,
+          email: response?.data?.email,
+          user_type: response?.data?.user_type,
+        };
+        localStorage.setItem("auth", JSON.stringify(data));
+        dispatch(setProfile(data));
+
         toast("Login success", { type: "success" });
         setTimeout(() => {
           setIsLoading(false);
@@ -280,7 +280,7 @@ export default function LoginPage() {
           // } else {
           //   router.push("/");
           // }
-          navigate('/event')
+          navigate("/event");
         }, 1000);
       } else {
         setIsLoading(false);
@@ -306,8 +306,6 @@ export default function LoginPage() {
       }
     } catch (error: any) {
       setIsLoading(false);
-
-
     }
   };
 
@@ -404,9 +402,9 @@ export default function LoginPage() {
             {activeMenu === "LOGIN"
               ? "Welcome Back"
               : activeMenu === "FORGOT_INPUT_EMAIL" ||
-                activeMenu === "FORGOT_SEND_OTP"
-              ? "Forgot password"
-              : ""}{" "}
+                  activeMenu === "FORGOT_SEND_OTP"
+                ? "Forgot password"
+                : ""}{" "}
           </h1>
           {activeMenu === "LOGIN" && (
             <p style={styles.headerSubtitle}>Sign in to EMI Inventory</p>
@@ -642,23 +640,23 @@ export default function LoginPage() {
             {activeMenu === "LOGIN"
               ? "Don't have an account?"
               : activeMenu === "FORGOT_SEND_OTP"
-              ? "Didn't receive email"
-              : "Already have an account?"}{" "}
+                ? "Didn't receive email"
+                : "Already have an account?"}{" "}
             <button
               onClick={() =>
                 activeMenu === "LOGIN"
                   ? undefined
                   : activeMenu === "FORGOT_SEND_OTP"
-                  ? onSendOtp(formik.values.email)
-                  : setActiveMenu("LOGIN")
+                    ? onSendOtp(formik.values.email)
+                    : setActiveMenu("LOGIN")
               }
               style={styles.signUpLink}
             >
               {activeMenu === "LOGIN"
                 ? "Sign Up"
                 : activeMenu === "FORGOT_SEND_OTP"
-                ? "Resent"
-                : "Login"}
+                  ? "Resent"
+                  : "Login"}
             </button>
           </p>
         </div>

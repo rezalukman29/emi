@@ -10,7 +10,17 @@ ax.interceptors.request.use(
     const auth =  localStorageService.getAuth("auth");
     configuration.headers['Content-Type'] = 'application/json';
     if (auth) {
-      configuration.headers['User-Id'] = JSON.parse(auth).id;
+      try {
+        const parsedAuth = JSON.parse(auth);
+        if (parsedAuth.user_type === 'SUPERADMIN') {
+          configuration.headers['SuperAdmin-Id'] = parsedAuth.id;
+          configuration.headers['SuperAdmin-Token'] = parsedAuth.token;
+        } else {
+          configuration.headers['User-Id'] = parsedAuth.id;
+        }
+      } catch {
+        configuration.headers['User-Id'] = 8;
+      }
     } else {
       configuration.headers['User-Id'] = 8;
     }

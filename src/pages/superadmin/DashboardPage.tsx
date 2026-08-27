@@ -1,24 +1,27 @@
-// TypeScript page component.
-import { useMemo } from 'react';
-import { initialCustomers } from '../../data/customers';
-import { initialPayments } from '../../data/payments';
-import { formatIDR, customerStatusBadge, paymentStatusBadge } from '../../lib/superAdminUtils';
+import { initialPayments } from "../../data/payments";
+import useGetSuperAdminDashboard from "../../hooks/api/useGetSuperAdminDashboard";
+import { customerStatusBadge, formatIDR, paymentStatusBadge } from "../../lib/superAdminUtils";
+
+function formatSignupDate(value: string) {
+  if (!value) return "-";
+  const date = new Date(value.replace(" ", "T"));
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
 
 export default function DashboardPage() {
-  const customers = initialCustomers;
-  const payments = initialPayments;
-
-  const stats = useMemo(() => {
-    const active = customers.filter(c => c.status === 'active');
-    const trial = customers.filter(c => c.status === 'trial').length;
-    const cancelled = customers.filter(c => c.status === 'cancelled').length;
-    const mrr = active.reduce((sum, c) => sum + c.mrr, 0);
-    const churnRate = customers.length ? ((cancelled / customers.length) * 100).toFixed(1) : '0.0';
-    return { total: customers.length, activeCount: active.length, trial, mrr, churnRate };
-  }, [customers]);
-
-  const recentCustomers = [...customers].slice(-5).reverse();
-  const recentPayments = [...payments].slice(-6).reverse();
+  const {
+    data: dashboardResponse,
+    isLoading,
+    isError,
+  } = useGetSuperAdminDashboard();
+  const dashboard = dashboardResponse?.data;
+  const recentSignups = dashboard?.recent_signups ?? [];
+  const recentPayments = [...initialPayments].slice(-6).reverse();
 
   return (
     <>
@@ -27,23 +30,23 @@ export default function DashboardPage() {
       <div className="kpi-grid" style={{ marginBottom: 22 }}>
         <div className="kpi-card brand-accent">
           <div className="kpi-label">Total Customers</div>
-          <div className="kpi-value">{stats.total}</div>
-          <div className="kpi-sub">{stats.trial} on trial</div>
+          <div className="kpi-value">{dashboard?.total_customers ?? 0}</div>
+          <div className="kpi-sub">{dashboard?.trial_count ?? 0} on trial</div>
         </div>
         <div className="kpi-card green-accent">
           <div className="kpi-label">Monthly Recurring Revenue</div>
-          <div className="kpi-value" style={{ fontSize: 22 }}>{formatIDR(stats.mrr)}</div>
-          <div className="kpi-sub">from {stats.activeCount} active accounts</div>
+          <div className="kpi-value" style={{ fontSize: 22 }}>{formatIDR(dashboard?.mrr ?? 0)}</div>
+          <div className="kpi-sub">from {dashboard?.active_subscriptions ?? 0} active accounts</div>
         </div>
         <div className="kpi-card orange-accent">
           <div className="kpi-label">Active Subscriptions</div>
-          <div className="kpi-value">{stats.activeCount}</div>
-          <div className="kpi-sub">of {stats.total} total</div>
+          <div className="kpi-value">{dashboard?.active_subscriptions ?? 0}</div>
+          <div className="kpi-sub">of {dashboard?.total_customers ?? 0} total</div>
         </div>
         <div className="kpi-card red-accent">
           <div className="kpi-label">Churn Rate</div>
-          <div className="kpi-value">{stats.churnRate}%</div>
-          <div className="kpi-sub">cancelled accounts</div>
+          <div className="kpi-value">{dashboard?.churn_rate ?? 0}%</div>
+          <div className="kpi-sub">{dashboard?.canceled_count ?? 0} cancelled accounts</div>
         </div>
       </div>
 
@@ -51,29 +54,47 @@ export default function DashboardPage() {
         <div className="card">
           <div className="section-title">Recent Signups</div>
           <div className="sa-mini-list">
-            {recentCustomers.map(c => (
-              <div className="sa-mini-item" key={c.id}>
+            {isLoading ? (
+              <div style={{ textAlign: "center", color: "var(--text-muted)", padding: 24 }}>
+                Loading recent signups…
+              </div>
+            ) : isError ? (
+              <div style={{ textAlign: "center", color: "var(--red)", padding: 24 }}>
+                Unable to load recent signups.
+              </div>
+            ) : !recentSignups.length ? (
+              <div style={{ textAlign: "center", color: "var(--text-muted)", padding: 24 }}>
+                No recent signups.
+              </div>
+            ) : recentSignups.map((signup) => (
+              <div className="sa-mini-item" key={signup.user_id}>
                 <div>
-                  <div className="sa-mini-name">{c.company}</div>
-                  <div className="sa-mini-sub">{c.plan} · {c.joinedAt}</div>
+                  <div className="sa-mini-name">{signup.company}</div>
+                  <div className="sa-mini-sub">
+                    {signup.plan_name} · {formatSignupDate(signup.joined_at)}
+                  </div>
+                  <div className="sa-mini-sub">{signup.email}</div>
                 </div>
-                <span className={`badge badge-${customerStatusBadge(c.status)}`}>{c.status}</span>
+                <span className={`badge badge-${customerStatusBadge(signup.status.toLowerCase())}`}>
+                  {signup.status}
+                </span>
               </div>
             ))}
           </div>
         </div>
+
         <div className="card">
           <div className="section-title">Recent Payments</div>
           <div className="sa-mini-list">
-            {recentPayments.map(p => (
-              <div className="sa-mini-item" key={p.id}>
+            {recentPayments.map((payment) => (
+              <div className="sa-mini-item" key={payment.id}>
                 <div>
-                  <div className="sa-mini-name">{p.customer}</div>
-                  <div className="sa-mini-sub">{p.invoiceNo} · {p.date}</div>
+                  <div className="sa-mini-name">{payment.customer}</div>
+                  <div className="sa-mini-sub">{payment.invoiceNo} · {payment.date}</div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div className="sa-mini-amount">{formatIDR(p.amount)}</div>
-                  <span className={`badge badge-${paymentStatusBadge(p.status)}`}>{p.status}</span>
+                <div style={{ textAlign: "right" }}>
+                  <div className="sa-mini-amount">{formatIDR(payment.amount)}</div>
+                  <span className={`badge badge-${paymentStatusBadge(payment.status)}`}>{payment.status}</span>
                 </div>
               </div>
             ))}
