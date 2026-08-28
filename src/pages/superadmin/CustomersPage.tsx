@@ -524,7 +524,6 @@ export default function CustomersPage() {
               onChange={(event) => customerFormik.setFieldValue("planId", event.target.value)}
               style={{ borderColor: customerFormik.touched.planId && customerFormik.errors.planId ? "var(--red)" : undefined }}
             >
-              <option value="">Select plan</option>
               {planOptions.map((plan) => <option key={plan.id} value={plan.id}>{plan.name}</option>)}
             </select>
             {customerFormik.touched.planId && customerFormik.errors.planId && (

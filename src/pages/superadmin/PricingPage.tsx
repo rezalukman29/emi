@@ -50,6 +50,30 @@ function storageTierFromBytes(bytes: number) {
   return STORAGE_TIERS.find((tier) => tier.gb === gigabytes)?.gb ?? STORAGE_TIERS[0].gb;
 }
 
+const MODULE_PRICE_FIELDS = [
+  { key: "event", field: "event_management_price" },
+  { key: "inventory", field: "inventory_management_price" },
+  { key: "warehouse", field: "warehouse_management_price" },
+  { key: "qr-code", field: "qr_scanning_price" },
+  { key: "reports", field: "reports_dashboard_price" },
+  { key: "item-loan", field: "item_loan_price" },
+] as const;
+
+const PLAN_FEATURES = [
+  { field: "event_management_price", label: "Event Management" },
+  { field: "inventory_management_price", label: "Inventory Management" },
+  { field: "warehouse_management_price", label: "Warehouse Management" },
+  { field: "qr_scanning_price", label: "QR Code Scanning" },
+  { field: "reports_dashboard_price", label: "Report & Dashboard" },
+  { field: "item_loan_price", label: "Item Loan Management" },
+  { field: "ai_analyzer_price", label: "AI Feature" },
+] as const;
+
+function selectedModulePrice(modules: string[], key: string) {
+  if (!modules.includes(key)) return 0;
+  return MODULE_CATALOG.find((module) => module.key === key)?.price ?? 0;
+}
+
 export default function PricingPage() {
   const [plans, setPlans] = useState<AdminPlan[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
@@ -94,20 +118,31 @@ export default function PricingPage() {
     }),
     validateOnChange: false,
     onSubmit: async (values, { resetForm }) => {
+      const featurePrices = {
+        ai_analyzer_price: values.ai_feature ? AI_FEATURE_FEE : 0,
+        event_management_price: selectedModulePrice(values.modules, "event"),
+        inventory_management_price: selectedModulePrice(values.modules, "inventory"),
+        warehouse_management_price: selectedModulePrice(values.modules, "warehouse"),
+        qr_scanning_price: selectedModulePrice(values.modules, "qr-code"),
+        reports_dashboard_price: selectedModulePrice(values.modules, "reports"),
+        item_loan_price: selectedModulePrice(values.modules, "item-loan"),
+      };
+
       if (editingId) {
         const existingPlan = plans.find((plan) => plan.id === editingId);
         if (!existingPlan) return;
         try {
           const response = await updatePlan({
+            ...featurePrices,
+            base_platform_fee: BASE_PLATFORM_FEE,
             billing_cycle: values.billing_cycle,
-            currency: existingPlan.currency || "IDR",
             description: values.description.trim(),
             display_order: existingPlan.display_order,
             id: existingPlan.id,
             is_active: existingPlan.is_active,
             is_default: existingPlan.is_default,
+            is_popular: existingPlan.is_popular,
             name: values.name.trim(),
-            price: formTotal,
             storage_limit: Number(values.storage_limit),
           });
           toast(response.message, { type: "success" });
@@ -122,13 +157,14 @@ export default function PricingPage() {
 
       try {
         const response = await createPlan({
+          ...featurePrices,
+          base_platform_fee: BASE_PLATFORM_FEE,
           billing_cycle: values.billing_cycle,
-          currency: "IDR",
           description: values.description.trim(),
           display_order: plans.length + 1,
           is_default: 0,
+          is_popular: 0,
           name: values.name.trim(),
-          price: formTotal,
           storage_limit: Number(values.storage_limit),
         });
         toast(response.message, { type: "success" });
@@ -149,12 +185,15 @@ export default function PricingPage() {
 
   function openEdit(plan: AdminPlan) {
     setEditingId(plan.id);
+    const selectedModules = MODULE_PRICE_FIELDS
+      .filter(({ field }) => Number(plan[field] ?? 0) > 0)
+      .map(({ key }) => key);
     formik.setValues({
       name: plan.name,
       billing_cycle: plan.billing_cycle as AdminPlanBillingCycle,
       description: plan.description,
-      modules: [],
-      ai_feature: false,
+      modules: selectedModules,
+      ai_feature: Number(plan.ai_analyzer_price ?? 0) > 0,
       storage_gb: storageTierFromBytes(plan.storage_limit),
       storage_limit: String(plan.storage_limit),
       customer_count: "0",
@@ -227,14 +266,20 @@ export default function PricingPage() {
               {plan.is_default === 1 && <div className="sa-plan-tag">Most Popular</div>}
               <div className="sa-plan-name">{plan.name}</div>
               <div className="sa-plan-price">
-                {formatIDR(plan.price)} <span>/{billingLabel(plan.billing_cycle)}</span>
+                {formatIDR((plan.price ?? 0) + (plan.base_platform_fee ?? 0))}{" "}
+                <span>/{billingLabel(plan.billing_cycle)}</span>
               </div>
               <p className="sa-plan-desc">{plan.description || "-"}</p>
               <ul className="sa-plan-features">
+                {PLAN_FEATURES.filter(({ field }) => Number(plan[field] ?? 0) > 0).map((feature) => (
+                  <li key={feature.field}><IconCheck /> {feature.label}</li>
+                ))}
                 <li><IconCheck /> {plan.storage_limit_readable || readableStorage(plan.storage_limit)} Storage</li>
               </ul>
               <div className="sa-plan-footer">
-                <span className="sa-plan-customers">0 customers</span>
+                <span className="sa-plan-customers">
+                  {plan.customers_using} {plan.customers_using === 1 ? "customer" : "customers"}
+                </span>
                 <div className="action-btns">
                   <button className="btn-icon edit" title="Edit" onClick={() => openEdit(plan)}><IconEdit /></button>
                   <button className="btn-icon delete" title="Delete" onClick={() => openDelete(plan.id)}><IconDelete /></button>

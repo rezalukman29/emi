@@ -17,6 +17,16 @@ export interface AdminPlan {
   description: string;
   is_default: number;
   is_active: number;
+  is_popular: number;
+  base_platform_fee: number;
+  event_management_price: number | null;
+  inventory_management_price: number | null;
+  warehouse_management_price: number | null;
+  qr_scanning_price: number | null;
+  reports_dashboard_price: number | null;
+  item_loan_price: number | null;
+  ai_analyzer_price: number | null;
+  customers_using: number;
   created_at: string;
   updated_at: string;
 }
@@ -24,7 +34,7 @@ export interface AdminPlan {
 export type GetAdminPlanResponse = APIResponse<AdminPlan[]>;
 
 export const getAdminPlan = async (): Promise<GetAdminPlanResponse> => {
-  const response = await ax.get("/v1/admin/plan");
+  const response = await ax.get("/v1/superadmin/pricing-plans");
   return response.data;
 };
 
