@@ -14,6 +14,7 @@ import useGetItemLoans, {
 } from "../hooks/api/useGetItemLoans";
 import usePostItemLoan from "../hooks/api/usePostItemLoan";
 import usePutReturnItemLoan from "../hooks/api/usePutReturnItemLoan";
+import SearchableSelect from "../components/SearchableSelect";
 
 const PAGE_SIZE = 10;
 const ITEM_PAGE_SIZE = 30;
@@ -216,7 +217,7 @@ export default function ItemLoanPage() {
       <div className="stats-bar" style={{ gridTemplateColumns: "repeat(4,1fr)" }}>
         {[
           { label: "Total Loans", value: totalLoanCount, color: "var(--brand)", bg: "var(--brand-bg)" },
-          { label: "Currently Loaned", value: loanedCount, color: "var(--brand)", bg: "var(--brand-bg)" },
+          { label: "Currently Borrowed", value: loanedCount, color: "var(--brand)", bg: "var(--brand-bg)" },
           { label: "Overdue", value: overdueCount, color: "var(--red)", bg: "var(--red-bg)" },
           { label: "Returned", value: returnedCount, color: "var(--green)", bg: "var(--green-bg)" },
         ].map((stat) => (
@@ -236,14 +237,19 @@ export default function ItemLoanPage() {
               <IconSearch />
               <input className="search-input" type="text" placeholder="Search items or borrowers…" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} />
             </div>
-            <div className="wi-select-wrap">
-              <select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value as ItemLoanStatus | ""); setPage(1); }}>
-                <option value="">All Statuses</option>
-                <option value="Loaned">Loaned</option>
-                <option value="Overdue">Overdue</option>
-                <option value="Returned">Returned</option>
-              </select>
-            </div>
+            <SearchableSelect
+              inline
+              value={statusFilter}
+              onChange={(value) => { setStatusFilter(String(value) as ItemLoanStatus | ""); setPage(1); }}
+              options={[
+                { value: "", label: "All Statuses" },
+                { value: "Loaned", label: "Loaned" },
+                { value: "Overdue", label: "Overdue" },
+                { value: "Returned", label: "Returned" },
+              ]}
+              placeholder="All Statuses"
+              searchPlaceholder="Search statuses…"
+            />
           </div>
         </div>
 
@@ -323,18 +329,21 @@ export default function ItemLoanPage() {
         </div>
         <div className="form-group">
           <label>Item <span style={{ color: "var(--red)" }}>*</span></label>
-          <select
+          <SearchableSelect
             value={formik.values.barang_gudang_id}
-            onChange={(event) => formik.setFieldValue("barang_gudang_id", event.target.value)}
-            style={{ borderColor: formik.errors.barang_gudang_id ? "var(--red)" : undefined }}
-          >
-            <option value="">Select an item</option>
-            {inventoryRows.map((item) => (
-              <option key={item.barang_gudang_id} value={item.barang_gudang_id}>
-                {item.nama_barang} — {item.gudang_name || item.gudang?.gudang_name || "Unknown warehouse"} ({item.stok_gudang} {item.nama_satuan})
-              </option>
-            ))}
-          </select>
+            onChange={(value) => formik.setFieldValue("barang_gudang_id", String(value))}
+            options={[
+              { value: "", label: "Select an item" },
+              ...inventoryRows.map((item) => ({
+                value: item.barang_gudang_id,
+                label: item.nama_barang,
+                meta: `${item.gudang_name || item.gudang?.gudang_name || "Unknown warehouse"} · ${item.stok_gudang} ${item.nama_satuan}`,
+              })),
+            ]}
+            placeholder="Select an item"
+            searchPlaceholder="Search items…"
+            disabled={isInventoryLoading}
+          />
           {isInventoryLoading && <span style={{ color: "var(--text-muted)", fontSize: 12 }}>Loading items…</span>}
           {isInventoryError && <span style={{ color: "var(--red)", fontSize: 12 }}>Unable to load items.</span>}
           {formik.errors.barang_gudang_id && <span style={{ color: "var(--red)", fontSize: 12 }}>{formik.errors.barang_gudang_id}</span>}

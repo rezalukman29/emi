@@ -80,7 +80,7 @@ export default function ChatWindow({ messages, isLoading, onSend, onClose }: Pro
           </div>
           <div>
             <div className="chatbot-header-title">EMI Assistant</div>
-            <div className="chatbot-header-subtitle">Tanya soal stok & event</div>
+            <div className="chatbot-header-subtitle">Ask about stock &amp; events</div>
           </div>
         </div>
         <button className="chatbot-close-btn" onClick={onClose} title="Close">

@@ -1,107 +1,89 @@
-import { useState, useMemo } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useState, useMemo, type CSSProperties } from 'react';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import Pagination from '../components/Pagination';
+import SearchableSelect from '../components/SearchableSelect';
 import { IconSearch, IconPrint, IconChevronLeft } from '../components/icons';
 import useGetEventDetail from '../hooks/api/useGetEventDetail';
-import useGetEventSummary from '../hooks/api/useGetEventSummary';
+import useGetEventSummary, {
+  type EventSummaryItemDetail,
+} from '../hooks/api/useGetEventSummary';
+import useGetEventStatus from '../hooks/api/useGetEventStatus';
 
 const TABLE_PAGE_SIZE = 12;
 
-const EVENTS = [
-  { name: 'SAMPLE WEDDING 2024',         code: 'EVT-001', date: '2024-06-15', venue: 'Grand Ballroom, Hotel Mulia',    pic: 'Sarah W.',   status: 'Completed' },
-  { name: 'GALA DINNER JAN 2025',         code: 'EVT-042', date: '2025-01-20', venue: 'Rooftop Garden, The Ritz',       pic: 'Michael T.', status: 'Upcoming' },
-  { name: 'CORPORATE EVENT MARCH 2025',   code: 'EVT-058', date: '2025-03-12', venue: 'Convention Hall B, JHCC',        pic: 'Diana R.',   status: 'Upcoming' },
-  { name: 'INTIMATE WEDDING APRIL 2025',  code: 'EVT-063', date: '2025-04-05', venue: 'Villa Garden, Sentul',           pic: 'Kevin S.',   status: 'Upcoming' },
-];
-
-const RAW_ITEMS = {
-  0: [
-    { id:1,  name:'Crystal Chandelier',       area:'CEREMONY',        qty:2,  status:'In Use',  checking:true,  warehouseItem:true,  scanIn:'Jun 14, 2024 08:30 AM', scanOut:'Jun 15, 2024 11:00 PM', pic:'Ari S.' },
-    { id:2,  name:'White Aisle Runner',        area:'CEREMONY',        qty:1,  status:'In Use',  checking:true,  warehouseItem:true,  scanIn:'Jun 14, 2024 09:00 AM', scanOut:'Jun 15, 2024 11:30 PM', pic:'Ari S.' },
-    { id:3,  name:'Flower Arch',               area:'BRIDAL BACKDROP', qty:1,  status:'In Use',  checking:true,  warehouseItem:false, scanIn:'Jun 14, 2024 09:15 AM', scanOut:null,                   pic:'Lina M.' },
-    { id:4,  name:'Backdrop Stand',            area:'BRIDAL BACKDROP', qty:2,  status:'In Use',  checking:true,  warehouseItem:true,  scanIn:'Jun 14, 2024 09:20 AM', scanOut:'Jun 16, 2024 08:00 AM', pic:'Lina M.' },
-    { id:5,  name:'Dressing Mirror',           area:'BRIDAL ROOM',     qty:2,  status:'Ready',   checking:false, warehouseItem:true,  scanIn:null,                    scanOut:null,                   pic:'Siti R.' },
-    { id:6,  name:'Bridal Chair Set',          area:'BRIDAL ROOM',     qty:4,  status:'Ready',   checking:true,  warehouseItem:true,  scanIn:'Jun 14, 2024 10:00 AM', scanOut:null,                   pic:'Siti R.' },
-    { id:7,  name:'Long Table Linen',          area:'BRIDAL TABLE',    qty:5,  status:'In Use',  checking:true,  warehouseItem:true,  scanIn:'Jun 14, 2024 10:30 AM', scanOut:'Jun 16, 2024 09:00 AM', pic:'Budi T.' },
-    { id:8,  name:'Centerpiece Rose Vase',     area:'BRIDAL TABLE',    qty:3,  status:'In Use',  checking:true,  warehouseItem:false, scanIn:'Jun 14, 2024 11:00 AM', scanOut:null,                   pic:'Budi T.' },
-    { id:9,  name:'Car Ribbon Set',            area:'CAR DECOR',       qty:3,  status:'In Use',  checking:true,  warehouseItem:false, scanIn:'Jun 15, 2024 07:00 AM', scanOut:'Jun 15, 2024 03:00 PM', pic:'Yuni K.' },
-    { id:10, name:'Car Flower Bouquet',        area:'CAR DECOR',       qty:2,  status:'Missing', checking:false, warehouseItem:false, scanIn:null,                    scanOut:null,                   pic:'Yuni K.' },
-    { id:11, name:'Champagne Tower Stand',     area:'CHAMPAGNE WALL',  qty:1,  status:'In Use',  checking:true,  warehouseItem:true,  scanIn:'Jun 14, 2024 02:00 PM', scanOut:'Jun 15, 2024 11:00 PM', pic:'Eko P.' },
-    { id:12, name:'Glass Holder Wall',         area:'CHAMPAGNE WALL',  qty:2,  status:'Ready',   checking:false, warehouseItem:true,  scanIn:null,                    scanOut:null,                   pic:'Eko P.' },
-    { id:13, name:'Cocktail High-Top Table',   area:'COCKTAIL',        qty:6,  status:'In Use',  checking:true,  warehouseItem:true,  scanIn:'Jun 14, 2024 03:00 PM', scanOut:null,                   pic:'Wati S.' },
-    { id:14, name:'Bar Stool',                 area:'COCKTAIL',        qty:12, status:'In Use',  checking:true,  warehouseItem:true,  scanIn:'Jun 14, 2024 03:15 PM', scanOut:null,                   pic:'Wati S.' },
-    { id:15, name:'Welcome Signage Board',     area:'ENTRANCE',        qty:1,  status:'In Use',  checking:true,  warehouseItem:false, scanIn:'Jun 14, 2024 08:00 AM', scanOut:'Jun 15, 2024 10:30 PM', pic:'Rudi H.' },
-    { id:16, name:'Balloon Arch Entry',        area:'ENTRANCE',        qty:1,  status:'In Use',  checking:true,  warehouseItem:false, scanIn:'Jun 14, 2024 08:10 AM', scanOut:null,                   pic:'Rudi H.' },
-    { id:17, name:'Flower Gate',               area:'ENTRANCE',        qty:1,  status:'Damaged', checking:false, warehouseItem:false, scanIn:'Jun 14, 2024 08:30 AM', scanOut:null,                   pic:'Rudi H.' },
-    { id:18, name:'Guest Table Centerpiece',   area:'GUEST TABLE',     qty:20, status:'In Use',  checking:true,  warehouseItem:false, scanIn:'Jun 14, 2024 04:00 PM', scanOut:null,                   pic:'Indah F.' },
-    { id:19, name:'Guest Table Name Card Set', area:'GUEST TABLE',     qty:22, status:'In Use',  checking:true,  warehouseItem:true,  scanIn:'Jun 14, 2024 04:30 PM', scanOut:null,                   pic:'Indah F.' },
-    { id:20, name:'Guest Table Linen',         area:'GUEST TABLE',     qty:22, status:'Ready',   checking:false, warehouseItem:true,  scanIn:null,                    scanOut:null,                   pic:'Indah F.' },
-    { id:21, name:'Lounge Sofa 3-Seat',        area:'LOUNGE',          qty:3,  status:'In Use',  checking:true,  warehouseItem:true,  scanIn:'Jun 14, 2024 01:00 PM', scanOut:'Jun 16, 2024 10:00 AM', pic:'Agus N.' },
-    { id:22, name:'Coffee Table Wooden',       area:'LOUNGE',          qty:3,  status:'In Use',  checking:true,  warehouseItem:true,  scanIn:'Jun 14, 2024 01:15 PM', scanOut:null,                   pic:'Agus N.' },
-    { id:23, name:'White Rose Arrangement',    area:'FLORIST',         qty:15, status:'Ready',   checking:false, warehouseItem:false, scanIn:null,                    scanOut:null,                   pic:'Dewi L.' },
-    { id:24, name:'Greenery Garland',          area:'FLORIST',         qty:8,  status:'In Use',  checking:true,  warehouseItem:false, scanIn:'Jun 14, 2024 11:30 AM', scanOut:null,                   pic:'Dewi L.' },
-    { id:25, name:'Labour Team A Kit',         area:'LABOUR',          qty:1,  status:'Ready',   checking:false, warehouseItem:true,  scanIn:null,                    scanOut:null,                   pic:'Hendra B.' },
-  ],
-};
-
-function genItems(seed) {
-  const names = ['Crystal Vase','Table Linen','Chair Cover','Balloon Set','LED Stand','Flower Wall','Backdrop Frame','Centerpiece','Candle Holder','Stage Riser','Spotlight','Drape Curtain','Arch Decor','Ribbon Bundle','Name Card Set'];
-  const areas = ['CEREMONY','ENTRANCE','GUEST TABLE','LOUNGE','FLORIST','BRIDAL BACKDROP'];
-  const stats = ['In Use','Ready','Missing','Damaged'];
-  const pics  = ['Ari S.','Lina M.','Budi T.','Dewi L.','Rudi H.'];
-  const count = 14 + seed * 3;
-  return Array.from({ length: count }, (_, idx) => {
-    const i = idx + 1;
-    const r = (seed * 37 + i * 13) % names.length;
-    const a = (seed * 11 + i * 7)  % areas.length;
-    const s = (seed * 5  + i * 3)  % stats.length;
-    return {
-      id: i, name: names[r] + ` #${i}`, area: areas[a], qty: 1 + (i % 5),
-      status: stats[s], checking: i % 3 !== 0, warehouseItem: i % 2 === 0,
-      scanIn:  s < 3 ? 'Jan 19, 2025 09:00 AM' : null,
-      scanOut: s === 0 ? 'Jan 20, 2025 11:00 PM' : null,
-      pic: pics[i % pics.length],
-    };
-  });
+interface SummaryItem {
+  id: number;
+  name: string;
+  area: string;
+  qty: number;
+  status: string;
+  checking: boolean;
+  warehouseItem: boolean;
+  scanIn: boolean | string | null;
+  scanOut: boolean | string | null;
+  pic: string;
 }
 
-for (let i = 1; i < EVENTS.length; i++) RAW_ITEMS[i] = genItems(i);
+interface AreaStat {
+  total: number;
+  checked: number;
+  checkedPercentage?: number;
+  scanIn: number;
+  scanInPercentage?: number;
+  scanOut: number;
+  statuses: Record<string, number>;
+}
 
-const STATUS_BADGE = { 'In Use':'badge-blue', Ready:'badge-green', Missing:'badge-red', Damaged:'badge-orange' };
+interface KpiItem {
+  label: string;
+  value: number;
+  sub: string;
+  accent: string;
+  style: CSSProperties;
+  valueStyle?: CSSProperties;
+}
 
-function pct(n, total) { return total === 0 ? 0 : Math.round((n / total) * 100); }
+const STATUS_BADGE: Record<string, string> = { 'In Use':'badge-blue', Ready:'badge-green', Missing:'badge-red', Damaged:'badge-orange' };
 
-function fmtDate(d) {
+function pct(n: number, total: number) { return total === 0 ? 0 : Math.round((n / total) * 100); }
+
+function fmtDate(d?: string | null) {
   if (!d) return '—';
   return new Date(d).toLocaleDateString('en-US', { day:'numeric', month:'short', year:'numeric' });
 }
 
-function toBoolean(value) {
+type NullableApiValue = {
+  Valid?: boolean;
+  Int64?: number;
+};
+
+function toBoolean(value: unknown) {
   if (value && typeof value === 'object' && 'Valid' in value) {
-    return Boolean(value.Valid && value.Int64);
+    const nullable = value as NullableApiValue;
+    return Boolean(nullable.Valid && nullable.Int64);
   }
   return value === true || value === 1 || value === '1';
 }
 
-function hasScanValue(value) {
+function hasScanValue(value: unknown) {
   if (value && typeof value === 'object' && 'Valid' in value) {
-    return Boolean(value.Valid);
+    return Boolean((value as NullableApiValue).Valid);
   }
   return Boolean(value && value !== '0001-01-01 00:00:00');
 }
 
-function mapSummaryItem(item, index) {
+function mapSummaryItem(item: EventSummaryItemDetail, index: number): SummaryItem {
   return {
-    id: item.id ?? item.fix_list_item_id ?? index,
-    name: item.name ?? item.item_name ?? item.nama_barang ?? '—',
-    area: item.area ?? item.area_name ?? item.list_name ?? '—',
-    qty: Number(item.qty ?? item.quantity ?? 0),
-    status: item.status || item.status_name || '—',
-    checking: toBoolean(item.checking ?? item.checked ?? item.is_checking),
-    warehouseItem: toBoolean(item.warehouseItem ?? item.is_ware_house_item),
-    scanIn: hasScanValue(item.scanIn ?? item.is_scan_in ?? item.scan_in ?? item.scan_in_date),
-    scanOut: hasScanValue(item.scanOut ?? item.is_scan_out ?? item.scan_out ?? item.scan_out_date),
-    pic: item.pic ?? item.PIC ?? item.input_by ?? '—',
+    id: item.fix_list_item_id ?? index,
+    name: item.item_name || '—',
+    area: item.area_name || '—',
+    qty: Number(item.qty ?? 0),
+    status: item.status || '—',
+    checking: toBoolean(item.is_checking),
+    warehouseItem: false,
+    scanIn: hasScanValue(item.is_scan_in),
+    scanOut: hasScanValue(item.is_scan_out),
+    pic: item.input_by || '—',
   };
 }
 
@@ -139,6 +121,14 @@ export default function EventSummaryPage() {
     id: eventId,
     options: { enabled: Boolean(eventId) },
   });
+  const { data: eventStatusResponse } = useGetEventStatus({
+    params: {
+      page: 1,
+      limit: 999,
+      sort: 'ASC',
+      sortBy: 'order_data',
+    },
+  });
 
   const summary = eventSummaryResponse?.data;
   const totalSummary = summary?.total_summary;
@@ -163,7 +153,7 @@ export default function EventSummaryPage() {
   );
 
   const areaMap = useMemo(() => {
-    const m = {};
+    const m: Record<string, AreaStat> = {};
 
     (summary?.area_summary ?? []).forEach(area => {
       m[area.area_name] = {
@@ -178,12 +168,13 @@ export default function EventSummaryPage() {
     });
 
     items.forEach(it => {
-      if (!m[it.area]) m[it.area] = { total:0, checked:0, scanIn:0, statuses:{} };
+      if (!m[it.area]) m[it.area] = { total:0, checked:0, scanIn:0, scanOut:0, statuses:{} };
       if ((summary?.area_summary ?? []).length > 0) return;
       const a = m[it.area];
       a.total++;
       if (it.checking) a.checked++;
       if (it.scanIn)   a.scanIn++;
+      if (it.scanOut)  a.scanOut++;
       a.statuses[it.status] = (a.statuses[it.status] || 0) + 1;
     });
     return m;
@@ -202,10 +193,14 @@ export default function EventSummaryPage() {
   const safePage = Math.min(tablePage, tableTotalPages);
   const pageData = tableFiltered.slice((safePage - 1) * TABLE_PAGE_SIZE, safePage * TABLE_PAGE_SIZE);
 
-  const eventStatus = eventDetail?.is_complete === 1 ? 'Completed' : eventDetail?.status === 1 ? 'Active' : 'Inactive';
-  const statusBadge = eventStatus === 'Completed' ? 'badge-green' : eventStatus === 'Active' ? 'badge-blue' : 'badge-orange';
+  const eventStatus = eventDetail?.is_complete === 1
+    ? 'Completed'
+    : (eventStatusResponse?.data?.data ?? []).find(
+        status => status.id === Number(eventDetail?.status),
+      )?.name ?? (eventDetail?.status ? `Status ${eventDetail.status}` : '—');
+  const statusBadge = eventDetail?.is_complete === 1 ? 'badge-green' : 'badge-blue';
 
-  const kpis = [
+  const kpis: KpiItem[] = [
     { label:'Total Items',  value:total,    sub:`Total qty: ${totalQty} units`, accent:'brand',  style:{} },
     { label:'Checked',      value:checked,  sub:`${totalSummary?.checked_percentage ?? pct(checked,total)}% of all items`, accent:'green', style:{} },
     { label:'Scan In',      value:scanIn,   sub:`${totalSummary?.scan_in_percentage ?? pct(scanIn,total)}% scanned in`, accent:'brand', style:{ borderLeftColor:'var(--purple)' } },
@@ -222,6 +217,20 @@ export default function EventSummaryPage() {
 
   return (
     <>
+      <div className="breadcrumb">
+        <Link to="/event">Event</Link>
+        <span className="breadcrumb-sep">/</span>
+        {eventId ? (
+          <Link to={`/event-detail?id=${eventId}`}>
+            {eventDetail?.name || "Event Detail"}
+          </Link>
+        ) : (
+          <span>{eventDetail?.name || "Event Detail"}</span>
+        )}
+        <span className="breadcrumb-sep">/</span>
+        <span className="breadcrumb-current">Summary</span>
+      </div>
+
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18, flexWrap:'wrap', gap:10 }}>
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
           <button onClick={() => navigate('/event')} style={{ display:'flex', alignItems:'center', color:'var(--text-muted)', background:'none', border:'none', cursor:'pointer' }}>
@@ -334,18 +343,34 @@ export default function EventSummaryPage() {
               <IconSearch />
               <input className="search-input" type="text" placeholder="Search items…" value={tableSearch} onChange={e => { setTableSearch(e.target.value); setTablePage(1); }} />
             </div>
-            <div className="wi-select-wrap">
-              <select style={{ width:140 }} value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setTablePage(1); }}>
-                <option value="">All Status</option>
-                {statusNames.map(status => <option key={status}>{status}</option>)}
-              </select>
-            </div>
-            <div className="wi-select-wrap">
-              <select style={{ width:160 }} value={areaFilter} onChange={e => { setAreaFilter(e.target.value); setTablePage(1); }}>
-                <option value="">All Areas</option>
-                {areaNames.map(a => <option key={a}>{a}</option>)}
-              </select>
-            </div>
+            <SearchableSelect
+              inline
+              style={{ width: 140 }}
+              value={statusFilter}
+              onChange={(value) => {
+                setStatusFilter(String(value));
+                setTablePage(1);
+              }}
+              options={[
+                { value: "", label: "All Status" },
+                ...statusNames.map((status) => ({ value: status, label: status })),
+              ]}
+              placeholder="All Status"
+            />
+            <SearchableSelect
+              inline
+              style={{ width: 160 }}
+              value={areaFilter}
+              onChange={(value) => {
+                setAreaFilter(String(value));
+                setTablePage(1);
+              }}
+              options={[
+                { value: "", label: "All Areas" },
+                ...areaNames.map((area) => ({ value: area, label: area })),
+              ]}
+              placeholder="All Areas"
+            />
           </div>
         </div>
         <div className="table-wrap">
@@ -381,7 +406,7 @@ export default function EventSummaryPage() {
             </tbody>
           </table>
         </div>
-        <Pagination currentPage={safePage} total={tableFiltered.length} pageSize={TABLE_PAGE_SIZE} onPage={p => setTablePage(p)} label="items" />
+        <Pagination currentPage={safePage} total={tableFiltered.length} pageSize={TABLE_PAGE_SIZE} onPage={(p: number) => setTablePage(p)} label="items" />
       </div>
     </>
   );

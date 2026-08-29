@@ -4,6 +4,7 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import Modal from "../components/Modal";
 import Stepper from "../components/Stepper";
+import SearchableSelect from "../components/SearchableSelect";
 import {
   IconSearch,
   IconPlus,
@@ -27,9 +28,11 @@ import { STORAGE_BOOQABLE, isValidUrl, noImage } from "../utils/function";
 import { useWarehouseController } from "./lib/useWarehouseController";
 import { useCategoryController } from "./lib/useCategoryController";
 import useGetEventDetail from "../hooks/api/useGetEventDetail";
+import useGetEventStatus from "../hooks/api/useGetEventStatus";
+import { InventoryService } from "../service/InventoryService";
 
-const STATUSES = ["Preparation", "During Event", "After Event"] as const;
-type EventStatus = (typeof STATUSES)[number];
+const FALLBACK_STATUSES = ["Preparation", "During Event", "After Event"] as const;
+type DateEventStatus = (typeof FALLBACK_STATUSES)[number];
 
 function formatEventDate(value?: string | null): string {
   const backendDate = value?.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -66,7 +69,7 @@ function resolveEventStatus(
   eventStart?: string,
   eventEnd?: string,
   now = new Date(),
-): EventStatus {
+): DateEventStatus {
   const start = parseBackendDate(eventStart);
   const end = parseBackendDate(eventEnd);
   if (start === null || end === null) return "Preparation";
@@ -117,12 +120,23 @@ interface DisplayItem {
   pic: string;
   checking: boolean;
   warehouseItem: boolean;
+  scanInValue: number;
   scanIn: string | null;
   scanOut: string | null;
   note: string;
   areaId?: number;
   subAreaId?: number;
   barangGudangId?: number;
+  eventStatusId: number;
+  scanned: boolean;
+  groupId: string | null;
+  groupName: string | null;
+}
+
+interface PackageGroup {
+  id: string;
+  name: string;
+  itemIds: number[];
 }
 
 interface CartItem {
@@ -151,7 +165,10 @@ interface CartItem {
 
 interface ItemCardProps {
   item: DisplayItem;
-  onScan: (id: number) => void;
+  group?: PackageGroup;
+  showScanButton: boolean;
+  isScanned: boolean;
+  onScan: (item: DisplayItem) => void;
   onDelete: (id: number) => void;
 }
 
@@ -178,12 +195,6 @@ function formatApiDate(value: EventItem["scan_in_date"]): string | null {
   });
 }
 
-function getStatusName(statusId: number): string {
-  if (statusId === 2) return "During Event";
-  if (statusId === 3) return "After Event";
-  return "Preparation";
-}
-
 function getPhotoUrl(photo: string): string {
   return isValidUrl(photo)
     ? photo?.replace("http://66.42.48.163:9000/booqable/", STORAGE_BOOQABLE)
@@ -192,25 +203,37 @@ function getPhotoUrl(photo: string): string {
       : noImage;
 }
 
-function mapEventItem(item: EventItem): DisplayItem {
+function mapEventItem(
+  item: EventItem,
+  statusNames: Map<number, string>,
+): DisplayItem {
+  const stage = statusNames.get(item.event_status_id) ?? `Status ${item.event_status_id}`;
+  const scanIn = formatApiDate(item.scan_in_date);
+  const scanOut = formatApiDate(item.scan_out_date);
+  const groupName = item.group_detail?.trim() || null;
   return {
     id: item.id,
     photo: getPhotoUrl(item.photo),
     name: item.nama_barang,
     area: item.area_name || item.sub_list_name || "-",
-    status: getStatusName(item.event_status_id),
-    stage: getStatusName(item.event_status_id),
+    status: stage,
+    stage,
     qty: item.qty,
     pic: item.input_by,
     checking: item.is_checking.Valid && item.is_checking.Int64 === 1,
     warehouseItem:
       item.is_ware_house_item.Valid && item.is_ware_house_item.Int64 === 1,
-    scanIn: formatApiDate(item.scan_in_date),
-    scanOut: formatApiDate(item.scan_out_date),
+    scanInValue: Number(item.scan_in ?? 0),
+    scanIn,
+    scanOut,
     note: item.notes,
     areaId: item.list_id,
     subAreaId: item.sub_list_id.Valid ? item.sub_list_id.Int64 : undefined,
     barangGudangId: item.barang_gudang_id,
+    eventStatusId: item.event_status_id,
+    scanned: Boolean(scanIn || scanOut),
+    groupId: groupName ? `api:${groupName}` : null,
+    groupName,
   };
 }
 
@@ -260,7 +283,14 @@ function ImagePlaceholder({ src, alt }: { src: string; alt: string }) {
   );
 }
 
-function ItemCard({ item, onScan, onDelete }: ItemCardProps) {
+function ItemCard({
+  item,
+  group,
+  showScanButton,
+  isScanned,
+  onScan,
+  onDelete,
+}: ItemCardProps) {
   return (
     <div className="item-card">
       <ImagePlaceholder src={item.photo} alt={item.name} />
@@ -271,7 +301,16 @@ function ItemCard({ item, onScan, onDelete }: ItemCardProps) {
           {item.area}
         </span>
         <div className="item-name-row">
-          <span className="item-name">{item.name}</span>
+          <span className="item-name">
+            {item.name}
+            {group && (
+              <span className="item-group-badge" title={`${group.itemIds.length} items scan together`}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /></svg>
+                {group.name}
+              </span>
+            )}
+            {isScanned && <span className="item-scanned-badge"><CheckIcon /> Scanned</span>}
+          </span>
           <span className="item-qty">Qty: {item.qty}</span>
         </div>
         <div className="item-pic">
@@ -332,7 +371,7 @@ function ItemCard({ item, onScan, onDelete }: ItemCardProps) {
         {item.note && <div className="item-note">{item.note}</div>}
         <div className="item-actions">
           <div className="item-actions-row">
-            <button className="btn-ia-pkg" title="Packaging">
+            <button className="btn-ia-pkg" title={group ? `Package: ${group.name}` : "Not packaged"} disabled>
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -346,7 +385,7 @@ function ItemCard({ item, onScan, onDelete }: ItemCardProps) {
                 <line x1="12" y1="22.08" x2="12" y2="12" />
               </svg>
             </button>
-            <button className="btn-ia-scan" onClick={() => onScan(item.id)}>
+            {showScanButton && <button className={`btn-ia-scan${isScanned ? " scanned" : ""}`} onClick={() => onScan(item)}>
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -360,8 +399,8 @@ function ItemCard({ item, onScan, onDelete }: ItemCardProps) {
                 <rect x="3" y="14" width="7" height="7" />
                 <path d="M14 14h.01M14 17h3v3M17 14h3" />
               </svg>
-              Scan
-            </button>
+              {isScanned ? "Re-scan" : "Scan"}
+            </button>}
             <button
               className="btn-ia-del"
               title="Delete"
@@ -395,11 +434,30 @@ export default function EventDetailPage() {
     },
   });
 
-  const { data: eventDetailResponse } = useGetEventDetail({
+  const { data: eventDetailResponse, refetch: refetchEventDetail } = useGetEventDetail({
     id: eventId,
     options: { enabled: Boolean(eventId) },
   });
   const eventDetail = eventDetailResponse?.data;
+  const { data: eventStatusResponse } = useGetEventStatus({
+    params: {
+      page: 1,
+      limit: 999,
+      sort: "ASC",
+      sortBy: "order_data",
+    },
+  });
+  const eventStatuses = useMemo(
+    () =>
+      [...(eventStatusResponse?.data?.data ?? [])].sort(
+        (left, right) => left.order_data - right.order_data,
+      ),
+    [eventStatusResponse?.data?.data],
+  );
+  const statusNames = useMemo(
+    () => new Map(eventStatuses.map((status) => [status.id, status.name])),
+    [eventStatuses],
+  );
   const eventDate = formatEventDate(
     eventDetail?.date_event ?? eventDetail?.date_start,
   );
@@ -418,14 +476,26 @@ export default function EventDetailPage() {
   const [createdItems, setCreatedItems] = useState<DisplayItem[]>([]);
   const [hiddenItemIds, setHiddenItemIds] = useState<number[]>([]);
   const [scanOverrides, setScanOverrides] = useState<
-    Record<number, Pick<DisplayItem, "scanIn" | "scanOut">>
+    Record<
+      number,
+      Pick<DisplayItem, "scanInValue" | "scanIn" | "scanOut" | "scanned">
+    >
   >({});
   const [nextId, setNextId] = useState(-1);
+  const [currentStatusId, setCurrentStatusId] = useState<number | null>(null);
+  const [isChangingEventStatus, setIsChangingEventStatus] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [stepperError, setStepperError] = useState("");
+  const [scanningItem, setScanningItem] = useState<DisplayItem | null>(null);
+  const [scanPhase, setScanPhase] = useState<"ready" | "scanning" | "done">("ready");
+  const [localPackages, setLocalPackages] = useState<PackageGroup[]>([]);
+  const [packageAssignments, setPackageAssignments] = useState<Record<number, string>>({});
+  const [packagingOpen, setPackagingOpen] = useState(false);
+  const [packagingSelection, setPackagingSelection] = useState<number[]>([]);
+  const [packagingName, setPackagingName] = useState("");
 
   const [selectedArea, setSelectedArea] = useState("");
-  const [areaDropOpen, setAreaDropOpen] = useState(false);
-  const [areaSearch, setAreaSearch] = useState("");
-  const [stageFilter, setStageFilter] = useState<"all" | "previous" | "current">("all");
+  const [stageFilter, setStageFilter] = useState<"all" | "previous" | "current" | "grouped">("all");
   const [kwSearch, setKwSearch] = useState("");
 
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -468,6 +538,73 @@ export default function EventDetailPage() {
     inputBy: "",
     image: null as string | null,
   });
+
+  useEffect(() => {
+    setCurrentStatusId(null);
+    setStepperError("");
+    setLocalPackages([]);
+    setPackageAssignments({});
+  }, [eventId]);
+
+  useEffect(() => {
+    if (!eventStatuses.length || currentStatusId !== null) return;
+
+    const eventRunningId = Number(eventDetail?.event_running);
+    const directId = [eventDetail?.status, eventRunningId].find(
+      (candidate) =>
+        Number.isFinite(candidate) &&
+        eventStatuses.some((status) => status.id === Number(candidate)),
+    );
+    if (directId !== undefined) {
+      setCurrentStatusId(Number(directId));
+      return;
+    }
+
+    const runningName = eventDetail?.event_running?.trim().toLowerCase();
+    const statusByName = runningName
+      ? eventStatuses.find((status) => status.name.toLowerCase() === runningName)
+      : undefined;
+    if (statusByName) {
+      setCurrentStatusId(statusByName.id);
+      return;
+    }
+
+    const dateStatus = resolveEventStatus(
+      eventDetail?.event_start,
+      eventDetail?.event_end,
+    );
+    const exactDateStatus = eventStatuses.find(
+      (status) => status.name.toLowerCase() === dateStatus.toLowerCase(),
+    );
+    if (exactDateStatus) {
+      setCurrentStatusId(exactDateStatus.id);
+      return;
+    }
+
+    if (dateStatus === "During Event") {
+      const runningStatus = eventStatuses.find(
+        (status) =>
+          status.active_event === 1 ||
+          /event running|during event/i.test(status.name),
+      );
+      setCurrentStatusId(
+        runningStatus?.id ?? eventStatuses[Math.floor(eventStatuses.length / 2)].id,
+      );
+      return;
+    }
+
+    if (dateStatus === "After Event") {
+      const finishedStatus = eventStatuses.find((status) =>
+        /finished|after event/i.test(status.name),
+      );
+      setCurrentStatusId(
+        finishedStatus?.id ?? eventStatuses[eventStatuses.length - 1].id,
+      );
+      return;
+    }
+
+    setCurrentStatusId(eventStatuses[0].id);
+  }, [currentStatusId, eventDetail, eventStatuses]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -530,12 +667,29 @@ export default function EventDetailPage() {
   const items = useMemo(() => {
     const apiItems = eventItemResponse?.data ?? [];
     const visibleApiItems = apiItems
-      .map(mapEventItem)
+      .map((item) => mapEventItem(item, statusNames))
       .filter((item) => !hiddenItemIds.includes(item.id))
-      .map((item) => ({ ...item, ...scanOverrides[item.id] }));
+      .map((item) => {
+        const assignedGroupId = packageAssignments[item.id] ?? item.groupId;
+        const localGroup = localPackages.find((group) => group.id === assignedGroupId);
+        return {
+          ...item,
+          ...scanOverrides[item.id],
+          groupId: assignedGroupId,
+          groupName: localGroup?.name ?? item.groupName,
+        };
+      });
 
     return [...visibleApiItems, ...createdItems];
-  }, [createdItems, eventItemResponse?.data, hiddenItemIds, scanOverrides]);
+  }, [
+    createdItems,
+    eventItemResponse?.data,
+    hiddenItemIds,
+    localPackages,
+    packageAssignments,
+    scanOverrides,
+    statusNames,
+  ]);
 
   const areas = useMemo(
     () => [...new Set(items.map((item) => item.area).filter(Boolean))].sort(),
@@ -546,15 +700,59 @@ export default function EventDetailPage() {
     if (item.area) counts[item.area] = (counts[item.area] || 0) + 1;
     return counts;
   }, {}), [items]);
-  const visibleAreas = areas.filter((area) => area.toLowerCase().includes(areaSearch.toLowerCase()));
-  const eventStatus = resolveEventStatus(
-    eventDetail?.event_start,
-    eventDetail?.event_end,
+  const stages = useMemo(
+    () =>
+      eventStatuses.length
+        ? eventStatuses.map((status) => status.name)
+        : [...FALLBACK_STATUSES],
+    [eventStatuses],
   );
-  const currentStageIndex = STATUSES.indexOf(eventStatus);
-  const previousStageCount = items.filter((item) => STATUSES.indexOf(item.stage as (typeof STATUSES)[number]) < currentStageIndex).length;
-  const currentStageCount = items.filter((item) => item.stage === eventStatus).length;
+  const currentStageIndex = Math.max(
+    0,
+    eventStatuses.findIndex((status) => status.id === currentStatusId),
+  );
+  const currentStatus = eventStatuses[currentStageIndex];
+  const eventStatus = currentStatus?.name ?? stages[currentStageIndex] ?? stages[0];
+  const stageScanEnabled = currentStatus?.is_show_scan_result === 1;
+  const currentScanAction = currentStatus?.action
+    ?.trim()
+    .toUpperCase()
+    .replace(/\s+/g, "_");
+  const isItemScannedForCurrentStatus = (item: DisplayItem) => {
+    if (currentScanAction === "SCAN_IN") return Boolean(item.scanIn);
+    if (currentScanAction === "SCAN_OUT") return Boolean(item.scanOut);
+    return item.scanned;
+  };
 
+  const statusIndexById = useMemo(
+    () => new Map(eventStatuses.map((status, index) => [status.id, index])),
+    [eventStatuses],
+  );
+  const getItemStageIndex = (item: DisplayItem) =>
+    statusIndexById.get(item.eventStatusId) ?? stages.indexOf(item.stage);
+  const previousStageCount = items.filter(
+    (item) => getItemStageIndex(item) < currentStageIndex,
+  ).length;
+  const currentStageCount = items.filter(
+    (item) => getItemStageIndex(item) === currentStageIndex,
+  ).length;
+  const apiPackages = useMemo<PackageGroup[]>(() => {
+    const byName = new Map<string, number[]>();
+    items.forEach((item) => {
+      if (!item.groupId?.startsWith("api:") || !item.groupName) return;
+      byName.set(item.groupName, [...(byName.get(item.groupName) ?? []), item.id]);
+    });
+    return [...byName.entries()].map(([name, itemIds]) => ({
+      id: `api:${name}`,
+      name,
+      itemIds,
+    }));
+  }, [items]);
+  const packages = useMemo(
+    () => [...apiPackages, ...localPackages],
+    [apiPackages, localPackages],
+  );
+console.log(currentStatus)
   const barangGudangItems = useMemo(
     () => barangGudangResponse?.data ?? [],
     [barangGudangResponse?.data],
@@ -596,9 +794,9 @@ export default function EventDetailPage() {
     () =>
       items.filter((item) => {
         if (selectedArea && item.area !== selectedArea) return false;
-        const itemStageIndex = STATUSES.indexOf(item.stage as (typeof STATUSES)[number]);
+        const itemStageIndex = getItemStageIndex(item);
         if (stageFilter === "previous" && itemStageIndex >= currentStageIndex) return false;
-        if (stageFilter === "current" && item.stage !== eventStatus) return false;
+        if (stageFilter === "current" && itemStageIndex !== currentStageIndex) return false;
         if (
           kwSearch &&
           !item.name.toLowerCase().includes(kwSearch.toLowerCase()) &&
@@ -608,10 +806,118 @@ export default function EventDetailPage() {
         }
         return true;
       }),
-    [currentStageIndex, eventStatus, items, kwSearch, selectedArea, stageFilter],
+    [currentStageIndex, items, kwSearch, selectedArea, stageFilter, statusIndexById, stages],
   );
 
   const areaLabel = selectedArea || "All Place";
+  const unscannedCount = items.filter(
+    (item) => !isItemScannedForCurrentStatus(item),
+  ).length;
+  const hasNextStage = currentStageIndex < stages.length - 1;
+  const isFirstStage = currentStageIndex === 0;
+  const packableItems = items.filter(
+    (item) => getItemStageIndex(item) === 0 && !item.groupId,
+  );
+  const summaryStats = useMemo(
+    () => ({
+      total: items.length,
+      totalQty: items.reduce((sum, item) => sum + item.qty, 0),
+      checked: items.filter((item) => item.checking).length,
+      scanIn: items.filter((item) => item.scanIn).length,
+      scanOut: items.filter((item) => item.scanOut).length,
+    }),
+    [items],
+  );
+
+  async function changeEventStatus(_step: string, targetIndex: number) {
+    if (isChangingEventStatus) return;
+    if (
+      stageScanEnabled &&
+      targetIndex > currentStageIndex &&
+      unscannedCount > 0
+    ) {
+      setStepperError(
+        `${unscannedCount} item${unscannedCount === 1 ? "" : "s"} still need to be scanned before moving forward.`,
+      );
+      return;
+    }
+
+    const targetStatus = eventStatuses[targetIndex];
+    if (!targetStatus || !eventDetail) return;
+
+    try {
+      setIsChangingEventStatus(true);
+      const response = await InventoryService.editEvent({
+        id: eventDetail.id,
+        description: eventDetail.description ?? "",
+        name: eventDetail.name ?? "",
+        event_start: eventDetail.event_start,
+        event_end: eventDetail.event_end,
+        PIC: eventDetail.PIC ?? "",
+        event_code: eventDetail.event_code ?? "",
+        is_complete: eventDetail.is_complete ?? 0,
+        status: targetStatus.id,
+        // images: eventDetail.images ?? "",
+        files: eventDetail.files ?? "",
+        address: eventDetail.address ?? "",
+        type: eventDetail.type ?? "",
+        latitude: eventDetail.latitude ?? "",
+        longitude: eventDetail.longitude ?? "",
+        event_running: eventDetail.event_running ?? "",
+        notes: eventDetail.notes ?? "",
+        scan_type: eventDetail.scan_type ?? "",
+        date_event: eventDetail.date_event,
+      });
+      if (response.success === false) {
+        throw new Error(response.message || "Failed to update event status.");
+      }
+      setCurrentStatusId(targetStatus.id);
+      setStageFilter("all");
+      setStepperError("");
+      await refetchEventDetail();
+    } catch (error) {
+      toast.error(getCheckoutErrorMessage(error));
+    } finally {
+      setIsChangingEventStatus(false);
+    }
+  }
+
+  function goToNextStage() {
+    if (!hasNextStage || unscannedCount > 0 || isChangingEventStatus) return;
+    void changeEventStatus(
+      stages[currentStageIndex + 1],
+      currentStageIndex + 1,
+    );
+  }
+
+  function openPackagingModal() {
+    setPackagingSelection([]);
+    setPackagingName("");
+    setPackagingOpen(true);
+  }
+
+  function togglePackagingSelection(id: number) {
+    setPackagingSelection((selected) =>
+      selected.includes(id)
+        ? selected.filter((itemId) => itemId !== id)
+        : [...selected, id],
+    );
+  }
+
+  function createPackage() {
+    const name = packagingName.trim();
+    if (!name || packagingSelection.length === 0) return;
+    const id = `local:${crypto.randomUUID()}`;
+    setLocalPackages((current) => [
+      ...current,
+      { id, name, itemIds: [...packagingSelection] },
+    ]);
+    setPackageAssignments((current) => ({
+      ...current,
+      ...Object.fromEntries(packagingSelection.map((itemId) => [itemId, id])),
+    }));
+    setPackagingOpen(false);
+  }
 
   function getNowLabel() {
     return new Date().toLocaleString("en-US", {
@@ -624,13 +930,28 @@ export default function EventDetailPage() {
     });
   }
 
-  function doScan(id: number) {
+  function getNextScanType(item: DisplayItem): "IN" | "OUT" {
+    return Number(item.scanInValue ?? 0) === 0 ? "IN" : "OUT";
+  }
+
+  function doLocalScan(id: number, type: "IN" | "OUT") {
     const now = getNowLabel();
+    const applyScanPhase = <
+      T extends Pick<
+        DisplayItem,
+        "scanInValue" | "scanIn" | "scanOut" | "scanned"
+      >,
+    >(
+      scan: T,
+    ): T => {
+      if (type === "OUT") {
+        return { ...scan, scanOut: now, scanned: true };
+      }
+      return { ...scan, scanInValue: 1, scanIn: now, scanned: true };
+    };
     const updateScan = (item: DisplayItem) => {
       if (item.id !== id) return item;
-      if (!item.scanIn) return { ...item, scanIn: now };
-      if (!item.scanOut) return { ...item, scanOut: now };
-      return item;
+      return applyScanPhase(item);
     };
 
     setCreatedItems((currentItems) => currentItems.map(updateScan));
@@ -640,30 +961,114 @@ export default function EventDetailPage() {
         return currentOverrides;
 
       const currentScan = currentOverrides[id] ?? {
+        scanInValue: item.scanInValue,
         scanIn: item.scanIn,
         scanOut: item.scanOut,
+        scanned: item.scanned,
       };
 
-      return {
-        ...currentOverrides,
-        [id]: {
-          scanIn: currentScan.scanIn || now,
-          scanOut: currentScan.scanIn
-            ? currentScan.scanOut || now
-            : currentScan.scanOut,
-        },
-      };
+      return { ...currentOverrides, [id]: applyScanPhase(currentScan) };
     });
   }
 
-  function deleteItem(id: number) {
+  function openScanPopup(item: DisplayItem) {
+    setScanningItem(item);
+    setScanPhase("ready");
+  }
+
+  function closeScanPopup() {
+    if (scanPhase === "scanning") return;
+    setScanningItem(null);
+    setScanPhase("ready");
+  }
+
+  async function startScan() {
+    if (!scanningItem) return;
+
+    const group = scanningItem.groupId
+      ? packages.find((item) => item.id === scanningItem.groupId)
+      : undefined;
+    const targetIds = group?.itemIds ?? [scanningItem.id];
+    const resolvedTargets = targetIds
+      .map((id) => items.find((item) => item.id === id))
+      .filter((item): item is DisplayItem => Boolean(item));
+    const targets = resolvedTargets.length > 0
+      ? resolvedTargets
+      : [scanningItem];
+
+    if (
+      targets.some((item) => getNextScanType(item) === "OUT") &&
+      currentScanAction !== "SCAN_OUT"
+    ) {
+      toast.error(
+        "Scan out is only available when the current status action is SCAN_OUT.",
+      );
+      return;
+    }
+
+    setScanPhase("scanning");
+    try {
+      const apiTargets = targets.filter((item) => item.id > 0);
+      const responses = await Promise.all(
+        apiTargets.map((item) =>
+          InventoryService.putScan({
+            id: item.id,
+            type: getNextScanType(item),
+          }),
+        ),
+      );
+      const failedResponse = responses.find(
+        (response) => response.success === false,
+      );
+      if (failedResponse) {
+        throw new Error(failedResponse.message || "Failed to scan event item.");
+      }
+
+      targets
+        .filter((item) => item.id <= 0)
+        .forEach((item) => doLocalScan(item.id, getNextScanType(item)));
+
+      if (apiTargets.length > 0) {
+        setScanOverrides((currentOverrides) => {
+          const nextOverrides = { ...currentOverrides };
+          apiTargets.forEach((item) => delete nextOverrides[item.id]);
+          return nextOverrides;
+        });
+        await refetchEventItems();
+      }
+
+      toast.success(responses[0]?.message || "Item scanned successfully.");
+      setScanPhase("done");
+    } catch (error) {
+      toast.error(getCheckoutErrorMessage(error));
+      setScanPhase("ready");
+    }
+  }
+
+  function finishScan() {
+    closeScanPopup();
+  }
+
+  async function deleteItem(id: number) {
     if (!window.confirm("Delete this item from the event?")) return;
-    setCreatedItems((currentItems) =>
-      currentItems.filter((item) => item.id !== id),
-    );
-    setHiddenItemIds((currentIds) =>
-      id > 0 ? [...currentIds, id] : currentIds,
-    );
+    if (id <= 0) {
+      setCreatedItems((currentItems) =>
+        currentItems.filter((item) => item.id !== id),
+      );
+      return;
+    }
+
+    try {
+      const response = await InventoryService.deleteFixItem(id);
+      if (response.success === false) {
+        throw new Error(response.message || "Failed to delete event item.");
+      }
+      setHiddenItemIds((currentIds) => [...currentIds, id]);
+      await refetchEventItems();
+      toast.success(response.message || "Event item deleted.");
+    } catch (error) {
+      toast.error(getCheckoutErrorMessage(error));
+    }
   }
 
   function openAtcModal(id: number) {
@@ -763,7 +1168,11 @@ export default function EventDetailPage() {
           notes: item.memo ?? item.note,
           input_by: item.input_by,
           image: item.image,
-          event_status_id: 1,
+          event_status_id:
+            eventStatuses.find((status) => status.name === item.status)?.id ??
+            currentStatus?.id ??
+            eventStatuses[0]?.id ??
+            1,
           additional_code: item.additionalCode ?? "",
           is_checking: item.checked ? 1 : 0,
           is_ware_house_item: item.warehouseItem ? 1 : 0,
@@ -840,7 +1249,7 @@ export default function EventDetailPage() {
     setNewItemForm({
       areaId: "",
       subAreaId: "",
-      status: "Preparation",
+      status: eventStatus,
       qty: 1,
       additionalCode: "",
       memo: "",
@@ -880,7 +1289,7 @@ export default function EventDetailPage() {
           warehouseName: selectedWarehouse.gudang_name,
           photo: getPhotoUrl(item.photo),
           name: item.nama_barang,
-          status: "Preparation",
+          status: eventStatus,
           areaId: null,
           area: "",
           subAreaId: null,
@@ -980,7 +1389,7 @@ export default function EventDetailPage() {
     setNewItemForm({
       areaId: "",
       subAreaId: "",
-      status: "Preparation",
+      status: eventStatus,
       qty: 1,
       additionalCode: "",
       memo: "",
@@ -1030,7 +1439,16 @@ export default function EventDetailPage() {
           <div className="event-heading">{eventName}</div>
 
           <div className="event-actions-bar">
-            <button className="action-icon-btn btn-pkg" title="Packaging">
+            <button
+              className="action-icon-btn btn-pkg"
+              title={
+                isFirstStage
+                  ? "Packaging — group items to scan together"
+                  : `Packaging is only available at the \"${stages[0]}\" stage`
+              }
+              disabled={!isFirstStage}
+              onClick={openPackagingModal}
+            >
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -1055,60 +1473,56 @@ export default function EventDetailPage() {
 
         <div className="event-status-section">
           <div className="event-status-section-label">Event Status</div>
-          <div className="event-status-stepper">
-            <Stepper steps={[...STATUSES]} currentIndex={currentStageIndex} />
+          <div className="event-status-stepper-wrap">
+            <Stepper
+              steps={stages}
+              currentIndex={currentStageIndex}
+              onStepClick={eventStatuses.length ? changeEventStatus : undefined}
+            />
           </div>
+          {stageScanEnabled && hasNextStage && (
+            <button
+              type="button"
+              className="btn-next-stage"
+              disabled={unscannedCount > 0 || isChangingEventStatus}
+              title={
+                unscannedCount > 0
+                  ? `${unscannedCount} item(s) still need to be scanned`
+                  : `Move to \"${stages[currentStageIndex + 1]}\"`
+              }
+              onClick={goToNextStage}
+            >
+              {isChangingEventStatus ? "Saving…" : "Next"}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+            </button>
+          )}
         </div>
 
+        {stepperError && (
+          <div className="stepper-error-banner">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+            {stepperError}
+            <button type="button" className="stepper-error-dismiss" onClick={() => setStepperError("")}>×</button>
+          </div>
+        )}
+
         <div className="filter-row">
-          <div
-            className="dropdown-wrap"
-            style={{ flex: 1, position: "relative", minWidth: 190 }}
-          >
-            <div
-              className={`dropdown-trigger${areaDropOpen ? " open" : ""}`}
-              onClick={() => setAreaDropOpen((open) => !open)}
-            >
-              <span>{areaLabel}</span>
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
-            </div>
-            {areaDropOpen && (
-              <div className="dropdown-menu open">
-                <div className="dropdown-search"><IconSearch /><input autoFocus placeholder="Search areas…" value={areaSearch} onChange={(event) => setAreaSearch(event.target.value)} onClick={(event) => event.stopPropagation()} /></div>
-                <div className="dropdown-list">
-                <div
-                  className={`dropdown-item${!selectedArea ? " selected" : ""}`}
-                  onClick={() => {
-                    setSelectedArea("");
-                    setAreaDropOpen(false);
-                  }}
-                >
-                  <span>All Area</span><span className="dropdown-item-count">{items.length}</span>
-                </div>
-                {visibleAreas.map((area) => (
-                  <div
-                    key={area}
-                    className={`dropdown-item${selectedArea === area ? " selected" : ""}`}
-                    onClick={() => {
-                      setSelectedArea(area);
-                      setAreaDropOpen(false);
-                    }}
-                  >
-                    <span>{area}</span><span className="dropdown-item-count">{areaCounts[area] || 0}</span>
-                  </div>
-                ))}
-                </div>
-              </div>
-            )}
+          <div style={{ flex: 1, minWidth: 190 }}>
+            <SearchableSelect
+              value={selectedArea}
+              onChange={(value) => setSelectedArea(String(value))}
+              placeholder="All Place"
+              searchPlaceholder="Search area…"
+              emptyText="No area found"
+              options={[
+                { value: "", label: "All Place", meta: String(items.length) },
+                ...areas.map((area) => ({
+                  value: area,
+                  label: area,
+                  meta: String(areaCounts[area] || 0),
+                })),
+              ]}
+            />
           </div>
 
           <div className="filter-row-right">
@@ -1118,7 +1532,9 @@ export default function EventDetailPage() {
             <button
               className="btn"
               style={{ background: "var(--purple)", color: "#fff" }}
-              onClick={() => navigate(`/event-summary?id=${eventId}`)}
+              title="Summary"
+              aria-label="Summary"
+              onClick={() => setSummaryOpen(true)}
             >
               <IconBarChart />
             </button>
@@ -1145,31 +1561,74 @@ export default function EventDetailPage() {
           <button className={`stage-tab${stageFilter === "all" ? " active" : ""}`} onClick={() => setStageFilter("all")}>All <span className="stage-tab-count">{items.length}</span></button>
           <button className={`stage-tab${stageFilter === "previous" ? " active" : ""}`} onClick={() => setStageFilter("previous")}>From Previous Stage <span className="stage-tab-count">{previousStageCount}</span></button>
           <button className={`stage-tab${stageFilter === "current" ? " active" : ""}`} onClick={() => setStageFilter("current")}>New in &ldquo;{eventStatus}&rdquo; <span className="stage-tab-count">{currentStageCount}</span></button>
+          <button className={`stage-tab${stageFilter === "grouped" ? " active" : ""}`} onClick={() => setStageFilter("grouped")}>Grouped <span className="stage-tab-count">{packages.length}</span></button>
         </div>
 
-        <p className="summary-text">
-          <strong>{filtered.length}</strong> item(s) with status{" "}
-          <strong>&ldquo;{eventStatus}&rdquo;</strong> in area{" "}
-          <strong>&ldquo;{areaLabel}&rdquo;</strong>
-        </p>
-
-        {isLoading ? (
+        {stageFilter === "grouped" ? (
+          <>
+            <p className="summary-text"><strong>{packages.length}</strong> box{packages.length === 1 ? "" : "es"} packaged — each box scans as one QR code.</p>
+            {packages.length === 0 ? (
+              <div className="no-data">No boxes yet. Use the box icon at the first stage to group items.</div>
+            ) : (
+              <div className="package-list">
+                {packages.map((group) => {
+                  const members = items.filter((item) => group.itemIds.includes(item.id));
+                  const allScanned =
+                    members.length > 0 &&
+                    members.every(isItemScannedForCurrentStatus);
+                  return (
+                    <div key={group.id} className="package-card">
+                      <div className="package-header">
+                        <div className="package-header-info">
+                          <span className="package-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /></svg></span>
+                          <div><div className="package-name">{group.name}</div><div className="package-meta">{members.length} item{members.length === 1 ? "" : "s"} in this box</div></div>
+                        </div>
+                        {stageScanEnabled && members.length > 0 && (
+                          <button className={`btn-ia-scan${allScanned ? " scanned" : ""}`} onClick={() => openScanPopup(members[0])}>{allScanned ? "Re-scan Box" : "Scan Box"}</button>
+                        )}
+                      </div>
+                      <div className="items-grid package-items-grid">
+                        {members.map((item) => (
+                          <ItemCard
+                            key={item.id}
+                            item={item}
+                            group={group}
+                            showScanButton={false}
+                            isScanned={isItemScannedForCurrentStatus(item)}
+                            onScan={openScanPopup}
+                            onDelete={deleteItem}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        ) : isLoading ? (
           <div className="no-data">Loading...</div>
         ) : isError ? (
           <div className="no-data">Failed to load event items.</div>
         ) : filtered.length === 0 ? (
           <div className="no-data">No Data</div>
         ) : (
-          <div className="items-grid">
+          <>
+            <p className="summary-text"><strong>{filtered.length}</strong> item(s) with status <strong>&ldquo;{eventStatus}&rdquo;</strong> in area <strong>&ldquo;{areaLabel}&rdquo;</strong></p>
+            <div className="items-grid">
             {filtered.map((item) => (
               <ItemCard
                 key={item.id}
                 item={item}
-                onScan={doScan}
+                group={item.groupId ? packages.find((group) => group.id === item.groupId) : undefined}
+                showScanButton={stageScanEnabled}
+                isScanned={isItemScannedForCurrentStatus(item)}
+                onScan={openScanPopup}
                 onDelete={deleteItem}
               />
             ))}
-          </div>
+            </div>
+          </>
         )}
       </div>
 
@@ -1194,29 +1653,23 @@ export default function EventDetailPage() {
         <div className="form-row">
           <div className="form-group">
             <label>Status / State</label>
-            <select
+            <SearchableSelect
               value={atcForm.status}
-              onChange={(event) =>
-                setAtcForm((form) => ({ ...form, status: event.target.value }))
+              onChange={(value) =>
+                setAtcForm((form) => ({ ...form, status: String(value) }))
               }
-            >
-              {STATUSES.map((status) => (
-                <option key={status}>{status}</option>
-              ))}
-            </select>
+              options={stages.map((status) => ({ value: status, label: status }))}
+            />
           </div>
           <div className="form-group">
             <label>Area</label>
-            <select
+            <SearchableSelect
               value={atcForm.area}
-              onChange={(event) =>
-                setAtcForm((form) => ({ ...form, area: event.target.value }))
+              onChange={(value) =>
+                setAtcForm((form) => ({ ...form, area: String(value) }))
               }
-            >
-              {areas.map((area) => (
-                <option key={area}>{area}</option>
-              ))}
-            </select>
+              options={areas.map((area) => ({ value: area, label: area }))}
+            />
           </div>
         </div>
         <div className="form-row">
@@ -1337,22 +1790,17 @@ export default function EventDetailPage() {
       >
         <div className="form-group">
           <label>Select Warehouse</label>
-          <select
+          <SearchableSelect
             value={selectedWarehouseId}
-            onChange={(event) => {
-              setSelectedWarehouseId(event.target.value);
+            onChange={(value) => {
+              setSelectedWarehouseId(String(value));
               setBarangSearch("");
               setDebouncedBarangSearch("");
               setSelectedBarangGudang(null);
             }}
-          >
-            <option value="">Select a warehouse</option>
-            {warehouseOptions.map((warehouse) => (
-              <option key={warehouse.value} value={warehouse.value}>
-                {warehouse.label}
-              </option>
-            ))}
-          </select>
+            placeholder="Select a warehouse"
+            options={warehouseOptions}
+          />
         </div>
 
         <div className="form-group">
@@ -1419,77 +1867,50 @@ export default function EventDetailPage() {
         <div className="form-row">
           <div className="form-group">
             <label>Area</label>
-            <select
+            <SearchableSelect
               value={newItemForm.areaId}
-              onChange={(event) =>
+              onChange={(value) =>
                 setNewItemForm((form) => ({
                   ...form,
-                  areaId: event.target.value,
+                  areaId: String(value),
                   subAreaId: "",
                 }))
               }
-            >
-              <option value="">
-                {isAreaListLoading
-                  ? "Loading area..."
-                  : isAreaListError
-                    ? "Failed to load areas"
-                    : "Select an area"}
-              </option>
-              {masterAreas.map((area) => (
-                <option key={area.id} value={area.id}>
-                  {area.name}
-                </option>
-              ))}
-            </select>
+              disabled={isAreaListLoading || isAreaListError}
+              placeholder={isAreaListLoading ? "Loading areas..." : isAreaListError ? "Failed to load areas" : "Select an area"}
+              options={masterAreas.map((area) => ({ value: area.id, label: area.name }))}
+            />
           </div>
           <div className="form-group">
             <label>Sub Area</label>
-            <select
+            <SearchableSelect
               value={newItemForm.subAreaId}
               disabled={!newItemForm.areaId || isSubAreaLoading}
-              onChange={(event) =>
+              onChange={(value) =>
                 setNewItemForm((form) => ({
                   ...form,
-                  subAreaId: event.target.value,
+                  subAreaId: String(value),
                 }))
               }
-            >
-              <option value="">
-                {!newItemForm.areaId
-                  ? "Select an area first"
-                  : isSubAreaLoading
-                    ? "Loading sub area..."
-                    : isSubAreaError
-                      ? "Failed to load sub-areas"
-                      : filteredSubAreas.length === 0
-                        ? "No sub-areas available"
-                        : "Select a sub-area"}
-              </option>
-              {filteredSubAreas.map((subArea) => (
-                <option key={subArea.id} value={subArea.id}>
-                  {subArea.sub_area_name}
-                </option>
-              ))}
-            </select>
+              placeholder={!newItemForm.areaId ? "Select an area first" : isSubAreaLoading ? "Loading sub-areas..." : isSubAreaError ? "Failed to load sub-areas" : "Select a sub-area"}
+              emptyText="No sub-areas available"
+              options={filteredSubAreas.map((subArea) => ({ value: subArea.id, label: subArea.sub_area_name }))}
+            />
           </div>
         </div>
         <div className="form-row">
           <div className="form-group">
             <label>Status</label>
-            <select
+            <SearchableSelect
               value={newItemForm.status}
-              onChange={(event) =>
+              onChange={(value) =>
                 setNewItemForm((form) => ({
                   ...form,
-                  status: event.target.value,
+                  status: String(value),
                 }))
               }
-            >
-              {STATUSES.map((status) => (
-                <option key={status}>{status}</option>
-              ))}
-            </select>
+              options={stages.map((status) => ({ value: status, label: status }))}
+            />
           </div>
           <div className="form-group">
             <label>Qty</label>
@@ -1509,22 +1930,17 @@ export default function EventDetailPage() {
         <div className="form-row">
           <div className="form-group">
             <label>Additional Code</label>
-            <select
+            <SearchableSelect
               value={newItemForm.additionalCode}
-              onChange={(event) =>
+              onChange={(value) =>
                 setNewItemForm((form) => ({
                   ...form,
-                  additionalCode: event.target.value,
+                  additionalCode: String(value),
                 }))
               }
-            >
-              <option value="">Select additional code</option>
-              {["IHC", "IHO", "O", "S", "B", "F", "Venue"].map((code) => (
-                <option key={code} value={code}>
-                  {code}
-                </option>
-              ))}
-            </select>
+              placeholder="Select additional code"
+              options={["IHC", "IHO", "O", "S", "B", "F", "Venue"].map((code) => ({ value: code, label: code }))}
+            />
           </div>
           <div className="form-group">
             <label>Memo</label>
@@ -1677,17 +2093,15 @@ export default function EventDetailPage() {
                 />
               </div>
               <div className="wi-select-wrap">
-                <select
+                <SearchableSelect
+                  inline
                   value={pickerCategory}
-                  onChange={(e) => setPickerCategory(e.target.value)}
-                >
-                  <option value="">All Categories</option>
-                  {categoryOptions.map((category: { value: string; label: string }) => (
-                    <option key={category.value} value={category.value}>
-                      {category.label}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(value) => setPickerCategory(String(value))}
+                  options={[
+                    { value: "", label: "All Categories" },
+                    ...categoryOptions,
+                  ]}
+                />
               </div>
             </div>
 
@@ -1736,10 +2150,11 @@ export default function EventDetailPage() {
                         <div className="inv-pick-warehouse-row">
                           <label>Take from warehouse</label>
                           <div className="wi-select-wrap">
-                            <select
+                            <SearchableSelect
+                              inline
                               value={selectedWarehouse?.barang_gudang_id ?? ""}
-                              onChange={(event) => {
-                                const barangGudangId = Number(event.target.value);
+                              onChange={(value) => {
+                                const barangGudangId = Number(value);
                                 setPickerWarehouseIds((current) => ({
                                   ...current,
                                   [inv.barang_id]: barangGudangId,
@@ -1749,16 +2164,12 @@ export default function EventDetailPage() {
                                   [inv.barang_id]: 1,
                                 }));
                               }}
-                            >
-                              {inv.warehouses.map((warehouse) => (
-                                <option
-                                  key={warehouse.barang_gudang_id}
-                                  value={warehouse.barang_gudang_id}
-                                >
-                                  {warehouse.gudang_name}
-                                </option>
-                              ))}
-                            </select>
+                              options={inv.warehouses.map((warehouse) => ({
+                                value: warehouse.barang_gudang_id,
+                                label: warehouse.gudang_name,
+                                meta: `${warehouse.stok_gudang} in stock`,
+                              }))}
+                            />
                           </div>
                         </div>
                       </div>
@@ -1868,38 +2279,26 @@ export default function EventDetailPage() {
                     }}
                   >
                     <div className="wi-select-wrap">
-                      <select
+                      <SearchableSelect
+                        inline
                         value={bulkAreaId}
-                        onChange={(e) => {
-                          setBulkAreaId(e.target.value);
+                        onChange={(value) => {
+                          setBulkAreaId(String(value));
                           setBulkSubAreaId("");
                         }}
-                      >
-                        <option value="">Select Area</option>
-                        {masterAreas.map((a) => (
-                          <option key={a.id} value={a.id}>
-                            {a.name}
-                          </option>
-                        ))}
-                      </select>
+                        placeholder="Select Area"
+                        options={masterAreas.map((area) => ({ value: area.id, label: area.name }))}
+                      />
                     </div>
                     <div className="wi-select-wrap">
-                      <select
+                      <SearchableSelect
+                        inline
                         value={bulkSubAreaId}
-                        onChange={(e) => setBulkSubAreaId(e.target.value)}
+                        onChange={(value) => setBulkSubAreaId(String(value))}
                         disabled={!bulkAreaId}
-                      >
-                        <option value="">
-                          {bulkSubAreas.length
-                            ? "Select Sub Area"
-                            : "(No Sub Areas)"}
-                        </option>
-                        {bulkSubAreas.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.sub_area_name}
-                          </option>
-                        ))}
-                      </select>
+                        placeholder={bulkSubAreas.length ? "Select Sub Area" : "(No Sub Areas)"}
+                        options={bulkSubAreas.map((subArea) => ({ value: subArea.id, label: subArea.sub_area_name }))}
+                      />
                     </div>
                     <button
                       className="btn-save-modal"
@@ -1998,6 +2397,93 @@ export default function EventDetailPage() {
               </>
             )}
           </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={summaryOpen}
+        title="Event Summary"
+        onClose={() => setSummaryOpen(false)}
+        size="lg"
+      >
+        <div className="summary-popup-title">{eventName}</div>
+        <div className="summary-popup-status">Status: {eventStatus}</div>
+        <div className="summary-popup-kpis">
+          <div className="summary-popup-kpi"><div className="summary-popup-kpi-value">{summaryStats.total}</div><div className="summary-popup-kpi-label">Total Items</div></div>
+          <div className="summary-popup-kpi"><div className="summary-popup-kpi-value">{summaryStats.checked}</div><div className="summary-popup-kpi-label">Checked</div></div>
+          <div className="summary-popup-kpi"><div className="summary-popup-kpi-value">{summaryStats.scanIn}</div><div className="summary-popup-kpi-label">Scanned In</div></div>
+        </div>
+        <p className="summary-text">
+          Total quantity: <strong>{summaryStats.totalQty}</strong> · Scanned out:{" "}
+          <strong>{summaryStats.scanOut}</strong> of {summaryStats.total}
+        </p>
+        <button
+          type="button"
+          className="summary-popup-view-detail"
+          onClick={() => {
+            setSummaryOpen(false);
+            navigate(`/event-summary?id=${eventId}`);
+          }}
+        >
+          <IconBarChart /> View Full Detail
+        </button>
+      </Modal>
+
+      <Modal open={Boolean(scanningItem)} title="Scan Item" onClose={closeScanPopup}>
+        {scanningItem && (
+          <div className="scan-popup-content">
+            {scanningItem.groupId ? (
+              <>
+                <div className="scan-popup-title">Package: {packages.find((group) => group.id === scanningItem.groupId)?.name}</div>
+                <div className="scan-popup-subtitle">All items in this box will be scanned together.</div>
+              </>
+            ) : (
+              <>
+                <div className="scan-popup-title">{scanningItem.name}</div>
+                <div className="scan-popup-subtitle">{scanningItem.area}</div>
+              </>
+            )}
+            {scanPhase === "ready" && (
+              <>
+                <div className="scan-target-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><path d="M14 14h7M14 21h7M14 17.5h3.5" /></svg></div>
+                <button type="button" className="btn-save-modal" onClick={startScan}>Start Scan</button>
+              </>
+            )}
+            {scanPhase === "scanning" && (
+              <><div className="scan-target-box scanning"><div className="scan-spinner" /></div><p className="scan-popup-subtitle">Scanning…</p></>
+            )}
+            {scanPhase === "done" && (
+              <><div className="scan-target-box success"><CheckIcon /></div><p className="scan-popup-success">Scan completed</p><button type="button" className="btn-save-modal" onClick={finishScan}><IconCheck /> Done</button></>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        open={packagingOpen}
+        title="Group Items for Packaging"
+        onClose={() => setPackagingOpen(false)}
+        footer={
+          <>
+            <button className="btn-cancel-m" onClick={() => setPackagingOpen(false)}><IconClose /> Cancel</button>
+            <button className="btn-save-modal" disabled={!packagingName.trim() || packagingSelection.length === 0} onClick={createPackage}><IconCheck /> Create Group ({packagingSelection.length})</button>
+          </>
+        }
+      >
+        <div className="form-group">
+          <label>Group Name <span className="required">*</span></label>
+          <input type="text" placeholder="e.g. Ceremony Decor Bundle" value={packagingName} onChange={(event) => setPackagingName(event.target.value)} />
+        </div>
+        <p className="package-pick-help">Only ungrouped items from &ldquo;{stages[0]}&rdquo; can be added.</p>
+        <div className="package-pick-list">
+          {packableItems.length === 0 ? (
+            <div className="no-data">No eligible ungrouped items.</div>
+          ) : packableItems.map((item) => (
+            <label key={item.id} className={`package-pick-row${packagingSelection.includes(item.id) ? " selected" : ""}`}>
+              <input type="checkbox" checked={packagingSelection.includes(item.id)} onChange={() => togglePackagingSelection(item.id)} />
+              <span><span className="package-pick-row-name">{item.name}</span><span className="package-pick-row-meta">{item.area} · Qty: {item.qty}</span></span>
+            </label>
+          ))}
         </div>
       </Modal>
     </>

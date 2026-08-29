@@ -65,7 +65,7 @@ function search(query: string): SearchGroup[] {
   const loans = initialItemLoans
     .filter(l => l.itemName.toLowerCase().includes(q) || l.borrowerName.toLowerCase().includes(q))
     .slice(0, MAX_PER_GROUP)
-    .map(l => ({ label: l.itemName, sub: `Loaned to ${l.borrowerName}`, to: '/item-loan' }));
+    .map(l => ({ label: l.itemName, sub: `Borrowed by ${l.borrowerName}`, to: '/item-loan' }));
   if (loans.length) groups.push({ type: 'Item Loan', items: loans });
 
   return groups;

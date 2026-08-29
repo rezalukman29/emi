@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
-import { IconSearch } from "../components/icons";
+import { IconEye, IconSearch } from "../components/icons";
 import Pagination from "../components/Pagination";
 import SortTh from "../components/SortTh";
 import useGetEventInventory, {
@@ -9,6 +10,7 @@ import useGetEventInventory, {
   type NullableInt64,
 } from "../hooks/api/useGetEventInventory";
 import useGetEventStatus from "../hooks/api/useGetEventStatus";
+import useSearchEvents from "../hooks/api/useSearchEvents";
 
 const PAGE_SIZE = 20;
 
@@ -29,6 +31,7 @@ function getEventStatusId(item: EventInventoryItem) {
 }
 
 export default function EventInventoryPage() {
+  const navigate = useNavigate();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -50,6 +53,9 @@ export default function EventInventoryPage() {
     useGetEventStatus({
       options: { staleTime: 5 * 60 * 1000 },
     });
+  const { data: searchableEventsResponse } = useSearchEvents({
+    staleTime: 5 * 60 * 1000,
+  });
 
   const rows = data?.data ?? [];
   const total = data?.total_records ?? 0;
@@ -69,6 +75,24 @@ export default function EventInventoryPage() {
       ),
     [eventStatusResponse?.data?.data],
   );
+  const eventIdsByName = useMemo(() => {
+    const candidates = new Map<string, number[]>();
+    const events = searchableEventsResponse?.data?.data ?? [];
+
+    events.forEach((event: { id?: unknown; name?: unknown }) => {
+      const id = Number(event.id);
+      const name = String(event.name ?? "").trim().toLowerCase();
+      if (!name || !Number.isSafeInteger(id) || id <= 0) return;
+      candidates.set(name, [...(candidates.get(name) ?? []), id]);
+    });
+
+    return new Map(
+      [...candidates.entries()].map(([name, ids]) => [
+        name,
+        new Set(ids).size === 1 ? ids[0] : null,
+      ]),
+    );
+  }, [searchableEventsResponse?.data?.data]);
 
   function getEventStatusName(item: EventInventoryItem) {
     const statusId = getEventStatusId(item);
@@ -187,19 +211,20 @@ export default function EventInventoryPage() {
                 />
                 <th style={{ width: 110, textAlign: "right" }}>Stock Item</th>
                 <th style={{ width: 120, textAlign: "right" }}>Stock in Cart</th>
+                <th style={{ width: 70, textAlign: "center" }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {isLoading && rows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: "center", padding: 32 }}>
+                  <td colSpan={7} style={{ textAlign: "center", padding: 32 }}>
                     Loading event inventory…
                   </td>
                 </tr>
               ) : isError ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     style={{ textAlign: "center", color: "var(--red)", padding: 32 }}
                   >
                     Failed to load event inventory.
@@ -208,7 +233,7 @@ export default function EventInventoryPage() {
               ) : rows.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     style={{ textAlign: "center", color: "var(--text-muted)", padding: 32 }}
                   >
                     No results found.
@@ -218,6 +243,9 @@ export default function EventInventoryPage() {
                 rows.map((row) => {
                   const stockItem = nullableIntValue(row.stok_barang);
                   const stockInCart = nullableIntValue(row.stok_di_keranjang);
+                  const eventId = eventIdsByName.get(
+                    row.event_name.trim().toLowerCase(),
+                  );
 
                   return (
                     <tr key={row.id}>
@@ -254,6 +282,27 @@ export default function EventInventoryPage() {
                         }}
                       >
                         {stockInCart}
+                      </td>
+                      <td style={{ textAlign: "center" }}>
+                        {eventId ? (
+                          <button
+                            type="button"
+                            className="btn-icon"
+                            title="View Event Detail"
+                            aria-label={`View ${row.event_name} event detail`}
+                            style={{ color: "var(--brand)" }}
+                            onClick={() => navigate(`/event-detail?id=${eventId}`)}
+                          >
+                            <IconEye />
+                          </button>
+                        ) : (
+                          <span
+                            title="Event detail is unavailable because a unique event ID could not be resolved."
+                            style={{ color: "var(--text-muted)" }}
+                          >
+                            —
+                          </span>
+                        )}
                       </td>
                     </tr>
                   );

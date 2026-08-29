@@ -151,7 +151,7 @@ export default function SyncInventoryPage() {
         }}
       >
         <h1 className="page-title" style={{ margin: 0 }}>
-          Synchronize Inventory
+          Sync Inventory
         </h1>
         <button
           className="btn-new"

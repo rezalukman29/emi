@@ -1,7 +1,9 @@
 import { useState, useMemo, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, type NavigateFunction } from "react-router-dom";
+import { toast } from "react-toastify";
 import Modal from "../components/Modal";
 import Pagination from "../components/Pagination";
+import SearchableSelect from "../components/SearchableSelect";
 import moment from "moment";
 import {
   IconSearch,
@@ -15,10 +17,9 @@ import {
   IconClose,
   IconCheck,
 } from "../components/icons";
-import { initialEvents, TODAY } from "../data/events";
 import useGetUpcomingEvents from "../hooks/api/useGetUpcomingEvents";
 import useGetPastEvents from "../hooks/api/useGetPastEvents";
-import useGetEventStatus from "..//hooks/api/useGetEventStatus";
+import useGetEventStatus from "../hooks/api/useGetEventStatus";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import {  utils } from "react-modern-calendar-datepicker";
@@ -54,7 +55,21 @@ const MONTHS_SHORT = [
   "Dec",
 ];
 
-function fmtRange(start, finish) {
+type EventRecord = Record<string, any> & { id: number };
+
+interface EventRowProps {
+  r: EventRecord;
+  onEdit: (id: number) => void;
+  onDelete: (id: number) => void;
+  navigate: NavigateFunction;
+}
+
+interface PastEventGroup {
+  label: string;
+  items: EventRecord[];
+}
+
+function fmtRange(start?: string, finish?: string) {
   if (!start || start === "-") return "—";
   const [sy, sm, sd] = start.split("-");
   const s = `${parseInt(sd)} ${MONTHS_SHORT[parseInt(sm) - 1]} ${sy}`;
@@ -70,9 +85,13 @@ function fmtRange(start, finish) {
 }
 
 
-function daysUntil(start) {
+function daysUntil(start?: string): number | null {
   if (!start) return null;
-  return Math.ceil((new Date(start) - TODAY) / 86400000);
+  const eventDate = new Date(start.replace(" ", "T"));
+  if (Number.isNaN(eventDate.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.ceil((eventDate.getTime() - today.getTime()) / 86400000);
 }
 
 function IconPin() {
@@ -115,7 +134,7 @@ function IconCal() {
   );
 }
 
-function CountdownChip({ days }) {
+function CountdownChip({ days }: { days: number | null }) {
   if (days === null) return null;
   const isUrgent = days <= 7;
   const isModerate = days <= 30;
@@ -151,20 +170,19 @@ function CountdownChip({ days }) {
 export default function EventPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("upcoming");
-  const [events, setEvents] = useState(initialEvents);
-  
   const [isModify, setIsModify] = useState(false);
-  const [event, setEvent] = useState(null);
+  const [event, setEvent] = useState<EventRecord | null>(null);
   const [pastQuery, setPastQuery] = useState("");
   const [pastPage, setPastPage] = useState(1);
   const [upQuery, setUpQuery] = useState("");
   const [base64, setBase64] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [deletingId, setDeletingId] = useState(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const formik = useFormik({
+  const formik = useFormik<any>({
     initialValues: {
       name: isModify ? event?.name : "",
       event_code: isModify ? event?.event_code : "",
@@ -218,51 +236,55 @@ export default function EventPage() {
         scan_type: values.scan_type,
         date_event: values.date_event,
       };
-      if (isModify) {
-        const result = await InventoryService.editEvent({
-          ...payload,
-          id: event.id,
-          ...(base64 ? { images: base64?.split(",")[1] } : { images: "" }),
-        });
-        if (result.success) {
-          setTimeout(() => {
-            setModalOpen(false);
-          }, 200);
-          // toast?.current?.show({
-          //   severity: "success",
-          //   summary: "Success",
-          //   detail: "Modify Event",
-          //   life: 3000,
-          // });
-        }
-      } else {
-        const result = await InventoryService.addEvent({
-          ...payload,
+      try {
+        const images = base64
+          ? base64.split(",")[1]
+          : isModify
+            ? String(event?.images ?? "")
+            : "";
 
-          ...(base64 ? { images: base64?.split(",")[1] } : { images: "" }),
-        });
-        if (result.success) {
-          setTimeout(() => {
-            setModalOpen(false);
-          }, 200);
+        const result = isModify
+          ? await InventoryService.editEvent({
+              ...payload,
+              id: event!.id,
+              images,
+            })
+          : await InventoryService.addEvent({ ...payload, images });
+
+        if (result.success === false) {
+          throw new Error(
+            result.message ||
+              (isModify ? "Failed to update event." : "Failed to create event."),
+          );
         }
-        // toast?.current?.show({
-        //   severity: "success",
-        //   summary: "Success",
-        //   detail: "Adding event",
-        //   life: 3000,
-        // });
+
+        toast.success(
+          result.message ||
+            (isModify ? "Event updated successfully." : "Event created successfully."),
+        );
+        setModalOpen(false);
+        formik.resetForm();
+        setBase64("");
+        setEditingId(null);
+        setIsModify(false);
+        setEvent(null);
+        await Promise.all([refetchPasts(), refetchUpcomings()]);
+      } catch (error) {
+        const apiMessage = (error as { response?: { data?: { message?: string } } })
+          ?.response?.data?.message;
+        toast.error(
+          apiMessage ||
+            (error instanceof Error
+              ? error.message
+              : isModify
+                ? "Failed to update event."
+                : "Failed to create event."),
+        );
       }
-      formik.resetForm();
-      setBase64("");
-      setIsModify(false);
-      setEvent(null);
-      refetchPasts();
-      refetchUpcomings();
     },
   });
 
-  const imgInputRef = useRef(null);
+  const imgInputRef = useRef<HTMLInputElement>(null);
 
   const { data: upcomings, refetch: refetchUpcomings } = useGetUpcomingEvents({
     options: {
@@ -284,19 +306,33 @@ export default function EventPage() {
     },
   });
 
+  const upcomingEvents = useMemo(() => {
+    const data = [...(upcomings?.data?.data ?? [])] as EventRecord[];
+    const query = upQuery.trim().toLowerCase();
+    if (!query) return data;
+    return data.filter((candidate) =>
+      [
+        candidate.name,
+        candidate.event_code,
+        candidate.address,
+        candidate.description,
+      ].some((value) => String(value ?? "").toLowerCase().includes(query)),
+    );
+  }, [upQuery, upcomings?.data?.data]);
+
   const pastEvents = useMemo(() => {
-    let data = pasts?.data?.data;
+    let data = [...(pasts?.data?.data ?? [])] as EventRecord[];
     if (pastQuery) {
       const q = pastQuery.toLowerCase();
-      data = data?.filter(
-        (e) =>
+      data = data.filter(
+        (e: EventRecord) =>
           e.name.toLowerCase().includes(q) ||
           e.event_code.toLowerCase().includes(q) ||
           e.address.toLowerCase().includes(q) ||
           e.description.toLowerCase().includes(q)
       );
     }
-    return data?.sort((a, b) =>
+    return data.sort((a: EventRecord, b: EventRecord) =>
       (b.event_start || "").localeCompare(a.event_start || "")
     );
   }, [pasts?.data?.data, pastQuery]);
@@ -305,8 +341,8 @@ export default function EventPage() {
 
   const groupedPast = useMemo(() => {
     if (pastQuery) return null;
-    const map = {};
-    pastEvents?.forEach((e) => {
+    const map: Record<string, PastEventGroup> = {};
+    pastEvents?.forEach((e: EventRecord) => {
       const [y, m] = (e.event_start || "").split("-");
       const key = `${y}-${m}`;
       if (!map[key])
@@ -325,31 +361,59 @@ export default function EventPage() {
 
   function openNew() {
     setEditingId(null);
-
+    setIsModify(false);
+    setEvent(null);
+    formik.resetForm();
     setModalOpen(true);
   }
-  function openEdit(id) {
-    const r = events.find((e) => e.id === id);
+  function openEdit(id: number) {
+    const r = [
+      ...(upcomings?.data?.data ?? []),
+      ...(pasts?.data?.data ?? []),
+    ].find((candidate: EventRecord) => candidate.id === id);
     if (!r) return;
     setEditingId(id);
-
+    setIsModify(true);
+    setEvent(r);
     setModalOpen(true);
   }
   
-  function openDelete(id) {
+  function openDelete(id: number) {
     setDeletingId(id);
     setDeleteOpen(true);
   }
-  function confirmDelete() {
-    setEvents((es) => es.filter((e) => e.id !== deletingId));
-    setDeleteOpen(false);
+  async function confirmDelete() {
+    if (deletingId === null) return;
+    try {
+      setIsDeleting(true);
+      const result = await InventoryService.deleteEvent({ id: String(deletingId) });
+      if (result?.success === false) {
+        throw new Error(result.message || "Failed to delete event.");
+      }
+      toast.success(result?.message || "Event deleted successfully.");
+      setDeleteOpen(false);
+      setDeletingId(null);
+      await Promise.all([refetchPasts(), refetchUpcomings()]);
+    } catch (error) {
+      const apiMessage = (error as { response?: { data?: { message?: string } } })
+        ?.response?.data?.message;
+      toast.error(
+        apiMessage ||
+          (error instanceof Error ? error.message : "Failed to delete event."),
+      );
+    } finally {
+      setIsDeleting(false);
+    }
   }
 
-  const delTarget = events.find((e) => e.id === deletingId);
+  const delTarget = [
+    ...(upcomings?.data?.data ?? []),
+    ...(pasts?.data?.data ?? []),
+  ].find((candidate: EventRecord) => candidate.id === deletingId);
   
   
 
-  function EventCard({ r, onDelete, navigate }) {
+  function EventCard({ r, onDelete, navigate }: EventRowProps) {
     const days = daysUntil(r.event_start);
     const accent =
       days !== null && days <= 7
@@ -488,11 +552,7 @@ export default function EventPage() {
           <button
             className="btn-icon edit"
             title="Edit"
-            onClick={() => {
-              setIsModify(true);
-              setEvent(r);
-              setModalOpen(true);
-            }}
+            onClick={() => openEdit(r.id)}
           >
             <IconEdit />
           </button>
@@ -511,7 +571,7 @@ export default function EventPage() {
     );
   }
 
-  function PastEventRow({ r, onEdit, onDelete, navigate }) {
+  function PastEventRow({ r, onEdit, onDelete, navigate }: EventRowProps) {
     const day =
       r.event_start && r.event_start !== "-"
         ? parseInt(r.event_start.split("-")[2])
@@ -724,7 +784,7 @@ export default function EventPage() {
         {[
           {
             label: "Total Events",
-            value: (upcomings?.data?.total_records ?? 0) + pasts?.data?.total_records ,
+            value: (upcomings?.data?.total_records ?? 0) + (pasts?.data?.total_records ?? 0),
             color: "var(--brand)",
             bg: "var(--brand-bg)",
           },
@@ -879,7 +939,7 @@ export default function EventPage() {
             </button>
           </div>
 
-          {upcomings?.data?.data.length === 0 ? (
+          {upcomingEvents.length === 0 ? (
             <div
               className="card"
               style={{ padding: "56px 32px", textAlign: "center" }}
@@ -898,7 +958,7 @@ export default function EventPage() {
                 gap: 14,
               }}
             >
-              {upcomings?.data?.data.map((r) => (
+              {upcomingEvents.map((r: EventRecord) => (
                 <EventCard
                   key={r.id}
                   r={r}
@@ -953,7 +1013,7 @@ export default function EventPage() {
           ) : pastQuery ? (
             <>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {pastFlat.map((r) => (
+                {pastFlat.map((r: EventRecord) => (
                   <PastEventRow
                     key={r.id}
                     r={r}
@@ -973,7 +1033,7 @@ export default function EventPage() {
             </>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-              {groupedPast.map((group) => (
+              {(groupedPast ?? []).map((group) => (
                 <div key={group.label}>
                   <div
                     style={{
@@ -1197,24 +1257,24 @@ export default function EventPage() {
           </div>
           <div className="form-group">
             <label>Status</label>
-            <select
+            <SearchableSelect
               value={formik.values.status}
-              onChange={(e) => formik.setFieldValue("status", e.target.value)}
-            >
-              <option value="">— Select Status —</option>
-              {eventStatus?.data?.data
-                ?.map?.((el) => {
-                  return {
-                    label: el.name,
-                    value: el.id,
-                  };
-                })
-                .map((el) => (
-                  <option key={el.value} value={el.value}>
-                    {el.label}
-                  </option>
-                ))}
-            </select>
+              onChange={(value) =>
+                formik.setFieldValue(
+                  "status",
+                  value === "" ? "" : Number(value),
+                )
+              }
+              options={[
+                { value: "", label: "— Select Status —" },
+                ...(eventStatus?.data?.data ?? []).map((status) => ({
+                  value: status.id,
+                  label: status.name,
+                })),
+              ]}
+              placeholder="— Select Status —"
+              searchPlaceholder="Search statuses…"
+            />
           </div>
         </div>
         <div className="form-row">
@@ -1229,16 +1289,18 @@ export default function EventPage() {
           </div>
           <div className="form-group">
             <label>QR Type</label>
-            <select
-              onChange={(e) =>
-                formik.setFieldValue("scan_type", e.target.value)
-              }
+            <SearchableSelect
               value={formik.values.scan_type}
-            >
-              <option value="">Select QR Type</option>
-              <option value="GROUP">GROUP</option>
-              <option value="INDIVIDUAL">INDIVIDUAL</option>
-            </select>
+              onChange={(value) =>
+                formik.setFieldValue("scan_type", String(value))
+              }
+              options={[
+                { value: "", label: "Select QR Type" },
+                { value: "GROUP", label: "GROUP" },
+                { value: "INDIVIDUAL", label: "INDIVIDUAL" },
+              ]}
+              placeholder="Select QR Type"
+            />
           </div>
         </div>
 
@@ -1294,7 +1356,10 @@ export default function EventPage() {
                 const file = e.target.files?.[0];
                 if (!file) return;
                 const reader = new FileReader();
-                reader.onload = (ev) => setBase64(ev.target.result);
+                reader.onload = (ev) => {
+                  const result = ev.target?.result;
+                  if (typeof result === "string") setBase64(result);
+                };
                 reader.readAsDataURL(file);
               }}
             />
@@ -1407,8 +1472,12 @@ export default function EventPage() {
             >
               Cancel
             </button>
-            <button className="btn-del-ok" onClick={confirmDelete}>
-              Delete
+            <button
+              className="btn-del-ok"
+              disabled={isDeleting}
+              onClick={confirmDelete}
+            >
+              {isDeleting ? "Deleting…" : "Delete"}
             </button>
           </>
         }

@@ -38,7 +38,7 @@ function errorMessage(error: unknown, fallback: string) {
 function billingLabel(cycle: string) {
   if (cycle === "monthly") return "month";
   if (cycle === "yearly") return "year";
-  return "custom";
+  return "period";
 }
 
 function storageBytes(gigabytes: number) {
@@ -251,7 +251,7 @@ export default function PricingPage() {
         <h1 className="page-title" style={{ margin: 0 }}>Pricing Plans</h1>
         <button className="btn-new" onClick={openNew}><IconPlus /> New Plan</button>
       </div>
-      <p className="summary-text">Manage storage limits and prices for every customer plan.</p>
+      <p className="summary-text">Plan pricing is calculated automatically based on the selected modules, AI feature, and storage capacity.</p>
 
       {isPlansLoading ? (
         <div className="card" style={{ color: "var(--text-muted)" }}>Loading pricing plans…</div>
@@ -266,8 +266,14 @@ export default function PricingPage() {
               {plan.is_default === 1 && <div className="sa-plan-tag">Most Popular</div>}
               <div className="sa-plan-name">{plan.name}</div>
               <div className="sa-plan-price">
-                {formatIDR((plan.price ?? 0) + (plan.base_platform_fee ?? 0))}{" "}
-                <span>/{billingLabel(plan.billing_cycle)}</span>
+                {plan.billing_cycle === "custom" ? (
+                  "Custom"
+                ) : (
+                  <>
+                    {formatIDR((plan.price ?? 0) + (plan.base_platform_fee ?? 0))}{" "}
+                    <span>/{billingLabel(plan.billing_cycle)}</span>
+                  </>
+                )}
               </div>
               <p className="sa-plan-desc">{plan.description || "-"}</p>
               <ul className="sa-plan-features">
@@ -316,7 +322,7 @@ export default function PricingPage() {
             <select value={formik.values.billing_cycle} onChange={(event) => formik.setFieldValue("billing_cycle", event.target.value)}>
               <option value="monthly">Monthly</option>
               <option value="yearly">Yearly</option>
-              <option value="custom">Custom</option>
+              <option value="custom">Custom (price not shown)</option>
             </select>
           </div>
         </div>
@@ -415,7 +421,7 @@ export default function PricingPage() {
           </div>
           <div className="sa-price-summary-row sa-price-summary-total">
             <span>Total per {summaryPeriod}</span>
-            <span>{formatIDR(formTotal)}</span>
+            <span>{formik.values.billing_cycle === "custom" ? "Custom" : formatIDR(formTotal)}</span>
           </div>
         </div>
 

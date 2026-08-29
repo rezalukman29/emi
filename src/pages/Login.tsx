@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { useFormik } from "formik";
 import * as Yup from "yup";
@@ -6,7 +6,7 @@ import { useDispatch } from "react-redux";
 import { setProfile } from "../store/profile";
 import OtpInput from "react-otp-input";
 import { InventoryService } from "../service/InventoryService";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const styles: Record<string, React.CSSProperties> = {
   page: {
@@ -223,15 +223,38 @@ const spinKeyframes = `
   }
 `;
 
-export default function LoginPage() {
+type AuthMenu = "LOGIN" | "FORGOT_INPUT_EMAIL" | "FORGOT_SEND_OTP";
+type LoginPageProps = { initialMenu?: Exclude<AuthMenu, "FORGOT_SEND_OTP"> };
+
+export default function LoginPage({ initialMenu = "LOGIN" }: LoginPageProps) {
   const dispatch = useDispatch();
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   // const router = useRouter();
-  const [activeMenu, setActiveMenu] = useState("LOGIN");
-  const [token, setTokens] = useState<any>();
+  const [activeMenu, setActiveMenu] = useState<AuthMenu>(initialMenu);
+  const [token, setTokens] = useState("");
   // const searchParams = useSearchParams();
   // let scan: any = searchParams.get("scan");
+
+  useEffect(() => {
+    if (activeMenu !== "LOGIN") return;
+    try {
+      const raw = window.localStorage.getItem("auth");
+      const auth = raw
+        ? (JSON.parse(raw) as { id?: number; user_type?: string })
+        : null;
+      if (!auth?.id) return;
+      navigate(
+        auth.user_type?.toUpperCase() === "SUPERADMIN"
+          ? "/superadmin/dashboard"
+          : "/event",
+        { replace: true },
+      );
+    } catch {
+      // An invalid saved session should not prevent the login form from loading.
+    }
+  }, [activeMenu, navigate]);
 
   const formik = useFormik<any>({
     initialValues: {
@@ -280,7 +303,13 @@ export default function LoginPage() {
           // } else {
           //   router.push("/");
           // }
-          navigate("/event");
+          const from = (location.state as {
+            from?: { pathname?: string; search?: string; hash?: string };
+          } | null)?.from;
+          const destination = from?.pathname
+            ? `${from.pathname}${from.search ?? ""}${from.hash ?? ""}`
+            : "/event";
+          navigate(destination, { replace: true });
         }, 1000);
       } else {
         setIsLoading(false);
@@ -514,6 +543,7 @@ export default function LoginPage() {
                   }}
                 />
                 <button
+                  type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   style={styles.eyeButton}
                 >
@@ -586,7 +616,11 @@ export default function LoginPage() {
                 <span style={styles.checkboxText}>Remember me</span>
               </label>
               <button
-                onClick={() => setActiveMenu("FORGOT_INPUT_EMAIL")}
+                type="button"
+                onClick={() => {
+                  setActiveMenu("FORGOT_INPUT_EMAIL");
+                  navigate("/forgot-password");
+                }}
                 style={styles.forgotLink}
               >
                 Forgot password?
@@ -596,6 +630,7 @@ export default function LoginPage() {
 
           {/* Sign In Button */}
           <button
+            type="button"
             onClick={handleSubmit}
             disabled={isDisableSubmit}
             style={{
@@ -643,13 +678,19 @@ export default function LoginPage() {
                 ? "Didn't receive email"
                 : "Already have an account?"}{" "}
             <button
-              onClick={() =>
-                activeMenu === "LOGIN"
-                  ? undefined
-                  : activeMenu === "FORGOT_SEND_OTP"
-                    ? onSendOtp(formik.values.email)
-                    : setActiveMenu("LOGIN")
-              }
+              type="button"
+              onClick={() => {
+                if (activeMenu === "LOGIN") {
+                  navigate("/register");
+                  return;
+                }
+                if (activeMenu === "FORGOT_SEND_OTP") {
+                  void onSendOtp(formik.values.email);
+                  return;
+                }
+                setActiveMenu("LOGIN");
+                navigate("/login");
+              }}
               style={styles.signUpLink}
             >
               {activeMenu === "LOGIN"

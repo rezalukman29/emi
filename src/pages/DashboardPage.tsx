@@ -1,5 +1,4 @@
 import { useNavigate } from 'react-router-dom';
-import { TODAY } from '../data/events';
 import { inventoryData } from '../data/inventory';
 import useGetDashboard from '../hooks/api/useGetDashboard';
 
@@ -20,7 +19,9 @@ function fmtToday(d: Date) {
 function daysUntil(date: string) {
   const parsedDate = new Date(date.replace(' ', 'T'));
   if (Number.isNaN(parsedDate.getTime())) return 0;
-  return Math.max(0, Math.ceil((parsedDate.getTime() - TODAY.getTime()) / 86400000));
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.max(0, Math.ceil((parsedDate.getTime() - today.getTime()) / 86400000));
 }
 
 function stockBadgeClass(status: string) {
@@ -44,7 +45,7 @@ const QUICK_ACTIONS = [
   { to: '/event', label: 'Create New Event', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="12" y1="14" x2="12" y2="18"/><line x1="10" y1="16" x2="14" y2="16"/></svg> },
   { to: '/inventory', label: 'Add Inventory', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg> },
   { to: '/item-loan', label: 'Loan Item', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
-  { to: '/warehouse-inventory', label: 'Stock Opname', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="17"/><line x1="9.5" y1="14.5" x2="14.5" y2="14.5"/></svg> },
+  { to: '/stock-opname', label: 'Stock Opname', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="17"/><line x1="9.5" y1="14.5" x2="14.5" y2="14.5"/></svg> },
 ];
 
 export default function MainDashboardPage() {
@@ -78,7 +79,7 @@ export default function MainDashboardPage() {
             {needsAttention.length > 0 && <> and <strong>{needsAttention.length} items</strong> need restocking.</>}
           </div>
         </div>
-        <div className="dash-hero-date">{fmtToday(TODAY)}</div>
+        <div className="dash-hero-date">{fmtToday(new Date())}</div>
       </div>
 
       <div className="kpi-grid" style={{ marginBottom: 18 }}>
@@ -90,7 +91,7 @@ export default function MainDashboardPage() {
         <div className="kpi-card green-accent">
           <div className="kpi-label">Inventory SKU</div>
           <div className="kpi-value">{isLoading ? '—' : (summary?.inventory_sku ?? 0)}</div>
-          <div className="kpi-sub">{(summary?.total_stock ?? 0).toLocaleString('id-ID')} total units</div>
+          <div className="kpi-sub">{(summary?.total_stock ?? 0).toLocaleString('en-US')} total units</div>
         </div>
         <div className="kpi-card orange-accent">
           <div className="kpi-label">Low Stock</div>
@@ -181,10 +182,10 @@ export default function MainDashboardPage() {
             ) : warehouseBreakdown.map(item => (
                 <div key={item.warehouse} className="viz-bar-row">
                   <div className="viz-bar-label">{item.warehouse || '—'}</div>
-                  <div className="viz-bar-track" title={`${item.warehouse}: ${item.total_stock.toLocaleString('id-ID')} units`}>
+                  <div className="viz-bar-track" title={`${item.warehouse}: ${item.total_stock.toLocaleString('en-US')} units`}>
                     <div className="viz-bar-fill" style={{ width: `${pct(item.total_stock, maxWarehouseStock)}%` }} />
                   </div>
-                  <div className="viz-bar-value">{item.total_stock.toLocaleString('id-ID')}</div>
+                  <div className="viz-bar-value">{item.total_stock.toLocaleString('en-US')}</div>
                 </div>
               ))}
           </div>
@@ -224,10 +225,10 @@ export default function MainDashboardPage() {
           ) : categoryBreakdown.map(item => (
               <div key={item.category} className="viz-bar-row">
                 <div className="viz-bar-label">{item.category || '—'}</div>
-                <div className="viz-bar-track" title={`${item.category}: ${item.total_stock.toLocaleString('id-ID')} units across ${item.sku_count} SKUs`}>
+                <div className="viz-bar-track" title={`${item.category}: ${item.total_stock.toLocaleString('en-US')} units across ${item.sku_count} SKUs`}>
                   <div className="viz-bar-fill" style={{ width: `${pct(item.total_stock, maxCategoryStock)}%` }} />
                 </div>
-                <div className="viz-bar-value">{item.total_stock.toLocaleString('id-ID')}</div>
+                <div className="viz-bar-value">{item.total_stock.toLocaleString('en-US')}</div>
               </div>
             ))}
         </div>

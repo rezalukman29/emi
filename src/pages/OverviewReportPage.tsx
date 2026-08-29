@@ -6,6 +6,7 @@ import useGetOverviewReportEvents, {
   type OverviewReportEventType,
 } from "../hooks/api/useGetOverviewReportEvents";
 import useGetOverviewReportSummary from "../hooks/api/useGetOverviewReportSummary";
+import SearchableSelect from "../components/SearchableSelect";
 
 const PAGE_SIZE = 10;
 const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -82,7 +83,7 @@ export default function OverviewReportPage() {
   }, [page, totalPages]);
 
   const summaryValue = (value?: number) => (
-    isSummaryLoading || isSummaryError ? "—" : (value ?? 0).toLocaleString("id-ID")
+    isSummaryLoading || isSummaryError ? "—" : (value ?? 0).toLocaleString("en-US")
   );
 
   return (
@@ -163,7 +164,7 @@ export default function OverviewReportPage() {
             <div key={item.location}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
                 <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-2)" }}>{item.location || "-"}</span>
-                <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text)" }}>{item.event_count} event</span>
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text)" }}>{item.event_count} events</span>
               </div>
               <div className="progress-bar-track">
                 <div className="progress-bar-fill" style={{ width: `${(item.event_count / maxLocationCount) * 100}%`, background: "var(--purple)" }} />
@@ -180,14 +181,19 @@ export default function OverviewReportPage() {
               <IconSearch />
               <input className="search-input" type="text" placeholder="Search name, code, or location…" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} />
             </div>
-            <div className="wi-select-wrap">
-              <select value={typeFilter} onChange={(event) => { setTypeFilter(event.target.value as OverviewReportEventType | ""); setPage(1); }}>
-                <option value="">All Types</option>
-                <option value="upcoming">Upcoming</option>
-                <option value="ongoing">Ongoing</option>
-                <option value="past">Past</option>
-              </select>
-            </div>
+            <SearchableSelect
+              inline
+              value={typeFilter}
+              onChange={(value) => { setTypeFilter(String(value) as OverviewReportEventType | ""); setPage(1); }}
+              options={[
+                { value: "", label: "All Types" },
+                { value: "upcoming", label: "Upcoming" },
+                { value: "ongoing", label: "Ongoing" },
+                { value: "past", label: "Past" },
+              ]}
+              placeholder="All Types"
+              searchPlaceholder="Search event types…"
+            />
           </div>
         </div>
 

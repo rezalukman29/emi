@@ -1,16 +1,18 @@
 import { useState, useMemo, useEffect } from "react";
+import { useQueryClient } from "react-query";
+import { useSelector } from "react-redux";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import Pagination from "../components/Pagination";
 import SortTh from "../components/SortTh";
 import {
   IconSearch,
   IconPlus,
   IconDelete,
+  IconEdit,
   IconClose,
   IconCheck,
 } from "../components/icons";
-import { wiData } from "../data/warehouseInventory";
 import { SortType } from "../interfaces/interfaces";
-import { ISelect } from "./InventoryPage";
 import { InventoryService } from "../service/InventoryService";
 import {
   STORAGE_BOOQABLE,
@@ -25,15 +27,129 @@ import * as Yup from "yup";
 import { toast } from "react-toastify";
 import { APIResponse } from "../interfaces/BaseApiResponse";
 import TextInput from "../components/TextInput";
+import SearchableSelect from "../components/SearchableSelect";
 import { useWarehouseController } from "./lib/useWarehouseController";
 import useGetBarangGudang, {
   type BarangGudangItem,
   type BarangGudangStatus,
 } from "../hooks/api/useGetBarangGudang";
-import usePostStockOpname from "../hooks/api/usePostStockOpname";
 import usePutApplyStockOpname from "../hooks/api/usePutApplyStockOpname";
+import useGetStockOpname, {
+  type StockOpnameHistoryItem,
+  type StockOpnameHistoryRecord,
+} from "../hooks/api/useGetStockOpname";
+import {
+  clearStockOpnameLocalResolution,
+  getEffectiveStockOpnameStatus,
+  getStockOpnameLocalResolution,
+  getStockOpnameLocalSubmission,
+  rejectStockOpnameLocally,
+} from "../lib/stockOpnameSession";
+import {
+  getMovingOrderSession,
+  saveMovingOrderSession,
+  type MovingInventoryRow,
+  type MovingOrderSessionState,
+} from "../lib/movingOrderSession";
+import type { RootState } from "../store/store";
 
 const PAGE_SIZE = 10;
+const GET_ALL_LIMIT = 99999;
+
+function errorMessage(error: unknown, fallback: string) {
+  const apiMessage = (error as { response?: { data?: { message?: string } } })
+    ?.response?.data?.message;
+  if (apiMessage) return apiMessage;
+  return error instanceof Error ? error.message : fallback;
+}
+
+function normalizedOpnameStatus(record: StockOpnameHistoryRecord) {
+  return getEffectiveStockOpnameStatus(record);
+}
+
+function opnameItems(record: StockOpnameHistoryRecord): StockOpnameHistoryItem[] {
+  const apiItems = Array.isArray(record.items)
+    ? record.items
+    : Array.isArray(record.data)
+      ? record.data
+      : Array.isArray(record.details)
+        ? record.details
+        : [];
+  const localSubmission = getStockOpnameLocalSubmission(record.id);
+  if (!localSubmission) return apiItems;
+
+  const localById = new Map(
+    localSubmission.items.map((item) => [item.id, item]),
+  );
+
+  if (apiItems.length) {
+    return apiItems.map((item) => {
+      const itemId = Number(item.barang_gudang_id ?? item.id);
+      const localItem = localById.get(itemId);
+      if (!localItem) return item;
+      return {
+        ...item,
+        nama_barang: item.nama_barang ?? item.item_name ?? localItem.itemName,
+        gudang_name:
+          item.gudang_name ?? item.warehouse_name ?? localItem.warehouseName,
+        stok_sistem:
+          item.stok_sistem
+          ?? item.stok_sebelum
+          ?? item.stok_awal
+          ?? localItem.systemStock,
+        stok_aktual:
+          item.stok_aktual
+          ?? item.actual_stock
+          ?? item.stok
+          ?? localItem.actualStock,
+        condition: item.condition ?? localItem.condition,
+        note: item.note ?? localItem.note,
+      };
+    });
+  }
+
+  return localSubmission.items.map((item) => ({
+    barang_gudang_id: item.id,
+    nama_barang: item.itemName,
+    gudang_name: item.warehouseName,
+    stok_sistem: item.systemStock,
+    stok_aktual: item.actualStock,
+    condition: item.condition,
+    note: item.note,
+  }));
+}
+
+function opnameWarehouse(record: StockOpnameHistoryRecord) {
+  const firstItem = opnameItems(record)[0];
+  return record.warehouse_name
+    ?? record.gudang_name
+    ?? firstItem?.warehouse_name
+    ?? firstItem?.gudang_name
+    ?? "-";
+}
+
+function opnameItemName(item: StockOpnameHistoryItem) {
+  return item.nama_barang ?? item.item_name ?? `Item #${item.barang_gudang_id ?? item.id ?? "-"}`;
+}
+
+function opnameBefore(item: StockOpnameHistoryItem) {
+  return item.stok_sebelum ?? item.stok_awal ?? item.stok_sistem ?? item.stok ?? 0;
+}
+
+function opnameAfter(item: StockOpnameHistoryItem) {
+  return item.stok_aktual ?? item.actual_stock ?? item.stok ?? 0;
+}
+
+function opnameStatusBadge(record: StockOpnameHistoryRecord) {
+  const status = normalizedOpnameStatus(record);
+  if (status === "APPROVED" || status === "APPLIED") {
+    return <span className="badge badge-green">Approved</span>;
+  }
+  if (status === "REJECTED" || status === "CANCELLED") {
+    return <span className="badge badge-red">Rejected</span>;
+  }
+  return <span className="badge badge-orange">Pending</span>;
+}
 
 function tokenizeKeyword(value: any) {
   return value.toLowerCase().trim().split(/\s+/).filter(Boolean);
@@ -218,17 +334,19 @@ function ImageViewerModal({ open, name, src, onClose }: any) {
 }
 
 export default function WarehouseInventoryPage() {
-  const [tab, setTab] = useState("inventory");
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const queryClient = useQueryClient();
+  const profile = useSelector((state: RootState) => state.profile);
+  const isAdmin = profile.user_type?.toUpperCase() === "ADMIN";
+  const [tab, setTab] = useState(
+    searchParams.get("tab") === "opnamehistory" ? "opnamehistory" : "inventory",
+  );
   const [query, setQuery] = useState("");
   const [warehouseFilter, setWarehouseFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<BarangGudangStatus | "">("");
   const [appliedWarehouseFilter, setAppliedWarehouseFilter] = useState("");
   const [appliedStatusFilter, setAppliedStatusFilter] = useState<BarangGudangStatus | "">("");
-  const [opnameQuery, setOpnameQuery] = useState("");
-  const [opnameWarehouse, setOpnameWarehouse] = useState("");
-  const [actualStock, setActualStock] = useState<Record<number, string>>({});
-  const [opnameNote, setOpnameNote] = useState<Record<number, string>>({});
-  const [opnameConfirmOpen, setOpnameConfirmOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [sortCol, setSortCol] = useState(0);
   const [sortAsc, setSortAsc] = useState(true);
@@ -243,19 +361,28 @@ export default function WarehouseInventoryPage() {
   const [itemSearch, setItemSearch] = useState("");
   const [selectedItemId, setSelectedItemId] = useState(null);
   const [inventory, setInventory] = useState<any | null>(null);
+  const [detailRow, setDetailRow] = useState<any | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const [form, setForm] = useState({
-    stock: "",
-    stokMin: "",
-    kode: "",
-    rack: "",
-    lantai: "",
-    lorong: "",
-    flag1: "",
-    flag2: "",
-    valuation: "",
-    warehouseName: "",
-  });
+  const [movingOrderOpen, setMovingOrderOpen] = useState(false);
+  const [movingSourceWarehouse, setMovingSourceWarehouse] = useState("");
+  const [movingDestinationWarehouse, setMovingDestinationWarehouse] = useState("");
+  const [movingItemQuery, setMovingItemQuery] = useState("");
+  const [movingSelection, setMovingSelection] = useState<Record<number, string>>({});
+  const [movingOrderSession, setMovingOrderSession] = useState<MovingOrderSessionState>(
+    () => getMovingOrderSession(),
+  );
+  const {
+    movingOrders,
+    movingStockAdjustments,
+    movingLocalRows,
+  } = movingOrderSession;
+
+  const [historyWarehouse, setHistoryWarehouse] = useState("");
+  const [historyDetail, setHistoryDetail] = useState<StockOpnameHistoryRecord | null>(null);
+  const [approvingId, setApprovingId] = useState<number | null>(null);
+  const [, setLocalResolutionVersion] = useState(0);
 
   const { warehouseOptions } = useWarehouseController();
 
@@ -267,84 +394,95 @@ export default function WarehouseInventoryPage() {
   const hasPendingItemSearch = itemSearch !== itemSearchDraft;
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isLoadingPrint, setIsLoadingPrint] = useState<boolean>(false);
   const [isModify, setIsModify] = useState<boolean>(false);
   const [listBarang, setListBarang] = useState<any[]>([]);
   const [sort, setSort] = useState<SortType>("ASC");
   const [sortBy, setSortBy] = useState<string>("name");
   const [searchValue, setSearchValue] = useState<string>("");
-  const [totalPages, setTotalPages] = useState<number>(10);
-  const [total, setTotal] = useState<number>(10);
-  const [first, setFirst] = useState<number>(0);
-  const [listCategory, setListCategory] = useState<ISelect[]>([]);
+  const [totalPages, setTotalPages] = useState<number>(1);
+  const [total, setTotal] = useState<number>(0);
   const [barang, setBarang] = useState<any | null>(null);
-  const [base64, setBase64] = useState<string>();
   const [listInventory, setListInventory] = useState<any[]>([]);
 
+  const { data: safeResponse } = useGetBarangGudang({
+    params: {
+      page: 1,
+      limit: 1,
+      status: "SAFE",
+    },
+    options: { keepPreviousData: true },
+  });
+  const { data: warningResponse } = useGetBarangGudang({
+    params: {
+      page: 1,
+      limit: 1,
+      status: "WARNING",
+    },
+    options: { keepPreviousData: true },
+  });
+  const { data: criticalResponse } = useGetBarangGudang({
+    params: {
+      page: 1,
+      limit: 1,
+      status: "CRITICAL",
+    },
+    options: { keepPreviousData: true },
+  });
   const {
-    data: opnameResponse,
-    isLoading: isOpnameLoading,
-    isError: isOpnameError,
-    refetch: refetchOpname,
+    data: historyResponse,
+    isLoading: isHistoryLoading,
+    isError: isHistoryError,
+    refetch: refetchHistory,
+  } = useGetStockOpname({
+    params: {
+      page: 1,
+      limit: GET_ALL_LIMIT,
+      sort: "DESC",
+      sortBy: "created_at",
+    },
+    options: { keepPreviousData: true },
+  });
+  const {
+    data: movingInventoryResponse,
+    isLoading: isMovingInventoryLoading,
+    isError: isMovingInventoryError,
   } = useGetBarangGudang({
     params: {
       page: 1,
-      limit: 99999,
-      search: opnameQuery.trim() || undefined,
-      gudang_id: opnameWarehouse ? Number(opnameWarehouse) : undefined,
-      sort,
-      sortBy,
+      limit: GET_ALL_LIMIT,
+      sort: "ASC",
+      sortBy: "name",
     },
     options: {
-      enabled: tab === "stockopname",
+      enabled: movingOrderOpen,
       keepPreviousData: true,
     },
   });
-
-  const opnameRows = useMemo(
-    () => opnameResponse?.data ?? [],
-    [opnameResponse?.data],
-  );
-
-  useEffect(() => {
-    if (!opnameRows.length) return;
-    setActualStock((current) => {
-      const next = { ...current };
-      opnameRows.forEach((row) => {
-        if (next[row.barang_gudang_id] === undefined) {
-          next[row.barang_gudang_id] = String(row.stok_gudang);
-        }
-      });
-      return next;
-    });
-  }, [opnameRows]);
-
-  const {
-    mutateAsync: postStockOpname,
-    isLoading: isPostingStockOpname,
-  } = usePostStockOpname();
   const {
     mutateAsync: putApplyStockOpname,
     isLoading: isApplyingStockOpname,
   } = usePutApplyStockOpname();
-  const isSubmittingStockOpname =
-    isPostingStockOpname || isApplyingStockOpname;
+
+  const historyRecords = historyResponse?.data ?? [];
+  const pendingOpname = historyRecords.some(
+    (record) => normalizedOpnameStatus(record) === "PENDING",
+  );
 
   const formik = useFormik<any>({
     initialValues: {
-      stok: isModify ? barang.stok_barang.toString() : "",
-      gudang_id: isModify ? barang.gudang_id.toString() : "",
-      kode: isModify ? barang.kode_gudang : "",
-      keyname: isModify ? barang.keyname : "",
-      asile: isModify ? barang.asile : "",
-      rack: isModify ? barang.asile : "",
-      level: isModify ? barang.level : "",
-      stok_minimum: isModify ? barang.stok_minimum.toString() : "",
-      lantai: isModify ? barang.lantai : "",
-      lorong: isModify ? barang.lorong : "",
-      flag_1: isModify ? barang.flag_1 : "",
-      flag_2: isModify ? barang.flag_2 : "",
-      valuation: isModify ? barang.valuation : "",
+      stok: isModify ? String(barang?.stok_gudang ?? barang?.stok_barang ?? "") : "",
+      gudang_id: isModify ? String(barang?.gudang_id ?? "") : "",
+      kode: isModify ? barang?.kode_gudang ?? barang?.kode ?? "" : "",
+      keyname: isModify ? barang?.keyname ?? "" : "",
+      asile: isModify ? barang?.asile ?? "" : "",
+      rack: isModify ? barang?.rack ?? "" : "",
+      level: isModify ? barang?.level ?? "" : "",
+      stok_minimum: isModify ? String(barang?.stok_minimum ?? "") : "",
+      lantai: isModify ? barang?.lantai ?? "" : "",
+      lorong: isModify ? barang?.lorong ?? "" : "",
+      flag_1: isModify ? barang?.flag_1 ?? "" : "",
+      flag_2: isModify ? barang?.flag_2 ?? "" : "",
+      valuation: isModify ? String(barang?.valuation ?? "") : "",
     },
     validationSchema: Yup.object({
       stok: Yup.string().required("Required"),
@@ -354,20 +492,18 @@ export default function WarehouseInventoryPage() {
     validateOnChange: false,
     enableReinitialize: true,
     onSubmit: async (values) => {
-      if (!inventory) {
+      if (!isModify && !inventory) {
         return toast("Please select item", { type: "error" });
       }
-      setModalOpen(false);
       setIsLoading(true);
       const payload = {
         ...values,
-        barang_id: inventory?.id,
+        barang_id: isModify ? barang?.barang_id : inventory?.id,
         gudang_id: Number(values.gudang_id),
         stok: Number(values.stok),
         stok_minimum: Number(values.stok_minimum),
         code: values.kode,
       };
-      setModalOpen(false);
       if (isModify) {
         try {
           delete payload.kode;
@@ -377,48 +513,48 @@ export default function WarehouseInventoryPage() {
               id: barang.barang_gudang_id,
             });
           if (result.success) {
-            toast("Modify warehouse item", { type: "success" });
+            toast(result.message || "Warehouse item updated.", { type: "success" });
             setIsModify(false);
             formik.resetForm();
             setBarang(null);
             setIsLoading(false);
-            getInventoryList();
+            setInventory(null);
+            setModalOpen(false);
+            await queryClient.invalidateQueries(["useGetBarangGudang"]);
+            await getInventoryList();
           }
         } catch (error: any) {
           setIsLoading(false);
-          if (
-            error.response.data.message ===
-            "Error 1062: Duplicate entry '123' for key 'barang.code'"
-          ) {
-            formik.setFieldError("code", error.response.data.message);
+          const message = errorMessage(error, "Failed to update warehouse item.");
+          if (message.includes("Duplicate entry")) {
+            formik.setFieldError("kode", message);
           }
-          toast(error.response.data.message, { type: "error" });
+          toast(message, { type: "error" });
         }
       } else {
         try {
           const result: APIResponse<any> =
             await InventoryService.addBarangGudang(payload);
           if (result.success) {
-            toast("Adding warehouse item", { type: "success" });
+            toast(result.message || "Warehouse item added.", { type: "success" });
             setIsModify(false);
             formik.resetForm();
             setBarang(null);
             setIsLoading(false);
             setInventory(null);
-            getInventoryList();
+            await queryClient.invalidateQueries(["useGetBarangGudang"]);
+            await getInventoryList();
             setItemSearch("");
             setItemSearchDraft("");
+            setModalOpen(false);
           }
         } catch (error: any) {
           setIsLoading(false);
-          if (
-            error.response.data.message ===
-            "Error 1062: Duplicate entry '123' for key 'barang.code'"
-          ) {
-            formik.setFieldError("code", error.response.data.message);
+          const message = errorMessage(error, "Failed to add warehouse item.");
+          if (message.includes("Duplicate entry")) {
+            formik.setFieldError("kode", message);
           }
-
-          toast(error.response.data.message, { type: "error" });
+          toast(message, { type: "error" });
         }
       }
     },
@@ -443,7 +579,6 @@ export default function WarehouseInventoryPage() {
     } catch (error) {
       setIsLoading(false);
       setPage(1);
-      setFirst(0);
       setListBarang([]);
       setTotal(0);
       setTotalPages(0);
@@ -461,88 +596,300 @@ export default function WarehouseInventoryPage() {
     setPage(1);
   }
 
-  const safePage = Math.min(page, totalPages);
+  const safePage = Math.max(1, Math.min(page, Math.max(1, totalPages)));
 
   function handleSort(col: any) {
-    if (sortCol === col) setSortAsc((a) => !a);
-    else {
+    const sortKeys = [
+      "name", "stok_gudang", "gudang_name", "stok_barang",
+      "stok_minimum", "stock_used", "valuation", "total_valuation",
+      "status", "flag_1", "flag_2", "asile", "rack", "level",
+      "lantai", "lorong", "updated_at",
+    ];
+    if (sortCol === col) {
+      const nextAscending = !sortAsc;
+      setSortAsc(nextAscending);
+      setSort(nextAscending ? "ASC" : "DESC");
+    } else {
       setSortCol(col);
       setSortAsc(true);
+      setSort("ASC");
     }
+    setSortBy(sortKeys[col] ?? "name");
     setPage(1);
   }
 
-  const safeCount = wiData.filter((r) => r.minStatus === "Safe").length;
-  const warningCount = wiData.filter((r) => r.minStatus === "Warning").length;
-  const criticalCount = wiData.filter((r) => r.minStatus === "Critical").length;
+  const safeCount = safeResponse?.total_records ?? 0;
+  const warningCount = warningResponse?.total_records ?? 0;
+  const criticalCount = criticalResponse?.total_records ?? 0;
 
-  function getActual(row: BarangGudangItem) {
-    return actualStock[row.barang_gudang_id] ?? String(row.stok_gudang);
-  }
+  const historyWarehouseOptions = useMemo(() => {
+    return Array.from(new Set(historyRecords.map(opnameWarehouse).filter((name) => name !== "-")))
+      .sort()
+      .map((name) => ({ value: name, label: name }));
+  }, [historyRecords]);
 
-  function variance(row: BarangGudangItem) {
-    return Number(getActual(row) || 0) - row.stok_gudang;
-  }
+  const filteredHistory = useMemo(
+    () => historyRecords.filter(
+      (record) => !historyWarehouse || opnameWarehouse(record) === historyWarehouse,
+    ),
+    [historyRecords, historyWarehouse],
+  );
+  const pendingCount = historyRecords.filter(
+    (record) => normalizedOpnameStatus(record) === "PENDING",
+  ).length;
+  const totalItemsAdjusted = historyRecords.reduce(
+    (sum, record) => sum + opnameItems(record).length,
+    0,
+  );
 
-  const opnameChanged = opnameRows.filter((row) => variance(row) !== 0);
-  const opnameMatched = opnameRows.length - opnameChanged.length;
+  const movingApiRows = movingInventoryResponse?.data ?? [];
+  const movingRows = useMemo<MovingInventoryRow[]>(() => {
+    const sourceWarehouseId = Number(movingSourceWarehouse);
+    if (!sourceWarehouseId) return [];
 
-  const stockOpnameFormik = useFormik({
-    initialValues: {
-      period: "",
-      remark: "",
-    },
-    validationSchema: Yup.object({
-      period: Yup.string().trim().required("Required"),
-      remark: Yup.string().trim().required("Required"),
-    }),
-    validateOnChange: false,
-    onSubmit: async (values, { resetForm }) => {
-      try {
-        const response = await postStockOpname({
-          period: values.period.trim(),
-          remark: values.remark.trim(),
-          data: opnameChanged.map((row) => ({
-            id: row.barang_gudang_id,
-            stok: Number(getActual(row)),
-          })),
-        });
-
-        if (!response.data?.id) {
-          throw new Error("Stock opname ID was not found in the response.");
-        }
-
-        const applyResponse = await putApplyStockOpname(response.data.id);
-
-        toast(applyResponse.message, { type: "success" });
-        setOpnameConfirmOpen(false);
-        resetForm();
-        setOpnameNote({});
-        setActualStock({});
-        await refetchOpname();
-      } catch (error) {
-        toast(
-          error instanceof Error
-            ? error.message
-            : "Failed to save stock opname.",
-          { type: "error" },
-        );
-      }
-    },
+    return [
+      ...movingApiRows.map((row) => ({
+        ...row,
+        stok_gudang: Math.max(
+          0,
+          Number(row.stok_gudang || 0)
+            + (movingStockAdjustments[row.barang_gudang_id] ?? 0),
+        ),
+      })),
+      ...movingLocalRows,
+    ].filter((row) => Number(row.gudang_id) === sourceWarehouseId);
+  }, [
+    movingApiRows,
+    movingLocalRows,
+    movingSourceWarehouse,
+    movingStockAdjustments,
+  ]);
+  const filteredMovingRows = movingRows.filter((row) => {
+    const normalizedQuery = movingItemQuery.trim().toLowerCase();
+    return row.stok_gudang > 0
+      && (!normalizedQuery || row.nama_barang.toLowerCase().includes(normalizedQuery));
   });
+  const selectedMovingRows = movingRows.filter(
+    (row) => movingSelection[row.barang_gudang_id] !== undefined,
+  );
+  const movingOrderValid = Boolean(
+    movingSourceWarehouse
+      && movingDestinationWarehouse
+      && movingSourceWarehouse !== movingDestinationWarehouse
+      && selectedMovingRows.length > 0
+      && selectedMovingRows.every((row) => {
+        const quantity = Number(movingSelection[row.barang_gudang_id]);
+        return Number.isFinite(quantity)
+          && quantity > 0
+          && quantity <= row.stok_gudang;
+      }),
+  );
 
-  function openOpnameConfirm() {
-    stockOpnameFormik.resetForm();
-    setOpnameConfirmOpen(true);
+  function openEditItem(row: any) {
+    setBarang(row);
+    setInventory({ id: row.barang_id, nama: row.nama_barang });
+    setIsModify(true);
+    setItemSearchDraft("");
+    setItemSearch("");
+    setModalOpen(true);
   }
 
-  function closeOpnameConfirm() {
-    stockOpnameFormik.resetForm();
-    setOpnameConfirmOpen(false);
+  async function confirmDeleteItem() {
+    if (!deleteTarget) return;
+    try {
+      setIsDeleting(true);
+      const response = await InventoryService.deleteBarangGudang(
+        deleteTarget.barang_gudang_id,
+      );
+      toast(response.message || "Warehouse item deleted.", { type: "success" });
+      setDeleteTarget(null);
+      await getInventoryList();
+      await queryClient.invalidateQueries(["useGetBarangGudang"]);
+    } catch (error) {
+      toast(errorMessage(error, "Failed to delete warehouse item."), {
+        type: "error",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
+  function openMovingOrder() {
+    setMovingSourceWarehouse("");
+    setMovingDestinationWarehouse("");
+    setMovingItemQuery("");
+    setMovingSelection({});
+    setMovingOrderOpen(true);
+  }
+
+  function toggleMovingItem(row: BarangGudangItem) {
+    setMovingSelection((current) => {
+      const next = { ...current };
+      if (next[row.barang_gudang_id] !== undefined) {
+        delete next[row.barang_gudang_id];
+      } else {
+        next[row.barang_gudang_id] = "1";
+      }
+      return next;
+    });
+  }
+
+  function setMovingItemQuantity(row: MovingInventoryRow, value: string) {
+    setMovingSelection((current) => ({
+      ...current,
+      [row.barang_gudang_id]: value === ""
+        ? ""
+        : String(
+          Math.max(
+            1,
+            Math.min(row.stok_gudang, Number(value) || 1),
+          ),
+        ),
+    }));
+  }
+
+  function submitMovingOrder() {
+    if (!movingOrderValid) return;
+
+    const sourceWarehouseName = warehouseOptions.find(
+      (warehouse) => String(warehouse.value) === movingSourceWarehouse,
+    )?.label ?? "-";
+    const destinationWarehouseName = warehouseOptions.find(
+      (warehouse) => String(warehouse.value) === movingDestinationWarehouse,
+    )?.label ?? "-";
+    const destinationWarehouseId = Number(movingDestinationWarehouse);
+    const movedAt = moment().format("D MMM YYYY, HH:mm");
+    const batchId = Date.now();
+    const nextAdjustments = { ...movingStockAdjustments };
+    let nextLocalRows = movingLocalRows.map((row) => ({ ...row }));
+    let nextLocalId = nextLocalRows.reduce(
+      (minimum, row) => Math.min(minimum, row.barang_gudang_id),
+      0,
+    ) - 1;
+
+    const newHistory = selectedMovingRows.map((sourceRow, index) => {
+      const quantity = Number(movingSelection[sourceRow.barang_gudang_id]);
+
+      if (sourceRow.local_only) {
+        nextLocalRows = nextLocalRows.map((row) => row.barang_gudang_id === sourceRow.barang_gudang_id
+          ? { ...row, stok_gudang: Math.max(0, row.stok_gudang - quantity) }
+          : row);
+      } else {
+        nextAdjustments[sourceRow.barang_gudang_id] =
+          (nextAdjustments[sourceRow.barang_gudang_id] ?? 0) - quantity;
+      }
+
+      const destinationApiRow = movingApiRows.find(
+        (row) => Number(row.barang_id) === Number(sourceRow.barang_id)
+          && Number(row.gudang_id) === destinationWarehouseId,
+      );
+      const destinationLocalRow = nextLocalRows.find(
+        (row) => Number(row.barang_id) === Number(sourceRow.barang_id)
+          && Number(row.gudang_id) === destinationWarehouseId,
+      );
+
+      if (destinationApiRow) {
+        nextAdjustments[destinationApiRow.barang_gudang_id] =
+          (nextAdjustments[destinationApiRow.barang_gudang_id] ?? 0) + quantity;
+      } else if (destinationLocalRow) {
+        nextLocalRows = nextLocalRows.map((row) => row.barang_gudang_id === destinationLocalRow.barang_gudang_id
+          ? { ...row, stok_gudang: row.stok_gudang + quantity }
+          : row);
+      } else {
+        nextLocalRows = [
+          ...nextLocalRows,
+          {
+            ...sourceRow,
+            barang_gudang_id: nextLocalId,
+            gudang_id: destinationWarehouseId,
+            gudang_name: destinationWarehouseName,
+            gudang: {
+              gudang_id: destinationWarehouseId,
+              gudang_name: destinationWarehouseName,
+            },
+            stok_gudang: quantity,
+            stock_used: 0,
+            local_only: true,
+          },
+        ];
+        nextLocalId -= 1;
+      }
+
+      return {
+        id: `${batchId}-${index}`,
+        itemName: sourceRow.nama_barang,
+        fromWarehouse: sourceWarehouseName,
+        toWarehouse: destinationWarehouseName,
+        qty: quantity,
+        movedBy: profile.fullname || "Admin",
+        movedAt,
+      };
+    });
+
+    const nextSession = {
+      movingOrders: [...newHistory, ...movingOrders],
+      movingStockAdjustments: nextAdjustments,
+      movingLocalRows: nextLocalRows,
+    };
+    saveMovingOrderSession(nextSession);
+    setMovingOrderSession(nextSession);
+    setMovingOrderOpen(false);
+    setMovingSourceWarehouse("");
+    setMovingDestinationWarehouse("");
+    setMovingItemQuery("");
+    setMovingSelection({});
+    toast(
+      `Moving order created for ${newHistory.length} item${newHistory.length === 1 ? "" : "s"}. This session-only transfer was not sent to the API.`,
+      { type: "success" },
+    );
+  }
+
+  async function approveOpname(record: StockOpnameHistoryRecord) {
+    if (!window.confirm("Approve this stock opname and apply its stock changes?")) {
+      return;
+    }
+    try {
+      setApprovingId(record.id);
+      const response = await putApplyStockOpname(record.id);
+      clearStockOpnameLocalResolution(record.id);
+      toast(response.message, { type: "success" });
+      setHistoryDetail(null);
+      await Promise.all([
+        refetchHistory(),
+        queryClient.invalidateQueries(["useGetBarangGudang"]),
+        getInventoryList(),
+      ]);
+    } catch (error) {
+      toast(errorMessage(error, "Failed to approve stock opname."), {
+        type: "error",
+      });
+    } finally {
+      setApprovingId(null);
+    }
+  }
+
+  function rejectOpname(record: StockOpnameHistoryRecord) {
+    if (!window.confirm(
+      "Reject this stock opname? No stock changes will be applied.",
+    )) {
+      return;
+    }
+
+    rejectStockOpnameLocally(record.id, profile.fullname || "Admin");
+    setLocalResolutionVersion((version) => version + 1);
+    setHistoryDetail(null);
+    toast(
+      "Stock opname rejected for this session. No stock changes were applied.",
+      { type: "success" },
+    );
   }
 
   function closeModal() {
     setModalOpen(false);
+    setIsModify(false);
+    setBarang(null);
+    setInventory(null);
+    setSelectedItemId(null);
     setItemSearchDraft("");
     setItemSearch("");
     formik.resetForm();
@@ -558,6 +905,9 @@ export default function WarehouseInventoryPage() {
   const hasActiveItemSearch = itemSearchTokens.length > 0;
 
   function openModal() {
+    setIsModify(false);
+    setBarang(null);
+    setInventory(null);
     setSelectedItemId(null);
     formik.resetForm();
     setItemSearchDraft("");
@@ -647,7 +997,8 @@ export default function WarehouseInventoryPage() {
       <div className="wi-tabs">
         {[
           { id: "inventory", label: "Inventory" },
-          { id: "stockopname", label: "Stock Opname" },
+          { id: "movingorder", label: "Moving Order" },
+          { id: "opnamehistory", label: "Opname History" },
         ].map((t) => (
           <button
             key={t.id}
@@ -679,30 +1030,29 @@ export default function WarehouseInventoryPage() {
                   }}
                 />
               </div>
-              <div className="wi-select-wrap">
-                <select
-                  value={warehouseFilter}
-                  onChange={(e) => setWarehouseFilter(e.target.value)}
-                >
-                  <option value="">All Warehouses</option>
-                  {warehouseOptions.map((warehouse) => (
-                    <option key={warehouse.value} value={warehouse.value}>
-                      {warehouse.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="wi-select-wrap">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as BarangGudangStatus | "")}
-                >
-                  <option value="">All Status</option>
-                  <option value="SAFE">Safe</option>
-                  <option value="WARNING">Warning</option>
-                  <option value="CRITICAL">Critical</option>
-                </select>
-              </div>
+              <SearchableSelect
+                inline
+                value={warehouseFilter}
+                onChange={(value) => setWarehouseFilter(String(value))}
+                placeholder="All Warehouses"
+                searchPlaceholder="Search warehouse…"
+                options={[
+                  { value: "", label: "All Warehouses" },
+                  ...warehouseOptions,
+                ]}
+              />
+              <SearchableSelect
+                inline
+                value={statusFilter}
+                onChange={(value) => setStatusFilter(String(value) as BarangGudangStatus | "")}
+                placeholder="All Status"
+                options={[
+                  { value: "", label: "All Status" },
+                  { value: "SAFE", label: "Safe" },
+                  { value: "WARNING", label: "Warning" },
+                  { value: "CRITICAL", label: "Critical" },
+                ]}
+              />
               <button className="btn-search" onClick={applyInventoryFilters}>
                 <IconSearch /> Search
               </button>
@@ -807,7 +1157,7 @@ export default function WarehouseInventoryPage() {
                     style={{ width: 45, textAlign: "center" }}
                   />
                   <SortTh
-                    label="Asile"
+                    label="Aisle"
                     colIndex={11}
                     sortCol={sortCol}
                     sortAsc={sortAsc}
@@ -831,7 +1181,7 @@ export default function WarehouseInventoryPage() {
                     style={{ width: 50, textAlign: "center" }}
                   />
                   <SortTh
-                    label="Lantai"
+                    label="Floor"
                     colIndex={14}
                     sortCol={sortCol}
                     sortAsc={sortAsc}
@@ -839,7 +1189,7 @@ export default function WarehouseInventoryPage() {
                     style={{ width: 55, textAlign: "center" }}
                   />
                   <SortTh
-                    label="Lorong"
+                    label="Lane"
                     colIndex={15}
                     sortCol={sortCol}
                     sortAsc={sortAsc}
@@ -859,7 +1209,9 @@ export default function WarehouseInventoryPage() {
                 </tr>
               </thead>
               <tbody>
-                {listBarang.length === 0 ? (
+                {isLoading && listBarang.length === 0 ? (
+                  <tr><td colSpan={19} style={{ padding: 32, textAlign: "center" }}>Loading warehouse inventory…</td></tr>
+                ) : listBarang.length === 0 ? (
                   <tr>
                     <td
                       colSpan={19}
@@ -874,7 +1226,7 @@ export default function WarehouseInventoryPage() {
                   </tr>
                 ) : (
                   listBarang.map((r: any) => (
-                    <tr key={r.id}>
+                    <tr key={r.barang_gudang_id}>
                       <td className="name-cell">{r.nama_barang}</td>
                       <td
                         style={{
@@ -1032,6 +1384,7 @@ export default function WarehouseInventoryPage() {
                             className="btn-icon"
                             title="Detail"
                             style={{ color: "var(--green)" }}
+                            onClick={() => setDetailRow(r)}
                           >
                             <svg
                               viewBox="0 0 24 24"
@@ -1045,7 +1398,10 @@ export default function WarehouseInventoryPage() {
                               <polygon points="5 3 19 12 5 21 5 3" />
                             </svg>
                           </button>
-                          <button className="btn-icon delete" title="Delete">
+                          <button className="btn-icon edit" title="Edit" onClick={() => openEditItem(r)}>
+                            <IconEdit />
+                          </button>
+                          <button className="btn-icon delete" title="Delete" onClick={() => setDeleteTarget(r)}>
                             <IconDelete />
                           </button>
                         </div>
@@ -1075,24 +1431,32 @@ export default function WarehouseInventoryPage() {
 
       <Modal
         open={modalOpen}
-        title="Add Warehouse Item"
+        title={isModify ? "Edit Warehouse Item" : "Add Warehouse Item"}
         onClose={closeModal}
         size="xl"
         footer={
           <>
-            <button className="btn-cancel-modal" onClick={closeModal}>
+            <button className="btn-cancel-modal" disabled={isLoading} onClick={closeModal}>
               <IconClose /> Cancel
             </button>
             <button
               className="btn-save-modal"
               type="submit"
+              disabled={isLoading}
               onClick={() => formik.handleSubmit()}
             >
-              <IconCheck /> Save Item
+              <IconCheck /> {isLoading ? "Saving…" : isModify ? "Save Changes" : "Save Item"}
             </button>
           </>
         }
       >
+        {isModify ? (
+          <div className="inventory-selected-item" style={{ marginBottom: 16 }}>
+            <span>Item Name</span>
+            <strong>{barang?.nama_barang ?? "-"}</strong>
+          </div>
+        ) : (
+          <>
         <div className="inventory-modal-search-row">
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label>Keywords</label>
@@ -1201,6 +1565,8 @@ export default function WarehouseInventoryPage() {
           <span>Selected Item</span>
           <strong>{selectedItem?.nama || "No item selected"}</strong>
         </div>
+          </>
+        )}
 
         <div className="inventory-form-grid">
           <TextInput
@@ -1224,7 +1590,7 @@ export default function WarehouseInventoryPage() {
           <TextInput
             value={formik.values.kode}
             onChange={(e) => formik.setFieldValue("kode", e)}
-            label="Kode"
+            label="Code"
             placeholder=""
           />
           <TextInput
@@ -1236,13 +1602,13 @@ export default function WarehouseInventoryPage() {
           <TextInput
             value={formik.values.lantai}
             onChange={(e) => formik.setFieldValue("lantai", e)}
-            label="Lantai"
+            label="Floor"
             placeholder=""
           />
           <TextInput
             value={formik.values.lorong}
             onChange={(e) => formik.setFieldValue("lorong", e)}
-            label="Lorong"
+            label="Lane"
             placeholder=""
           />
           <TextInput
@@ -1254,38 +1620,29 @@ export default function WarehouseInventoryPage() {
           <TextInput
             value={formik.values.flag_2}
             onChange={(e) => formik.setFieldValue("flag_2", e)}
-            label="Flag 1"
+            label="Flag 2"
             placeholder=""
           />
           <TextInput
-            value={currency(Number(formik.values.valuation))}
+            value={formik.values.valuation}
             onChange={(e) => formik.setFieldValue("valuation", e)}
             label="Valuation"
             placeholder=""
+            isNumeric
           />
           <div className="form-group">
             <label>
               Warehouse <span style={{ color: "var(--red)" }}>*</span>
             </label>
-            <select
-              onChange={(e) =>
-                formik.setFieldValue("gudang_id", e.target.value)
+            <SearchableSelect
+              onChange={(value) =>
+                formik.setFieldValue("gudang_id", String(value))
               }
               value={formik.values.gudang_id}
-              style={{
-                ...(!formik.values.gudang_id && {
-                  borderWidth: 1,
-                  borderColor: "var(--red)",
-                }),
-              }}
-            >
-              <option value="">Select warehouse</option>
-              {warehouseOptions?.map((item: any, idx: number) => (
-                <option key={`${idx}_${item.value}`} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
+              placeholder="Select warehouse"
+              searchPlaceholder="Search warehouse…"
+              options={warehouseOptions}
+            />
             {(formik.errors.gudang_id as string)?.trim() && (
               <span style={{ color: "var(--red)", fontSize: 12 }}>
                 {formik.errors.gudang_id as string}
@@ -1295,69 +1652,320 @@ export default function WarehouseInventoryPage() {
         </div>
       </Modal>
 
-      {tab === "stockopname" && (
+      <Modal
+        open={Boolean(detailRow)}
+        title="Warehouse Item Detail"
+        onClose={() => setDetailRow(null)}
+        footer={<button className="btn-cancel-modal" onClick={() => setDetailRow(null)}><IconClose /> Close</button>}
+      >
+        {detailRow && (
+          <div className="item-detail-grid">
+            <div className="item-detail-row"><span>Name</span><strong>{detailRow.nama_barang}</strong></div>
+            <div className="item-detail-row"><span>Warehouse</span><strong>{detailRow.gudang_name ?? detailRow.gudang?.gudang_name ?? "-"}</strong></div>
+            <div className="item-detail-row"><span>Warehouse Stock</span><strong>{detailRow.stok_gudang}</strong></div>
+            <div className="item-detail-row"><span>Item Stock</span><strong>{detailRow.stok_barang}</strong></div>
+            <div className="item-detail-row"><span>Minimum Stock</span><strong>{detailRow.stok_minimum}</strong></div>
+            <div className="item-detail-row"><span>Used</span><strong>{detailRow.stock_used}</strong></div>
+            <div className="item-detail-row"><span>Valuation</span><strong>{detailRow.valuation ? currency(Number(detailRow.valuation)) : "0"}</strong></div>
+            <div className="item-detail-row"><span>Total Valuation</span><strong>{detailRow.valuation ? currency(Number(detailRow.valuation) * Number(detailRow.stok_gudang)) : "0"}</strong></div>
+            <div className="item-detail-row"><span>Status</span><span>{statusBadge(detailRow.status)}</span></div>
+            <div className="item-detail-row"><span>Flag 1 / Flag 2</span><strong>{detailRow.flag_1 || "—"} / {detailRow.flag_2 || "—"}</strong></div>
+            <div className="item-detail-row"><span>Aisle / Rack / Level</span><strong>{detailRow.asile || "—"} / {detailRow.rack || "—"} / {detailRow.level || "—"}</strong></div>
+            <div className="item-detail-row"><span>Floor / Lane</span><strong>{detailRow.lantai || "—"} / {detailRow.lorong || "—"}</strong></div>
+            <div className="item-detail-row"><span>Updated At</span><strong>{detailRow.updated_at ? moment(detailRow.updated_at).format("D MMM YYYY, HH:mm") : "-"}</strong></div>
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        open={Boolean(deleteTarget)}
+        title="Delete Warehouse Item"
+        onClose={() => !isDeleting && setDeleteTarget(null)}
+        footer={(
+          <>
+            <button className="btn-cancel-modal" disabled={isDeleting} onClick={() => setDeleteTarget(null)}>Cancel</button>
+            <button className="btn-del-ok" disabled={isDeleting} onClick={confirmDeleteItem}>{isDeleting ? "Deleting…" : "Delete"}</button>
+          </>
+        )}
+      >
+        <p className="confirm-msg">
+          Are you sure you want to delete <strong>&ldquo;{deleteTarget?.nama_barang}&rdquo;</strong> from <strong>{deleteTarget?.gudang_name ?? deleteTarget?.gudang?.gudang_name ?? "this warehouse"}</strong>? This action cannot be undone.
+        </p>
+      </Modal>
+
+      {tab === "movingorder" && (
         <div className="card">
-          <div className="stats-bar" style={{ gridTemplateColumns: "repeat(3,1fr)", marginBottom: 18 }}>
+          <div className="toolbar">
+            <div className="toolbar-left">
+              <p style={{ color: "var(--text-muted)", fontSize: 12.5, margin: 0 }}>
+                Prepare a multi-item stock transfer between warehouses.
+              </p>
+            </div>
+            <div className="toolbar-right">
+              <button className="btn-new" onClick={openMovingOrder}><IconPlus /> Create Moving Order</button>
+            </div>
+          </div>
+          <p style={{ background: "var(--orange-bg)", borderRadius: "var(--r-lg)", color: "var(--orange)", fontSize: 12.5, marginBottom: 16, padding: "9px 14px" }}>
+            Moving Orders are available as a session-only preview because no backend endpoint is available yet. Transfers below immediately update this tab's local stock view and history, but do not change API inventory data.
+          </p>
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Date</th><th>Item</th><th>From</th><th>To</th><th style={{ textAlign: "right" }}>Qty</th><th>Moved By</th></tr></thead>
+              <tbody>
+                {movingOrders.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ color: "var(--text-muted)", padding: 32, textAlign: "center" }}>
+                      No moving orders created in this session.
+                    </td>
+                  </tr>
+                ) : movingOrders.map((order) => (
+                  <tr key={order.id}>
+                    <td style={{ color: "var(--text-muted)", fontSize: 12.5 }}>{order.movedAt}</td>
+                    <td className="name-cell">{order.itemName}</td>
+                    <td>{order.fromWarehouse}</td>
+                    <td>{order.toWarehouse}</td>
+                    <td style={{ fontVariantNumeric: "tabular-nums", fontWeight: 700, textAlign: "right" }}>{order.qty}</td>
+                    <td>{order.movedBy}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <Modal
+        open={movingOrderOpen}
+        title="Create Moving Order"
+        onClose={() => setMovingOrderOpen(false)}
+        size="lg"
+        footer={(
+          <>
+            <button className="btn-cancel-modal" onClick={() => setMovingOrderOpen(false)}><IconClose /> Cancel</button>
+            <button className="btn-save-modal" disabled={!movingOrderValid} onClick={submitMovingOrder}>
+              <IconCheck /> Create Order{selectedMovingRows.length > 1 ? ` (${selectedMovingRows.length} items)` : ""}
+            </button>
+          </>
+        )}
+      >
+        <div className="form-group">
+          <label>Source Warehouse <span style={{ color: "var(--red)" }}>*</span></label>
+          <SearchableSelect
+            value={movingSourceWarehouse}
+            onChange={(value) => {
+              setMovingSourceWarehouse(String(value));
+              setMovingDestinationWarehouse("");
+              setMovingItemQuery("");
+              setMovingSelection({});
+            }}
+            placeholder="Choose warehouse…"
+            searchPlaceholder="Search warehouse…"
+            options={warehouseOptions}
+          />
+        </div>
+
+        {movingSourceWarehouse && (
+          <div className="form-group">
+            <label>Items to Move <span style={{ color: "var(--red)" }}>*</span>{selectedMovingRows.length > 0 && <span style={{ color: "var(--text-muted)", letterSpacing: 0, marginLeft: 6, textTransform: "none" }}>({selectedMovingRows.length} selected)</span>}</label>
+            <div className="mo-item-search"><IconSearch /><input placeholder="Search item…" value={movingItemQuery} onChange={(event) => setMovingItemQuery(event.target.value)} /></div>
+            <div className="mo-item-list">
+              {isMovingInventoryLoading ? (
+                <div className="mo-item-empty">Loading warehouse items…</div>
+              ) : isMovingInventoryError ? (
+                <div className="mo-item-empty" style={{ color: "var(--red)" }}>Unable to load warehouse items.</div>
+              ) : !filteredMovingRows.length ? (
+                <div className="mo-item-empty">No items with stock at this warehouse.</div>
+              ) : filteredMovingRows.map((row) => {
+                const checked = movingSelection[row.barang_gudang_id] !== undefined;
+                return (
+                  <div key={row.barang_gudang_id} className={`mo-item-row${checked ? " checked" : ""}`}>
+                    <label className="mo-item-check">
+                      <input type="checkbox" checked={checked} onChange={() => toggleMovingItem(row)} />
+                      <span className="mo-item-name">{row.nama_barang}</span>
+                      <span className="mo-item-stock">stock: {row.stok_gudang}</span>
+                    </label>
+                    {checked && (
+                      <input
+                        className="mo-item-qty"
+                        type="number"
+                        min="1"
+                        max={row.stok_gudang}
+                        value={movingSelection[row.barang_gudang_id]}
+                        onChange={(event) => setMovingItemQuantity(row, event.target.value)}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <div className="form-group">
+          <label>Destination Warehouse <span style={{ color: "var(--red)" }}>*</span></label>
+          <SearchableSelect
+            value={movingDestinationWarehouse}
+            onChange={(value) => setMovingDestinationWarehouse(String(value))}
+            disabled={!movingSourceWarehouse}
+            placeholder="Choose warehouse…"
+            searchPlaceholder="Search warehouse…"
+            options={warehouseOptions.filter((warehouse) => String(warehouse.value) !== movingSourceWarehouse)}
+          />
+        </div>
+        {movingOrderValid && (
+          <div className="mo-flow" style={{ background: "var(--bg)", borderRadius: "var(--r-lg)", fontSize: 12.5, marginTop: 4, padding: "10px 12px" }}>
+            <strong>{selectedMovingRows.length} item{selectedMovingRows.length === 1 ? "" : "s"}</strong>
+            <span className="mo-flow-arrow" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12" />
+                <polyline points="12 5 19 12 12 19" />
+              </svg>
+            </span>
+            <span>
+              {warehouseOptions.find((warehouse) => String(warehouse.value) === movingSourceWarehouse)?.label}
+              {" → "}
+              {warehouseOptions.find((warehouse) => String(warehouse.value) === movingDestinationWarehouse)?.label}
+            </span>
+          </div>
+        )}
+        <p style={{ color: "var(--orange)", fontSize: 12.5, marginBottom: 0, marginTop: 10 }}>
+          This order is applied only to the Moving Order view for the current session. API inventory remains unchanged.
+        </p>
+      </Modal>
+
+      {tab === "opnamehistory" && (
+        <div className="card">
+          <div className="stats-bar" style={{ gridTemplateColumns: "repeat(4,1fr)", marginBottom: 18 }}>
             {[
-              { label: "Items Checked", value: opnameRows.length, color: "var(--brand)", bg: "var(--brand-bg)" },
-              { label: "Matched", value: opnameMatched, color: "var(--green)", bg: "var(--green-bg)" },
-              { label: "With Variance", value: opnameChanged.length, color: "var(--orange)", bg: "var(--orange-bg)" },
+              { label: "Total Sessions", value: historyResponse?.total_records ?? historyRecords.length, color: "var(--brand)", bg: "var(--brand-bg)" },
+              { label: "Pending Approval", value: pendingCount, color: "var(--orange)", bg: "var(--orange-bg)" },
+              { label: "Items Adjusted", value: totalItemsAdjusted, color: "var(--green)", bg: "var(--green-bg)" },
+              { label: "Last Submitted", value: historyRecords[0]?.created_at ? moment(historyRecords[0].created_at).format("D MMM YYYY") : "-", color: "var(--text-2)", bg: "var(--bg)" },
             ].map((stat) => (
               <div className="stat-card" key={stat.label}>
-                <div className="stat-icon" style={{ background: stat.bg }}><span className="stat-value" style={{ color: stat.color }}>{stat.value}</span></div>
+                <div className="stat-icon" style={{ background: stat.bg }}><span className="stat-value" style={{ color: stat.color, fontSize: typeof stat.value === "string" ? 14 : undefined }}>{stat.value}</span></div>
                 <span className="stat-label">{stat.label}</span>
               </div>
             ))}
           </div>
           <div className="toolbar">
             <div className="toolbar-left">
-              <div className="search-wrap"><IconSearch /><input className="search-input" placeholder="Search item name…" value={opnameQuery} onChange={(e) => setOpnameQuery(e.target.value)} /></div>
-              <div className="wi-select-wrap">
-                <select value={opnameWarehouse} onChange={(e) => setOpnameWarehouse(e.target.value)}>
-                  <option value="">All Warehouses</option>
-                  {warehouseOptions.map((warehouse) => (
-                    <option key={warehouse.value} value={warehouse.value}>{warehouse.label}</option>
-                  ))}
-                </select>
-              </div>
+              <SearchableSelect
+                inline
+                value={historyWarehouse}
+                onChange={(value) => setHistoryWarehouse(String(value))}
+                placeholder="All Warehouses"
+                searchPlaceholder="Search warehouse…"
+                options={[{ value: "", label: "All Warehouses" }, ...historyWarehouseOptions]}
+              />
             </div>
-            <div className="toolbar-right"><button className="btn-save-modal" disabled={!opnameChanged.length} onClick={openOpnameConfirm}><IconCheck /> Apply Opname Results ({opnameChanged.length})</button></div>
+            <div className="toolbar-right">
+              <button
+                className="btn-save-modal"
+                disabled={pendingOpname}
+                title={pendingOpname ? "Resolve the pending stock opname before starting a new one" : "Start a new stock opname"}
+                onClick={() => navigate("/stock-opname")}
+              >
+                <IconPlus /> Start Stock Opname
+              </button>
+            </div>
           </div>
-          <div className="table-wrap"><table>
-            <thead><tr><th>Item Name</th><th>Warehouse</th><th style={{ textAlign: "right" }}>System Stock</th><th style={{ textAlign: "right" }}>Actual Stock</th><th style={{ textAlign: "right" }}>Variance</th><th>Status</th><th>Notes</th></tr></thead>
-            <tbody>{isOpnameLoading ? <tr><td colSpan={7} style={{ textAlign: "center", padding: 32 }}>Loading stock opname data…</td></tr> : isOpnameError ? <tr><td colSpan={7} style={{ textAlign: "center", padding: 32, color: "var(--red)" }}>Failed to load stock opname data.</td></tr> : opnameRows.length === 0 ? <tr><td colSpan={7} style={{ textAlign: "center", padding: 32 }}>No items found.</td></tr> : opnameRows.map((row) => {
-              const difference = variance(row);
-              return <tr key={row.barang_gudang_id}>
-                <td className="name-cell">{row.nama_barang}</td><td>{row.gudang_name || row.gudang?.gudang_name || "-"}</td><td style={{ textAlign: "right" }}>{row.stok_gudang}</td>
-                <td style={{ textAlign: "right" }}><input type="text" inputMode="numeric" className="inv-pick-qty" style={{ width: 76 }} value={getActual(row)} onChange={(e) => setActualStock((state) => ({ ...state, [row.barang_gudang_id]: e.target.value.replace(/\D/g, "") }))} /></td>
-                <td style={{ textAlign: "right", fontWeight: 700, color: difference === 0 ? "var(--text-muted)" : difference > 0 ? "var(--brand)" : "var(--red)" }}>{difference > 0 ? `+${difference}` : difference}</td>
-                <td>{difference === 0 ? <span className="badge badge-green">Matched</span> : difference > 0 ? <span className="badge badge-blue">Surplus</span> : <span className="badge badge-red">Shortage</span>}</td>
-                <td><input placeholder="Optional" value={opnameNote[row.barang_gudang_id] || ""} onChange={(e) => setOpnameNote((state) => ({ ...state, [row.barang_gudang_id]: e.target.value }))} /></td>
-              </tr>;
-            })}</tbody>
-          </table></div>
+          {pendingOpname && <p style={{ background: "var(--orange-bg)", borderRadius: "var(--r-lg)", color: "var(--orange)", fontSize: 12.5, marginBottom: 16, padding: "9px 14px" }}>A stock opname is awaiting approval. Resolve it before starting a new one.</p>}
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Date Submitted</th><th>Period</th><th>Warehouse</th><th>Submitted By</th><th style={{ textAlign: "right" }}>Items</th><th>Status</th><th style={{ textAlign: "center" }}>Action</th></tr></thead>
+              <tbody>
+                {isHistoryLoading ? (
+                  <tr><td colSpan={7} style={{ padding: 32, textAlign: "center" }}>Loading opname history…</td></tr>
+                ) : isHistoryError ? (
+                  <tr><td colSpan={7} style={{ color: "var(--red)", padding: 32, textAlign: "center" }}>Unable to load opname history.</td></tr>
+                ) : !filteredHistory.length ? (
+                  <tr><td colSpan={7} style={{ color: "var(--text-muted)", padding: 32, textAlign: "center" }}>No opname history found.</td></tr>
+                ) : filteredHistory.map((record) => {
+                  const isPending = normalizedOpnameStatus(record) === "PENDING";
+                  return (
+                    <tr key={record.id}>
+                      <td>{record.created_at ? moment(record.created_at).format("D MMM YYYY, HH:mm") : "-"}</td>
+                      <td>{record.period || "-"}</td>
+                      <td>{opnameWarehouse(record)}</td>
+                      <td>{record.user_name ?? record.created_by ?? "-"}</td>
+                      <td style={{ textAlign: "right" }}>{opnameItems(record).length}</td>
+                      <td>{opnameStatusBadge(record)}</td>
+                      <td style={{ textAlign: "center" }}>
+                        <div className="action-btns" style={{ justifyContent: "center" }}>
+                          <button className="btn-icon" title="View Detail" style={{ color: "var(--brand)" }} onClick={() => setHistoryDetail(record)}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                          </button>
+                          {isAdmin && isPending && (
+                            <>
+                              <button className="btn-icon" title="Approve" disabled={isApplyingStockOpname && approvingId === record.id} style={{ color: "var(--green)" }} onClick={() => approveOpname(record)}><IconCheck /></button>
+                              <button className="btn-icon delete" title="Reject" onClick={() => rejectOpname(record)}><IconClose /></button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      <Modal open={opnameConfirmOpen} title="Apply Stock Opname Results" onClose={closeOpnameConfirm} footer={<><button className="btn-cancel-modal" disabled={isSubmittingStockOpname} onClick={closeOpnameConfirm}>Cancel</button><button className="btn-save-modal" type="submit" disabled={isSubmittingStockOpname} onClick={() => stockOpnameFormik.handleSubmit()}><IconCheck /> {isSubmittingStockOpname ? "Saving…" : "Apply"}</button></>}>
-        <TextInput
-          value={stockOpnameFormik.values.period}
-          onChange={(value) => stockOpnameFormik.setFieldValue("period", value)}
-          isRequired
-          label="Period"
-          placeholder="Contoh: Juli 2026"
-          errorText={stockOpnameFormik.errors.period}
-        />
-        <TextInput
-          value={stockOpnameFormik.values.remark}
-          onChange={(value) => stockOpnameFormik.setFieldValue("remark", value)}
-          isRequired
-          label="Remark"
-          placeholder="Contoh: Testing Remark"
-          errorText={stockOpnameFormik.errors.remark}
-        />
-        <p className="confirm-msg" style={{ marginBottom: 12 }}><strong>{opnameChanged.length}</strong> items will have their stock updated based on the physical count:</p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 240, overflowY: "auto" }}>{opnameChanged.map((row) => { const difference = variance(row); return <div key={row.barang_gudang_id} style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, padding: "6px 0", borderBottom: "1px solid var(--border-2)" }}><span>{row.nama_barang}</span><span style={{ fontWeight: 700, color: difference > 0 ? "var(--brand)" : "var(--red)" }}>{row.stok_gudang} → {getActual(row)} ({difference > 0 ? "+" : ""}{difference})</span></div>; })}</div>
+      <Modal
+        open={Boolean(historyDetail)}
+        title={historyDetail ? `Opname Detail — ${historyDetail.period || `#${historyDetail.id}`}` : "Opname Detail"}
+        onClose={() => setHistoryDetail(null)}
+        footer={<button className="btn-cancel-modal" onClick={() => setHistoryDetail(null)}><IconClose /> Close</button>}
+      >
+        {historyDetail && (
+          <>
+            <p className="confirm-msg" style={{ marginBottom: 10 }}>
+              <strong>{opnameItems(historyDetail).length}</strong> item{opnameItems(historyDetail).length === 1 ? "" : "s"} in <strong>{opnameWarehouse(historyDetail)}</strong>.
+            </p>
+            <p style={{ marginBottom: 12 }}>{opnameStatusBadge(historyDetail)}{historyDetail.remark && <span style={{ color: "var(--text-muted)", fontSize: 12, marginLeft: 8 }}>{historyDetail.remark}</span>}</p>
+            {normalizedOpnameStatus(historyDetail) === "REJECTED"
+              && getStockOpnameLocalResolution(historyDetail.id) && (
+              <p style={{ color: "var(--text-muted)", fontSize: 12, marginBottom: 12 }}>
+                Rejected locally by {getStockOpnameLocalResolution(historyDetail.id)?.resolvedBy}
+                {" on "}
+                {moment(getStockOpnameLocalResolution(historyDetail.id)?.resolvedAt).format("D MMM YYYY, HH:mm")}.
+                This current-session override does not replace the API history record.
+              </p>
+            )}
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 320, overflowY: "auto" }}>
+              {opnameItems(historyDetail).map((item, index) => {
+                const before = opnameBefore(item);
+                const after = opnameAfter(item);
+                const difference = after - before;
+                return (
+                  <div key={`${item.barang_gudang_id ?? item.id ?? index}-${index}`} style={{ borderBottom: "1px solid var(--border-2)", display: "flex", fontSize: 12.5, gap: 10, justifyContent: "space-between", padding: "6px 0" }}>
+                    <span>
+                      {opnameItemName(item)}
+                      {item.condition && (
+                        <span
+                          className={`badge ${item.condition.toLowerCase() === "poor" ? "badge-red" : "badge-green"}`}
+                          style={{ fontSize: 10, marginLeft: 6 }}
+                        >
+                          {item.condition}
+                        </span>
+                      )}
+                      {item.note && <small style={{ color: "var(--text-muted)", display: "block" }}>{item.note}</small>}
+                    </span>
+                    <strong>{before} → {after} ({difference > 0 ? "+" : ""}{difference})</strong>
+                  </div>
+                );
+              })}
+            </div>
+            {isAdmin && normalizedOpnameStatus(historyDetail) === "PENDING" && (
+              <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+                <button className="btn-save-modal" disabled={isApplyingStockOpname} onClick={() => approveOpname(historyDetail)}><IconCheck /> {isApplyingStockOpname ? "Approving…" : "Approve"}</button>
+                <button className="btn-cancel-modal" onClick={() => rejectOpname(historyDetail)}><IconClose /> Reject</button>
+              </div>
+            )}
+          </>
+        )}
       </Modal>
     </>
   );

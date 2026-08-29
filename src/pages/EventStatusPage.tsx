@@ -8,23 +8,26 @@ import Modal from "../components/Modal";
 import Pagination from "../components/Pagination";
 import SortTh from "../components/SortTh";
 import TextInput from "../components/TextInput";
+import SearchableSelect from "../components/SearchableSelect";
 import useGetEventStatus, {
   type GetEventStatusParams,
   type GetEventStatusResponse,
 } from "../hooks/api/useGetEventStatus";
 import usePostEventStatus from "../hooks/api/usePostEventStatus";
 import usePutEventStatus from "../hooks/api/usePutEventStatus";
+import { InventoryService } from "../service/InventoryService";
 
 const PAGE_SIZE = 20;
 const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 type ScanAction = "" | "SCAN IN" | "SCAN OUT";
+type ScanSetting = "None" | "Scan";
 
 interface EventStatusRow {
   id: number;
   order: number;
   status: string;
-  showScan: boolean;
+  scan: ScanSetting;
   action: string;
   eventRunning: number;
   updatedAt: string;
@@ -33,16 +36,16 @@ interface EventStatusRow {
 interface EventStatusForm {
   name: string;
   order_data: string;
+  scan: ScanSetting;
   action: ScanAction;
-  is_show_scan_result: boolean;
 }
 
 function emptyForm(order = 1): EventStatusForm {
   return {
     name: "",
     order_data: String(order),
+    scan: "None",
     action: "",
-    is_show_scan_result: false,
   };
 }
 
@@ -52,9 +55,9 @@ function fmtDate(date: string) {
   return `${parseInt(day)} ${MONTHS_SHORT[parseInt(month) - 1]} ${year}`;
 }
 
-function ScanBadge({ show }: { show: boolean }) {
-  return show ? (
-    <span className="badge badge-green" style={{ fontSize: 11 }}>Yes</span>
+function ScanBadge({ scan }: { scan: ScanSetting }) {
+  return scan === "Scan" ? (
+    <span className="badge badge-green" style={{ fontSize: 11 }}>Scan</span>
   ) : (
     <span
       className="badge badge-gray"
@@ -66,19 +69,9 @@ function ScanBadge({ show }: { show: boolean }) {
         fontWeight: 400,
       }}
     >
-      No
+      None
     </span>
   );
-}
-
-function ActionBadge({ action }: { action: string }) {
-  if (action === "SCAN IN") {
-    return <span className="badge badge-blue" style={{ fontSize: 11, letterSpacing: ".03em" }}>SCAN IN</span>;
-  }
-  if (action === "SCAN OUT") {
-    return <span className="badge badge-orange" style={{ fontSize: 11, letterSpacing: ".03em" }}>SCAN OUT</span>;
-  }
-  return <span style={{ color: "var(--text-muted)", fontSize: 12 }}>—</span>;
 }
 
 function mapEventStatuses(response: GetEventStatusResponse): EventStatusRow[] {
@@ -86,7 +79,7 @@ function mapEventStatuses(response: GetEventStatusResponse): EventStatusRow[] {
     id: status.id,
     order: status.order_data,
     status: status.name,
-    showScan: status.is_show_scan_result === 1,
+    scan: status.is_show_scan_result === 1 ? "Scan" : "None",
     action: status.action,
     eventRunning: status.active_event,
     updatedAt: status.created_at,
@@ -117,6 +110,18 @@ export default function EventStatusPage() {
       onSuccess: (result) => setStatuses(mapEventStatuses(result)),
     },
   });
+  const {
+    data: orderedResponse,
+    refetch: refetchOrderedEventStatuses,
+  } = useGetEventStatus({
+    params: {
+      page: 1,
+      limit: 9999,
+      sort: "ASC",
+      sortBy: "order_data",
+    },
+    options: { keepPreviousData: true },
+  });
   const { mutateAsync: postEventStatus, isLoading: isCreating } = usePostEventStatus();
   const { mutateAsync: putEventStatus, isLoading: isUpdating } = usePutEventStatus();
   const isSaving = isCreating || isUpdating;
@@ -124,25 +129,39 @@ export default function EventStatusPage() {
   const total = response?.data?.total_records ?? 0;
   const currentPage = response?.data?.page ?? page;
   const runningTotal = statuses.reduce((sum, status) => sum + status.eventRunning, 0);
-  const scanEnabled = statuses.filter((status) => status.showScan).length;
+  const scanEnabled = statuses.filter((status) => status.scan === "Scan").length;
   const deleteRecord = statuses.find((status) => status.id === deleteTarget);
+  const orderedStatuses = orderedResponse
+    ? mapEventStatuses(orderedResponse).sort((left, right) => left.order - right.order)
+    : [...statuses].sort((left, right) => left.order - right.order);
+  const canReorder = sortBy === "order_data" && sort === "ASC";
+
+  async function refetchStatusLists() {
+    await Promise.all([
+      refetchEventStatuses(),
+      refetchOrderedEventStatuses(),
+    ]);
+  }
 
   const formik = useFormik<EventStatusForm>({
     initialValues: emptyForm(),
     validationSchema: Yup.object({
       name: Yup.string().trim().required("Required"),
       order_data: Yup.number().integer("Must be an integer").min(0, "Minimum value is 0").required("Required"),
+      scan: Yup.string().oneOf(["None", "Scan"]).required("Required"),
       action: Yup.string().oneOf(["", "SCAN IN", "SCAN OUT"]),
-      is_show_scan_result: Yup.boolean(),
     }),
     validateOnChange: false,
     onSubmit: async (values, { resetForm }) => {
       try {
         const payload = {
           name: values.name.trim(),
-          is_show_scan_result: values.is_show_scan_result ? 1 : 0,
+          is_show_scan_result: values.scan === "Scan" ? 1 : 0,
           order_data: Number(values.order_data),
-          action: values.action,
+          // The simplified UI no longer asks users to choose a scan direction.
+          // Keep the existing BE action when editing, and clear it when scanning
+          // is disabled so the payload remains backwards-compatible.
+          action: values.scan === "Scan" ? values.action : "",
         };
         const result = editingId
           ? await putEventStatus({ ...payload, id: editingId })
@@ -154,7 +173,7 @@ export default function EventStatusPage() {
         setStatusModal(false);
         setEditingId(null);
         resetForm();
-        await refetchEventStatuses();
+        await refetchStatusLists();
       } catch (error) {
         toast(
           error instanceof Error
@@ -194,8 +213,8 @@ export default function EventStatusPage() {
       values: {
         name: row.status,
         order_data: String(row.order),
+        scan: row.scan,
         action: (["SCAN IN", "SCAN OUT"].includes(row.action) ? row.action : "") as ScanAction,
-        is_show_scan_result: row.showScan,
       },
     });
     setStatusModal(true);
@@ -208,20 +227,41 @@ export default function EventStatusPage() {
     formik.resetForm();
   }
 
-  function moveOrder(id: number, direction: number) {
-    setStatuses((current) => {
-      const sorted = [...current].sort((a, b) => a.order - b.order);
-      const index = sorted.findIndex((status) => status.id === id);
-      const swapIndex = index + direction;
-      if (swapIndex < 0 || swapIndex >= sorted.length) return current;
-      const currentOrder = sorted[index].order;
-      const swapOrder = sorted[swapIndex].order;
-      return current.map((status) => {
-        if (status.id === sorted[index].id) return { ...status, order: swapOrder };
-        if (status.id === sorted[swapIndex].id) return { ...status, order: currentOrder };
-        return status;
-      });
+  async function moveOrder(id: number, direction: number) {
+    if (!canReorder) return;
+    const sorted = orderedStatuses;
+    const index = sorted.findIndex((status) => status.id === id);
+    const swapIndex = index + direction;
+    if (index < 0 || swapIndex < 0 || swapIndex >= sorted.length) return;
+
+    const current = sorted[index];
+    const neighbor = sorted[swapIndex];
+    const payloadFor = (row: EventStatusRow, order_data: number) => ({
+      id: row.id,
+      name: row.status,
+      is_show_scan_result: row.scan === "Scan" ? 1 : 0,
+      order_data,
+      action: row.scan === "Scan" ? row.action : "",
     });
+
+    setStatuses((rows) => rows.map((row) => {
+      if (row.id === current.id) return { ...row, order: neighbor.order };
+      if (row.id === neighbor.id) return { ...row, order: current.order };
+      return row;
+    }));
+
+    try {
+      await putEventStatus(payloadFor(current, neighbor.order));
+      await putEventStatus(payloadFor(neighbor, current.order));
+      await refetchStatusLists();
+    } catch (error) {
+      await refetchStatusLists();
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to reorder event statuses.",
+      );
+    }
   }
 
   function openDelete(id: number) {
@@ -229,10 +269,27 @@ export default function EventStatusPage() {
     setDeleteModal(true);
   }
 
-  function confirmDelete() {
-    setStatuses((current) => current.filter((status) => status.id !== deleteTarget));
-    setDeleteModal(false);
-    setDeleteTarget(null);
+  async function confirmDelete() {
+    if (deleteTarget === null) return;
+    try {
+      const result = await InventoryService.deleteStatus(String(deleteTarget));
+      if (result?.success === false) {
+        throw new Error(result.message || "Failed to delete event status.");
+      }
+      toast.success(result?.message || "Event status deleted successfully.");
+      setDeleteModal(false);
+      setDeleteTarget(null);
+      await refetchStatusLists();
+    } catch (error) {
+      const apiMessage = (error as { response?: { data?: { message?: string } } })
+        ?.response?.data?.message;
+      toast.error(
+        apiMessage ||
+          (error instanceof Error
+            ? error.message
+            : "Failed to delete event status."),
+      );
+    }
   }
 
   return (
@@ -241,6 +298,13 @@ export default function EventStatusPage() {
         <h1 className="page-title" style={{ margin: 0 }}>Event Status</h1>
         <button className="btn-new" onClick={openNew}><IconPlus /> New Status</button>
       </div>
+
+      <p style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: -14, marginBottom: 18 }}>
+        This list drives the stage stepper on every event detail page in the
+        order shown below. Adding, removing, reordering, or renaming a status
+        applies across events. A status set to Scan requires items to be scanned
+        while an event is at that stage.
+      </p>
 
       <div className="stats-bar" style={{ gridTemplateColumns: "repeat(3,1fr)" }}>
         {[
@@ -285,8 +349,7 @@ export default function EventStatusPage() {
                 <SortTh label="Order" id="order_data" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 70, textAlign: "center" }} />
                 <th style={{ width: 80, textAlign: "center" }}>Edit Order</th>
                 <SortTh label="Status" id="name" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} />
-                <th style={{ width: 100, textAlign: "center" }}>Show Scan</th>
-                <th style={{ width: 110, textAlign: "center" }}>Scan Action</th>
+                <th style={{ width: 100, textAlign: "center" }}>Scan</th>
                 <SortTh label="Event Running" id="active_event" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 120, textAlign: "right" }} />
                 <SortTh label="Created At" id="created_at" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 120 }} />
                 <th style={{ width: 100, textAlign: "center" }}>Action</th>
@@ -294,30 +357,34 @@ export default function EventStatusPage() {
             </thead>
             <tbody>
               {isLoading && statuses.length === 0 ? (
-                <tr><td colSpan={8} style={{ textAlign: "center", padding: 40 }}>Loading event statuses…</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: "center", padding: 40 }}>Loading event statuses…</td></tr>
               ) : isError ? (
-                <tr><td colSpan={8} style={{ textAlign: "center", padding: 40, color: "var(--red)" }}>Failed to load event statuses.</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: "center", padding: 40, color: "var(--red)" }}>Failed to load event statuses.</td></tr>
               ) : statuses.length === 0 ? (
-                <tr><td colSpan={8} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>No statuses found.</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>No statuses found.</td></tr>
               ) : (
-                statuses.map((row, index) => (
+                statuses.map((row) => {
+                  const orderedIndex = orderedStatuses.findIndex((status) => status.id === row.id);
+                  const moveTitle = canReorder
+                    ? undefined
+                    : "Sort by Order ascending to edit stage order";
+                  return (
                   <tr key={row.id}>
                     <td style={{ textAlign: "center" }}>
                       <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, background: "var(--brand-bg)", color: "var(--brand)", borderRadius: 6, fontWeight: 700, fontSize: 13 }}>{row.order}</span>
                     </td>
                     <td style={{ textAlign: "center" }}>
                       <div style={{ display: "inline-flex", flexDirection: "column", gap: 2 }}>
-                        <button className="btn-icon" title="Move up" style={{ padding: "2px 5px", color: index === 0 ? "var(--border)" : "var(--text-muted)" }} disabled={index === 0} onClick={() => moveOrder(row.id, -1)}>
+                        <button className="btn-icon" title={moveTitle ?? "Move up"} style={{ padding: "2px 5px", color: !canReorder || orderedIndex <= 0 ? "var(--border)" : "var(--text-muted)" }} disabled={!canReorder || orderedIndex <= 0 || isSaving} onClick={() => void moveOrder(row.id, -1)}>
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 12, height: 12 }}><polyline points="18 15 12 9 6 15" /></svg>
                         </button>
-                        <button className="btn-icon" title="Move down" style={{ padding: "2px 5px", color: index === statuses.length - 1 ? "var(--border)" : "var(--text-muted)" }} disabled={index === statuses.length - 1} onClick={() => moveOrder(row.id, 1)}>
+                        <button className="btn-icon" title={moveTitle ?? "Move down"} style={{ padding: "2px 5px", color: !canReorder || orderedIndex < 0 || orderedIndex === orderedStatuses.length - 1 ? "var(--border)" : "var(--text-muted)" }} disabled={!canReorder || orderedIndex < 0 || orderedIndex === orderedStatuses.length - 1 || isSaving} onClick={() => void moveOrder(row.id, 1)}>
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 12, height: 12 }}><polyline points="6 9 12 15 18 9" /></svg>
                         </button>
                       </div>
                     </td>
                     <td className="name-cell">{row.status}</td>
-                    <td style={{ textAlign: "center" }}><ScanBadge show={row.showScan} /></td>
-                    <td style={{ textAlign: "center" }}><ActionBadge action={row.action} /></td>
+                    <td style={{ textAlign: "center" }}><ScanBadge scan={row.scan} /></td>
                     <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>
                       <span style={{ color: row.eventRunning > 0 ? "var(--orange)" : "var(--text-muted)" }}>{row.eventRunning}</span>
                     </td>
@@ -329,7 +396,8 @@ export default function EventStatusPage() {
                       </div>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -366,79 +434,19 @@ export default function EventStatusPage() {
           errorText={formik.errors.name}
         />
         <div className="form-group">
-          <label>Scan Action</label>
-          <select value={formik.values.action} onChange={(event) => formik.setFieldValue("action", event.target.value as ScanAction)}>
-            <option value="">None</option>
-            <option value="SCAN IN">SCAN IN</option>
-            <option value="SCAN OUT">SCAN OUT</option>
-          </select>
-        </div>
-        <div
-          className="form-group"
-          style={{ display: "flex", alignItems: "center", gap: 10 }}
-        >
-          <button
-            type="button"
-            role="switch"
-            aria-checked={formik.values.is_show_scan_result}
-            aria-label="Show Scan Button"
-            onClick={() =>
-              formik.setFieldValue(
-                "is_show_scan_result",
-                !formik.values.is_show_scan_result,
-              )
-            }
-            style={{
-              width: 42,
-              height: 24,
-              padding: 2,
-              flexShrink: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: formik.values.is_show_scan_result
-                ? "flex-end"
-                : "flex-start",
-              border: `1px solid ${
-                formik.values.is_show_scan_result
-                  ? "var(--brand)"
-                  : "var(--border)"
-              }`,
-              borderRadius: 999,
-              background: formik.values.is_show_scan_result
-                ? "var(--brand)"
-                : "var(--white)",
-              cursor: "pointer",
-              transition: "background .15s, border-color .15s",
-            }}
-          >
-            <span
-              style={{
-                width: 18,
-                height: 18,
-                borderRadius: "50%",
-                background: formik.values.is_show_scan_result
-                  ? "#fff"
-                  : "var(--text-muted)",
-                boxShadow: "0 1px 3px rgba(0,0,0,.18)",
-                transition: "background .15s",
-              }}
-            />
-          </button>
-          <label
-            onClick={() =>
-              formik.setFieldValue(
-                "is_show_scan_result",
-                !formik.values.is_show_scan_result,
-              )
-            }
-            style={{
-              marginBottom: 0,
-              cursor: "pointer",
-              userSelect: "none",
-            }}
-          >
-            Show Scan Button
-          </label>
+          <label>Scan</label>
+          <SearchableSelect
+            value={formik.values.scan}
+            onChange={(value) => formik.setFieldValue("scan", value as ScanSetting)}
+            options={[
+              { value: "None", label: "None" },
+              { value: "Scan", label: "Scan" },
+            ]}
+            placeholder="None"
+          />
+          {formik.errors.scan && (
+            <span style={{ color: "var(--red)", fontSize: 11.5 }}>{formik.errors.scan}</span>
+          )}
         </div>
       </Modal>
 

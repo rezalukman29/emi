@@ -25,6 +25,7 @@ import { toast } from "react-toastify";
 import TextInput from "../components/TextInput";
 import TextArea from "../components/TextArea";
 import { useUnitController } from "./lib/useUnitController";
+import SearchableSelect from "../components/SearchableSelect";
 
 export interface ISelect {
   label: string;
@@ -546,6 +547,7 @@ export default function InventoryPage() {
         page,
         limit: size ?? 10,
         search: query,
+        category: catFilter || undefined,
         sort,
         sortBy,
       });
@@ -835,34 +837,40 @@ export default function InventoryPage() {
                 }}
               />
             </div>
-            <div className="wi-select-wrap">
-              <select
-                value={catFilter}
-                onChange={(e) => {
-                  setCatFilter(e.target.value);
-                  setPage(1);
-                }}
-              >
-                <option value="">All Categories</option>
-                {categoryOptions.map((c: any) => (
-                  <option key={c.value}>{c.label}</option>
-                ))}
-              </select>
-            </div>
-            <div className="wi-select-wrap">
-              <select
-                value={stockFilter}
-                onChange={(e) => {
-                  setStockFilter(e.target.value);
-                  setPage(1);
-                }}
-              >
-                <option value="">All Status</option>
-                {stockStatuses.map((s) => (
-                  <option key={s}>{s}</option>
-                ))}
-              </select>
-            </div>
+            <SearchableSelect
+              inline
+              value={catFilter}
+              onChange={(value) => {
+                setCatFilter(String(value));
+                setPage(1);
+              }}
+              options={[
+                { value: "", label: "All Categories" },
+                ...categoryOptions.map((category: { value: string; label: string }) => ({
+                  value: category.label,
+                  label: category.label,
+                })),
+              ]}
+              placeholder="All Categories"
+              searchPlaceholder="Search categories…"
+            />
+            <SearchableSelect
+              inline
+              value={stockFilter}
+              onChange={(value) => {
+                setStockFilter(String(value));
+                setPage(1);
+              }}
+              options={[
+                { value: "", label: "All Status" },
+                ...stockStatuses.map((status) => ({
+                  value: status,
+                  label: status,
+                })),
+              ]}
+              placeholder="All Status"
+              searchPlaceholder="Search statuses…"
+            />
             <button
               className="btn-search"
               onClick={() => {
@@ -1216,25 +1224,18 @@ export default function InventoryPage() {
             <label>
               Unit <span style={{ color: "var(--red)" }}>*</span>
             </label>
-            <select
-              onChange={(e) =>
-                formik.setFieldValue("satuan_id", e.target.value)
-              }
+            <SearchableSelect
               value={formik.values.satuan_id}
-              style={{
-                ...(formik.errors.satuan_id && {
-                  borderWidth: 1,
-                  borderColor: "var(--red)",
-                }),
-              }}
-            >
-              <option value="">— Select Unit —</option>
-              {unitOptions.map((n: ISelect) => (
-                <option key={n.value} value={n.value}>
-                  {n.label}
-                </option>
-              ))}
-            </select>
+              onChange={(value) =>
+                formik.setFieldValue("satuan_id", String(value))
+              }
+              options={[
+                { value: "", label: "— Select Unit —" },
+                ...unitOptions,
+              ]}
+              placeholder="— Select Unit —"
+              searchPlaceholder="Search units…"
+            />
             {(formik.errors.satuan_id as string)?.trim() && (
               <span style={{ color: "var(--red)", fontSize: 12 }}>
                 {formik.errors.satuan_id as string}
@@ -1245,25 +1246,18 @@ export default function InventoryPage() {
             <label>
               Category <span style={{ color: "var(--red)" }}>*</span>
             </label>
-            <select
-              onChange={(e) =>
-                formik.setFieldValue("kategori_id", e.target.value)
-              }
+            <SearchableSelect
               value={formik.values.kategori_id}
-              style={{
-                ...(formik.errors.kategori_id && {
-                  borderWidth: 1,
-                  borderColor: "var(--red)",
-                }),
-              }}
-            >
-              <option value="">— Select Category —</option>
-              {categoryOptions.map((n: ISelect) => (
-                <option key={n.value} value={n.value}>
-                  {n.label}
-                </option>
-              ))}
-            </select>
+              onChange={(value) =>
+                formik.setFieldValue("kategori_id", String(value))
+              }
+              options={[
+                { value: "", label: "— Select Category —" },
+                ...categoryOptions,
+              ]}
+              placeholder="— Select Category —"
+              searchPlaceholder="Search categories…"
+            />
             {(formik.errors.kategori_id as string)?.trim() && (
               <span style={{ color: "var(--red)", fontSize: 12 }}>
                 {formik.errors.kategori_id as string}

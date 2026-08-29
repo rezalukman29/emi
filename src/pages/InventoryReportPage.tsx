@@ -8,6 +8,7 @@ import useGetBarangGudang, {
 } from "../hooks/api/useGetBarangGudang";
 import useGetInventoryReportSummary from "../hooks/api/useGetInventoryReportSummary";
 import { useCategoryController } from "./lib/useCategoryController";
+import SearchableSelect from "../components/SearchableSelect";
 
 const PAGE_SIZE = 10;
 const STATUS_OPTIONS: Array<{ label: string; value: BarangGudangStatus }> = [
@@ -103,7 +104,7 @@ export default function InventoryReportPage() {
   }, [page, totalPages]);
 
   const summaryValue = (value?: number) => (
-    isSummaryLoading ? "—" : (value ?? 0).toLocaleString("id-ID")
+    isSummaryLoading ? "—" : (value ?? 0).toLocaleString("en-US")
   );
 
   return (
@@ -149,7 +150,7 @@ export default function InventoryReportPage() {
                         <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-2)" }}>
                           {item.category} <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>({item.sku_count} SKU)</span>
                         </span>
-                        <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text)" }}>{item.total_stock.toLocaleString("id-ID")}</span>
+                        <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text)" }}>{item.total_stock.toLocaleString("en-US")}</span>
                       </div>
                       <div className="progress-bar-track">
                         <div className="progress-bar-fill" style={{ width: `${(item.total_stock / maxCategoryStock) * 100}%`, background: "var(--brand)" }} />
@@ -171,7 +172,7 @@ export default function InventoryReportPage() {
                         <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-2)" }}>
                           {item.warehouse} <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>({item.sku_count} SKU)</span>
                         </span>
-                        <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text)" }}>{item.total_stock.toLocaleString("id-ID")}</span>
+                        <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text)" }}>{item.total_stock.toLocaleString("en-US")}</span>
                       </div>
                       <div className="progress-bar-track">
                         <div className="progress-bar-fill" style={{ width: `${(item.total_stock / maxWarehouseStock) * 100}%`, background: "var(--green)" }} />
@@ -189,20 +190,22 @@ export default function InventoryReportPage() {
               <IconSearch />
               <input className="search-input" type="text" placeholder="Search name or SKU…" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} />
             </div>
-            <div className="wi-select-wrap">
-              <select value={categoryFilter} onChange={(event) => { setCategoryFilter(event.target.value); setPage(1); }}>
-                <option value="">All Categories</option>
-                {categoryOptions.map((category: { value: string; label: string }) => (
-                  <option key={category.value} value={category.value}>{category.label}</option>
-                ))}
-              </select>
-            </div>
-            <div className="wi-select-wrap">
-              <select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value as BarangGudangStatus | ""); setPage(1); }}>
-                <option value="">All Statuses</option>
-                {STATUS_OPTIONS.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
-              </select>
-            </div>
+            <SearchableSelect
+              inline
+              value={categoryFilter}
+              onChange={(value) => { setCategoryFilter(String(value)); setPage(1); }}
+              options={[{ value: "", label: "All Categories" }, ...categoryOptions]}
+              placeholder="All Categories"
+              searchPlaceholder="Search categories…"
+            />
+            <SearchableSelect
+              inline
+              value={statusFilter}
+              onChange={(value) => { setStatusFilter(String(value) as BarangGudangStatus | ""); setPage(1); }}
+              options={[{ value: "", label: "All Statuses" }, ...STATUS_OPTIONS]}
+              placeholder="All Statuses"
+              searchPlaceholder="Search statuses…"
+            />
           </div>
         </div>
 
@@ -235,7 +238,7 @@ export default function InventoryReportPage() {
                     <td>{item.nama_kategori || "-"}</td>
                     <td>{item.nama_satuan || "-"}</td>
                     <td style={{ color: "var(--text-muted)" }}>{item.gudang_name || item.gudang?.gudang_name || "-"}</td>
-                    <td style={{ textAlign: "right", fontWeight: 600 }}>{item.stok_gudang.toLocaleString("id-ID")}</td>
+                    <td style={{ textAlign: "right", fontWeight: 600 }}>{item.stok_gudang.toLocaleString("en-US")}</td>
                     <td><span className={`badge ${stockBadgeClass(status)}`}>{statusLabel(status)}</span></td>
                   </tr>
                 );

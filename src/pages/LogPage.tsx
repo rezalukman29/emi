@@ -3,6 +3,7 @@ import Pagination from '../components/Pagination';
 import { IconSearch } from '../components/icons';
 import { initialActivityLogs } from '../data/activityLogs';
 import { TODAY } from '../data/events';
+import SearchableSelect from '../components/SearchableSelect';
 
 const PAGE_SIZE = 10;
 const ACTIONS = ['Login', 'Logout', 'Create', 'Update', 'Delete'];
@@ -48,7 +49,7 @@ export default function LogPage() {
 
       <div className="stats-bar" style={{ gridTemplateColumns: 'repeat(3,1fr)' }}>
         {[
-          { label: 'Total Log',       value: initialActivityLogs.length, color: 'var(--brand)',  bg: 'var(--brand-bg)' },
+          { label: 'Total Logs',      value: initialActivityLogs.length, color: 'var(--brand)',  bg: 'var(--brand-bg)' },
           { label: "Today's Activity", value: todayCount,               color: 'var(--green)',  bg: 'var(--green-bg)' },
           { label: 'Active Users',      value: activeUserCount,            color: 'var(--purple)', bg: 'var(--purple-bg)' },
         ].map(s => (
@@ -71,18 +72,28 @@ export default function LogPage() {
                 value={query} onChange={e => { setQuery(e.target.value); setPage(1); }}
               />
             </div>
-            <div className="wi-select-wrap">
-              <select value={moduleFilter} onChange={e => { setModuleFilter(e.target.value); setPage(1); }}>
-                <option value="">All Modules</option>
-                {MODULES.map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
-            </div>
-            <div className="wi-select-wrap">
-              <select value={actionFilter} onChange={e => { setActionFilter(e.target.value); setPage(1); }}>
-                <option value="">All Actions</option>
-                {ACTIONS.map(a => <option key={a} value={a}>{a}</option>)}
-              </select>
-            </div>
+            <SearchableSelect
+              inline
+              value={moduleFilter}
+              onChange={value => { setModuleFilter(String(value)); setPage(1); }}
+              options={[
+                { value: '', label: 'All Modules' },
+                ...MODULES.map(module => ({ value: module, label: module })),
+              ]}
+              placeholder="All Modules"
+              searchPlaceholder="Search modules…"
+            />
+            <SearchableSelect
+              inline
+              value={actionFilter}
+              onChange={value => { setActionFilter(String(value)); setPage(1); }}
+              options={[
+                { value: '', label: 'All Actions' },
+                ...ACTIONS.map(action => ({ value: action, label: action })),
+              ]}
+              placeholder="All Actions"
+              searchPlaceholder="Search actions…"
+            />
           </div>
         </div>
 
@@ -113,7 +124,7 @@ export default function LogPage() {
             </tbody>
           </table>
         </div>
-        <Pagination currentPage={safePage} total={filtered.length} pageSize={PAGE_SIZE} onPage={(p: number) => setPage(p)} label="log" />
+        <Pagination currentPage={safePage} total={filtered.length} pageSize={PAGE_SIZE} onPage={(p: number) => setPage(p)} label="logs" />
       </div>
     </>
   );

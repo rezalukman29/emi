@@ -12,6 +12,7 @@ import useGetUsers, { type UserListItem } from "../hooks/api/useGetUsers";
 import usePostRegister from "../hooks/api/usePostRegister";
 import usePutUser from "../hooks/api/usePutUser";
 import useDeleteUser from "../hooks/api/useDeleteUser";
+import SearchableSelect from "../components/SearchableSelect";
 
 const PAGE_SIZE = 10;
 const ROLES = ["ADMIN", "EMPLOYEE"] as const;
@@ -250,19 +251,21 @@ export default function UsersPage() {
                 onChange={(event) => setSearchInput(event.target.value)}
               />
             </div>
-            <div className="wi-select-wrap">
-              <select
-                value={roleFilter}
-                onChange={(event) => {
-                  setRoleFilter(event.target.value as "" | "ADMIN" | "EMPLOYEE");
-                  setPage(1);
-                }}
-              >
-                <option value="">All Roles</option>
-                <option value="ADMIN">Admin</option>
-                <option value="EMPLOYEE">Staff</option>
-              </select>
-            </div>
+            <SearchableSelect
+              inline
+              value={roleFilter}
+              onChange={(value) => {
+                setRoleFilter(String(value) as "" | "ADMIN" | "EMPLOYEE");
+                setPage(1);
+              }}
+              options={[
+                { value: "", label: "All Roles" },
+                { value: "ADMIN", label: "Admin" },
+                { value: "EMPLOYEE", label: "Staff" },
+              ]}
+              placeholder="All Roles"
+              searchPlaceholder="Search roles…"
+            />
           </div>
           <div className="toolbar-right">
             <button className="btn-new" onClick={openNew}><IconPlus /> New</button>
@@ -344,17 +347,27 @@ export default function UsersPage() {
         <div className="form-row">
           <div className="form-group">
             <label>Role <span style={{ color: "var(--red)" }}>*</span></label>
-            <select value={userFormik.values.user_type} onChange={(event) => userFormik.setFieldValue("user_type", event.target.value as UserRole)}>
-              {ROLES.map((role) => <option key={role} value={role}>{role}</option>)}
-            </select>
+            <SearchableSelect
+              value={userFormik.values.user_type}
+              onChange={(value) => userFormik.setFieldValue("user_type", String(value) as UserRole)}
+              options={ROLES.map((role) => ({ value: role, label: role }))}
+              placeholder="Select a role"
+              searchPlaceholder="Search roles…"
+            />
             {userFormik.errors.user_type && <span style={{ color: "var(--red)", fontSize: 12 }}>{userFormik.errors.user_type}</span>}
           </div>
           <div className="form-group">
             <label>Status <span style={{ color: "var(--red)" }}>*</span></label>
-            <select value={userFormik.values.status} onChange={(event) => userFormik.setFieldValue("status", event.target.value as UserStatus)}>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
+            <SearchableSelect
+              value={userFormik.values.status}
+              onChange={(value) => userFormik.setFieldValue("status", String(value) as UserStatus)}
+              options={[
+                { value: "active", label: "Active" },
+                { value: "inactive", label: "Inactive" },
+              ]}
+              placeholder="Select a status"
+              searchPlaceholder="Search statuses…"
+            />
           </div>
         </div>
       </Modal>

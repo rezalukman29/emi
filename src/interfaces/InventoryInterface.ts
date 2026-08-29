@@ -153,8 +153,8 @@ export interface PayloadAddEventI {
   id?: number;
   description: string;
   name: string;
-  event_start: Day | null;
-  event_end: Day | null;
+  event_start: Day | string | null;
+  event_end: Day | string | null;
   PIC: string | number;
   event_code: string;
   is_complete: number;
@@ -169,5 +169,5 @@ export interface PayloadAddEventI {
   notes: string;
   scan_type?:  string
   packaging?: string;
-  date_event?: Day | null;
+  date_event?: Day | string | null;
 }

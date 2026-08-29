@@ -122,7 +122,7 @@ const ADVISORY_CONFIG = {
     text: "#166534",
     badgeBg: "#dcfce7",
     badgeText: "#15803d",
-    label: "Kondisi Aman",
+    label: "Safe Conditions",
   },
   warning: {
     bg: "#fff7ed",
@@ -130,7 +130,7 @@ const ADVISORY_CONFIG = {
     text: "#9a3412",
     badgeBg: "#ffedd5",
     badgeText: "#c2410c",
-    label: "Perlu Perhatian",
+    label: "Needs Attention",
   },
   danger: {
     bg: "#fef2f2",
@@ -138,7 +138,7 @@ const ADVISORY_CONFIG = {
     text: "#991b1b",
     badgeBg: "#fee2e2",
     badgeText: "#b91c1c",
-    label: "Risiko Tinggi",
+    label: "High Risk",
   },
 } as const;
 
@@ -290,7 +290,7 @@ function WeatherAdvisoryBanner({ advisory }: { advisory: AiWeatherAdvisory }) {
             >
               <polyline points="6 9 12 15 18 9" />
             </svg>
-            {tipsOpen ? "Sembunyikan tips" : `Lihat ${advisory.tips.length} tips praktis`}
+            {tipsOpen ? "Hide tips" : `View ${advisory.tips.length} practical tips`}
           </button>
           {tipsOpen && (
             <ul
