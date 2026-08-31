@@ -1794,14 +1794,16 @@ td.id-cell   { color: var(--text-muted); font-size: 12px; }
 .mo-item-search { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border: 1px solid var(--border); border-bottom: 0; border-radius: var(--r) var(--r) 0 0; background: var(--white); }
 .mo-item-search svg { width: 14px; height: 14px; color: var(--text-muted); }
 .mo-item-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; }
-.mo-item-list { max-height: 220px; overflow-y: auto; border: 1px solid var(--border); border-radius: 0 0 var(--r) var(--r); }
-.mo-item-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border-bottom: 1px solid var(--border-2); }
+.mo-item-list { max-height: 220px; overflow-y: auto; border: 1px solid var(--border); border-radius: 0 0 var(--r) var(--r); background: var(--white); }
+.mo-item-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding: 8px 10px; border-bottom: 1px solid var(--border-2); }
 .mo-item-row:last-child { border-bottom: 0; }
 .mo-item-row.checked { background: var(--brand-bg); }
-.mo-item-check { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; cursor: pointer; }
+.form-group .mo-item-check { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; margin: 0; color: var(--text); cursor: pointer; font-size: 13px; font-weight: 400; letter-spacing: normal; text-transform: none; }
+.form-group .mo-item-check input[type="checkbox"] { appearance: auto; -webkit-appearance: checkbox; width: 16px; height: 16px; min-width: 16px; margin: 0; padding: 0; border: 0; border-radius: 3px; accent-color: var(--brand); box-shadow: none; flex-shrink: 0; }
+.form-group .mo-item-check input[type="checkbox"]:focus { border-color: transparent; box-shadow: none; }
 .mo-item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); font-size: 13px; }
 .mo-item-stock { color: var(--text-muted); font-size: 11px; white-space: nowrap; }
-.mo-item-qty { width: 64px; flex-shrink: 0; padding: 5px 8px; border: 1px solid var(--border); border-radius: var(--r); text-align: right; }
+.form-group .mo-item-qty { width: 64px; min-width: 64px; flex: 0 0 64px; padding: 5px 8px; border: 1px solid var(--border); border-radius: var(--r); text-align: right; appearance: auto; -webkit-appearance: auto; }
 .mo-item-empty { padding: 20px 12px; color: var(--text-muted); text-align: center; font-size: 12.5px; }
 
 /* Public tenant authentication */

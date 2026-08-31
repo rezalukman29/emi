@@ -1,3 +1,5 @@
+import moment from "moment";
+
 export const STORAGE_BOOQABLE = "https://storage-booqable.emi.web.id/booqable/"
 export const noImage =
   "https://upload.wikimedia.org/wikipedia/commons/a/a3/Image-not-found.png";
@@ -19,4 +21,15 @@ export const currency = (value: number) => {
   if (!value) return "";
 
   return new Intl.NumberFormat("id-ID").format(value);
+};
+
+export const formatUtcToLocalDateTime = (value?: string) => {
+  if (!value) return "-";
+
+  const parsed = moment.utc(value, "YYYY-MM-DD HH:mm:ss", true);
+  if (!parsed.isValid()) {
+    return moment.utc(value).local().format("D MMM YYYY, HH:mm");
+  }
+
+  return parsed.local().format("D MMM YYYY, HH:mm");
 };

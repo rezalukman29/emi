@@ -17,6 +17,7 @@ import { InventoryService } from "../service/InventoryService";
 import {
   STORAGE_BOOQABLE,
   currency,
+  formatUtcToLocalDateTime,
   isValidUrl,
   noImage,
 } from "../utils/function";
@@ -34,24 +35,20 @@ import useGetBarangGudang, {
   type BarangGudangStatus,
 } from "../hooks/api/useGetBarangGudang";
 import usePutApplyStockOpname from "../hooks/api/usePutApplyStockOpname";
+import usePutRollbackStockOpname from "../hooks/api/usePutRollbackStockOpname";
 import useGetStockOpname, {
   type StockOpnameHistoryItem,
   type StockOpnameHistoryRecord,
 } from "../hooks/api/useGetStockOpname";
 import useGetWarehouseInventorySummary from "../hooks/api/useGetWarehouseInventorySummary";
+import useGetMovingOrders from "../hooks/api/useGetMovingOrders";
+import usePostMovingOrder from "../hooks/api/usePostMovingOrder";
 import {
   clearStockOpnameLocalResolution,
   getEffectiveStockOpnameStatus,
   getStockOpnameLocalResolution,
   getStockOpnameLocalSubmission,
-  rejectStockOpnameLocally,
 } from "../lib/stockOpnameSession";
-import {
-  getMovingOrderSession,
-  saveMovingOrderSession,
-  type MovingInventoryRow,
-  type MovingOrderSessionState,
-} from "../lib/movingOrderSession";
 import type { RootState } from "../store/store";
 
 const PAGE_SIZE = 10;
@@ -370,20 +367,13 @@ export default function WarehouseInventoryPage() {
   const [movingSourceWarehouse, setMovingSourceWarehouse] = useState("");
   const [movingDestinationWarehouse, setMovingDestinationWarehouse] = useState("");
   const [movingItemQuery, setMovingItemQuery] = useState("");
+  const [debouncedMovingItemQuery, setDebouncedMovingItemQuery] = useState("");
   const [movingSelection, setMovingSelection] = useState<Record<number, string>>({});
-  const [movingOrderSession, setMovingOrderSession] = useState<MovingOrderSessionState>(
-    () => getMovingOrderSession(),
-  );
-  const {
-    movingOrders,
-    movingStockAdjustments,
-    movingLocalRows,
-  } = movingOrderSession;
+  const [movingOrderPage, setMovingOrderPage] = useState(1);
 
   const [historyWarehouse, setHistoryWarehouse] = useState("");
   const [historyDetail, setHistoryDetail] = useState<StockOpnameHistoryRecord | null>(null);
   const [approvingId, setApprovingId] = useState<number | null>(null);
-  const [, setLocalResolutionVersion] = useState(0);
 
   const { warehouseOptions } = useWarehouseController();
 
@@ -426,22 +416,48 @@ export default function WarehouseInventoryPage() {
     data: movingInventoryResponse,
     isLoading: isMovingInventoryLoading,
     isError: isMovingInventoryError,
+    refetch: refetchMovingInventory,
   } = useGetBarangGudang({
     params: {
       page: 1,
-      limit: GET_ALL_LIMIT,
+      limit: 20,
+      gudang_id: movingSourceWarehouse
+        ? Number(movingSourceWarehouse)
+        : undefined,
+      search: debouncedMovingItemQuery || undefined,
       sort: "ASC",
       sortBy: "name",
     },
     options: {
-      enabled: movingOrderOpen,
+      enabled: movingOrderOpen && Boolean(movingSourceWarehouse),
+    },
+  });
+  const {
+    mutateAsync: postMovingOrder,
+    isLoading: isCreatingMovingOrder,
+  } = usePostMovingOrder();
+  const {
+    data: movingOrderResponse,
+    isLoading: isMovingOrderListLoading,
+    isError: isMovingOrderListError,
+    refetch: refetchMovingOrders,
+  } = useGetMovingOrders({
+    params: { page: movingOrderPage, limit: PAGE_SIZE },
+    options: {
+      enabled: tab === "movingorder",
       keepPreviousData: true,
     },
   });
+  const movingOrders = movingOrderResponse?.data ?? [];
   const {
     mutateAsync: putApplyStockOpname,
     isLoading: isApplyingStockOpname,
   } = usePutApplyStockOpname();
+  const {
+    mutateAsync: putRollbackStockOpname,
+    isLoading: isRollingBackStockOpname,
+  } = usePutRollbackStockOpname();
+  const [rollingBackId, setRollingBackId] = useState<number | null>(null);
 
   const historyRecords = historyResponse?.data ?? [];
   const pendingOpname = historyRecords.some(
@@ -571,6 +587,19 @@ export default function WarehouseInventoryPage() {
     getInventoryList();
   }, [page, sort, sortBy, searchValue, appliedWarehouseFilter, appliedStatusFilter]);
 
+  useEffect(() => {
+    if (!movingOrderOpen || !movingSourceWarehouse) {
+      setDebouncedMovingItemQuery("");
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedMovingItemQuery(movingItemQuery.trim());
+    }, 400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [movingItemQuery, movingOrderOpen, movingSourceWarehouse]);
+
   function applyInventoryFilters() {
     setSearchValue(query.trim());
     setAppliedWarehouseFilter(warehouseFilter);
@@ -621,32 +650,12 @@ export default function WarehouseInventoryPage() {
   );
 
   const movingApiRows = movingInventoryResponse?.data ?? [];
-  const movingRows = useMemo<MovingInventoryRow[]>(() => {
-    const sourceWarehouseId = Number(movingSourceWarehouse);
-    if (!sourceWarehouseId) return [];
-
-    return [
-      ...movingApiRows.map((row) => ({
-        ...row,
-        stok_gudang: Math.max(
-          0,
-          Number(row.stok_gudang || 0)
-            + (movingStockAdjustments[row.barang_gudang_id] ?? 0),
-        ),
-      })),
-      ...movingLocalRows,
-    ].filter((row) => Number(row.gudang_id) === sourceWarehouseId);
-  }, [
-    movingApiRows,
-    movingLocalRows,
-    movingSourceWarehouse,
-    movingStockAdjustments,
-  ]);
-  const filteredMovingRows = movingRows.filter((row) => {
-    const normalizedQuery = movingItemQuery.trim().toLowerCase();
-    return row.stok_gudang > 0
-      && (!normalizedQuery || row.nama_barang.toLowerCase().includes(normalizedQuery));
-  });
+  const movingRows = movingSourceWarehouse
+    ? movingApiRows.filter(
+        (row) => Number(row.gudang_id) === Number(movingSourceWarehouse),
+      )
+    : [];
+  const filteredMovingRows = movingRows.filter((row) => row.stok_gudang > 0);
   const selectedMovingRows = movingRows.filter(
     (row) => movingSelection[row.barang_gudang_id] !== undefined,
   );
@@ -697,6 +706,7 @@ export default function WarehouseInventoryPage() {
     setMovingSourceWarehouse("");
     setMovingDestinationWarehouse("");
     setMovingItemQuery("");
+    setDebouncedMovingItemQuery("");
     setMovingSelection({});
     setMovingOrderOpen(true);
   }
@@ -713,7 +723,7 @@ export default function WarehouseInventoryPage() {
     });
   }
 
-  function setMovingItemQuantity(row: MovingInventoryRow, value: string) {
+  function setMovingItemQuantity(row: BarangGudangItem, value: string) {
     setMovingSelection((current) => ({
       ...current,
       [row.barang_gudang_id]: value === ""
@@ -727,100 +737,40 @@ export default function WarehouseInventoryPage() {
     }));
   }
 
-  function submitMovingOrder() {
+  async function submitMovingOrder() {
     if (!movingOrderValid) return;
 
-    const sourceWarehouseName = warehouseOptions.find(
-      (warehouse) => String(warehouse.value) === movingSourceWarehouse,
-    )?.label ?? "-";
-    const destinationWarehouseName = warehouseOptions.find(
-      (warehouse) => String(warehouse.value) === movingDestinationWarehouse,
-    )?.label ?? "-";
-    const destinationWarehouseId = Number(movingDestinationWarehouse);
-    const movedAt = moment().format("D MMM YYYY, HH:mm");
-    const batchId = Date.now();
-    const nextAdjustments = { ...movingStockAdjustments };
-    let nextLocalRows = movingLocalRows.map((row) => ({ ...row }));
-    let nextLocalId = nextLocalRows.reduce(
-      (minimum, row) => Math.min(minimum, row.barang_gudang_id),
-      0,
-    ) - 1;
-
-    const newHistory = selectedMovingRows.map((sourceRow, index) => {
-      const quantity = Number(movingSelection[sourceRow.barang_gudang_id]);
-
-      if (sourceRow.local_only) {
-        nextLocalRows = nextLocalRows.map((row) => row.barang_gudang_id === sourceRow.barang_gudang_id
-          ? { ...row, stok_gudang: Math.max(0, row.stok_gudang - quantity) }
-          : row);
-      } else {
-        nextAdjustments[sourceRow.barang_gudang_id] =
-          (nextAdjustments[sourceRow.barang_gudang_id] ?? 0) - quantity;
-      }
-
-      const destinationApiRow = movingApiRows.find(
-        (row) => Number(row.barang_id) === Number(sourceRow.barang_id)
-          && Number(row.gudang_id) === destinationWarehouseId,
-      );
-      const destinationLocalRow = nextLocalRows.find(
-        (row) => Number(row.barang_id) === Number(sourceRow.barang_id)
-          && Number(row.gudang_id) === destinationWarehouseId,
-      );
-
-      if (destinationApiRow) {
-        nextAdjustments[destinationApiRow.barang_gudang_id] =
-          (nextAdjustments[destinationApiRow.barang_gudang_id] ?? 0) + quantity;
-      } else if (destinationLocalRow) {
-        nextLocalRows = nextLocalRows.map((row) => row.barang_gudang_id === destinationLocalRow.barang_gudang_id
-          ? { ...row, stok_gudang: row.stok_gudang + quantity }
-          : row);
-      } else {
-        nextLocalRows = [
-          ...nextLocalRows,
-          {
-            ...sourceRow,
-            barang_gudang_id: nextLocalId,
-            gudang_id: destinationWarehouseId,
-            gudang_name: destinationWarehouseName,
-            gudang: {
-              gudang_id: destinationWarehouseId,
-              gudang_name: destinationWarehouseName,
-            },
-            stok_gudang: quantity,
-            stock_used: 0,
-            local_only: true,
-          },
-        ];
-        nextLocalId -= 1;
-      }
-
-      return {
-        id: `${batchId}-${index}`,
-        itemName: sourceRow.nama_barang,
-        fromWarehouse: sourceWarehouseName,
-        toWarehouse: destinationWarehouseName,
-        qty: quantity,
-        movedBy: profile.fullname || "Admin",
-        movedAt,
-      };
-    });
-
-    const nextSession = {
-      movingOrders: [...newHistory, ...movingOrders],
-      movingStockAdjustments: nextAdjustments,
-      movingLocalRows: nextLocalRows,
+    const payload = {
+      from_gudang_id: Number(movingSourceWarehouse),
+      items: selectedMovingRows.map((row) => ({
+        barang_gudang_id: row.barang_gudang_id,
+        barang_id: row.barang_id,
+        qty: Number(movingSelection[row.barang_gudang_id]),
+      })),
+      notes: "",
+      to_gudang_id: Number(movingDestinationWarehouse),
     };
-    saveMovingOrderSession(nextSession);
-    setMovingOrderSession(nextSession);
-    setMovingOrderOpen(false);
-    setMovingSourceWarehouse("");
-    setMovingDestinationWarehouse("");
-    setMovingItemQuery("");
-    setMovingSelection({});
-    toast(
-      `Moving order created for ${newHistory.length} item${newHistory.length === 1 ? "" : "s"}. This session-only transfer was not sent to the API.`,
-      { type: "success" },
-    );
+
+    try {
+      const response = await postMovingOrder(payload);
+      setMovingOrderPage(1);
+      await Promise.all([
+        refetchMovingInventory(),
+        refetchMovingOrders(),
+        queryClient.invalidateQueries(["useGetMovingOrders"]),
+        queryClient.invalidateQueries(["useGetBarangGudang"]),
+        queryClient.invalidateQueries(["useGetWarehouseInventorySummary"]),
+      ]);
+      setMovingOrderOpen(false);
+      setMovingSourceWarehouse("");
+      setMovingDestinationWarehouse("");
+      setMovingItemQuery("");
+      setDebouncedMovingItemQuery("");
+      setMovingSelection({});
+      toast.success(response.message || "Moving order created successfully.");
+    } catch (error) {
+      toast.error(errorMessage(error, "Failed to create moving order."));
+    }
   }
 
   async function approveOpname(record: StockOpnameHistoryRecord) {
@@ -848,20 +798,30 @@ export default function WarehouseInventoryPage() {
     }
   }
 
-  function rejectOpname(record: StockOpnameHistoryRecord) {
+  async function rollbackOpname(record: StockOpnameHistoryRecord) {
     if (!window.confirm(
-      "Reject this stock opname? No stock changes will be applied.",
+      "Rollback this stock opname?",
     )) {
       return;
     }
 
-    rejectStockOpnameLocally(record.id, profile.fullname || "Admin");
-    setLocalResolutionVersion((version) => version + 1);
-    setHistoryDetail(null);
-    toast(
-      "Stock opname rejected for this session. No stock changes were applied.",
-      { type: "success" },
-    );
+    try {
+      setRollingBackId(record.id);
+      const response = await putRollbackStockOpname(record.id);
+      clearStockOpnameLocalResolution(record.id);
+      setHistoryDetail(null);
+      toast.success(response.message || "Stock opname rolled back successfully.");
+      await Promise.all([
+        refetchHistory(),
+        queryClient.invalidateQueries(["useGetBarangGudang"]),
+        queryClient.invalidateQueries(["useGetWarehouseInventorySummary"]),
+        getInventoryList(),
+      ]);
+    } catch (error) {
+      toast.error(errorMessage(error, "Failed to rollback stock opname."));
+    } finally {
+      setRollingBackId(null);
+    }
   }
 
   function closeModal() {
@@ -1685,45 +1645,66 @@ export default function WarehouseInventoryPage() {
               <button className="btn-new" onClick={openMovingOrder}><IconPlus /> Create Moving Order</button>
             </div>
           </div>
-          <p style={{ background: "var(--orange-bg)", borderRadius: "var(--r-lg)", color: "var(--orange)", fontSize: 12.5, marginBottom: 16, padding: "9px 14px" }}>
-            Moving Orders are available as a session-only preview because no backend endpoint is available yet. Transfers below immediately update this tab's local stock view and history, but do not change API inventory data.
+          <p style={{ background: "var(--brand-bg)", borderRadius: "var(--r-lg)", color: "var(--brand)", fontSize: 12.5, marginBottom: 16, padding: "9px 14px" }}>
+            Moving orders are loaded directly from the API.
           </p>
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Date</th><th>Item</th><th>From</th><th>To</th><th style={{ textAlign: "right" }}>Qty</th><th>Moved By</th></tr></thead>
+              <thead><tr><th>Date</th><th>From</th><th>To</th><th style={{ textAlign: "right" }}>Total Items</th><th>Notes</th><th>Moved By</th></tr></thead>
               <tbody>
-                {movingOrders.length === 0 ? (
+                {isMovingOrderListLoading && movingOrders.length === 0 ? (
                   <tr>
                     <td colSpan={6} style={{ color: "var(--text-muted)", padding: 32, textAlign: "center" }}>
-                      No moving orders created in this session.
+                      Loading moving orders…
+                    </td>
+                  </tr>
+                ) : isMovingOrderListError ? (
+                  <tr>
+                    <td colSpan={6} style={{ color: "var(--red)", padding: 32, textAlign: "center" }}>
+                      Unable to load moving orders.
+                    </td>
+                  </tr>
+                ) : movingOrders.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ color: "var(--text-muted)", padding: 32, textAlign: "center" }}>
+                      No moving orders found.
                     </td>
                   </tr>
                 ) : movingOrders.map((order) => (
                   <tr key={order.id}>
-                    <td style={{ color: "var(--text-muted)", fontSize: 12.5 }}>{order.movedAt}</td>
-                    <td className="name-cell">{order.itemName}</td>
-                    <td>{order.fromWarehouse}</td>
-                    <td>{order.toWarehouse}</td>
-                    <td style={{ fontVariantNumeric: "tabular-nums", fontWeight: 700, textAlign: "right" }}>{order.qty}</td>
-                    <td>{order.movedBy}</td>
+                    <td style={{ color: "var(--text-muted)", fontSize: 12.5 }}>
+                      {formatUtcToLocalDateTime(order.created_at)}
+                    </td>
+                    <td className="name-cell">{order.from_warehouse_name || "-"}</td>
+                    <td>{order.to_warehouse_name || "-"}</td>
+                    <td style={{ fontVariantNumeric: "tabular-nums", fontWeight: 700, textAlign: "right" }}>{order.total_items}</td>
+                    <td style={{ color: "var(--text-muted)" }}>{order.notes || "-"}</td>
+                    <td>{order.moved_by || "-"}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          <Pagination
+            currentPage={movingOrderResponse?.page ?? movingOrderPage}
+            total={movingOrderResponse?.total_records ?? 0}
+            pageSize={PAGE_SIZE}
+            onPage={setMovingOrderPage}
+            label="moving orders"
+          />
         </div>
       )}
 
       <Modal
         open={movingOrderOpen}
         title="Create Moving Order"
-        onClose={() => setMovingOrderOpen(false)}
+        onClose={() => !isCreatingMovingOrder && setMovingOrderOpen(false)}
         size="lg"
         footer={(
           <>
-            <button className="btn-cancel-modal" onClick={() => setMovingOrderOpen(false)}><IconClose /> Cancel</button>
-            <button className="btn-save-modal" disabled={!movingOrderValid} onClick={submitMovingOrder}>
-              <IconCheck /> Create Order{selectedMovingRows.length > 1 ? ` (${selectedMovingRows.length} items)` : ""}
+            <button className="btn-cancel-modal" disabled={isCreatingMovingOrder} onClick={() => setMovingOrderOpen(false)}><IconClose /> Cancel</button>
+            <button className="btn-save-modal" disabled={!movingOrderValid || isCreatingMovingOrder} onClick={submitMovingOrder}>
+              <IconCheck /> {isCreatingMovingOrder ? "Creating…" : `Create Order${selectedMovingRows.length > 1 ? ` (${selectedMovingRows.length} items)` : ""}`}
             </button>
           </>
         )}
@@ -1736,6 +1717,7 @@ export default function WarehouseInventoryPage() {
               setMovingSourceWarehouse(String(value));
               setMovingDestinationWarehouse("");
               setMovingItemQuery("");
+              setDebouncedMovingItemQuery("");
               setMovingSelection({});
             }}
             placeholder="Choose warehouse…"
@@ -1747,7 +1729,20 @@ export default function WarehouseInventoryPage() {
         {movingSourceWarehouse && (
           <div className="form-group">
             <label>Items to Move <span style={{ color: "var(--red)" }}>*</span>{selectedMovingRows.length > 0 && <span style={{ color: "var(--text-muted)", letterSpacing: 0, marginLeft: 6, textTransform: "none" }}>({selectedMovingRows.length} selected)</span>}</label>
-            <div className="mo-item-search"><IconSearch /><input placeholder="Search item…" value={movingItemQuery} onChange={(event) => setMovingItemQuery(event.target.value)} /></div>
+            <div className="mo-item-search">
+              <IconSearch />
+              <input
+                placeholder="Search item…"
+                value={movingItemQuery}
+                onChange={(event) => setMovingItemQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    setDebouncedMovingItemQuery(movingItemQuery.trim());
+                  }
+                }}
+              />
+            </div>
             <div className="mo-item-list">
               {isMovingInventoryLoading ? (
                 <div className="mo-item-empty">Loading warehouse items…</div>
@@ -1808,9 +1803,6 @@ export default function WarehouseInventoryPage() {
             </span>
           </div>
         )}
-        <p style={{ color: "var(--orange)", fontSize: 12.5, marginBottom: 0, marginTop: 10 }}>
-          This order is applied only to the Moving Order view for the current session. API inventory remains unchanged.
-        </p>
       </Modal>
 
       {tab === "opnamehistory" && (
@@ -1879,7 +1871,14 @@ export default function WarehouseInventoryPage() {
                           {isAdmin && isPending && (
                             <>
                               <button className="btn-icon" title="Approve" disabled={isApplyingStockOpname && approvingId === record.id} style={{ color: "var(--green)" }} onClick={() => approveOpname(record)}><IconCheck /></button>
-                              <button className="btn-icon delete" title="Reject" onClick={() => rejectOpname(record)}><IconClose /></button>
+                              <button
+                                className="btn-icon delete"
+                                title="Rollback"
+                                disabled={isRollingBackStockOpname && rollingBackId === record.id}
+                                onClick={() => rollbackOpname(record)}
+                              >
+                                <IconClose />
+                              </button>
                             </>
                           )}
                         </div>
@@ -1941,7 +1940,13 @@ export default function WarehouseInventoryPage() {
             {isAdmin && normalizedOpnameStatus(historyDetail) === "PENDING" && (
               <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
                 <button className="btn-save-modal" disabled={isApplyingStockOpname} onClick={() => approveOpname(historyDetail)}><IconCheck /> {isApplyingStockOpname ? "Approving…" : "Approve"}</button>
-                <button className="btn-cancel-modal" onClick={() => rejectOpname(historyDetail)}><IconClose /> Reject</button>
+                <button
+                  className="btn-cancel-modal"
+                  disabled={isRollingBackStockOpname}
+                  onClick={() => rollbackOpname(historyDetail)}
+                >
+                  <IconClose /> {isRollingBackStockOpname ? "Rolling back…" : "Rollback"}
+                </button>
               </div>
             )}
           </>
