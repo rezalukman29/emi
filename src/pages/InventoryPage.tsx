@@ -26,6 +26,7 @@ import TextInput from "../components/TextInput";
 import TextArea from "../components/TextArea";
 import { useUnitController } from "./lib/useUnitController";
 import SearchableSelect from "../components/SearchableSelect";
+import useGetInventorySummary from "../hooks/api/useGetInventorySummary";
 
 export interface ISelect {
   label: string;
@@ -421,13 +422,26 @@ const inventoryData = [
 ];
 
 // const categories    = ['Floral','Furniture','Lighting','Fabric','Decoration','Equipment'];
-const stockStatuses = ["Available", "Low Stock", "Out of Stock"];
+type InventoryStockStatus = "OUT_OF_STOCK" | "LOW_STOCK" | "AVAILABLE";
+
+const stockStatuses: Array<{
+  value: InventoryStockStatus;
+  label: string;
+}> = [
+  { value: "AVAILABLE", label: "Available" },
+  { value: "LOW_STOCK", label: "Low Stock" },
+  { value: "OUT_OF_STOCK", label: "Out of Stock" },
+];
 
 function stockBadge(s: any) {
-  if (s === "Available") return <span className="badge badge-green">{s}</span>;
-  if (s === "Low Stock") return <span className="badge badge-orange">{s}</span>;
-  if (s === "Out of Stock") return <span className="badge badge-red">{s}</span>;
-  return <span className="badge badge-gray">{s}</span>;
+  const normalized = String(s || "").trim().toUpperCase().replace(/\s+/g, "_");
+  if (normalized === "AVAILABLE")
+    return <span className="badge badge-green">Available</span>;
+  if (normalized === "LOW_STOCK")
+    return <span className="badge badge-orange">Low Stock</span>;
+  if (normalized === "OUT_OF_STOCK")
+    return <span className="badge badge-red">Out of Stock</span>;
+  return <span className="badge badge-gray">{s || "-"}</span>;
 }
 
 export default function InventoryPage() {
@@ -437,7 +451,7 @@ export default function InventoryPage() {
   const imgInputRef = useRef<any>(null);
   const [query, setQuery] = useState("");
   const [catFilter, setCatFilter] = useState("");
-  const [stockFilter, setStockFilter] = useState("");
+  const [stockFilter, setStockFilter] = useState<InventoryStockStatus | "">("");
   const [page, setPage] = useState(1);
   const [sortCol, setSortCol] = useState(0);
   const [sortAsc, setSortAsc] = useState(true);
@@ -461,6 +475,11 @@ export default function InventoryPage() {
   const [barang, setBarang] = useState<any | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [base64, setBase64] = useState<string>();
+  const {
+    data: inventorySummaryResponse,
+    refetch: refetchInventorySummary,
+  } = useGetInventorySummary();
+  const inventorySummary = inventorySummaryResponse?.data;
 
   const emptyAiEdited = {
     detail: "",
@@ -548,6 +567,7 @@ export default function InventoryPage() {
         limit: size ?? 10,
         search: query,
         category: catFilter || undefined,
+        status: stockFilter || undefined,
         sort,
         sortBy,
       });
@@ -616,6 +636,7 @@ export default function InventoryPage() {
             setBarang(null);
             setIsLoading(false);
             getInventoryList();
+            void refetchInventorySummary();
           }
         } catch (error: any) {
           setIsLoading(false);
@@ -644,6 +665,7 @@ export default function InventoryPage() {
             setBarang(null);
             setIsLoading(false);
             getInventoryList();
+            void refetchInventorySummary();
           }
         } catch (error: any) {
           setIsLoading(false);
@@ -787,25 +809,25 @@ export default function InventoryPage() {
         {[
           {
             label: "Total Items",
-            value: total,
+            value: inventorySummary?.total_items ?? 0,
             color: "var(--brand)",
             bg: "var(--brand-bg)",
           },
           {
             label: "Available",
-            value: total,
+            value: inventorySummary?.available ?? 0,
             color: "var(--green)",
             bg: "var(--green-bg)",
           },
           {
             label: "Low Stock",
-            value: 0,
+            value: inventorySummary?.low_stock ?? 0,
             color: "var(--orange)",
             bg: "var(--orange-bg)",
           },
           {
             label: "Out of Stock",
-            value: 0,
+            value: inventorySummary?.out_of_stock ?? 0,
             color: "var(--red)",
             bg: "var(--red-bg)",
           },
@@ -858,14 +880,14 @@ export default function InventoryPage() {
               inline
               value={stockFilter}
               onChange={(value) => {
-                setStockFilter(String(value));
+                setStockFilter(String(value) as InventoryStockStatus | "");
                 setPage(1);
               }}
               options={[
                 { value: "", label: "All Status" },
                 ...stockStatuses.map((status) => ({
-                  value: status,
-                  label: status,
+                  value: status.value,
+                  label: status.label,
                 })),
               ]}
               placeholder="All Status"
@@ -1023,7 +1045,7 @@ export default function InventoryPage() {
                     >
                       {r.stok_barang}
                     </td>
-                    <td>{stockBadge("Available")}</td>
+                    <td>{stockBadge(r.status ?? "AVAILABLE")}</td>
                     <td
                       style={{ color: "var(--text-muted)", fontSize: "12.5px" }}
                     >

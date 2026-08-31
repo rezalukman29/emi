@@ -1748,6 +1748,37 @@ td.id-cell   { color: var(--text-muted); font-size: 12px; }
 
 /* Stock opname and warehouse workflows */
 .condition-toggle { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
+
+.event-status-toggle {
+  position: relative;
+  width: 52px;
+  height: 30px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-alt, #f3f4f6);
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.event-status-toggle.active {
+  border-color: var(--brand);
+  background: var(--brand);
+}
+
+.event-status-toggle-knob {
+  display: block;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.22);
+  transition: transform 0.2s ease;
+}
+
+.event-status-toggle.active .event-status-toggle-knob {
+  transform: translateX(22px);
+}
 .condition-btn { padding: 5px 12px; border: 0; background: var(--white); color: var(--text-muted); font-size: 11.5px; font-weight: 700; cursor: pointer; }
 .condition-btn.good.active { background: var(--green); color: #fff; }
 .condition-btn.poor.active { background: var(--red); color: #fff; }

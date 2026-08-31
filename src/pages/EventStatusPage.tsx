@@ -20,7 +20,7 @@ import { InventoryService } from "../service/InventoryService";
 const PAGE_SIZE = 20;
 const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-type ScanAction = "" | "SCAN IN" | "SCAN OUT";
+type ScanAction = "" | "SCAN_IN" | "SCAN_OUT";
 type ScanSetting = "None" | "Scan";
 
 interface EventStatusRow {
@@ -36,17 +36,35 @@ interface EventStatusRow {
 interface EventStatusForm {
   name: string;
   order_data: string;
-  scan: ScanSetting;
   action: ScanAction;
+  showScan: boolean;
 }
 
 function emptyForm(order = 1): EventStatusForm {
   return {
     name: "",
     order_data: String(order),
-    scan: "None",
     action: "",
+    showScan: false,
   };
+}
+
+function normalizeScanAction(action: string): ScanAction {
+  const normalized = action.trim().toUpperCase().replace(/\s+/g, "_");
+  return normalized === "SCAN_IN" || normalized === "SCAN_OUT"
+    ? normalized
+    : "";
+}
+
+function ScanActionBadge({ action }: { action: string }) {
+  const normalized = normalizeScanAction(action);
+  if (!normalized) return <span>-</span>;
+
+  return (
+    <span className={`badge ${normalized === "SCAN_IN" ? "badge-green" : "badge-orange"}`}>
+      {normalized === "SCAN_IN" ? "Scan In" : "Scan Out"}
+    </span>
+  );
 }
 
 function fmtDate(date: string) {
@@ -57,20 +75,9 @@ function fmtDate(date: string) {
 
 function ScanBadge({ scan }: { scan: ScanSetting }) {
   return scan === "Scan" ? (
-    <span className="badge badge-green" style={{ fontSize: 11 }}>Scan</span>
+    <span className="badge badge-green">Yes</span>
   ) : (
-    <span
-      className="badge badge-gray"
-      style={{
-        fontSize: 11,
-        background: "transparent",
-        border: "1px solid var(--border)",
-        color: "var(--text-muted)",
-        fontWeight: 400,
-      }}
-    >
-      None
-    </span>
+    <span className="badge badge-orange">No</span>
   );
 }
 
@@ -148,20 +155,17 @@ export default function EventStatusPage() {
     validationSchema: Yup.object({
       name: Yup.string().trim().required("Required"),
       order_data: Yup.number().integer("Must be an integer").min(0, "Minimum value is 0").required("Required"),
-      scan: Yup.string().oneOf(["None", "Scan"]).required("Required"),
-      action: Yup.string().oneOf(["", "SCAN IN", "SCAN OUT"]),
+      action: Yup.string().oneOf(["", "SCAN_IN", "SCAN_OUT"]),
+      showScan: Yup.boolean().required(),
     }),
     validateOnChange: false,
     onSubmit: async (values, { resetForm }) => {
       try {
         const payload = {
           name: values.name.trim(),
-          is_show_scan_result: values.scan === "Scan" ? 1 : 0,
+          is_show_scan_result: values.showScan ? 1 : 0,
           order_data: Number(values.order_data),
-          // The simplified UI no longer asks users to choose a scan direction.
-          // Keep the existing BE action when editing, and clear it when scanning
-          // is disabled so the payload remains backwards-compatible.
-          action: values.scan === "Scan" ? values.action : "",
+          action: values.action,
         };
         const result = editingId
           ? await putEventStatus({ ...payload, id: editingId })
@@ -213,8 +217,8 @@ export default function EventStatusPage() {
       values: {
         name: row.status,
         order_data: String(row.order),
-        scan: row.scan,
-        action: (["SCAN IN", "SCAN OUT"].includes(row.action) ? row.action : "") as ScanAction,
+        action: normalizeScanAction(row.action),
+        showScan: row.scan === "Scan",
       },
     });
     setStatusModal(true);
@@ -241,7 +245,7 @@ export default function EventStatusPage() {
       name: row.status,
       is_show_scan_result: row.scan === "Scan" ? 1 : 0,
       order_data,
-      action: row.scan === "Scan" ? row.action : "",
+      action: normalizeScanAction(row.action),
     });
 
     setStatuses((rows) => rows.map((row) => {
@@ -349,19 +353,20 @@ export default function EventStatusPage() {
                 <SortTh label="Order" id="order_data" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 70, textAlign: "center" }} />
                 <th style={{ width: 80, textAlign: "center" }}>Edit Order</th>
                 <SortTh label="Status" id="name" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} />
-                <th style={{ width: 100, textAlign: "center" }}>Scan</th>
+                <th style={{ width: 100, textAlign: "center" }}>Show Scan</th>
+                <th style={{ width: 120, textAlign: "center" }}>Action</th>
                 <SortTh label="Event Running" id="active_event" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 120, textAlign: "right" }} />
                 <SortTh label="Created At" id="created_at" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 120 }} />
-                <th style={{ width: 100, textAlign: "center" }}>Action</th>
+                <th style={{ width: 100, textAlign: "center" }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {isLoading && statuses.length === 0 ? (
-                <tr><td colSpan={7} style={{ textAlign: "center", padding: 40 }}>Loading event statuses…</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: "center", padding: 40 }}>Loading event statuses…</td></tr>
               ) : isError ? (
-                <tr><td colSpan={7} style={{ textAlign: "center", padding: 40, color: "var(--red)" }}>Failed to load event statuses.</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: "center", padding: 40, color: "var(--red)" }}>Failed to load event statuses.</td></tr>
               ) : statuses.length === 0 ? (
-                <tr><td colSpan={7} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>No statuses found.</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>No statuses found.</td></tr>
               ) : (
                 statuses.map((row) => {
                   const orderedIndex = orderedStatuses.findIndex((status) => status.id === row.id);
@@ -385,6 +390,9 @@ export default function EventStatusPage() {
                     </td>
                     <td className="name-cell">{row.status}</td>
                     <td style={{ textAlign: "center" }}><ScanBadge scan={row.scan} /></td>
+                    <td style={{ textAlign: "center", fontWeight: 600 }}>
+                      <ScanActionBadge action={row.action} />
+                    </td>
                     <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>
                       <span style={{ color: row.eventRunning > 0 ? "var(--orange)" : "var(--text-muted)" }}>{row.eventRunning}</span>
                     </td>
@@ -436,17 +444,30 @@ export default function EventStatusPage() {
         <div className="form-group">
           <label>Scan</label>
           <SearchableSelect
-            value={formik.values.scan}
-            onChange={(value) => formik.setFieldValue("scan", value as ScanSetting)}
+            value={formik.values.action}
+            onChange={(value) => formik.setFieldValue("action", value as ScanAction)}
             options={[
-              { value: "None", label: "None" },
-              { value: "Scan", label: "Scan" },
+              { value: "", label: "None" },
+              { value: "SCAN_IN", label: "Scan In" },
+              { value: "SCAN_OUT", label: "Scan Out" },
             ]}
             placeholder="None"
           />
-          {formik.errors.scan && (
-            <span style={{ color: "var(--red)", fontSize: 11.5 }}>{formik.errors.scan}</span>
+          {formik.errors.action && (
+            <span style={{ color: "var(--red)", fontSize: 11.5 }}>{formik.errors.action}</span>
           )}
+        </div>
+        <div className="form-group">
+          <label>Show Scan</label>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={formik.values.showScan}
+            className={`event-status-toggle${formik.values.showScan ? " active" : ""}`}
+            onClick={() => formik.setFieldValue("showScan", !formik.values.showScan)}
+          >
+            <span className="event-status-toggle-knob" />
+          </button>
         </div>
       </Modal>
 

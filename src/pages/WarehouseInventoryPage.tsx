@@ -38,6 +38,7 @@ import useGetStockOpname, {
   type StockOpnameHistoryItem,
   type StockOpnameHistoryRecord,
 } from "../hooks/api/useGetStockOpname";
+import useGetWarehouseInventorySummary from "../hooks/api/useGetWarehouseInventorySummary";
 import {
   clearStockOpnameLocalResolution,
   getEffectiveStockOpnameStatus,
@@ -404,30 +405,9 @@ export default function WarehouseInventoryPage() {
   const [barang, setBarang] = useState<any | null>(null);
   const [listInventory, setListInventory] = useState<any[]>([]);
 
-  const { data: safeResponse } = useGetBarangGudang({
-    params: {
-      page: 1,
-      limit: 1,
-      status: "SAFE",
-    },
-    options: { keepPreviousData: true },
-  });
-  const { data: warningResponse } = useGetBarangGudang({
-    params: {
-      page: 1,
-      limit: 1,
-      status: "WARNING",
-    },
-    options: { keepPreviousData: true },
-  });
-  const { data: criticalResponse } = useGetBarangGudang({
-    params: {
-      page: 1,
-      limit: 1,
-      status: "CRITICAL",
-    },
-    options: { keepPreviousData: true },
-  });
+  const { data: warehouseSummaryResponse } =
+    useGetWarehouseInventorySummary();
+  const warehouseSummary = warehouseSummaryResponse?.data;
   const {
     data: historyResponse,
     isLoading: isHistoryLoading,
@@ -521,6 +501,7 @@ export default function WarehouseInventoryPage() {
             setInventory(null);
             setModalOpen(false);
             await queryClient.invalidateQueries(["useGetBarangGudang"]);
+            await queryClient.invalidateQueries(["useGetWarehouseInventorySummary"]);
             await getInventoryList();
           }
         } catch (error: any) {
@@ -543,6 +524,7 @@ export default function WarehouseInventoryPage() {
             setIsLoading(false);
             setInventory(null);
             await queryClient.invalidateQueries(["useGetBarangGudang"]);
+            await queryClient.invalidateQueries(["useGetWarehouseInventorySummary"]);
             await getInventoryList();
             setItemSearch("");
             setItemSearchDraft("");
@@ -617,10 +599,6 @@ export default function WarehouseInventoryPage() {
     setSortBy(sortKeys[col] ?? "name");
     setPage(1);
   }
-
-  const safeCount = safeResponse?.total_records ?? 0;
-  const warningCount = warningResponse?.total_records ?? 0;
-  const criticalCount = criticalResponse?.total_records ?? 0;
 
   const historyWarehouseOptions = useMemo(() => {
     return Array.from(new Set(historyRecords.map(opnameWarehouse).filter((name) => name !== "-")))
@@ -705,6 +683,7 @@ export default function WarehouseInventoryPage() {
       setDeleteTarget(null);
       await getInventoryList();
       await queryClient.invalidateQueries(["useGetBarangGudang"]);
+      await queryClient.invalidateQueries(["useGetWarehouseInventorySummary"]);
     } catch (error) {
       toast(errorMessage(error, "Failed to delete warehouse item."), {
         type: "error",
@@ -857,6 +836,7 @@ export default function WarehouseInventoryPage() {
       await Promise.all([
         refetchHistory(),
         queryClient.invalidateQueries(["useGetBarangGudang"]),
+        queryClient.invalidateQueries(["useGetWarehouseInventorySummary"]),
         getInventoryList(),
       ]);
     } catch (error) {
@@ -959,25 +939,25 @@ export default function WarehouseInventoryPage() {
         {[
           {
             label: "Total Items",
-            value: total,
+            value: warehouseSummary?.total_items ?? 0,
             color: "var(--brand)",
             bg: "var(--brand-bg)",
           },
           {
             label: "Safe",
-            value: safeCount,
+            value: warehouseSummary?.safe ?? 0,
             color: "var(--green)",
             bg: "var(--green-bg)",
           },
           {
             label: "Warning",
-            value: warningCount,
+            value: warehouseSummary?.warning ?? 0,
             color: "var(--orange)",
             bg: "var(--orange-bg)",
           },
           {
             label: "Critical",
-            value: criticalCount,
+            value: warehouseSummary?.critical ?? 0,
             color: "var(--red)",
             bg: "var(--red-bg)",
           },

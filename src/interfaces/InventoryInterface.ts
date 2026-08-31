@@ -141,6 +141,7 @@ export interface BarangGudangEventI {
 
 export interface InventoryFilterPropsI {
   category?: string;
+  status?: "OUT_OF_STOCK" | "LOW_STOCK" | "AVAILABLE";
   page: number;
   limit: number;
   order?: string;

@@ -69,13 +69,17 @@ export const InventoryService = {
   getInventory: async (
     filter: InventoryFilterPropsI
   ): Promise<BaseResponsePagination<any>> => {
-    const response = await ax.get(
-      `/v1/${URL_BARANG_FILTER}${
-        filter.category ? `kategori=${filter.category}&` : ""
-      }page=${filter.page}&limit=${filter.limit}&sort=${filter.sort}&sort_by=${
-        filter.sortBy
-      }${filter.search ? `&search=${filter.search}` : ""}`
-    );
+    const response = await ax.get("/v1/barang-filter", {
+      params: {
+        page: filter.page,
+        limit: filter.limit,
+        sort: filter.sort,
+        sort_by: filter.sortBy,
+        ...(filter.category && { kategori: filter.category }),
+        ...(filter.search && { search: filter.search }),
+        ...(filter.status && { status: filter.status }),
+      },
+    });
     return response.data;
   },
   getCategory: async (page: number): Promise<Array<any>> => {
