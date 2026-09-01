@@ -155,7 +155,7 @@ export default function StockOpnamePage() {
           period: values.period.trim(),
           remark: values.remark.trim(),
           data: changedRows.map((row) => ({
-            condition: getCondition(row),
+            condition: getCondition(row) === "Poor" ? "POOR" : "GOOD",
             id: row.barang_gudang_id,
             notes: (conditionNote[row.barang_gudang_id] ?? "").trim(),
             stok: Number(getActual(row) || 0),
