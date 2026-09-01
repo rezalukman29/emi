@@ -4,7 +4,9 @@ import type { APIResponse } from "../../interfaces/BaseApiResponse";
 import ax from "../../service/axios";
 
 export interface StockOpnameItemPayload {
+  condition: string;
   id: number;
+  notes: string;
   stok: number;
 }
 

@@ -40,6 +40,7 @@ import useGetStockOpname, {
   type StockOpnameHistoryItem,
   type StockOpnameHistoryRecord,
 } from "../hooks/api/useGetStockOpname";
+import useDeleteStockOpname from "../hooks/api/useDeleteStockOpname";
 import useGetWarehouseInventorySummary from "../hooks/api/useGetWarehouseInventorySummary";
 import useGetMovingOrders from "../hooks/api/useGetMovingOrders";
 import usePostMovingOrder from "../hooks/api/usePostMovingOrder";
@@ -62,6 +63,9 @@ function errorMessage(error: unknown, fallback: string) {
 }
 
 function normalizedOpnameStatus(record: StockOpnameHistoryRecord) {
+  const flag = record.flag?.trim().toLowerCase();
+  if (flag === "done") return "APPLIED";
+  if (flag === "draft") return "PENDING";
   return getEffectiveStockOpnameStatus(record);
 }
 
@@ -123,25 +127,38 @@ function opnameWarehouse(record: StockOpnameHistoryRecord) {
     ?? record.gudang_name
     ?? firstItem?.warehouse_name
     ?? firstItem?.gudang_name
+    ?? firstItem?.barang?.gudang_name
     ?? "-";
 }
 
 function opnameItemName(item: StockOpnameHistoryItem) {
-  return item.nama_barang ?? item.item_name ?? `Item #${item.barang_gudang_id ?? item.id ?? "-"}`;
+  return item.nama_barang
+    ?? item.item_name
+    ?? item.barang?.nama
+    ?? `Item #${item.barang_gudang_id ?? item.id ?? "-"}`;
 }
 
 function opnameBefore(item: StockOpnameHistoryItem) {
-  return item.stok_sebelum ?? item.stok_awal ?? item.stok_sistem ?? item.stok ?? 0;
+  return item.stock_old
+    ?? item.stok_sebelum
+    ?? item.stok_awal
+    ?? item.stok_sistem
+    ?? item.stok
+    ?? 0;
 }
 
 function opnameAfter(item: StockOpnameHistoryItem) {
-  return item.stok_aktual ?? item.actual_stock ?? item.stok ?? 0;
+  return item.stock_new
+    ?? item.stok_aktual
+    ?? item.actual_stock
+    ?? item.stok
+    ?? 0;
 }
 
 function opnameStatusBadge(record: StockOpnameHistoryRecord) {
   const status = normalizedOpnameStatus(record);
   if (status === "APPROVED" || status === "APPLIED") {
-    return <span className="badge badge-green">Approved</span>;
+    return <span className="badge badge-green">Applied</span>;
   }
   if (status === "REJECTED" || status === "CANCELLED") {
     return <span className="badge badge-red">Rejected</span>;
@@ -458,10 +475,17 @@ export default function WarehouseInventoryPage() {
     isLoading: isRollingBackStockOpname,
   } = usePutRollbackStockOpname();
   const [rollingBackId, setRollingBackId] = useState<number | null>(null);
+  const {
+    mutateAsync: deleteStockOpname,
+    isLoading: isDeletingStockOpname,
+  } = useDeleteStockOpname();
+  const [deletingStockOpnameId, setDeletingStockOpnameId] = useState<
+    number | null
+  >(null);
 
   const historyRecords = historyResponse?.data ?? [];
   const pendingOpname = historyRecords.some(
-    (record) => normalizedOpnameStatus(record) === "PENDING",
+    (record) => record.flag?.trim().toLowerCase() === "draft",
   );
 
   const formik = useFormik<any>({
@@ -642,7 +666,7 @@ export default function WarehouseInventoryPage() {
     [historyRecords, historyWarehouse],
   );
   const pendingCount = historyRecords.filter(
-    (record) => normalizedOpnameStatus(record) === "PENDING",
+    (record) => record.flag?.trim().toLowerCase() === "draft",
   ).length;
   const totalItemsAdjusted = historyRecords.reduce(
     (sum, record) => sum + opnameItems(record).length,
@@ -774,7 +798,7 @@ export default function WarehouseInventoryPage() {
   }
 
   async function approveOpname(record: StockOpnameHistoryRecord) {
-    if (!window.confirm("Approve this stock opname and apply its stock changes?")) {
+    if (!window.confirm("Apply this stock opname and update its stock changes?")) {
       return;
     }
     try {
@@ -790,7 +814,7 @@ export default function WarehouseInventoryPage() {
         getInventoryList(),
       ]);
     } catch (error) {
-      toast(errorMessage(error, "Failed to approve stock opname."), {
+      toast(errorMessage(error, "Failed to apply stock opname."), {
         type: "error",
       });
     } finally {
@@ -821,6 +845,24 @@ export default function WarehouseInventoryPage() {
       toast.error(errorMessage(error, "Failed to rollback stock opname."));
     } finally {
       setRollingBackId(null);
+    }
+  }
+
+  async function deleteOpname(record: StockOpnameHistoryRecord) {
+    if (record.flag?.trim().toLowerCase() !== "draft") return;
+    if (!window.confirm("Delete this draft stock opname?")) return;
+
+    try {
+      setDeletingStockOpnameId(record.id);
+      const response = await deleteStockOpname(record.id);
+      clearStockOpnameLocalResolution(record.id);
+      setHistoryDetail(null);
+      toast.success(response.message || "Stock opname deleted successfully.");
+      await refetchHistory();
+    } catch (error) {
+      toast.error(errorMessage(error, "Failed to delete stock opname."));
+    } finally {
+      setDeletingStockOpnameId(null);
     }
   }
 
@@ -1854,13 +1896,15 @@ export default function WarehouseInventoryPage() {
                 ) : !filteredHistory.length ? (
                   <tr><td colSpan={7} style={{ color: "var(--text-muted)", padding: 32, textAlign: "center" }}>No opname history found.</td></tr>
                 ) : filteredHistory.map((record) => {
-                  const isPending = normalizedOpnameStatus(record) === "PENDING";
+                  const flag = record.flag?.trim().toLowerCase();
+                  const isDraft = flag === "draft";
+                  const isDone = flag === "done";
                   return (
                     <tr key={record.id}>
                       <td>{record.created_at ? moment(record.created_at).format("D MMM YYYY, HH:mm") : "-"}</td>
                       <td>{record.period || "-"}</td>
                       <td>{opnameWarehouse(record)}</td>
-                      <td>{record.user_name ?? record.created_by ?? "-"}</td>
+                      <td>{record.user_name ?? record.created_by ?? (record.userId ? `User #${record.userId}` : "-")}</td>
                       <td style={{ textAlign: "right" }}>{opnameItems(record).length}</td>
                       <td>{opnameStatusBadge(record)}</td>
                       <td style={{ textAlign: "center" }}>
@@ -1868,18 +1912,28 @@ export default function WarehouseInventoryPage() {
                           <button className="btn-icon" title="View Detail" style={{ color: "var(--brand)" }} onClick={() => setHistoryDetail(record)}>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                           </button>
-                          {isAdmin && isPending && (
+                          {isAdmin && isDraft && (
                             <>
-                              <button className="btn-icon" title="Approve" disabled={isApplyingStockOpname && approvingId === record.id} style={{ color: "var(--green)" }} onClick={() => approveOpname(record)}><IconCheck /></button>
+                              <button className="btn-icon" title="Apply" disabled={isApplyingStockOpname && approvingId === record.id} style={{ color: "var(--green)" }} onClick={() => approveOpname(record)}><IconCheck /></button>
                               <button
                                 className="btn-icon delete"
-                                title="Rollback"
-                                disabled={isRollingBackStockOpname && rollingBackId === record.id}
-                                onClick={() => rollbackOpname(record)}
+                                title="Delete"
+                                disabled={isDeletingStockOpname && deletingStockOpnameId === record.id}
+                                onClick={() => deleteOpname(record)}
                               >
-                                <IconClose />
+                                <IconDelete />
                               </button>
                             </>
+                          )}
+                          {isAdmin && isDone && (
+                            <button
+                              className="btn-icon delete"
+                              title="Rollback"
+                              disabled={isRollingBackStockOpname && rollingBackId === record.id}
+                              onClick={() => rollbackOpname(record)}
+                            >
+                              <IconClose />
+                            </button>
                           )}
                         </div>
                       </td>
@@ -1930,16 +1984,31 @@ export default function WarehouseInventoryPage() {
                           {item.condition}
                         </span>
                       )}
-                      {item.note && <small style={{ color: "var(--text-muted)", display: "block" }}>{item.note}</small>}
+                      {(item.note || item.notes) && (
+                        <small style={{ color: "var(--text-muted)", display: "block" }}>
+                          {item.note || item.notes}
+                        </small>
+                      )}
                     </span>
                     <strong>{before} → {after} ({difference > 0 ? "+" : ""}{difference})</strong>
                   </div>
                 );
               })}
             </div>
-            {isAdmin && normalizedOpnameStatus(historyDetail) === "PENDING" && (
+            {isAdmin && historyDetail.flag?.trim().toLowerCase() === "draft" && (
               <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-                <button className="btn-save-modal" disabled={isApplyingStockOpname} onClick={() => approveOpname(historyDetail)}><IconCheck /> {isApplyingStockOpname ? "Approving…" : "Approve"}</button>
+                <button className="btn-save-modal" disabled={isApplyingStockOpname} onClick={() => approveOpname(historyDetail)}><IconCheck /> {isApplyingStockOpname ? "Applying…" : "Apply"}</button>
+                <button
+                  className="btn-cancel-modal"
+                  disabled={isDeletingStockOpname}
+                  onClick={() => deleteOpname(historyDetail)}
+                >
+                  <IconDelete /> {isDeletingStockOpname ? "Deleting…" : "Delete"}
+                </button>
+              </div>
+            )}
+            {isAdmin && historyDetail.flag?.trim().toLowerCase() === "done" && (
+              <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
                 <button
                   className="btn-cancel-modal"
                   disabled={isRollingBackStockOpname}

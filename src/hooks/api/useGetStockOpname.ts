@@ -16,14 +16,26 @@ export interface StockOpnameHistoryItem {
   stok?: number;
   stok_aktual?: number;
   actual_stock?: number;
+  stock_old?: number;
+  stock_new?: number;
+  comparison?: string;
   condition?: string;
   note?: string;
+  notes?: string;
+  barang?: {
+    nama?: string;
+    gudang_id?: number;
+    gudang_name?: string;
+    photo?: string;
+  };
 }
 
 export interface StockOpnameHistoryRecord {
   id: number;
   period?: string;
   remark?: string;
+  flag?: "draft" | "done" | string;
+  userId?: number;
   status?: string;
   is_applied?: number | boolean;
   created_at?: string;

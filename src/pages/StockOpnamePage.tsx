@@ -12,14 +12,9 @@ import { IconCheck, IconSearch } from "../components/icons";
 import useGetBarangGudang, {
   type BarangGudangItem,
 } from "../hooks/api/useGetBarangGudang";
-import useGetStockOpname, {
-  type StockOpnameHistoryRecord,
-} from "../hooks/api/useGetStockOpname";
+import useGetStockOpname from "../hooks/api/useGetStockOpname";
 import usePostStockOpname from "../hooks/api/usePostStockOpname";
-import {
-  getEffectiveStockOpnameStatus,
-  saveStockOpnameLocalSubmission,
-} from "../lib/stockOpnameSession";
+// import { saveStockOpnameLocalSubmission } from "../lib/stockOpnameSession";
 import { useWarehouseController } from "./lib/useWarehouseController";
 
 const GET_ALL_LIMIT = 99999;
@@ -29,10 +24,6 @@ function errorMessage(error: unknown, fallback: string) {
     ?.response?.data?.message;
   if (apiMessage) return apiMessage;
   return error instanceof Error ? error.message : fallback;
-}
-
-function normalizedOpnameStatus(record: StockOpnameHistoryRecord) {
-  return getEffectiveStockOpnameStatus(record);
 }
 
 export default function StockOpnamePage() {
@@ -96,7 +87,7 @@ export default function StockOpnamePage() {
   const allInventoryRows = allInventoryResponse?.data ?? [];
   const inventoryRows = inventoryResponse?.data ?? [];
   const pendingOpname = (historyResponse?.data ?? []).some(
-    (record) => normalizedOpnameStatus(record) === "PENDING",
+    (record) => record.flag?.trim().toLowerCase() === "draft",
   );
 
   const warehouseItemCounts = useMemo(() => {
@@ -164,11 +155,16 @@ export default function StockOpnamePage() {
           period: values.period.trim(),
           remark: values.remark.trim(),
           data: changedRows.map((row) => ({
+            condition: getCondition(row),
             id: row.barang_gudang_id,
+            notes: (conditionNote[row.barang_gudang_id] ?? "").trim(),
             stok: Number(getActual(row) || 0),
           })),
         });
 
+        // Session persistence is intentionally disabled. Keep this block for
+        // possible reuse if local stock-opname history is needed again.
+        /*
         if (response.data?.id) {
           saveStockOpnameLocalSubmission({
             id: response.data.id,
@@ -189,6 +185,7 @@ export default function StockOpnamePage() {
             })),
           });
         }
+        */
 
         toast(response.message, { type: "success" });
         await queryClient.invalidateQueries(["useGetStockOpname"]);
