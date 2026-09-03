@@ -101,12 +101,14 @@ export default function App() {
               <Route path="overview-report" element={<OverviewReportPage />} />
               <Route path="event" element={<EventPage />} />
               <Route path="event-detail" element={<EventDetailPage />} />
+              <Route path="event-detail/:id" element={<EventDetailPage />} />
               <Route path="event-summary" element={<EventSummaryPage />} />
               <Route path="warehouse" element={<WarehousePage />} />
               <Route path="warehouse-detail" element={<WarehouseDetailPage />} />
               <Route path="warehouse-inventory" element={<WarehouseInventoryPage />} />
               <Route path="event-inventory" element={<EventInventoryPage />} />
               <Route path="inventory" element={<InventoryPage />} />
+              <Route path="inventory/:id" element={<InventoryDetailPage />} />
               <Route path="inventory-detail" element={<InventoryDetailPage />} />
               <Route path="sync-inventory" element={<SyncInventoryPage />} />
               <Route path="item-loan" element={<ItemLoanPage />} />

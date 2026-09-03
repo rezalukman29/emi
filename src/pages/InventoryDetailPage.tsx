@@ -1,5 +1,5 @@
 import { ReactNode, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import moment from "moment";
 
 import Modal from "../components/Modal";
@@ -53,9 +53,10 @@ function getImageUrl(photo?: string) {
 }
 
 export default function InventoryDetailPage() {
+  const { id: routeInventoryId } = useParams<{ id: string }>();
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const id = Number(params.get("id"));
+  const id = Number(routeInventoryId ?? params.get("id"));
   const { categories } = useCategoryController();
   const { units } = useUnitController();
   const [deleteOpen, setDeleteOpen] = useState(false);

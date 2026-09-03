@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
 import Modal from "../components/Modal";
@@ -416,9 +416,10 @@ function ItemCard({
 }
 
 export default function EventDetailPage() {
+  const { id: routeEventId } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const eventId = Number(searchParams.get("id"));
+  const eventId = Number(routeEventId ?? searchParams.get("id"));
   const fallbackEventName =
     searchParams.get("name") || "03/06/2023 | GUNTUR + CLARISSA";
 
