@@ -7,6 +7,7 @@ const SECTIONS = [
     items: [
       { to: '/superadmin/dashboard', label: 'Dashboard',    icon: <IconGrid /> },
       { to: '/superadmin/customers', label: 'Customers',    icon: <IconUsers /> },
+      { to: '/superadmin/users',     label: 'Users',        icon: <IconUsers /> },
       { to: '/superadmin/payments',  label: 'Payments',      icon: <IconCreditCard /> },
       { to: '/superadmin/pricing',   label: 'Pricing Plans', icon: <IconTag /> },
     ],

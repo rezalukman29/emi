@@ -44,6 +44,7 @@ import PaymentsPage from "./pages/superadmin/PaymentsPage";
 import PricingPage from "./pages/superadmin/PricingPage";
 import SuperAdminLayout from "./pages/superadmin/SuperAdminLayout";
 import SuperAdminLogin from "./pages/superadmin/SuperAdminLogin";
+import SuperAdminUsersPage from "./pages/superadmin/SuperAdminUsersPage";
 import { store } from "./store/store";
 
 const queryClient = new QueryClient({
@@ -78,6 +79,7 @@ export default function App() {
               <Route index element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard" element={<DashboardPage />} />
               <Route path="customers" element={<CustomersPage />} />
+              <Route path="users" element={<SuperAdminUsersPage />} />
               <Route path="payments" element={<PaymentsPage />} />
               <Route path="pricing" element={<PricingPage />} />
               <Route path="categories" element={<DefaultCategoriesPage />} />
