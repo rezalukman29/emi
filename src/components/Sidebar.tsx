@@ -1,5 +1,28 @@
 import { NavLink, Link } from 'react-router-dom';
 import { version } from '../../package.json';
+import useUserPlanController, {
+  type UserPlanFeatureFlags,
+} from '../hooks/useUserPlanController';
+
+const ROUTE_FEATURES: Partial<Record<string, keyof UserPlanFeatureFlags>> = {
+  '/dashboard': 'reports_dashboard_price',
+  '/event': 'event_management_price',
+  '/event-status': 'event_management_price',
+  '/event-inventory': 'event_management_price',
+  '/area': 'event_management_price',
+  '/sub-area': 'event_management_price',
+  '/inventory': 'inventory_management_price',
+  '/sync-inventory': 'inventory_management_price',
+  '/category': 'inventory_management_price',
+  '/unit': 'inventory_management_price',
+  '/warehouse': 'warehouse_management_price',
+  '/warehouse-inventory': 'warehouse_management_price',
+  '/qr-code': 'qr_scanning_price',
+  '/inventory-report': 'reports_dashboard_price',
+  '/overview-report': 'reports_dashboard_price',
+  '/item-loan': 'item_loan_price',
+  '/ai-material-analyzer': 'ai_analyzer_price',
+};
 
 const SECTIONS = [
     {
@@ -95,10 +118,19 @@ function isTenantAdmin() {
 }
 
 export default function Sidebar({ visible }: { visible: boolean }) {
+  const enabledFeatures = useUserPlanController();
   const sections = SECTIONS.map((section) => {
     if (section.label !== 'Events' || !isTenantAdmin()) return section;
     return { ...section, items: [...section.items, EVENT_SETTINGS_ITEM] };
-  });
+  })
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => {
+        const requiredFeature = ROUTE_FEATURES[item.to];
+        return !requiredFeature || enabledFeatures[requiredFeature];
+      }),
+    }))
+    .filter((section) => section.items.length > 0);
 
   return (
     <nav className="sidebar" style={visible ? {} : { display: 'none' }}>

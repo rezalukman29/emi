@@ -673,7 +673,7 @@ export default function LoginPage({ initialMenu = "LOGIN" }: LoginPageProps) {
         <div style={styles.footer}>
           <p style={styles.footerText}>
             {activeMenu === "LOGIN"
-              ? "Don't have an account?"
+              ? ""
               : activeMenu === "FORGOT_SEND_OTP"
                 ? "Didn't receive email"
                 : "Already have an account?"}{" "}
@@ -694,7 +694,7 @@ export default function LoginPage({ initialMenu = "LOGIN" }: LoginPageProps) {
               style={styles.signUpLink}
             >
               {activeMenu === "LOGIN"
-                ? "Sign Up"
+                ? ""
                 : activeMenu === "FORGOT_SEND_OTP"
                   ? "Resent"
                   : "Login"}

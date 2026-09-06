@@ -4,9 +4,17 @@ import Sidebar from "./Sidebar";
 import { IconMenu, IconLogout } from "./icons";
 import { localStorageService } from "../service/localStorage";
 import { useDispatch } from "react-redux";
+import { useQueryClient } from "react-query";
 import { useNavigate } from "react-router-dom";
 import ChatBot from "./ChatBot";
 import { setProfile } from "../store/profile";
+import {
+  clearUserPlan,
+  setUserPlan,
+  setUserPlanError,
+  setUserPlanLoading,
+} from "../store/userPlanSlice";
+import useGetUserPlan from "../hooks/api/useGetUserPlan";
 import GlobalSearch from "./GlobalSearch";
 import LanguageSwitcher from "./LanguageSwitcher";
 
@@ -21,7 +29,21 @@ export default function Layout() {
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [currentUser, setCurrentUser] = useState<StoredAuth | null>(null);
   const dispatch = useDispatch();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const shouldGetUserPlan = Boolean(
+    currentUser?.user_type &&
+      currentUser.user_type.toUpperCase() !== "SUPERADMIN",
+  );
+  const {
+    data: userPlanResponse,
+    error: userPlanError,
+    isError: isUserPlanError,
+    isFetching: isUserPlanFetching,
+  } = useGetUserPlan({
+    userId: currentUser?.id,
+    options: { enabled: shouldGetUserPlan },
+  });
   const checkAuth = () => {
     const auth = localStorageService.getAuth("auth");
     if (auth) {
@@ -45,8 +67,34 @@ export default function Layout() {
     checkAuth();
   }, []);
 
+  useEffect(() => {
+    if (!shouldGetUserPlan) {
+      dispatch(clearUserPlan());
+      return;
+    }
+    dispatch(setUserPlanLoading(isUserPlanFetching));
+  }, [dispatch, isUserPlanFetching, shouldGetUserPlan]);
+
+  useEffect(() => {
+    if (!shouldGetUserPlan || !userPlanResponse?.data) return;
+    dispatch(setUserPlan(userPlanResponse.data));
+  }, [dispatch, shouldGetUserPlan, userPlanResponse]);
+
+  useEffect(() => {
+    if (!shouldGetUserPlan || !isUserPlanError) return;
+    const message =
+      (userPlanError as { response?: { data?: { message?: string } } })
+        ?.response?.data?.message ??
+      (userPlanError instanceof Error
+        ? userPlanError.message
+        : "Failed to get user plan.");
+    dispatch(setUserPlanError(message));
+  }, [dispatch, isUserPlanError, shouldGetUserPlan, userPlanError]);
+
   const onSignOut = () => {
     localStorageService.clearAuth("auth");
+    queryClient.removeQueries(["useGetUserPlan"]);
+    dispatch(clearUserPlan());
     setCurrentUser(null);
     navigate("/login", { replace: true });
   };

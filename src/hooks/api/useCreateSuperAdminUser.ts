@@ -15,7 +15,7 @@ export interface CreateSuperAdminUserPayload {
 export const createSuperAdminUser = async (
   payload: CreateSuperAdminUserPayload,
 ): Promise<APIResponse<SuperAdminUser>> => {
-  const response = await ax.post("/superadmin/users", payload);
+  const response = await ax.post("/v1/superadmin/users", payload);
   if (response.data?.success === false) {
     throw new Error(response.data.message || "Failed to create user.");
   }
