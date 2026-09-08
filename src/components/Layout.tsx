@@ -17,6 +17,7 @@ import {
 import useGetUserPlan from "../hooks/api/useGetUserPlan";
 import GlobalSearch from "./GlobalSearch";
 import LanguageSwitcher from "./LanguageSwitcher";
+import UpgradeCTA from "./UpgradeCTA";
 
 type StoredAuth = {
   id?: number;
@@ -113,6 +114,7 @@ export default function Layout() {
         </div>
         <GlobalSearch />
         <div className="header-actions">
+          <UpgradeCTA />
           {currentUser && (
             <span className="header-user">
               {currentUser.fullname || currentUser.email || "User"}

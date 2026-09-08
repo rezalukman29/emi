@@ -1,19 +1,19 @@
 import { useEffect, useState } from "react";
 import { useFormik } from "formik";
 import { useQueryClient } from "react-query";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import * as Yup from "yup";
 
 import Modal from "../components/Modal";
 import Pagination from "../components/Pagination";
 import TextInput from "../components/TextInput";
-import { IconCheck, IconClose, IconPlus, IconSearch } from "../components/icons";
+import { IconCheck, IconClose, IconEye, IconPlus, IconSearch } from "../components/icons";
 import useGetBarangGudang from "../hooks/api/useGetBarangGudang";
 import useGetItemLoans, {
   type ItemLoanStatus,
 } from "../hooks/api/useGetItemLoans";
 import usePostItemLoan from "../hooks/api/usePostItemLoan";
-import usePutReturnItemLoan from "../hooks/api/usePutReturnItemLoan";
 import SearchableSelect from "../components/SearchableSelect";
 
 const PAGE_SIZE = 10;
@@ -57,6 +57,7 @@ function errorMessage(error: unknown, fallback: string) {
 
 export default function ItemLoanPage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ItemLoanStatus | "">("");
@@ -64,7 +65,6 @@ export default function ItemLoanPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [itemSearchInput, setItemSearchInput] = useState("");
   const [itemSearch, setItemSearch] = useState("");
-  const [returningId, setReturningId] = useState<number | null>(null);
 
   const {
     data: loansResponse,
@@ -106,7 +106,6 @@ export default function ItemLoanPage() {
     },
   });
   const { mutateAsync: createItemLoan, isLoading: isCreating } = usePostItemLoan();
-  const { mutateAsync: returnItemLoan } = usePutReturnItemLoan();
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -194,19 +193,6 @@ export default function ItemLoanPage() {
     setModalOpen(false);
   }
 
-  async function handleReturn(id: number) {
-    try {
-      setReturningId(id);
-      const response = await returnItemLoan(id);
-      toast(response.message, { type: "success" });
-      await queryClient.invalidateQueries(["useGetItemLoans"]);
-    } catch (error) {
-      toast(errorMessage(error, "Failed to return item loan."), { type: "error" });
-    } finally {
-      setReturningId(null);
-    }
-  }
-
   return (
     <>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22 }}>
@@ -275,7 +261,6 @@ export default function ItemLoanPage() {
               ) : !loans.length ? (
                 <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--text-muted)", padding: 32 }}>No loans found.</td></tr>
               ) : loans.map((loan) => {
-                const isReturned = loan.status.toLowerCase() === "returned";
                 return (
                   <tr key={loan.id}>
                     <td className="name-cell">{loan.item_name}<div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>{loan.purpose || "-"}</div></td>
@@ -286,13 +271,18 @@ export default function ItemLoanPage() {
                     <td style={{ color: "var(--text-muted)", fontSize: 12.5 }}>{fmtDate(loan.due_date)}</td>
                     <td><span className={`badge ${statusBadgeClass(loan.status)}`}>{statusLabel(loan.status)}</span></td>
                     <td style={{ textAlign: "center" }}>
-                      {isReturned ? (
-                        <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>{fmtDate(loan.return_date)}</span>
-                      ) : (
-                        <button className="btn-icon" title="Mark as Returned" disabled={returningId === loan.id} style={{ color: "var(--green)" }} onClick={() => handleReturn(loan.id)}>
-                          <IconCheck />
-                        </button>
-                      )}
+                      <button
+                        className="btn-icon"
+                        title="View Detail"
+                        style={{ color: "var(--brand)" }}
+                        onClick={() =>
+                          navigate(`/item-loan-detail?id=${loan.id}`, {
+                            state: { loan },
+                          })
+                        }
+                      >
+                        <IconEye />
+                      </button>
                     </td>
                   </tr>
                 );

@@ -20,6 +20,7 @@ import InventoryDetailPage from "./pages/InventoryDetailPage";
 import InventoryPage from "./pages/InventoryPage";
 import InventoryReportPage from "./pages/InventoryReportPage";
 import ItemLoanPage from "./pages/ItemLoanPage";
+import ItemLoanDetailPage from "./pages/ItemLoanDetailPage";
 import LogPage from "./pages/LogPage";
 import LoginPage from "./pages/Login";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
@@ -33,6 +34,7 @@ import SyncInventoryPage from "./pages/SyncInventoryPage";
 import UnitDetailPage from "./pages/UnitDetailPage.jsx";
 import UnitPage from "./pages/UnitPage";
 import UsersPage from "./pages/UsersPage";
+import UpgradePage from "./pages/UpgradePage";
 import WarehouseDetailPage from "./pages/WarehouseDetailPage";
 import WarehouseInventoryPage from "./pages/WarehouseInventoryPage";
 import WarehousePage from "./pages/WarehousePage";
@@ -99,6 +101,7 @@ export default function App() {
               <Route path="dashboard" element={<MainDashboardPage />} />
               <Route path="prd" element={<PRDPage />} />
               <Route path="stock-opname" element={<StockOpnamePage />} />
+              <Route path="upgrade" element={<UpgradePage />} />
               <Route path="inventory-report" element={<InventoryReportPage />} />
               <Route path="overview-report" element={<OverviewReportPage />} />
               <Route path="event" element={<EventPage />} />
@@ -114,6 +117,7 @@ export default function App() {
               <Route path="inventory-detail" element={<InventoryDetailPage />} />
               <Route path="sync-inventory" element={<SyncInventoryPage />} />
               <Route path="item-loan" element={<ItemLoanPage />} />
+              <Route path="item-loan-detail" element={<ItemLoanDetailPage />} />
               <Route path="area" element={<AreaPage />} />
               <Route path="area-detail" element={<AreaDetailPage />} />
               <Route path="sub-area" element={<SubAreaPage />} />

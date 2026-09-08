@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -14,6 +14,7 @@ import {
   IconCart,
   IconPrint,
   IconBarChart,
+  IconMoreVertical,
 } from "../components/icons";
 import useGetBarangGudangV2, {
   type BarangGudangItemV2,
@@ -293,6 +294,15 @@ function ItemCard({
 }: ItemCardProps) {
   return (
     <div className="item-card">
+      <button
+        type="button"
+        className="item-card-delete"
+        title="Delete"
+        aria-label={`Delete ${item.name}`}
+        onClick={() => onDelete(item.id)}
+      >
+        <IconDelete />
+      </button>
       <ImagePlaceholder src={item.photo} alt={item.name} />
       <div className="item-body">
         <span
@@ -369,23 +379,9 @@ function ItemCard({
           </div>
         </div>
         {item.note && <div className="item-note">{item.note}</div>}
-        <div className="item-actions">
-          <div className="item-actions-row">
-            <button className="btn-ia-pkg" title={group ? `Package: ${group.name}` : "Not packaged"} disabled>
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                <line x1="12" y1="22.08" x2="12" y2="12" />
-              </svg>
-            </button>
-            {showScanButton && <button className={`btn-ia-scan${isScanned ? " scanned" : ""}`} onClick={() => onScan(item)}>
+        {showScanButton && (
+          <div className="item-actions">
+            <button className={`btn-ia-scan${isScanned ? " scanned" : ""}`} onClick={() => onScan(item)}>
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -400,16 +396,9 @@ function ItemCard({
                 <path d="M14 14h.01M14 17h3v3M17 14h3" />
               </svg>
               {isScanned ? "Re-scan" : "Scan"}
-            </button>}
-            <button
-              className="btn-ia-del"
-              title="Delete"
-              onClick={() => onDelete(item.id)}
-            >
-              <IconDelete />
             </button>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
@@ -486,6 +475,8 @@ export default function EventDetailPage() {
   const [currentStatusId, setCurrentStatusId] = useState<number | null>(null);
   const [isChangingEventStatus, setIsChangingEventStatus] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const moreMenuRef = useRef<HTMLDivElement | null>(null);
   const [stepperError, setStepperError] = useState("");
   const [scanningItem, setScanningItem] = useState<DisplayItem | null>(null);
   const [scanPhase, setScanPhase] = useState<"ready" | "scanning" | "done">("ready");
@@ -496,7 +487,7 @@ export default function EventDetailPage() {
   const [packagingName, setPackagingName] = useState("");
 
   const [selectedArea, setSelectedArea] = useState("");
-  const [stageFilter, setStageFilter] = useState<"all" | "previous" | "current" | "grouped">("all");
+  const [stageFilter, setStageFilter] = useState<"all" | "waiting" | "added" | "grouped">("all");
   const [kwSearch, setKwSearch] = useState("");
 
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -546,6 +537,19 @@ export default function EventDetailPage() {
     setLocalPackages([]);
     setPackageAssignments({});
   }, [eventId]);
+
+  useEffect(() => {
+    if (!moreMenuOpen) return;
+
+    function closeMoreMenu(event: MouseEvent) {
+      if (!moreMenuRef.current?.contains(event.target as Node)) {
+        setMoreMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", closeMoreMenu);
+    return () => document.removeEventListener("mousedown", closeMoreMenu);
+  }, [moreMenuOpen]);
 
   useEffect(() => {
     if (!eventStatuses.length || currentStatusId !== null) return;
@@ -731,12 +735,6 @@ export default function EventDetailPage() {
   );
   const getItemStageIndex = (item: DisplayItem) =>
     statusIndexById.get(item.eventStatusId) ?? stages.indexOf(item.stage);
-  const previousStageCount = items.filter(
-    (item) => getItemStageIndex(item) < currentStageIndex,
-  ).length;
-  const currentStageCount = items.filter(
-    (item) => getItemStageIndex(item) === currentStageIndex,
-  ).length;
   const apiPackages = useMemo<PackageGroup[]>(() => {
     const byName = new Map<string, number[]>();
     items.forEach((item) => {
@@ -753,7 +751,6 @@ export default function EventDetailPage() {
     () => [...apiPackages, ...localPackages],
     [apiPackages, localPackages],
   );
-console.log(currentStatus)
   const barangGudangItems = useMemo(
     () => barangGudangResponse?.data ?? [],
     [barangGudangResponse?.data],
@@ -791,13 +788,10 @@ console.log(currentStatus)
 
   const hasMissingArea = cart.some((item) => item.areaId === null);
 
-  const filtered = useMemo(
+  const baseFiltered = useMemo(
     () =>
       items.filter((item) => {
         if (selectedArea && item.area !== selectedArea) return false;
-        const itemStageIndex = getItemStageIndex(item);
-        if (stageFilter === "previous" && itemStageIndex >= currentStageIndex) return false;
-        if (stageFilter === "current" && itemStageIndex !== currentStageIndex) return false;
         if (
           kwSearch &&
           !item.name.toLowerCase().includes(kwSearch.toLowerCase()) &&
@@ -807,18 +801,42 @@ console.log(currentStatus)
         }
         return true;
       }),
-    [currentStageIndex, items, kwSearch, selectedArea, stageFilter, statusIndexById, stages],
+    [items, kwSearch, selectedArea],
   );
+  const scopedItems = useMemo(
+    () =>
+      baseFiltered.filter(
+        (item) => getItemStageIndex(item) <= currentStageIndex,
+      ),
+    [baseFiltered, currentStageIndex, statusIndexById, stages],
+  );
+  const currentStageItems = useMemo(
+    () =>
+      baseFiltered.filter(
+        (item) => getItemStageIndex(item) === currentStageIndex,
+      ),
+    [baseFiltered, currentStageIndex, statusIndexById, stages],
+  );
+  const waitingScanItems = useMemo(
+    () =>
+      scopedItems.filter((item) => !isItemScannedForCurrentStatus(item)),
+    [currentScanAction, scopedItems],
+  );
+  const effectiveStageFilter =
+    stageFilter === "waiting" && !stageScanEnabled ? "all" : stageFilter;
+  const displayedItems =
+    effectiveStageFilter === "waiting"
+      ? waitingScanItems
+      : effectiveStageFilter === "added"
+        ? currentStageItems
+        : scopedItems;
 
   const areaLabel = selectedArea || "All Place";
   const unscannedCount = items.filter(
     (item) => !isItemScannedForCurrentStatus(item),
   ).length;
   const hasNextStage = currentStageIndex < stages.length - 1;
-  const isFirstStage = currentStageIndex === 0;
-  const packableItems = items.filter(
-    (item) => getItemStageIndex(item) === 0 && !item.groupId,
-  );
+  const packableItems = items.filter((item) => !item.groupId);
   const summaryStats = useMemo(
     () => ({
       total: items.length,
@@ -1442,12 +1460,7 @@ console.log(currentStatus)
           <div className="event-actions-bar">
             <button
               className="action-icon-btn btn-pkg"
-              title={
-                isFirstStage
-                  ? "Packaging — group items to scan together"
-                  : `Packaging is only available at the \"${stages[0]}\" stage`
-              }
-              disabled={!isFirstStage}
+              title="Packaging — group items to scan together"
               onClick={openPackagingModal}
             >
               <svg
@@ -1469,6 +1482,41 @@ console.log(currentStatus)
             <button className="btn-new" onClick={openCart}>
               <IconPlus /> Add Item
             </button>
+            <div className="more-menu-wrap" ref={moreMenuRef}>
+              <button
+                type="button"
+                className="action-icon-btn more-btn"
+                title="More menu"
+                aria-expanded={moreMenuOpen}
+                onClick={() => setMoreMenuOpen((open) => !open)}
+              >
+                <IconMoreVertical />
+              </button>
+              {moreMenuOpen && (
+                <div className="more-menu-dropdown">
+                  <button
+                    type="button"
+                    className="more-menu-item"
+                    onClick={() => {
+                      setSummaryOpen(true);
+                      setMoreMenuOpen(false);
+                    }}
+                  >
+                    <IconBarChart /> Summary
+                  </button>
+                  <button
+                    type="button"
+                    className="more-menu-item"
+                    onClick={() => {
+                      window.print();
+                      setMoreMenuOpen(false);
+                    }}
+                  >
+                    <IconPrint /> Print
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1530,18 +1578,6 @@ console.log(currentStatus)
             <button className="btn btn-check" onClick={() => {}}>
               <IconSearch /> Check
             </button>
-            <button
-              className="btn"
-              style={{ background: "var(--purple)", color: "#fff" }}
-              title="Summary"
-              aria-label="Summary"
-              onClick={() => setSummaryOpen(true)}
-            >
-              <IconBarChart />
-            </button>
-            <button className="btn btn-print" onClick={() => window.print()}>
-              <IconPrint />
-            </button>
           </div>
         </div>
 
@@ -1559,17 +1595,19 @@ console.log(currentStatus)
         </div>
 
         <div className="stage-tabs">
-          <button className={`stage-tab${stageFilter === "all" ? " active" : ""}`} onClick={() => setStageFilter("all")}>All <span className="stage-tab-count">{items.length}</span></button>
-          <button className={`stage-tab${stageFilter === "previous" ? " active" : ""}`} onClick={() => setStageFilter("previous")}>From Previous Stage <span className="stage-tab-count">{previousStageCount}</span></button>
-          <button className={`stage-tab${stageFilter === "current" ? " active" : ""}`} onClick={() => setStageFilter("current")}>New in &ldquo;{eventStatus}&rdquo; <span className="stage-tab-count">{currentStageCount}</span></button>
-          <button className={`stage-tab${stageFilter === "grouped" ? " active" : ""}`} onClick={() => setStageFilter("grouped")}>Grouped <span className="stage-tab-count">{packages.length}</span></button>
+          {stageScanEnabled && (
+            <button className={`stage-tab${effectiveStageFilter === "waiting" ? " active" : ""}`} onClick={() => setStageFilter("waiting")}>Waiting Scan <span className="stage-tab-count">{waitingScanItems.length}</span></button>
+          )}
+          <button className={`stage-tab${effectiveStageFilter === "grouped" ? " active" : ""}`} onClick={() => setStageFilter("grouped")}>Grouped <span className="stage-tab-count">{packages.length}</span></button>
+          <button className={`stage-tab${effectiveStageFilter === "all" ? " active" : ""}`} onClick={() => setStageFilter("all")}>All <span className="stage-tab-count">{scopedItems.length}</span></button>
+          <button className={`stage-tab${effectiveStageFilter === "added" ? " active" : ""}`} onClick={() => setStageFilter("added")}>Added New <span className="stage-tab-count">{currentStageItems.length}</span></button>
         </div>
 
-        {stageFilter === "grouped" ? (
+        {effectiveStageFilter === "grouped" ? (
           <>
             <p className="summary-text"><strong>{packages.length}</strong> box{packages.length === 1 ? "" : "es"} packaged — each box scans as one QR code.</p>
             {packages.length === 0 ? (
-              <div className="no-data">No boxes yet. Use the box icon at the first stage to group items.</div>
+              <div className="no-data">No boxes yet. Use the box icon above to group items.</div>
             ) : (
               <div className="package-list">
                 {packages.map((group) => {
@@ -1611,13 +1649,19 @@ console.log(currentStatus)
           <div className="no-data">Loading...</div>
         ) : isError ? (
           <div className="no-data">Failed to load event items.</div>
-        ) : filtered.length === 0 ? (
+        ) : displayedItems.length === 0 ? (
           <div className="no-data">No Data</div>
         ) : (
           <>
-            <p className="summary-text"><strong>{filtered.length}</strong> item(s) with status <strong>&ldquo;{eventStatus}&rdquo;</strong> in area <strong>&ldquo;{areaLabel}&rdquo;</strong></p>
+            <p className="summary-text">
+              {effectiveStageFilter === "waiting" ? (
+                <><strong>{displayedItems.length}</strong> item{displayedItems.length === 1 ? "" : "s"} still need{displayedItems.length === 1 ? "s" : ""} scanning at event status <strong>&ldquo;{eventStatus}&rdquo;</strong> in area <strong>&ldquo;{areaLabel}&rdquo;</strong></>
+              ) : (
+                <><strong>{displayedItems.length}</strong> item(s) with status <strong>&ldquo;{eventStatus}&rdquo;</strong> in area <strong>&ldquo;{areaLabel}&rdquo;</strong></>
+              )}
+            </p>
             <div className="items-grid">
-            {filtered.map((item) => (
+            {displayedItems.map((item) => (
               <ItemCard
                 key={item.id}
                 item={item}
@@ -2475,7 +2519,7 @@ console.log(currentStatus)
           <label>Group Name <span className="required">*</span></label>
           <input type="text" placeholder="e.g. Ceremony Decor Bundle" value={packagingName} onChange={(event) => setPackagingName(event.target.value)} />
         </div>
-        <p className="package-pick-help">Only ungrouped items from &ldquo;{stages[0]}&rdquo; can be added.</p>
+        <p className="package-pick-help">Any item not already in a box can be added, regardless of stage.</p>
         <div className="package-pick-list">
           {packableItems.length === 0 ? (
             <div className="no-data">No eligible ungrouped items.</div>

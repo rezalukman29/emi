@@ -104,6 +104,9 @@ export default function EventStatusPage() {
   const [deleteModal, setDeleteModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
+  const [reorderMode, setReorderMode] = useState(false);
+  const [draftStatuses, setDraftStatuses] = useState<EventStatusRow[]>([]);
+  const [isSavingOrder, setIsSavingOrder] = useState(false);
 
   const {
     data: response,
@@ -131,7 +134,7 @@ export default function EventStatusPage() {
   });
   const { mutateAsync: postEventStatus, isLoading: isCreating } = usePostEventStatus();
   const { mutateAsync: putEventStatus, isLoading: isUpdating } = usePutEventStatus();
-  const isSaving = isCreating || isUpdating;
+  const isSaving = isCreating || isUpdating || isSavingOrder;
 
   const total = response?.data?.total_records ?? 0;
   const currentPage = response?.data?.page ?? page;
@@ -141,7 +144,7 @@ export default function EventStatusPage() {
   const orderedStatuses = orderedResponse
     ? mapEventStatuses(orderedResponse).sort((left, right) => left.order - right.order)
     : [...statuses].sort((left, right) => left.order - right.order);
-  const canReorder = sortBy === "order_data" && sort === "ASC";
+  const displayedStatuses = reorderMode ? draftStatuses : statuses;
 
   async function refetchStatusLists() {
     await Promise.all([
@@ -197,6 +200,7 @@ export default function EventStatusPage() {
   }
 
   function handleSort(field: GetEventStatusParams["sortBy"]) {
+    if (reorderMode) return;
     if (sortBy === field) setSort((direction) => (direction === "ASC" ? "DESC" : "ASC"));
     else {
       setSortBy(field);
@@ -206,12 +210,14 @@ export default function EventStatusPage() {
   }
 
   function openNew() {
+    if (reorderMode) return;
     setEditingId(null);
     formik.resetForm({ values: emptyForm(total + 1) });
     setStatusModal(true);
   }
 
   function openEdit(row: EventStatusRow) {
+    if (reorderMode) return;
     setEditingId(row.id);
     formik.resetForm({
       values: {
@@ -231,44 +237,73 @@ export default function EventStatusPage() {
     formik.resetForm();
   }
 
-  async function moveOrder(id: number, direction: number) {
-    if (!canReorder) return;
-    const sorted = orderedStatuses;
+  function startReorder() {
+    setSortBy("order_data");
+    setSort("ASC");
+    setPage(1);
+    setDraftStatuses(orderedStatuses.map((status) => ({ ...status })));
+    setReorderMode(true);
+  }
+
+  function cancelReorder() {
+    if (isSavingOrder) return;
+    setDraftStatuses([]);
+    setReorderMode(false);
+  }
+
+  function moveOrder(id: number, direction: number) {
+    const sorted = [...draftStatuses].sort(
+      (left, right) => left.order - right.order,
+    );
     const index = sorted.findIndex((status) => status.id === id);
     const swapIndex = index + direction;
     if (index < 0 || swapIndex < 0 || swapIndex >= sorted.length) return;
 
     const current = sorted[index];
     const neighbor = sorted[swapIndex];
-    const payloadFor = (row: EventStatusRow, order_data: number) => ({
-      id: row.id,
-      name: row.status,
-      is_show_scan_result: row.scan === "Scan" ? 1 : 0,
-      order_data,
-      action: normalizeScanAction(row.action),
-    });
+    sorted[index] = { ...neighbor, order: current.order };
+    sorted[swapIndex] = { ...current, order: neighbor.order };
+    setDraftStatuses(sorted);
+  }
 
-    setStatuses((rows) => rows.map((row) => {
-      if (row.id === current.id) return { ...row, order: neighbor.order };
-      if (row.id === neighbor.id) return { ...row, order: current.order };
-      return row;
-    }));
+  async function saveReorder() {
+    const originalOrder = new Map(
+      orderedStatuses.map((status) => [status.id, status.order]),
+    );
+    const changedStatuses = draftStatuses.filter(
+      (status) => originalOrder.get(status.id) !== status.order,
+    );
 
     try {
-      await putEventStatus(payloadFor(current, neighbor.order));
-      await putEventStatus(payloadFor(neighbor, current.order));
+      setIsSavingOrder(true);
+      await Promise.all(
+        changedStatuses.map((status) =>
+          putEventStatus({
+            id: status.id,
+            name: status.status,
+            is_show_scan_result: status.scan === "Scan" ? 1 : 0,
+            order_data: status.order,
+            action: normalizeScanAction(status.action),
+          }),
+        ),
+      );
+      toast.success("Event status order updated successfully.");
+      setReorderMode(false);
+      setDraftStatuses([]);
       await refetchStatusLists();
     } catch (error) {
-      await refetchStatusLists();
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to reorder event statuses.",
+          : "Failed to save event status order.",
       );
+    } finally {
+      setIsSavingOrder(false);
     }
   }
 
   function openDelete(id: number) {
+    if (reorderMode) return;
     setDeleteTarget(id);
     setDeleteModal(true);
   }
@@ -300,7 +335,7 @@ export default function EventStatusPage() {
     <>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22 }}>
         <h1 className="page-title" style={{ margin: 0 }}>Event Status</h1>
-        <button className="btn-new" onClick={openNew}><IconPlus /> New Status</button>
+        <button className="btn-new" disabled={reorderMode} onClick={openNew}><IconPlus /> New Status</button>
       </div>
 
       <p style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: -14, marginBottom: 18 }}>
@@ -342,9 +377,28 @@ export default function EventStatusPage() {
             <button className="btn-search" onClick={applySearch}>Search</button>
           </div>
           <div className="toolbar-right">
-            <button className="btn-new" onClick={openNew}><IconPlus /> New</button>
+            {reorderMode ? (
+              <>
+                <button className="btn-cancel-modal" disabled={isSavingOrder} onClick={cancelReorder}><IconClose /> Cancel</button>
+                <button className="btn-save-modal" disabled={isSavingOrder} onClick={() => void saveReorder()}><IconCheck /> {isSavingOrder ? "Saving…" : "Save Order"}</button>
+              </>
+            ) : (
+              <>
+                <button className="btn btn-ghost" disabled={!orderedResponse} onClick={startReorder}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}><polyline points="8 7 12 3 16 7" /><polyline points="16 17 12 21 8 17" /><line x1="12" y1="3" x2="12" y2="21" /></svg>
+                  Edit Order
+                </button>
+                <button className="btn-new" onClick={openNew}><IconPlus /> New</button>
+              </>
+            )}
           </div>
         </div>
+
+        {reorderMode && (
+          <p className="event-status-reorder-help">
+            Reordering — use the arrows below, then <strong>Save Order</strong> to apply or <strong>Cancel</strong> to discard.
+          </p>
+        )}
 
         <div className="table-wrap">
           <table>
@@ -365,28 +419,29 @@ export default function EventStatusPage() {
                 <tr><td colSpan={8} style={{ textAlign: "center", padding: 40 }}>Loading event statuses…</td></tr>
               ) : isError ? (
                 <tr><td colSpan={8} style={{ textAlign: "center", padding: 40, color: "var(--red)" }}>Failed to load event statuses.</td></tr>
-              ) : statuses.length === 0 ? (
+              ) : displayedStatuses.length === 0 ? (
                 <tr><td colSpan={8} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>No statuses found.</td></tr>
               ) : (
-                statuses.map((row) => {
-                  const orderedIndex = orderedStatuses.findIndex((status) => status.id === row.id);
-                  const moveTitle = canReorder
-                    ? undefined
-                    : "Sort by Order ascending to edit stage order";
+                displayedStatuses.map((row) => {
+                  const orderedIndex = displayedStatuses.findIndex((status) => status.id === row.id);
                   return (
                   <tr key={row.id}>
                     <td style={{ textAlign: "center" }}>
                       <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, background: "var(--brand-bg)", color: "var(--brand)", borderRadius: 6, fontWeight: 700, fontSize: 13 }}>{row.order}</span>
                     </td>
                     <td style={{ textAlign: "center" }}>
-                      <div style={{ display: "inline-flex", flexDirection: "column", gap: 2 }}>
-                        <button className="btn-icon" title={moveTitle ?? "Move up"} style={{ padding: "2px 5px", color: !canReorder || orderedIndex <= 0 ? "var(--border)" : "var(--text-muted)" }} disabled={!canReorder || orderedIndex <= 0 || isSaving} onClick={() => void moveOrder(row.id, -1)}>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 12, height: 12 }}><polyline points="18 15 12 9 6 15" /></svg>
-                        </button>
-                        <button className="btn-icon" title={moveTitle ?? "Move down"} style={{ padding: "2px 5px", color: !canReorder || orderedIndex < 0 || orderedIndex === orderedStatuses.length - 1 ? "var(--border)" : "var(--text-muted)" }} disabled={!canReorder || orderedIndex < 0 || orderedIndex === orderedStatuses.length - 1 || isSaving} onClick={() => void moveOrder(row.id, 1)}>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 12, height: 12 }}><polyline points="6 9 12 15 18 9" /></svg>
-                        </button>
-                      </div>
+                      {reorderMode ? (
+                        <div style={{ display: "inline-flex", flexDirection: "column", gap: 2 }}>
+                          <button className="btn-icon" title="Move up" style={{ padding: "2px 5px", color: orderedIndex <= 0 ? "var(--border)" : "var(--text-muted)" }} disabled={orderedIndex <= 0 || isSavingOrder} onClick={() => moveOrder(row.id, -1)}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 12, height: 12 }}><polyline points="18 15 12 9 6 15" /></svg>
+                          </button>
+                          <button className="btn-icon" title="Move down" style={{ padding: "2px 5px", color: orderedIndex === displayedStatuses.length - 1 ? "var(--border)" : "var(--text-muted)" }} disabled={orderedIndex === displayedStatuses.length - 1 || isSavingOrder} onClick={() => moveOrder(row.id, 1)}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 12, height: 12 }}><polyline points="6 9 12 15 18 9" /></svg>
+                          </button>
+                        </div>
+                      ) : (
+                        <span style={{ color: "var(--text-muted)", fontSize: 12 }}>—</span>
+                      )}
                     </td>
                     <td className="name-cell">{row.status}</td>
                     <td style={{ textAlign: "center" }}><ScanBadge scan={row.scan} /></td>
@@ -399,8 +454,8 @@ export default function EventStatusPage() {
                     <td style={{ color: "var(--text-muted)", fontSize: 12.5 }}>{fmtDate(row.updatedAt)}</td>
                     <td>
                       <div className="action-btns" style={{ justifyContent: "center" }}>
-                        <button className="btn-icon edit" title="Edit" onClick={() => openEdit(row)}><IconEdit /></button>
-                        <button className="btn-icon delete" title="Delete" onClick={() => openDelete(row.id)}><IconDelete /></button>
+                        <button className="btn-icon edit" title="Edit" disabled={reorderMode} onClick={() => openEdit(row)}><IconEdit /></button>
+                        <button className="btn-icon delete" title="Delete" disabled={reorderMode} onClick={() => openDelete(row.id)}><IconDelete /></button>
                       </div>
                     </td>
                   </tr>
@@ -410,7 +465,9 @@ export default function EventStatusPage() {
             </tbody>
           </table>
         </div>
-        <Pagination currentPage={currentPage} total={total} pageSize={PAGE_SIZE} onPage={(nextPage: number) => setPage(nextPage)} label="statuses" />
+        {!reorderMode && (
+          <Pagination currentPage={currentPage} total={total} pageSize={PAGE_SIZE} onPage={(nextPage: number) => setPage(nextPage)} label="statuses" />
+        )}
       </div>
 
       <Modal

@@ -11,6 +11,9 @@ const sections = [
   ["warehouse", "Warehouse Inventory"],
   ["moving-order", "Moving Order"],
   ["dropdowns", "Searchable Dropdowns"],
+  ["activity-log", "Activity Log"],
+  ["item-loan", "Item Loan"],
+  ["upgrade", "Upgrade"],
 ] as const;
 
 function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
@@ -65,8 +68,9 @@ export default function PRDPage() {
         </Paragraph>
         <List>
           <li>Every event item retains the status in which it was added.</li>
-          <li>The item tabs separate all items, carried-over items, and items added in the current status.</li>
+          <li>The item tabs expose Waiting Scan when relevant, Grouped packages, all items up through the current stage, and items added in the current status.</li>
           <li>Event Settings is an Admin shortcut to the same Event Status master page.</li>
+          <li>Status reordering is an explicit edit flow: Edit Order, adjust the draft, then Save Order or Cancel.</li>
         </List>
       </Section>
 
@@ -108,8 +112,8 @@ export default function PRDPage() {
           Stock Opname is scoped to one warehouse and lives at <code>/stock-opname</code>. The operator enters
           Period, Remark, actual stock, and the observed condition. Submission creates an API record for review;
           applying an opname is performed from its history rather than silently replacing inventory data locally.
-          Condition details and a rejection fallback are retained for the active browser session while those
-          fields/actions are not yet supported by the backend contract.
+          Good/Poor condition and notes are included in the create payload, while apply, rollback, and eligible
+          draft deletion use their dedicated backend actions.
         </Paragraph>
       </Section>
 
@@ -125,8 +129,8 @@ export default function PRDPage() {
         <Paragraph>
           The intended flow selects a source warehouse, one or more items and quantities, then a different
           destination warehouse. The form remains separated from Stock Opname because transfers and physical
-          counts have different audit semantics. Until a dedicated transfer endpoint is available, creating an
-          order updates only the Moving Order session preview and local history; API inventory remains unchanged.
+          counts have different audit semantics. Creating an order and loading its history both use the Moving
+          Order API.
         </Paragraph>
       </Section>
 
@@ -135,6 +139,31 @@ export default function PRDPage() {
           Tenant filters and long option lists use the shared searchable dropdown. Option values continue to use
           backend IDs or enums, while labels and metadata provide readable context. The Owner Panel keeps its own
           controls and styling.
+        </Paragraph>
+      </Section>
+
+      <Section id="activity-log" title="Activity Log">
+        <Paragraph>
+          The Log page and Dashboard Recent Activity use backend responses. Source-only localStorage activity
+          logging is intentionally not used in this API-backed application, so refreshing or signing in never
+          replaces server audit records with dummy entries.
+        </Paragraph>
+      </Section>
+
+      <Section id="item-loan" title="Item Loan">
+        <Paragraph>
+          Item Loan uses backend pagination, searching, status filters, create, and return actions. The listing
+          links to a dedicated detail page that keeps the selected API record readable and exposes its return
+          action. The prototype&apos;s multi-item vendor model is not submitted because the current backend create
+          contract accepts one <code>barang_gudang_id</code> per loan.
+        </Paragraph>
+      </Section>
+
+      <Section id="upgrade" title="Upgrade">
+        <Paragraph>
+          The Upgrade button in the tenant header opens a plan-comparison page. Current plan and storage usage
+          come from the active user-plan response in Redux. The available plan cards and request action remain
+          preview data until a tenant-facing pricing list and checkout endpoint are available.
         </Paragraph>
       </Section>
     </>
