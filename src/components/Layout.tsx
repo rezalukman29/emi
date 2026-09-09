@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
-import { Outlet } from "react-router-dom";
-import Sidebar from "./Sidebar";
+import { Outlet, useLocation } from "react-router-dom";
+import Sidebar, {
+  getFirstAccessibleRoute,
+  getRequiredFeatureForPath,
+} from "./Sidebar";
 import { IconMenu, IconLogout } from "./icons";
 import { localStorageService } from "../service/localStorage";
 import { useDispatch } from "react-redux";
@@ -18,6 +21,7 @@ import useGetUserPlan from "../hooks/api/useGetUserPlan";
 import GlobalSearch from "./GlobalSearch";
 import LanguageSwitcher from "./LanguageSwitcher";
 import UpgradeCTA from "./UpgradeCTA";
+import useUserPlanController from "../hooks/useUserPlanController";
 
 type StoredAuth = {
   id?: number;
@@ -32,6 +36,8 @@ export default function Layout() {
   const dispatch = useDispatch();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const location = useLocation();
+  const enabledFeatures = useUserPlanController();
   const shouldGetUserPlan = Boolean(
     currentUser?.user_type &&
       currentUser.user_type.toUpperCase() !== "SUPERADMIN",
@@ -91,6 +97,21 @@ export default function Layout() {
         : "Failed to get user plan.");
     dispatch(setUserPlanError(message));
   }, [dispatch, isUserPlanError, shouldGetUserPlan, userPlanError]);
+
+  useEffect(() => {
+    if (!shouldGetUserPlan || !userPlanResponse?.data) return;
+
+    const requiredFeature = getRequiredFeatureForPath(location.pathname);
+    if (!requiredFeature || enabledFeatures[requiredFeature]) return;
+
+    navigate(getFirstAccessibleRoute(enabledFeatures), { replace: true });
+  }, [
+    enabledFeatures,
+    location.pathname,
+    navigate,
+    shouldGetUserPlan,
+    userPlanResponse?.data,
+  ]);
 
   const onSignOut = () => {
     localStorageService.clearAuth("auth");

@@ -4,25 +4,64 @@ import useUserPlanController, {
   type UserPlanFeatureFlags,
 } from '../hooks/useUserPlanController';
 
-const ROUTE_FEATURES: Partial<Record<string, keyof UserPlanFeatureFlags>> = {
+export const ROUTE_FEATURES: Partial<Record<string, keyof UserPlanFeatureFlags>> = {
   '/dashboard': 'reports_dashboard_price',
   '/event': 'event_management_price',
+  '/event-detail': 'event_management_price',
+  '/event-summary': 'event_management_price',
   '/event-status': 'event_management_price',
   '/event-inventory': 'event_management_price',
   '/area': 'event_management_price',
+  '/area-detail': 'event_management_price',
   '/sub-area': 'event_management_price',
   '/inventory': 'inventory_management_price',
+  '/inventory-detail': 'inventory_management_price',
   '/sync-inventory': 'inventory_management_price',
   '/category': 'inventory_management_price',
+  '/category-detail': 'inventory_management_price',
   '/unit': 'inventory_management_price',
+  '/unit-detail': 'inventory_management_price',
   '/warehouse': 'warehouse_management_price',
+  '/warehouse-detail': 'warehouse_management_price',
   '/warehouse-inventory': 'warehouse_management_price',
+  '/stock-opname': 'warehouse_management_price',
   '/qr-code': 'qr_scanning_price',
   '/inventory-report': 'reports_dashboard_price',
   '/overview-report': 'reports_dashboard_price',
   '/item-loan': 'item_loan_price',
+  '/item-loan-detail': 'item_loan_price',
   '/ai-material-analyzer': 'ai_analyzer_price',
 };
+
+const LANDING_ROUTES: Array<{
+  to: string;
+  feature?: keyof UserPlanFeatureFlags;
+}> = [
+  { to: '/dashboard', feature: 'reports_dashboard_price' },
+  { to: '/event', feature: 'event_management_price' },
+  { to: '/inventory', feature: 'inventory_management_price' },
+  { to: '/warehouse', feature: 'warehouse_management_price' },
+  { to: '/item-loan', feature: 'item_loan_price' },
+  { to: '/qr-code', feature: 'qr_scanning_price' },
+  { to: '/ai-material-analyzer', feature: 'ai_analyzer_price' },
+  { to: '/log' },
+];
+
+export function getRequiredFeatureForPath(pathname: string) {
+  const matchingRoute = Object.keys(ROUTE_FEATURES)
+    .sort((left, right) => right.length - left.length)
+    .find((route) => pathname === route || pathname.startsWith(`${route}/`));
+
+  return matchingRoute ? ROUTE_FEATURES[matchingRoute] : undefined;
+}
+
+export function getFirstAccessibleRoute(features: UserPlanFeatureFlags) {
+  return (
+    LANDING_ROUTES.find(
+      ({ feature }) => !feature || features[feature],
+    )?.to ?? '/log'
+  );
+}
 
 const SECTIONS = [
     {
