@@ -409,16 +409,19 @@ export default function PaymentsPage() {
               placeholder="Select company…"
               searchPlaceholder="Search company…"
               emptyText="No companies found"
+              errorText={formik.touched.companyId ? formik.errors.companyId : undefined}
             />
-            {formik.touched.companyId && formik.errors.companyId && <span style={{ color: "var(--red)", fontSize: 12 }}>{formik.errors.companyId}</span>}
           </div>
           <div className="form-group">
             <label>Plan <span style={{ color: "var(--red)" }}>*</span></label>
-            <select value={formik.values.planId} onChange={(event) => formik.setFieldValue("planId", event.target.value)}>
-              <option value="">Select plan…</option>
-              {planOptions.map((plan) => <option key={plan.id} value={plan.id}>{plan.name}</option>)}
-            </select>
-            {formik.touched.planId && formik.errors.planId && <span style={{ color: "var(--red)", fontSize: 12 }}>{formik.errors.planId}</span>}
+            <SearchableSelect
+              value={formik.values.planId}
+              onChange={(value) => formik.setFieldValue("planId", String(value))}
+              options={planOptions.map((plan) => ({ value: plan.id, label: plan.name }))}
+              placeholder="Select plan…"
+              searchPlaceholder="Search plans…"
+              errorText={formik.touched.planId ? formik.errors.planId : undefined}
+            />
           </div>
           <TextInput
             variant="secondary"
@@ -438,8 +441,8 @@ export default function PaymentsPage() {
               options={methodOptions}
               placeholder="Select payment method…"
               searchPlaceholder="Search payment method…"
+              errorText={formik.touched.method ? formik.errors.method : undefined}
             />
-            {formik.touched.method && formik.errors.method && <span style={{ color: "var(--red)", fontSize: 12 }}>{formik.errors.method}</span>}
           </div>
           <TextInput
             variant="secondary"
@@ -452,10 +455,14 @@ export default function PaymentsPage() {
           />
           <div className="form-group">
             <label>Status <span style={{ color: "var(--red)" }}>*</span></label>
-            <select value={formik.values.status} onChange={(event) => formik.setFieldValue("status", event.target.value)}>
-              {PAYMENT_STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}
-            </select>
-            {formik.touched.status && formik.errors.status && <span style={{ color: "var(--red)", fontSize: 12 }}>{formik.errors.status}</span>}
+            <SearchableSelect
+              value={formik.values.status}
+              onChange={(value) => formik.setFieldValue("status", String(value))}
+              options={PAYMENT_STATUSES.map((status) => ({ value: status, label: status }))}
+              placeholder="Select status…"
+              searchPlaceholder="Search statuses…"
+              errorText={formik.touched.status ? formik.errors.status : undefined}
+            />
           </div>
         </div>
       </Modal>

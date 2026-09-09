@@ -158,7 +158,9 @@
 .sa-module-item { display: flex; align-items: center; gap: 8px; padding: 9px 11px; border: 1px solid var(--border); border-radius: var(--r); cursor: pointer; font-size: 12.5px; transition: border-color .12s, background .12s; }
 .sa-module-item:hover { border-color: var(--brand); }
 .sa-module-item.checked { border-color: var(--brand); background: var(--brand-bg); }
-.sa-module-item input { flex-shrink: 0; }
+.form-group label.sa-module-item { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--text); font-size: 12.5px; font-weight: 500; letter-spacing: normal; text-transform: none; }
+.form-group .sa-module-item input[type="checkbox"] { width: 16px; min-width: 16px; height: 16px; margin: 0; padding: 0; flex: 0 0 16px; appearance: auto; -webkit-appearance: checkbox; border: 0; border-radius: 3px; background: transparent; box-shadow: none; accent-color: var(--brand); }
+.form-group .sa-module-item input[type="checkbox"]:focus { border-color: transparent; box-shadow: none; }
 .sa-module-label { flex: 1; color: var(--text); font-weight: 500; }
 .sa-module-price { color: var(--text-muted); font-size: 11.5px; white-space: nowrap; }
 .sa-price-summary { margin-top: 16px; padding: 12px 14px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-lg); }

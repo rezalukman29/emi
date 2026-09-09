@@ -311,15 +311,21 @@ export default function SuperAdminUsersPage() {
               placeholder="Select company…"
               searchPlaceholder="Search company…"
               emptyText="No companies found"
+              errorText={formik.touched.companyId ? formik.errors.companyId : undefined}
             />
-            {formik.touched.companyId && formik.errors.companyId && <span style={{ color: "var(--red)", fontSize: 12 }}>{formik.errors.companyId}</span>}
           </div>
           <div className="form-group">
             <label>Role <span style={{ color: "var(--red)" }}>*</span></label>
-            <select value={formik.values.userType} onChange={(event) => formik.setFieldValue("userType", event.target.value)}>
-              {USER_TYPES.map((type) => <option key={type} value={type}>{type === "ADMIN" ? "Admin" : "Staff"}</option>)}
-            </select>
-            {formik.touched.userType && formik.errors.userType && <span style={{ color: "var(--red)", fontSize: 12 }}>{formik.errors.userType}</span>}
+            <SearchableSelect
+              value={formik.values.userType}
+              onChange={(value) => formik.setFieldValue("userType", String(value))}
+              options={USER_TYPES.map((type) => ({
+                value: type,
+                label: type === "ADMIN" ? "Admin" : "Staff",
+              }))}
+              placeholder="Select role…"
+              errorText={formik.touched.userType ? formik.errors.userType : undefined}
+            />
           </div>
         </div>
       </Modal>

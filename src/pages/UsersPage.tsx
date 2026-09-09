@@ -353,8 +353,8 @@ export default function UsersPage() {
               options={ROLES.map((role) => ({ value: role, label: role }))}
               placeholder="Select a role"
               searchPlaceholder="Search roles…"
+              errorText={userFormik.errors.user_type}
             />
-            {userFormik.errors.user_type && <span style={{ color: "var(--red)", fontSize: 12 }}>{userFormik.errors.user_type}</span>}
           </div>
           <div className="form-group">
             <label>Status <span style={{ color: "var(--red)" }}>*</span></label>
@@ -367,6 +367,7 @@ export default function UsersPage() {
               ]}
               placeholder="Select a status"
               searchPlaceholder="Search statuses…"
+              errorText={userFormik.errors.status}
             />
           </div>
         </div>

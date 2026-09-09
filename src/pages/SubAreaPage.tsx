@@ -310,8 +310,8 @@ export default function SubAreaPage() {
             options={[{ value: "", label: "— Select Area —" }, ...areaOptions]}
             placeholder="— Select Area —"
             searchPlaceholder="Search areas…"
+            errorText={formik.errors.area_id}
           />
-          {formik.errors.area_id && <span style={{ color: "var(--red)", fontSize: 12 }}>{formik.errors.area_id}</span>}
         </div>
       </Modal>
 

@@ -1624,12 +1624,8 @@ export default function WarehouseInventoryPage() {
               placeholder="Select warehouse"
               searchPlaceholder="Search warehouse…"
               options={warehouseOptions}
+              errorText={formik.errors.gudang_id as string}
             />
-            {(formik.errors.gudang_id as string)?.trim() && (
-              <span style={{ color: "var(--red)", fontSize: 12 }}>
-                {formik.errors.gudang_id as string}
-              </span>
-            )}
           </div>
         </div>
       </Modal>

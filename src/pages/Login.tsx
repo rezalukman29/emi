@@ -7,6 +7,7 @@ import { setProfile } from "../store/profile";
 import OtpInput from "react-otp-input";
 import { InventoryService } from "../service/InventoryService";
 import { useLocation, useNavigate } from "react-router-dom";
+import TextInput from "../components/TextInput";
 
 const styles: Record<string, React.CSSProperties> = {
   page: {
@@ -463,9 +464,25 @@ export default function LoginPage({ initialMenu = "LOGIN" }: LoginPageProps) {
               />
             </div>
           ) : (
-            <div style={styles.fieldGroup}>
-              <label style={styles.label}>Email Address</label>
-              <div style={styles.inputWrapper}>
+            <TextInput
+              value={formik.values.email}
+              onChange={(value) => formik.setFieldValue("email", value)}
+              isRequired
+              inputType="email"
+              label="Email Address"
+              placeholder="Enter your email"
+              errorText={formik.errors.email as string}
+              containerStyle={styles.fieldGroup}
+              labelStyle={{ ...styles.label, textTransform: "none", letterSpacing: "normal" }}
+              inputWrapperStyle={styles.inputWrapper}
+              inputStyle={{
+                ...styles.input,
+                ...(emailFocus ? styles.inputFocused : {}),
+              }}
+              onFocus={() => setEmailFocus(true)}
+              onBlur={() => setEmailFocus(false)}
+              autoComplete="email"
+              leftAdornment={(
                 <span style={styles.inputIcon}>
                   <svg
                     width="16"
@@ -482,31 +499,36 @@ export default function LoginPage({ initialMenu = "LOGIN" }: LoginPageProps) {
                     />
                   </svg>
                 </span>
-                <input
-                  type="email"
-                  value={formik.values.email}
-                  onChange={(e) =>
-                    formik.setFieldValue("email", e.target.value)
-                  }
-                  onFocus={() => setEmailFocus(true)}
-                  onBlur={() => setEmailFocus(false)}
-                  placeholder="Enter your email"
-                  style={{
-                    ...styles.input,
-                    ...(emailFocus ? styles.inputFocused : {}),
-                  }}
-                />
-              </div>
-            </div>
+              )}
+            />
           )}
 
           {/* Password */}
           {(activeMenu === "LOGIN" || activeMenu === "FORGOT_SEND_OTP") && (
-            <div style={styles.fieldGroup}>
-              <label style={styles.label}>
-                {activeMenu === "FORGOT_SEND_OTP" ? "New Password" : "Password"}
-              </label>
-              <div style={styles.inputWrapper}>
+            <TextInput
+              value={formik.values.password}
+              onChange={(value) => formik.setFieldValue("password", value)}
+              isRequired
+              inputType={showPassword ? "text" : "password"}
+              label={activeMenu === "FORGOT_SEND_OTP" ? "New Password" : "Password"}
+              placeholder={
+                activeMenu === "FORGOT_SEND_OTP"
+                  ? "Enter your new password"
+                  : "Enter your password"
+              }
+              errorText={formik.errors.password as string}
+              containerStyle={styles.fieldGroup}
+              labelStyle={{ ...styles.label, textTransform: "none", letterSpacing: "normal" }}
+              inputWrapperStyle={styles.inputWrapper}
+              inputStyle={{
+                ...styles.input,
+                paddingRight: "40px",
+                ...(passFocus ? styles.inputFocused : {}),
+              }}
+              onFocus={() => setPassFocus(true)}
+              onBlur={() => setPassFocus(false)}
+              autoComplete={activeMenu === "LOGIN" ? "current-password" : "new-password"}
+              leftAdornment={(
                 <span style={styles.inputIcon}>
                   <svg
                     width="16"
@@ -523,25 +545,8 @@ export default function LoginPage({ initialMenu = "LOGIN" }: LoginPageProps) {
                     />
                   </svg>
                 </span>
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={formik.values.password}
-                  onFocus={() => setPassFocus(true)}
-                  onBlur={() => setPassFocus(false)}
-                  onChange={(e) =>
-                    formik.setFieldValue("password", e.target.value)
-                  }
-                  placeholder={
-                    activeMenu === "FORGOT_SEND_OTP"
-                      ? "Enter your new password"
-                      : "Enter your password"
-                  }
-                  style={{
-                    ...styles.input,
-                    paddingRight: "40px",
-                    ...(passFocus ? styles.inputFocused : {}),
-                  }}
-                />
+              )}
+              rightAdornment={(
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
@@ -584,8 +589,8 @@ export default function LoginPage({ initialMenu = "LOGIN" }: LoginPageProps) {
                     </svg>
                   )}
                 </button>
-              </div>
-            </div>
+              )}
+            />
           )}
 
           {/* Remember & Forgot */}

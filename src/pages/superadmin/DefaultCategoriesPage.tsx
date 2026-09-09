@@ -7,6 +7,7 @@ import Modal from "../../components/Modal";
 import Pagination from "../../components/Pagination";
 import SortTh from "../../components/SortTh";
 import TextInput from "../../components/TextInput";
+import SearchableSelect from "../../components/SearchableSelect";
 import {
   IconCheck,
   IconClose,
@@ -320,10 +321,16 @@ export default function DefaultCategoriesPage() {
         />
         <div className="form-group">
           <label>Status <span style={{ color: "var(--red)" }}>*</span></label>
-          <select value={formik.values.isActive} onChange={(event) => formik.setFieldValue("isActive", event.target.value)}>
-            <option value="1">Active</option>
-            <option value="0">Inactive</option>
-          </select>
+          <SearchableSelect
+            value={formik.values.isActive}
+            onChange={(value) => formik.setFieldValue("isActive", String(value))}
+            options={[
+              { value: "1", label: "Active" },
+              { value: "0", label: "Inactive" },
+            ]}
+            placeholder="Select status…"
+            errorText={formik.touched.isActive ? formik.errors.isActive : undefined}
+          />
         </div>
       </Modal>
 

@@ -7,6 +7,7 @@ import Modal from "../../components/Modal";
 import Pagination from "../../components/Pagination";
 import SortTh from "../../components/SortTh";
 import TextInput from "../../components/TextInput";
+import SearchableSelect from "../../components/SearchableSelect";
 import {
   IconBan,
   IconCheck,
@@ -519,29 +520,25 @@ export default function CustomersPage() {
         <div className="form-row">
           <div className="form-group">
             <label>Plan <span style={{ color: "var(--red)" }}>*</span></label>
-            <select
+            <SearchableSelect
               value={customerFormik.values.planId}
-              onChange={(event) => customerFormik.setFieldValue("planId", event.target.value)}
-              style={{ borderColor: customerFormik.touched.planId && customerFormik.errors.planId ? "var(--red)" : undefined }}
-            >
-              {planOptions.map((plan) => <option key={plan.id} value={plan.id}>{plan.name}</option>)}
-            </select>
-            {customerFormik.touched.planId && customerFormik.errors.planId && (
-              <span style={{ color: "var(--red)", fontSize: 12 }}>{customerFormik.errors.planId}</span>
-            )}
+              onChange={(value) => customerFormik.setFieldValue("planId", String(value))}
+              options={planOptions.map((plan) => ({ value: plan.id, label: plan.name }))}
+              placeholder="Select plan…"
+              searchPlaceholder="Search plans…"
+              errorText={customerFormik.touched.planId ? customerFormik.errors.planId : undefined}
+            />
           </div>
           <div className="form-group">
             <label>Status <span style={{ color: "var(--red)" }}>*</span></label>
-            <select
+            <SearchableSelect
               value={customerFormik.values.status}
-              onChange={(event) => customerFormik.setFieldValue("status", event.target.value)}
-              style={{ borderColor: customerFormik.touched.status && customerFormik.errors.status ? "var(--red)" : undefined }}
-            >
-              {STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}
-            </select>
-            {customerFormik.touched.status && customerFormik.errors.status && (
-              <span style={{ color: "var(--red)", fontSize: 12 }}>{customerFormik.errors.status}</span>
-            )}
+              onChange={(value) => customerFormik.setFieldValue("status", String(value))}
+              options={STATUSES.map((status) => ({ value: status, label: status }))}
+              placeholder="Select status…"
+              searchPlaceholder="Search statuses…"
+              errorText={customerFormik.touched.status ? customerFormik.errors.status : undefined}
+            />
           </div>
         </div>
         <div className="form-row">

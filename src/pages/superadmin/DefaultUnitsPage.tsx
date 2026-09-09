@@ -7,6 +7,7 @@ import Modal from "../../components/Modal";
 import Pagination from "../../components/Pagination";
 import SortTh from "../../components/SortTh";
 import TextInput from "../../components/TextInput";
+import SearchableSelect from "../../components/SearchableSelect";
 import {
   IconCheck,
   IconClose,
@@ -341,16 +342,27 @@ export default function DefaultUnitsPage() {
         <div className="form-row">
           <div className="form-group">
             <label>Type <span style={{ color: "var(--red)" }}>*</span></label>
-            <select value={formik.values.type} onChange={(event) => formik.setFieldValue("type", event.target.value)}>
-              {TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
-            </select>
+            <SearchableSelect
+              value={formik.values.type}
+              onChange={(value) => formik.setFieldValue("type", String(value))}
+              options={TYPES.map((type) => ({ value: type, label: type }))}
+              placeholder="Select type…"
+              searchPlaceholder="Search types…"
+              errorText={formik.touched.type ? formik.errors.type : undefined}
+            />
           </div>
           <div className="form-group">
             <label>Status <span style={{ color: "var(--red)" }}>*</span></label>
-            <select value={formik.values.isActive} onChange={(event) => formik.setFieldValue("isActive", event.target.value)}>
-              <option value="1">Active</option>
-              <option value="0">Inactive</option>
-            </select>
+            <SearchableSelect
+              value={formik.values.isActive}
+              onChange={(value) => formik.setFieldValue("isActive", String(value))}
+              options={[
+                { value: "1", label: "Active" },
+                { value: "0", label: "Inactive" },
+              ]}
+              placeholder="Select status…"
+              errorText={formik.touched.isActive ? formik.errors.isActive : undefined}
+            />
           </div>
         </div>
       </Modal>

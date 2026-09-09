@@ -5,6 +5,7 @@ import * as Yup from "yup";
 
 import Modal from "../../components/Modal";
 import TextInput from "../../components/TextInput";
+import SearchableSelect from "../../components/SearchableSelect";
 import { IconCheck, IconClose, IconDelete, IconEdit, IconPlus } from "../../components/icons";
 import useCreateAdminPlan from "../../hooks/api/useCreateAdminPlan";
 import useDeleteAdminPlan from "../../hooks/api/useDeleteAdminPlan";
@@ -319,11 +320,17 @@ export default function PricingPage() {
           />
           <div className="form-group">
             <label>Billing Cycle <span style={{ color: "var(--red)" }}>*</span></label>
-            <select value={formik.values.billing_cycle} onChange={(event) => formik.setFieldValue("billing_cycle", event.target.value)}>
-              <option value="monthly">Monthly</option>
-              <option value="yearly">Yearly</option>
-              <option value="custom">Custom (price not shown)</option>
-            </select>
+            <SearchableSelect
+              value={formik.values.billing_cycle}
+              onChange={(value) => formik.setFieldValue("billing_cycle", String(value))}
+              options={[
+                { value: "monthly", label: "Monthly" },
+                { value: "yearly", label: "Yearly" },
+                { value: "custom", label: "Custom (price not shown)" },
+              ]}
+              placeholder="Select billing cycle…"
+              errorText={formik.errors.billing_cycle}
+            />
           </div>
         </div>
 
@@ -368,20 +375,20 @@ export default function PricingPage() {
           </div>
           <div className="form-group">
             <label>Storage Capacity</label>
-            <select
+            <SearchableSelect
               value={formik.values.storage_gb}
-              onChange={(event) => {
-                const gigabytes = Number(event.target.value);
+              onChange={(value) => {
+                const gigabytes = Number(value);
                 formik.setFieldValue("storage_gb", gigabytes);
                 formik.setFieldValue("storage_limit", String(storageBytes(gigabytes)));
               }}
-            >
-              {STORAGE_TIERS.map((tier) => (
-                <option key={tier.gb} value={tier.gb}>
-                  {tier.gb} GB {tier.price > 0 ? `(+${formatIDR(tier.price)})` : "(included)"}
-                </option>
-              ))}
-            </select>
+              options={STORAGE_TIERS.map((tier) => ({
+                value: tier.gb,
+                label: `${tier.gb} GB ${tier.price > 0 ? `(+${formatIDR(tier.price)})` : "(included)"}`,
+              }))}
+              placeholder="Select storage capacity…"
+              errorText={formik.errors.storage_gb as string}
+            />
           </div>
         </div>
 

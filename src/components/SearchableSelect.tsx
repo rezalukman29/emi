@@ -23,6 +23,7 @@ interface SearchableSelectProps {
   placeholder?: string;
   searchPlaceholder?: string;
   emptyText?: string;
+  errorText?: string;
   disabled?: boolean;
   inline?: boolean;
   style?: CSSProperties;
@@ -44,6 +45,7 @@ export default function SearchableSelect({
   placeholder = "Select…",
   searchPlaceholder = "Search…",
   emptyText = "No results found",
+  errorText,
   disabled = false,
   inline = false,
   style,
@@ -139,11 +141,19 @@ export default function SearchableSelect({
         ref={triggerRef}
         disabled={disabled}
         className={`ss-trigger${open ? " open" : ""}${!selected ? " placeholder" : ""}`}
+        aria-invalid={Boolean(errorText?.trim())}
         onClick={() => !disabled && setOpen((current) => !current)}
+        style={{ borderColor: errorText?.trim() ? "var(--red)" : undefined }}
       >
         <span className="ss-trigger-label">{selected?.label ?? placeholder}</span>
         <IconChevronDown />
       </button>
+
+      {errorText?.trim() && (
+        <span style={{ color: "var(--red)", display: "block", fontSize: 12, marginTop: 4 }}>
+          {errorText}
+        </span>
+      )}
 
       {open && position && createPortal(
         <div

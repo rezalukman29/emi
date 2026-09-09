@@ -4,6 +4,8 @@ import { toast } from "react-toastify";
 import Modal from "../components/Modal";
 import Pagination from "../components/Pagination";
 import SearchableSelect from "../components/SearchableSelect";
+import TextArea from "../components/TextArea";
+import TextInput from "../components/TextInput";
 import moment from "moment";
 import {
   IconSearch,
@@ -22,7 +24,7 @@ import useGetPastEvents from "../hooks/api/useGetPastEvents";
 import useGetEventStatus from "../hooks/api/useGetEventStatus";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import {  utils } from "react-modern-calendar-datepicker";
+import { utils } from "react-modern-calendar-datepicker";
 import { InventoryService } from "../service/InventoryService";
 
 const PAGE_SIZE = 8;
@@ -84,7 +86,6 @@ function fmtRange(start?: string, finish?: string) {
   } ${fy}`;
 }
 
-
 function daysUntil(start?: string): number | null {
   if (!start) return null;
   const eventDate = new Date(start.replace(" ", "T"));
@@ -141,13 +142,13 @@ function CountdownChip({ days }: { days: number | null }) {
   const color = isUrgent
     ? "var(--red)"
     : isModerate
-    ? "var(--orange)"
-    : "var(--green)";
+      ? "var(--orange)"
+      : "var(--green)";
   const bg = isUrgent
     ? "var(--red-bg)"
     : isModerate
-    ? "var(--orange-bg)"
-    : "var(--green-bg)";
+      ? "var(--orange-bg)"
+      : "var(--green-bg)";
   const label =
     days === 0 ? "Today!" : days === 1 ? "Tomorrow" : `${days}d away`;
   return (
@@ -210,7 +211,12 @@ export default function EventPage() {
       name: Yup.string().required("Required"),
       event_code: Yup.string().required("Required"),
       description: Yup.string().required("Required"),
+      event_start: Yup.string().required("Required"),
+      event_end: Yup.string().required("Required"),
+      date_event: Yup.string().required("Required"),
       PIC: Yup.string().required("Required"),
+      status: Yup.number().required("Required"),
+      address: Yup.string().required("Required"),
       notes: Yup.string().required("Required"),
       scan_type: Yup.string().required("Required"),
     }),
@@ -254,13 +260,17 @@ export default function EventPage() {
         if (result.success === false) {
           throw new Error(
             result.message ||
-              (isModify ? "Failed to update event." : "Failed to create event."),
+              (isModify
+                ? "Failed to update event."
+                : "Failed to create event."),
           );
         }
 
         toast.success(
           result.message ||
-            (isModify ? "Event updated successfully." : "Event created successfully."),
+            (isModify
+              ? "Event updated successfully."
+              : "Event created successfully."),
         );
         setModalOpen(false);
         formik.resetForm();
@@ -270,8 +280,9 @@ export default function EventPage() {
         setEvent(null);
         await Promise.all([refetchPasts(), refetchUpcomings()]);
       } catch (error) {
-        const apiMessage = (error as { response?: { data?: { message?: string } } })
-          ?.response?.data?.message;
+        const apiMessage = (
+          error as { response?: { data?: { message?: string } } }
+        )?.response?.data?.message;
         toast.error(
           apiMessage ||
             (error instanceof Error
@@ -316,7 +327,11 @@ export default function EventPage() {
         candidate.event_code,
         candidate.address,
         candidate.description,
-      ].some((value) => String(value ?? "").toLowerCase().includes(query)),
+      ].some((value) =>
+        String(value ?? "")
+          .toLowerCase()
+          .includes(query),
+      ),
     );
   }, [upQuery, upcomings?.data?.data]);
 
@@ -329,15 +344,13 @@ export default function EventPage() {
           e.name.toLowerCase().includes(q) ||
           e.event_code.toLowerCase().includes(q) ||
           e.address.toLowerCase().includes(q) ||
-          e.description.toLowerCase().includes(q)
+          e.description.toLowerCase().includes(q),
       );
     }
     return data.sort((a: EventRecord, b: EventRecord) =>
-      (b.event_start || "").localeCompare(a.event_start || "")
+      (b.event_start || "").localeCompare(a.event_start || ""),
     );
   }, [pasts?.data?.data, pastQuery]);
-
-  
 
   const groupedPast = useMemo(() => {
     if (pastQuery) return null;
@@ -354,10 +367,8 @@ export default function EventPage() {
 
   const pastFlat = useMemo(
     () => pastEvents?.slice((pastPage - 1) * PAGE_SIZE, pastPage * PAGE_SIZE),
-    [pastEvents, pastPage]
+    [pastEvents, pastPage],
   );
-
-  
 
   function openNew() {
     setEditingId(null);
@@ -377,7 +388,7 @@ export default function EventPage() {
     setEvent(r);
     setModalOpen(true);
   }
-  
+
   function openDelete(id: number) {
     setDeletingId(id);
     setDeleteOpen(true);
@@ -386,7 +397,9 @@ export default function EventPage() {
     if (deletingId === null) return;
     try {
       setIsDeleting(true);
-      const result = await InventoryService.deleteEvent({ id: String(deletingId) });
+      const result = await InventoryService.deleteEvent({
+        id: String(deletingId),
+      });
       if (result?.success === false) {
         throw new Error(result.message || "Failed to delete event.");
       }
@@ -395,8 +408,9 @@ export default function EventPage() {
       setDeletingId(null);
       await Promise.all([refetchPasts(), refetchUpcomings()]);
     } catch (error) {
-      const apiMessage = (error as { response?: { data?: { message?: string } } })
-        ?.response?.data?.message;
+      const apiMessage = (
+        error as { response?: { data?: { message?: string } } }
+      )?.response?.data?.message;
       toast.error(
         apiMessage ||
           (error instanceof Error ? error.message : "Failed to delete event."),
@@ -410,8 +424,6 @@ export default function EventPage() {
     ...(upcomings?.data?.data ?? []),
     ...(pasts?.data?.data ?? []),
   ].find((candidate: EventRecord) => candidate.id === deletingId);
-  
-  
 
   function EventCard({ r, onDelete, navigate }: EventRowProps) {
     const days = daysUntil(r.event_start);
@@ -419,8 +431,8 @@ export default function EventPage() {
       days !== null && days <= 7
         ? "var(--red)"
         : days !== null && days <= 30
-        ? "var(--orange)"
-        : "var(--brand)";
+          ? "var(--orange)"
+          : "var(--brand)";
 
     return (
       <div
@@ -528,11 +540,7 @@ export default function EventPage() {
           <button
             className="btn-icon cart"
             title="Detail / Cart"
-            onClick={() =>
-              navigate(
-                `/event-detail?id=${r.id}`
-              )
-            }
+            onClick={() => navigate(`/event-detail?id=${r.id}`)}
           >
             <IconCart />
           </button>
@@ -540,11 +548,7 @@ export default function EventPage() {
             className="btn-icon"
             title="Summary"
             style={{ color: "var(--purple)" }}
-            onClick={() =>
-              navigate(
-                `/event-summary?id=${r.id}`
-              )
-            }
+            onClick={() => navigate(`/event-summary?id=${r.id}`)}
           >
             <IconBarChart />
           </button>
@@ -711,11 +715,7 @@ export default function EventPage() {
           <button
             className="btn-icon cart"
             title="Detail / Cart"
-            onClick={() =>
-              navigate(
-                `/event-detail?id=${r.id}`
-              )
-            }
+            onClick={() => navigate(`/event-detail?id=${r.id}`)}
           >
             <IconCart />
           </button>
@@ -723,11 +723,7 @@ export default function EventPage() {
             className="btn-icon"
             title="Summary"
             style={{ color: "var(--purple)" }}
-            onClick={() =>
-              navigate(
-                `/event-summary?id=${r.id}`
-              )
-            }
+            onClick={() => navigate(`/event-summary?id=${r.id}`)}
           >
             <IconBarChart />
           </button>
@@ -784,13 +780,15 @@ export default function EventPage() {
         {[
           {
             label: "Total Events",
-            value: (upcomings?.data?.total_records ?? 0) + (pasts?.data?.total_records ?? 0),
+            value:
+              (upcomings?.data?.total_records ?? 0) +
+              (pasts?.data?.total_records ?? 0),
             color: "var(--brand)",
             bg: "var(--brand-bg)",
           },
           {
             label: "Upcoming",
-            value: (upcomings?.data?.total_records ?? 0),
+            value: upcomings?.data?.total_records ?? 0,
             color: "var(--green)",
             bg: "var(--green-bg)",
           },
@@ -1145,73 +1143,61 @@ export default function EventPage() {
       >
         {/* GENERAL */}
         <div className="form-row">
-          <div className="form-group">
-            <label>
-              Event Name <span style={{ color: "var(--red)" }}>*</span>
-            </label>
-            <input
-              type="text"
-              placeholder="Enter event name"
-              value={formik.values.name}
-              onChange={(e) => formik.setFieldValue("name", e.target.value)}
-            />
-          </div>
-          <div className="form-group" style={{ maxWidth: 120 }}>
-            <label>Code</label>
-            <input
-              type="text"
-              placeholder="e.g. WB"
+          <TextInput
+            value={formik.values.name}
+            onChange={(value) => formik.setFieldValue("name", value)}
+            isRequired
+            label="Event Name"
+            placeholder="Enter event name"
+            errorText={formik.errors.name as string}
+          />
+          <div style={{ maxWidth: 120, flex: 1 }}>
+            <TextInput
               value={formik.values.event_code}
-              onChange={(e) =>
-                formik.setFieldValue("event_code", e.target.value)
-              }
+              onChange={(value) => formik.setFieldValue("event_code", value)}
+              isRequired
+              label="Code"
+              placeholder="e.g. WB"
+              errorText={formik.errors.event_code as string}
             />
           </div>
         </div>
-        <div className="form-group">
-          <label>Description</label>
-          <textarea
-            placeholder="Short event description"
-            value={formik.values.description}
-            onChange={(e) =>
-              formik.setFieldValue("description", e.target.value)
-            }
-            rows={2}
+        <TextArea
+          value={formik.values.description}
+          onChange={(value) => formik.setFieldValue("description", value)}
+          isRequired
+          label="Description"
+          placeholder="Short event description"
+          rows={2}
+          errorText={formik.errors.description as string}
+        />
+        <div className="form-row">
+          <TextInput
+            value={formik.values.event_start}
+            onChange={(value) => formik.setFieldValue("event_start", value)}
+            isRequired
+            inputType="date"
+            label="Start Date"
+            errorText={formik.errors.event_start ? "Required" : ("" as string)}
+          />
+          <TextInput
+            value={formik.values.event_end}
+            onChange={(value) => formik.setFieldValue("event_end", value)}
+            isRequired
+            inputType="date"
+            label="Finish Date"
+            errorText={formik.errors.event_end ? "Required" : ("" as string)}
           />
         </div>
         <div className="form-row">
-          <div className="form-group">
-            <label>Start Date</label>
-            <input
-              type="date"
-              value={formik.values.event_start}
-              onChange={(val) => {
-                formik.setFieldValue("event_start", val.target.value);
-              }}
-            />
-          </div>
-          <div className="form-group">
-            <label>Finish Date</label>
-            <input
-              type="date"
-              value={formik.values.event_end}
-              onChange={(val) => {
-                formik.setFieldValue("event_end", val.target.value);
-              }}
-            />
-          </div>
-        </div>
-        <div className="form-row">
-          <div className="form-group">
-            <label>Event Date</label>
-            <input
-              type="date"
-              value={formik.values.date_event}
-              onChange={(val) => {
-                formik.setFieldValue("date_event", val.target.value);
-              }}
-            />
-          </div>
+          <TextInput
+            value={formik.values.date_event ?? ""}
+            onChange={(value) => formik.setFieldValue("date_event", value)}
+            isRequired
+            inputType="date"
+            label="Event Date"
+            errorText={formik.errors.date_event as string}
+          />
         </div>
 
         {/* DETAILS */}
@@ -1246,17 +1232,18 @@ export default function EventPage() {
           <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
         </div>
         <div className="form-row">
+          <TextInput
+            value={formik.values.PIC}
+            onChange={(value) => formik.setFieldValue("PIC", value)}
+            isRequired
+            label="PIC"
+            placeholder="Person in charge"
+            errorText={formik.errors.PIC as string}
+          />
           <div className="form-group">
-            <label>PIC</label>
-            <input
-              type="text"
-              placeholder="Person in charge"
-              value={formik.values.PIC}
-              onChange={(e) => formik.setFieldValue("PIC", e.target.value)}
-            />
-          </div>
-          <div className="form-group">
-            <label>Status</label>
+            <label>
+              Status <span style={{ color: "var(--red)" }}>*</span>
+            </label>
             <SearchableSelect
               value={formik.values.status}
               onChange={(value) =>
@@ -1274,21 +1261,23 @@ export default function EventPage() {
               ]}
               placeholder="— Select Status —"
               searchPlaceholder="Search statuses…"
+              errorText={formik.errors.status as string}
             />
           </div>
         </div>
         <div className="form-row">
+          <TextInput
+            value={formik.values.address}
+            onChange={(value) => formik.setFieldValue("address", value)}
+            isRequired
+            label="Address"
+            placeholder="Event location / address"
+            errorText={formik.errors.address as string}
+          />
           <div className="form-group">
-            <label>Address</label>
-            <input
-              type="text"
-              placeholder="Event location / address"
-              value={formik.values.address}
-              onChange={(e) => formik.setFieldValue("address", e.target.value)}
-            />
-          </div>
-          <div className="form-group">
-            <label>QR Type</label>
+            <label>
+              QR Type <span style={{ color: "var(--red)" }}>*</span>
+            </label>
             <SearchableSelect
               value={formik.values.scan_type}
               onChange={(value) =>
@@ -1300,6 +1289,7 @@ export default function EventPage() {
                 { value: "INDIVIDUAL", label: "INDIVIDUAL" },
               ]}
               placeholder="Select QR Type"
+              errorText={formik.errors.scan_type as string}
             />
           </div>
         </div>
@@ -1336,15 +1326,15 @@ export default function EventPage() {
           <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
         </div>
         <div className="form-row" style={{ alignItems: "flex-start" }}>
-          <div className="form-group">
-            <label>Note</label>
-            <textarea
-              placeholder="Any additional notes…"
-              value={formik.values.notes}
-              onChange={(e) => formik.setFieldValue("notes", e.target.value)}
-              rows={4}
-            />
-          </div>
+          <TextArea
+            value={formik.values.notes}
+            onChange={(value) => formik.setFieldValue("notes", value)}
+            isRequired
+            label="Note"
+            placeholder="Any additional notes…"
+            rows={4}
+            errorText={formik.errors.notes as string}
+          />
           <div className="form-group">
             <label>Image</label>
             <input

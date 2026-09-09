@@ -1,4 +1,10 @@
-import React, { memo, type HTMLInputTypeAttribute } from "react";
+import React, {
+  memo,
+  type CSSProperties,
+  type FocusEventHandler,
+  type HTMLInputTypeAttribute,
+  type ReactNode,
+} from "react";
 
 type Props = {
   value: string;
@@ -10,6 +16,15 @@ type Props = {
   isNumeric?: boolean;
   inputType?: HTMLInputTypeAttribute;
   variant?: "primary" | "secondary";
+  containerStyle?: CSSProperties;
+  labelStyle?: CSSProperties;
+  inputStyle?: CSSProperties;
+  inputWrapperStyle?: CSSProperties;
+  leftAdornment?: ReactNode;
+  rightAdornment?: ReactNode;
+  onFocus?: FocusEventHandler<HTMLInputElement>;
+  onBlur?: FocusEventHandler<HTMLInputElement>;
+  autoComplete?: string;
 };
 
 const TextInput = ({
@@ -22,23 +37,50 @@ const TextInput = ({
   isNumeric,
   inputType = "text",
   variant = "primary",
+  containerStyle,
+  labelStyle,
+  inputStyle,
+  inputWrapperStyle,
+  leftAdornment,
+  rightAdornment,
+  onFocus,
+  onBlur,
+  autoComplete,
 }: Props) => {
+  const input = (
+    <input
+      type={isNumeric ? "number" : inputType}
+      min={isNumeric ? 0 : undefined}
+      placeholder={placeholder ?? ""}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onFocus={onFocus}
+      onBlur={onBlur}
+      autoComplete={autoComplete}
+      aria-invalid={Boolean(errorText?.trim())}
+      style={{
+        ...inputStyle,
+        borderColor: errorText?.trim() ? "var(--red)" : inputStyle?.borderColor,
+        background:
+          variant === "secondary"
+            ? "var(--bg)"
+            : inputStyle?.background,
+      }}
+    />
+  );
+
   return (
-    <div className="form-group">
-      <label>
+    <div className="form-group" style={containerStyle}>
+      <label style={labelStyle}>
         {label} {isRequired && <span style={{ color: "var(--red)" }}>*</span>}
       </label>
-      <input
-        type={isNumeric ? "number" : inputType}
-        min={isNumeric ? 0 : undefined}
-        placeholder={placeholder ?? ""}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        style={{
-          borderColor: errorText?.trim() ? "var(--red)" : undefined,
-          background: variant === "secondary" ? "var(--bg)" : undefined,
-        }}
-      />
+      {leftAdornment || rightAdornment ? (
+        <div style={inputWrapperStyle}>
+          {leftAdornment}
+          {input}
+          {rightAdornment}
+        </div>
+      ) : input}
       {errorText?.trim() && (
         <span style={{ color: "var(--red)", fontSize: 12 }}>{errorText}</span>
       )}

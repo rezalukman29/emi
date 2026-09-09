@@ -509,10 +509,8 @@ export default function EventStatusPage() {
               { value: "SCAN_OUT", label: "Scan Out" },
             ]}
             placeholder="None"
+            errorText={formik.errors.action}
           />
-          {formik.errors.action && (
-            <span style={{ color: "var(--red)", fontSize: 11.5 }}>{formik.errors.action}</span>
-          )}
         </div>
         <div className="form-group">
           <label>Show Scan</label>

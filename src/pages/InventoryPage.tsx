@@ -1257,12 +1257,8 @@ export default function InventoryPage() {
               ]}
               placeholder="— Select Unit —"
               searchPlaceholder="Search units…"
+              errorText={formik.errors.satuan_id as string}
             />
-            {(formik.errors.satuan_id as string)?.trim() && (
-              <span style={{ color: "var(--red)", fontSize: 12 }}>
-                {formik.errors.satuan_id as string}
-              </span>
-            )}
           </div>
           <div className="form-group">
             <label>
@@ -1279,12 +1275,8 @@ export default function InventoryPage() {
               ]}
               placeholder="— Select Category —"
               searchPlaceholder="Search categories…"
+              errorText={formik.errors.kategori_id as string}
             />
-            {(formik.errors.kategori_id as string)?.trim() && (
-              <span style={{ color: "var(--red)", fontSize: 12 }}>
-                {formik.errors.kategori_id as string}
-              </span>
-            )}
           </div>
         </div>
         <div className="form-row" style={{ alignItems: "flex-start" }}>

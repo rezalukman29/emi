@@ -333,10 +333,10 @@ export default function ItemLoanPage() {
             placeholder="Select an item"
             searchPlaceholder="Search items…"
             disabled={isInventoryLoading}
+            errorText={formik.errors.barang_gudang_id}
           />
           {isInventoryLoading && <span style={{ color: "var(--text-muted)", fontSize: 12 }}>Loading items…</span>}
           {isInventoryError && <span style={{ color: "var(--red)", fontSize: 12 }}>Unable to load items.</span>}
-          {formik.errors.barang_gudang_id && <span style={{ color: "var(--red)", fontSize: 12 }}>{formik.errors.barang_gudang_id}</span>}
         </div>
         <div className="form-row">
           <TextInput value={formik.values.qty} onChange={(value) => formik.setFieldValue("qty", value)} isRequired isNumeric label="Qty" errorText={formik.errors.qty as string} />

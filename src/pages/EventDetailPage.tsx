@@ -2369,19 +2369,14 @@ export default function EventDetailPage() {
                         checked={selectedCartIds.includes(c.cartId)}
                         onChange={() => toggleCartSelect(c.cartId)}
                       />
-                      <div className="cart-item-img">
-                        <svg
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="#b0b5cc"
-                          strokeWidth="1.5"
-                          style={{ width: 28, height: 28 }}
-                        >
-                          <rect x="3" y="3" width="18" height="18" rx="2" />
-                          <circle cx="8.5" cy="8.5" r="1.5" />
-                          <polyline points="21 15 16 10 5 21" />
-                        </svg>
-                      </div>
+                      <img
+                        className="cart-item-img"
+                        src={c.photo}
+                        alt={c.name}
+                        onError={(event) => {
+                          event.currentTarget.src = noImage;
+                        }}
+                      />
                       <div className="cart-item-info">
                         <div className="cart-item-name">{c.name}</div>
                         <div className="cart-item-meta">
