@@ -4,6 +4,7 @@ import { toast } from "react-toastify";
 import * as Yup from "yup";
 import TextInput from "../components/TextInput";
 import usePostRegister from "../hooks/api/usePostRegister";
+import { useTranslation } from "react-i18next";
 
 interface RegisterValues {
   fullname: string;
@@ -24,6 +25,7 @@ function hasTenantSession() {
 }
 
 export default function RegisterPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { mutateAsync: register, isLoading } = usePostRegister();
   const formik = useFormik<RegisterValues>({
@@ -34,10 +36,10 @@ export default function RegisterPage() {
       confirmPassword: "",
     },
     validationSchema: Yup.object({
-      fullname: Yup.string().trim().required("Full name is required."),
-      email: Yup.string().trim().email("Enter a valid email address.").required("Email is required."),
-      password: Yup.string().min(6, "Password must be at least 6 characters.").required("Password is required."),
-      confirmPassword: Yup.string().oneOf([Yup.ref("password")], "Passwords do not match.").required("Confirm your password."),
+      fullname: Yup.string().trim().required(t("validation.fullNameRequired")),
+      email: Yup.string().trim().email(t("validation.emailInvalid")).required(t("validation.emailRequired")),
+      password: Yup.string().min(6, t("validation.passwordMin")).required(t("validation.passwordRequired")),
+      confirmPassword: Yup.string().oneOf([Yup.ref("password")], t("validation.passwordMismatch")).required(t("validation.confirmPasswordRequired")),
     }),
     onSubmit: async (values) => {
       try {
@@ -47,10 +49,10 @@ export default function RegisterPage() {
           password: values.password,
           user_type: "EMPLOYEE",
         });
-        toast.success(response.message || "Account created successfully.");
+        toast.success(response.message || t("auth.createAccountAction"));
         navigate("/login", { replace: true });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to create account.";
+        const message = error instanceof Error ? error.message : t("wording.failedToCreateAccount");
         toast.error(message);
       }
     },
@@ -64,57 +66,57 @@ export default function RegisterPage() {
         <div className="auth-brand">
           <div className="auth-logo">EMI</div>
           <div>
-            <div className="auth-title">Create an account</div>
-            <div className="auth-sub">Join your team on EMI Inventory</div>
+            <div className="auth-title">{t("auth.createAccount")}</div>
+            <div className="auth-sub">{t("auth.joinTeam")}</div>
           </div>
         </div>
 
         <form onSubmit={formik.handleSubmit}>
           <TextInput
-            label="Full Name"
+            label={t("auth.fullName")}
             isRequired
             value={formik.values.fullname}
             onChange={(value) => formik.setFieldValue("fullname", value)}
-            placeholder="Your full name"
+            placeholder={t("auth.yourFullName")}
             errorText={formik.touched.fullname ? formik.errors.fullname : undefined}
           />
           <TextInput
-            label="Email"
+            label={t("wording.email")}
             isRequired
             inputType="email"
             value={formik.values.email}
             onChange={(value) => formik.setFieldValue("email", value)}
-            placeholder="you@company.com"
+            placeholder={t("wording.youCompanyCom")}
             errorText={formik.touched.email ? formik.errors.email : undefined}
           />
           <TextInput
-            label="Password"
+            label={t("auth.password")}
             isRequired
             inputType="password"
             value={formik.values.password}
             onChange={(value) => formik.setFieldValue("password", value)}
-            placeholder="At least 6 characters"
+            placeholder={t("wording.atLeast6Characters")}
             errorText={formik.touched.password ? formik.errors.password : undefined}
           />
           <TextInput
-            label="Confirm Password"
+            label={t("auth.confirmPassword")}
             isRequired
             inputType="password"
             value={formik.values.confirmPassword}
             onChange={(value) => formik.setFieldValue("confirmPassword", value)}
-            placeholder="Repeat your password"
+            placeholder={t("auth.repeatPassword")}
             errorText={formik.touched.confirmPassword ? formik.errors.confirmPassword : undefined}
           />
           <button type="submit" className="btn-primary btn auth-submit" disabled={isLoading}>
-            {isLoading ? "Creating account…" : "Create Account"}
+            {isLoading ? t("auth.creatingAccount") : t("auth.createAccountAction")}
           </button>
         </form>
 
         <div className="auth-footer-link">
-          Already have an account? <Link to="/login">Sign in</Link>
+          {t("auth.alreadyHaveAccount")} <Link to="/login">{t("auth.signIn")}</Link>
         </div>
         <div className="auth-hint">
-          New self-service accounts are created with the Employee role.
+          {t("auth.employeeHint")}
         </div>
       </div>
     </div>

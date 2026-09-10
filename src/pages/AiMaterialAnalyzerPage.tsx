@@ -10,6 +10,9 @@ import type {
 } from "../interfaces/AiMaterialAnalyzerInterface";
 import { AiService } from "../service/AiService";
 import useSearchEvents from "../hooks/api/useSearchEvents";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
+
 
 interface PageState {
   imageBase64: string | null;
@@ -122,7 +125,7 @@ const ADVISORY_CONFIG = {
     text: "#166534",
     badgeBg: "#dcfce7",
     badgeText: "#15803d",
-    label: "Safe Conditions",
+    labelKey: "advisory.safe",
   },
   warning: {
     bg: "#fff7ed",
@@ -130,7 +133,7 @@ const ADVISORY_CONFIG = {
     text: "#9a3412",
     badgeBg: "#ffedd5",
     badgeText: "#c2410c",
-    label: "Needs Attention",
+    labelKey: "advisory.attention",
   },
   danger: {
     bg: "#fef2f2",
@@ -138,7 +141,7 @@ const ADVISORY_CONFIG = {
     text: "#991b1b",
     badgeBg: "#fee2e2",
     badgeText: "#b91c1c",
-    label: "High Risk",
+    labelKey: "advisory.risk",
   },
 } as const;
 
@@ -215,7 +218,7 @@ function WeatherAdvisoryBanner({ advisory }: { advisory: AiWeatherAdvisory }) {
         }}
       >
         <AdvisoryIcon level={advisory.level} />
-        <span style={{ fontWeight: 700, fontSize: 13 }}>{cfg.label}</span>
+        <span style={{ fontWeight: 700, fontSize: 13 }}>{i18n.t(cfg.labelKey)}</span>
         <span
           style={{
             fontSize: 10.5,
@@ -249,7 +252,7 @@ function WeatherAdvisoryBanner({ advisory }: { advisory: AiWeatherAdvisory }) {
             lineHeight: 1.55,
           }}
         >
-          <strong>Backup Plan: </strong>
+          <strong>{i18n.t("wording.backupPlan")} </strong>
           {advisory.backup_plan}
         </div>
       )}
@@ -375,7 +378,7 @@ function WeatherTipChip({
             <line x1="12" y1="8" x2="12.01" y2="8" />
           </svg>
         )}
-        Weather Tip
+        {i18n.t("wording.weatherTip")}
         <svg
           viewBox="0 0 24 24"
           fill="none"
@@ -499,10 +502,10 @@ function AdditionalItemCard({ item }: { item: AiAdditionalItemMatched }) {
                 </span>
               )}
               <span className="badge badge-green" style={{ fontSize: 10.5 }}>
-                Available in inventory
+                {i18n.t("wording.availableInInventory")}
               </span>
               <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
-                Stock:{" "}
+                {i18n.t("wording.stockPrefix")}{" "}
                 <strong style={{ color: "var(--text-2)" }}>
                   {barang!.stok}
                 </strong>
@@ -520,7 +523,7 @@ function AdditionalItemCard({ item }: { item: AiAdditionalItemMatched }) {
                 padding: "1px 7px",
               }}
             >
-              Unavailable
+              {i18n.t("wording.unavailable")}
             </span>
           )}
         </div>
@@ -575,7 +578,7 @@ function MaterialTable({ materials }: { materials: AiMaterial[] }) {
             letterSpacing: "-0.01em",
           }}
         >
-          Analysis Results
+          {i18n.t("wording.analysisResults")}
         </span>
         <button
           onClick={handleCopy}
@@ -613,17 +616,17 @@ function MaterialTable({ materials }: { materials: AiMaterial[] }) {
             <rect x="9" y="9" width="13" height="13" rx="2" />
             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
           </svg>
-          Copy table
+          {i18n.t("wording.copyTable")}
         </button>
       </div>
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>Material Name</th>
-              <th style={{ width: 80 }}>Est. Qty</th>
-              <th style={{ width: 80 }}>Unit</th>
-              <th>Usage Notes</th>
+              <th>{i18n.t("wording.materialName")}</th>
+              <th style={{ width: 80 }}>{i18n.t("wording.estQty")}</th>
+              <th style={{ width: 80 }}>{i18n.t("wording.unit")}</th>
+              <th>{i18n.t("wording.usageNotes")}</th>
             </tr>
           </thead>
           <tbody>
@@ -737,13 +740,13 @@ function InventoryCard({ item }: { item: AiMatchedBarang }) {
             <span
               className="badge badge-green"
               style={{ fontSize: 10.5 }}
-              title="Suitable for the event weather conditions"
+              title={i18n.t("wording.suitableForTheEventWeatherConditions")}
             >
-              Weather Suitable
+              {i18n.t("wording.weatherSuitable")}
             </span>
           )}
           <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
-            Stock:{" "}
+            {i18n.t("wording.stockPrefix")}{" "}
             <strong style={{ color: "var(--text-2)" }}>{item.stok}</strong>
           </span>
         </div>
@@ -761,6 +764,7 @@ function InventoryCard({ item }: { item: AiMatchedBarang }) {
 }
 
 export default function AiMaterialAnalyzerPage() {
+  const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [state, setState] = useState<PageState>({
     imageBase64: null,
@@ -827,7 +831,7 @@ export default function AiMaterialAnalyzerPage() {
 
   const handleFile = useCallback(async (file: File) => {
     if (!file.type.startsWith("image/")) {
-      toast("The file must be an image (JPG, PNG, WEBP).", { type: "error" });
+      toast(t("wording.theFileMustBeAnImageJpgPng"), { type: "error" });
       return;
     }
     try {
@@ -840,7 +844,7 @@ export default function AiMaterialAnalyzerPage() {
         result: null,
       }));
     } catch {
-      toast("Failed to process the image.", { type: "error" });
+      toast(t("wording.failedToProcessTheImage"), { type: "error" });
     }
   }, []);
 
@@ -869,7 +873,7 @@ export default function AiMaterialAnalyzerPage() {
       toast(
         err instanceof Error
           ? err.message
-          : "An error occurred. Please try again.",
+          : t("wording.anErrorOccurredPleaseTryAgain"),
         { type: "error" },
       );
     }
@@ -905,13 +909,12 @@ export default function AiMaterialAnalyzerPage() {
       >
         <div>
           <h1 className="page-title" style={{ margin: 0 }}>
-            Material Analyzer
+            {t("wording.materialAnalyzer")}
           </h1>
           <p
             style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 4 }}
           >
-            Upload a decoration image to analyze the materials needed using
-            AI.
+            {t("wording.uploadADecorationImageToAnalyzeTheMaterials")}
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -928,7 +931,7 @@ export default function AiMaterialAnalyzerPage() {
               <circle cx="12" cy="12" r="10" />
               <path d="M12 8v4l3 3" />
             </svg>
-            AI Powered
+            {t("wording.aiPowered")}
           </span>
         </div>
       </div>
@@ -961,7 +964,7 @@ export default function AiMaterialAnalyzerPage() {
               letterSpacing: ".07em",
             }}
           >
-            Upload Decoration Image
+            {t("wording.uploadDecorationImage")}
           </div>
 
           <input
@@ -1053,7 +1056,7 @@ export default function AiMaterialAnalyzerPage() {
                     onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
                     onMouseLeave={(e) => (e.currentTarget.style.opacity = "0")}
                   >
-                    Change Image
+                    {t("wording.changeImage")}
                   </button>
                 </div>
               </>
@@ -1094,9 +1097,9 @@ export default function AiMaterialAnalyzerPage() {
                   }}
                 >
                   <span style={{ color: "var(--brand)" }}>
-                    Click to upload
+                    {t("wording.clickToUpload")}
                   </span>{" "}
-                  or drag &amp; drop
+                  {t("wording.orDragDrop")}
                 </div>
                 <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
                   JPG, PNG, WEBP
@@ -1134,7 +1137,7 @@ export default function AiMaterialAnalyzerPage() {
                   >
                     <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                   </svg>
-                  Analyzing...
+                  {t("wording.analyzing")}
                 </>
               ) : (
                 <>
@@ -1150,7 +1153,7 @@ export default function AiMaterialAnalyzerPage() {
                     <circle cx="11" cy="11" r="8" />
                     <path d="m21 21-4.35-4.35" />
                   </svg>
-                  Analyze Materials
+                  {t("wording.analyzeMaterials")}
                 </>
               )}
             </button>
@@ -1158,7 +1161,7 @@ export default function AiMaterialAnalyzerPage() {
               <button
                 className="btn btn-ghost"
                 onClick={handleReset}
-                title="Reset"
+                title={t("wording.reset")}
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -1195,15 +1198,15 @@ export default function AiMaterialAnalyzerPage() {
                 letterSpacing: ".07em",
               }}
             >
-              Event Context (optional)
+              {t("wording.eventContextOptional")}
             </div>
 
             <div style={{ display: "flex", gap: 6 }}>
               {(
                 [
-                  { key: "none", label: "No Context" },
-                  { key: "event", label: "Select Event" },
-                  { key: "manual", label: "Manual Input" },
+                  { key: "none", label: t("wording.noContext") },
+                  { key: "event", label: t("wording.selectEvent") },
+                  { key: "manual", label: t("wording.manualInput") },
                 ] as const
               ).map((opt) => (
                 <button
@@ -1302,7 +1305,7 @@ export default function AiMaterialAnalyzerPage() {
                     <input
                       className="search-input"
                       type="text"
-                      placeholder="Click to select or search for an event..."
+                      placeholder={t("wording.clickToSelectOrSearchForAnEvent")}
                       value={eventQuery}
                       onFocus={() => setEventPickerOpen(true)}
                       onChange={(e) => {
@@ -1358,7 +1361,7 @@ export default function AiMaterialAnalyzerPage() {
                               color: "var(--text-muted)",
                             }}
                           >
-                            Loading event list...
+                            {t("wording.loadingEventList")}
                           </div>
                         ) : filteredEvents.length === 0 ? (
                           <div
@@ -1368,7 +1371,7 @@ export default function AiMaterialAnalyzerPage() {
                               color: "var(--text-muted)",
                             }}
                           >
-                            No events found.
+                            {t("wording.noEventsFound")}
                           </div>
                         ) : (
                           filteredEvents.map((ev: any) => (
@@ -1428,7 +1431,7 @@ export default function AiMaterialAnalyzerPage() {
                 />
                 <input
                   type="text"
-                  placeholder="Location (city)"
+                  placeholder={t("wording.locationCity")}
                   value={manualLocation}
                   onChange={(e) => setManualLocation(e.target.value)}
                   className="search-input"
@@ -1468,13 +1471,13 @@ export default function AiMaterialAnalyzerPage() {
                       gap: 6,
                     }}
                   >
-                    Context Used
+                    {t("wording.contextUsed")}
                     {state.result.context_used.weather?.isEstimate && (
                       <span
                         className="badge badge-gray"
                         style={{ fontSize: 10 }}
                       >
-                        Seasonal Estimate
+                        {t("wording.seasonalEstimate")}
                       </span>
                     )}
                   </div>
@@ -1493,7 +1496,7 @@ export default function AiMaterialAnalyzerPage() {
                   )}
                   {state.result.context_used.weather ? (
                     <div>
-                      Weather: {state.result.context_used.weather.weatherDescription ?? "-"}
+                      {t("wording.weather")} {state.result.context_used.weather.weatherDescription ?? "-"}
                       {state.result.context_used.weather.tempMinC !== undefined &&
                       state.result.context_used.weather.tempMaxC !== undefined
                         ? `, ${Math.round(
@@ -1511,7 +1514,7 @@ export default function AiMaterialAnalyzerPage() {
                     </div>
                   ) : state.result.context_used.weatherError ? (
                     <div>
-                      Weather unavailable — the analysis uses only the image and date.
+                      {t("wording.weatherUnavailableTheAnalysisUsesOnlyTheImage")}
                     </div>
                   ) : null}
                 </div>
@@ -1532,7 +1535,7 @@ export default function AiMaterialAnalyzerPage() {
                     lineHeight: 1.55,
                   }}
                 >
-                  <strong>Description: </strong>
+                  <strong>{t("wording.descriptionPrefix")} </strong>
                   {state.result.deskripsi}
                 </div>
               )}
@@ -1579,14 +1582,14 @@ export default function AiMaterialAnalyzerPage() {
                 </svg>
               </div>
               <p style={{ fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
-                Analysis Results
+                {t("wording.analysisResults")}
               </p>
               <p
                 style={{ fontSize: 12.5, textAlign: "center", lineHeight: 1.5 }}
               >
-                Upload a decoration image to
+                {t("wording.uploadADecorationImageTo")}
                 <br />
-                start the analysis.
+                {t("wording.startTheAnalysis")}
               </p>
             </div>
           )}
@@ -1612,18 +1615,18 @@ export default function AiMaterialAnalyzerPage() {
                 letterSpacing: "-0.01em",
               }}
             >
-              Inventory Availability
+              {t("wording.inventoryAvailability")}
             </div>
             {(state.result.matched_barang?.length ?? 0) > 0 && (
               <span className="badge badge-green">
-                {state.result.matched_barang!.length} items found
+                {state.result.matched_barang!.length} {t("wording.itemsFound")}
               </span>
             )}
           </div>
 
           {(state.result.matched_barang?.length ?? 0) === 0 ? (
             <div className="no-data">
-              No matching materials found in inventory.
+              {t("wording.noMatchingMaterialsFoundInInventory")}
             </div>
           ) : (
             <div
@@ -1661,7 +1664,7 @@ export default function AiMaterialAnalyzerPage() {
                   letterSpacing: "-0.01em",
                 }}
               >
-                Recommended Additional Items
+                {t("wording.recommendedAdditionalItems")}
               </div>
               <span
                 style={{
@@ -1674,7 +1677,7 @@ export default function AiMaterialAnalyzerPage() {
                   padding: "1px 7px",
                 }}
               >
-                AI
+                {t("wording.ai")}
               </span>
             </div>
             <span
@@ -1684,8 +1687,8 @@ export default function AiMaterialAnalyzerPage() {
                 fontStyle: "italic",
               }}
             >
-              {state.result.additional_items.filter((i) => i.found).length} of{" "}
-              {state.result.additional_items.length} available in inventory
+              {state.result.additional_items.filter((i) => i.found).length} {t("wording.of")}{" "}
+              {state.result.additional_items.length} {t("wording.availableInInventoryInline")}
             </span>
           </div>
           <div

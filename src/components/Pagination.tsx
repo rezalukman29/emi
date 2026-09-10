@@ -1,4 +1,5 @@
 import { IconChevronsLeft, IconChevronLeft, IconChevronRight, IconChevronsRight } from './icons';
+import { useTranslation } from 'react-i18next';
 
 function visiblePages(cur: any, total: any) {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
@@ -8,6 +9,7 @@ function visiblePages(cur: any, total: any) {
 }
 
 export default function Pagination({ currentPage, total, pageSize, onPage, label }: any) {
+  const { t } = useTranslation();
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const from = (currentPage - 1) * pageSize + 1;
   const to = Math.min(currentPage * pageSize, total);
@@ -17,16 +19,23 @@ export default function Pagination({ currentPage, total, pageSize, onPage, label
 
   return (
     <div className="pagination-wrap">
-      <button className="pg-btn" onClick={() => onPage(1)} disabled={currentPage === 1}><IconChevronsLeft /></button>
-      <button className="pg-btn" onClick={() => onPage(currentPage - 1)} disabled={currentPage === 1}><IconChevronLeft /></button>
+      <button className="pg-btn" aria-label={t('pagination.firstPage')} onClick={() => onPage(1)} disabled={currentPage === 1}><IconChevronsLeft /></button>
+      <button className="pg-btn" aria-label={t('pagination.previousPage')} onClick={() => onPage(currentPage - 1)} disabled={currentPage === 1}><IconChevronLeft /></button>
       {pages.map((p, i) =>
         p === '...'
           ? <span key={i} className="pg-btn" style={{ cursor: 'default' }}>…</span>
           : <button key={p} className={`pg-btn${p === currentPage ? ' active' : ''}`} onClick={() => onPage(p)}>{p}</button>
       )}
-      <button className="pg-btn" onClick={() => onPage(currentPage + 1)} disabled={currentPage === totalPages}><IconChevronRight /></button>
-      <button className="pg-btn" onClick={() => onPage(totalPages)} disabled={currentPage === totalPages}><IconChevronsRight /></button>
-      <span className="pagination-info">{from} to {to} of {total} {label || 'items'}</span>
+      <button className="pg-btn" aria-label={t('pagination.nextPage')} onClick={() => onPage(currentPage + 1)} disabled={currentPage === totalPages}><IconChevronRight /></button>
+      <button className="pg-btn" aria-label={t('pagination.lastPage')} onClick={() => onPage(totalPages)} disabled={currentPage === totalPages}><IconChevronsRight /></button>
+      <span className="pagination-info">
+        {t('pagination.summary', {
+          from,
+          to,
+          total,
+          label: label || t('pagination.items'),
+        })}
+      </span>
     </div>
   );
 }

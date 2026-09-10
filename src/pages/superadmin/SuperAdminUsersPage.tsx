@@ -19,6 +19,9 @@ import useGetSuperAdminCustomers from "../../hooks/api/useGetSuperAdminCustomers
 import useGetSuperAdminUsers, {
   type GetSuperAdminUsersParams,
 } from "../../hooks/api/useGetSuperAdminUsers";
+import { useTranslation } from "react-i18next";
+import { translateApiValue } from "../../utils/function";
+
 
 const PAGE_SIZE = 10;
 const USER_TYPES = ["ADMIN", "EMPLOYEE"];
@@ -68,6 +71,7 @@ function formatDate(value: string) {
 }
 
 export default function SuperAdminUsersPage() {
+  const { t } = useTranslation();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [companyId, setCompanyId] = useState("");
@@ -106,7 +110,7 @@ export default function SuperAdminUsersPage() {
   const safePage = Math.min(page, totalPages);
   const companyOptions = useMemo(
     () => [
-      { value: "", label: "All Companies" },
+      { value: "", label: t("wording.allCompanies") },
       ...(customersResponse?.data?.items ?? []).map((customer) => ({
         value: customer.id,
         label: customer.name,
@@ -120,14 +124,14 @@ export default function SuperAdminUsersPage() {
   const formik = useFormik<UserForm>({
     initialValues: emptyForm(),
     validationSchema: Yup.object({
-      companyId: Yup.string().required("Company is required."),
+      companyId: Yup.string().required(t("wording.companyIsRequired")),
       email: Yup.string()
         .trim()
         .email("Enter a valid email address.")
-        .required("Email is required."),
-      fullName: Yup.string().trim().required("Full name is required."),
-      password: Yup.string().min(6, "Password must contain at least 6 characters.").required("Password is required."),
-      userType: Yup.string().oneOf(USER_TYPES).required("Role is required."),
+        .required(t("wording.emailIsRequired")),
+      fullName: Yup.string().trim().required(t("wording.fullNameIsRequired")),
+      password: Yup.string().min(6, t("wording.passwordMustContainAtLeast6Characters")).required(t("wording.passwordIsRequired")),
+      userType: Yup.string().oneOf(USER_TYPES).required(t("wording.roleIsRequired")),
     }),
     onSubmit: async (values, { resetForm }) => {
       try {
@@ -186,10 +190,10 @@ export default function SuperAdminUsersPage() {
   return (
     <>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-        <h1 className="page-title" style={{ margin: 0 }}>Users</h1>
-        <button className="btn-new" onClick={openCreate}><IconPlus /> Add User</button>
+        <h1 className="page-title" style={{ margin: 0 }}>{t("wording.users")}</h1>
+        <button className="btn-new" onClick={openCreate}><IconPlus /> {t("wording.addUser")}</button>
       </div>
-      <p className="summary-text">Manage users across all customer companies.</p>
+      <p className="summary-text">{t("wording.manageUsersAcrossAllCustomerCompanies")}</p>
 
       <div className="card">
         <div className="toolbar">
@@ -199,7 +203,7 @@ export default function SuperAdminUsersPage() {
               <input
                 className="search-input"
                 type="text"
-                placeholder="Search name or email…"
+                placeholder={t("wording.searchNameOrEmail")}
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
               />
@@ -213,13 +217,13 @@ export default function SuperAdminUsersPage() {
                 setPage(1);
               }}
               options={companyOptions}
-              placeholder="All Companies"
-              searchPlaceholder="Search company…"
-              emptyText="No companies found"
+              placeholder={t("wording.allCompanies")}
+              searchPlaceholder={t("wording.searchCompany")}
+              emptyText={t("wording.noCompaniesFound")}
             />
           </div>
           <div className="toolbar-right">
-            <button className="btn-new" onClick={openCreate}><IconPlus /> Add User</button>
+            <button className="btn-new" onClick={openCreate}><IconPlus /> {t("wording.addUser")}</button>
           </div>
         </div>
 
@@ -227,26 +231,26 @@ export default function SuperAdminUsersPage() {
           <table>
             <thead>
               <tr>
-                <SortTh label="Name" colIndex={0} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} />
-                <SortTh label="Email" colIndex={1} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} />
-                <SortTh label="Role" colIndex={2} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 120 }} />
-                <th>Company</th>
-                <th>Plan</th>
-                <SortTh label="Created At" colIndex={5} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 170 }} />
+                <SortTh label={t("wording.name")} colIndex={0} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} />
+                <SortTh label={t("wording.email")} colIndex={1} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} />
+                <SortTh label={t("wording.role")} colIndex={2} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 120 }} />
+                <th>{t("wording.company")}</th>
+                <th>{t("wording.plan")}</th>
+                <SortTh label={t("wording.createdAt")} colIndex={5} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 170 }} />
               </tr>
             </thead>
             <tbody>
               {isUsersLoading && !userData ? (
-                <tr><td colSpan={6} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>Loading users…</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>{t("wording.loadingUsers")}</td></tr>
               ) : isUsersError ? (
-                <tr><td colSpan={6} style={{ textAlign: "center", padding: 40, color: "var(--red)" }}>Unable to load users.</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: "center", padding: 40, color: "var(--red)" }}>{t("wording.unableToLoadUsers")}</td></tr>
               ) : !users.length ? (
-                <tr><td colSpan={6} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>No users found.</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>{t("wording.noUsersFound")}</td></tr>
               ) : users.map((user) => (
                 <tr key={user.id}>
                   <td className="name-cell">{user.fullname || "-"}</td>
                   <td>{user.email || "-"}</td>
-                  <td><span className={`badge badge-${user.user_type.toUpperCase() === "ADMIN" ? "purple" : "blue"}`}>{user.user_type || "-"}</span></td>
+                  <td><span className={`badge badge-${user.user_type.toUpperCase() === "ADMIN" ? "purple" : "blue"}`}>{translateApiValue(user.user_type)}</span></td>
                   <td>{user.company_name || "-"}</td>
                   <td>{user.plan_name || "-"}</td>
                   <td style={{ color: "var(--text-muted)", fontSize: 12.5 }}>{formatDate(user.created_at)}</td>
@@ -255,19 +259,19 @@ export default function SuperAdminUsersPage() {
             </tbody>
           </table>
         </div>
-        <Pagination currentPage={safePage} total={total} pageSize={PAGE_SIZE} onPage={setPage} label="users" />
+        <Pagination currentPage={safePage} total={total} pageSize={PAGE_SIZE} onPage={setPage} label={t("wording.usersInline")} />
       </div>
 
       <Modal
         open={formOpen}
-        title="Add User"
+        title={t("wording.addUser")}
         onClose={closeCreate}
         size="lg"
         footer={(
           <>
-            <button className="btn-cancel-modal" disabled={isCreating} onClick={closeCreate}><IconClose /> Cancel</button>
+            <button className="btn-cancel-modal" disabled={isCreating} onClick={closeCreate}><IconClose /> {t("wording.cancel")}</button>
             <button className="btn-save-modal" disabled={isCreating} onClick={() => formik.handleSubmit()}>
-              <IconCheck /> {isCreating ? "Saving…" : "Save"}
+              <IconCheck /> {isCreating ? t("common.actions.saving") : t("common.actions.save")}
             </button>
           </>
         )}
@@ -278,8 +282,8 @@ export default function SuperAdminUsersPage() {
             value={formik.values.fullName}
             onChange={(value) => formik.setFieldValue("fullName", value)}
             isRequired
-            label="Full Name"
-            placeholder="Enter full name"
+            label={t("wording.fullNameTitle")}
+            placeholder={t("wording.enterFullName")}
             errorText={formik.touched.fullName ? formik.errors.fullName : undefined}
           />
           <TextInput
@@ -288,8 +292,8 @@ export default function SuperAdminUsersPage() {
             onChange={(value) => formik.setFieldValue("email", value)}
             isRequired
             inputType="email"
-            label="Email"
-            placeholder="name@company.com"
+            label={t("wording.email")}
+            placeholder={t("wording.nameCompanyCom")}
             errorText={formik.touched.email ? formik.errors.email : undefined}
           />
           <TextInput
@@ -298,32 +302,32 @@ export default function SuperAdminUsersPage() {
             onChange={(value) => formik.setFieldValue("password", value)}
             isRequired
             inputType="password"
-            label="Password"
-            placeholder="Enter password"
+            label={t("wording.password")}
+            placeholder={t("wording.enterPassword")}
             errorText={formik.touched.password ? formik.errors.password : undefined}
           />
           <div className="form-group">
-            <label>Company <span style={{ color: "var(--red)" }}>*</span></label>
+            <label>{t("wording.company")} <span style={{ color: "var(--red)" }}>*</span></label>
             <SearchableSelect
               value={formik.values.companyId}
               onChange={(value) => formik.setFieldValue("companyId", String(value))}
               options={createCompanyOptions}
-              placeholder="Select company…"
-              searchPlaceholder="Search company…"
-              emptyText="No companies found"
+              placeholder={t("wording.selectCompany")}
+              searchPlaceholder={t("wording.searchCompany")}
+              emptyText={t("wording.noCompaniesFound")}
               errorText={formik.touched.companyId ? formik.errors.companyId : undefined}
             />
           </div>
           <div className="form-group">
-            <label>Role <span style={{ color: "var(--red)" }}>*</span></label>
+            <label>{t("wording.role")} <span style={{ color: "var(--red)" }}>*</span></label>
             <SearchableSelect
               value={formik.values.userType}
               onChange={(value) => formik.setFieldValue("userType", String(value))}
               options={USER_TYPES.map((type) => ({
                 value: type,
-                label: type === "ADMIN" ? "Admin" : "Staff",
+                label: translateApiValue(type),
               }))}
-              placeholder="Select role…"
+              placeholder={t("wording.selectRole")}
               errorText={formik.touched.userType ? formik.errors.userType : undefined}
             />
           </div>

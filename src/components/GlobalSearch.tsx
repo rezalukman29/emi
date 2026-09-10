@@ -5,11 +5,13 @@ import useGetGlobalSearch, {
   type GlobalSearchItem,
 } from "../hooks/api/useGetGlobalSearch";
 import { IconClose, IconSearch } from "./icons";
+import { useTranslation } from "react-i18next";
 
 const MIN_QUERY_LENGTH = 2;
 const SEARCH_DEBOUNCE_MS = 300;
 
 export default function GlobalSearch() {
+  const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -80,7 +82,7 @@ export default function GlobalSearch() {
         <IconSearch />
         <input
           type="text"
-          placeholder="Search events, items, warehouses…"
+          placeholder={t("search.placeholder")}
           value={query}
           onChange={(event) => {
             setQuery(event.target.value);
@@ -97,7 +99,7 @@ export default function GlobalSearch() {
           <button
             type="button"
             className="global-search-clear"
-            aria-label="Clear search"
+            aria-label={t("search.clear")}
             onClick={clearSearch}
           >
             <IconClose />
@@ -108,17 +110,21 @@ export default function GlobalSearch() {
       {open && canSearch && (
         <div className="global-search-dropdown">
           {isLoading || isFetching || debouncedQuery !== normalizedQuery ? (
-            <div className="global-search-empty">Searching…</div>
+            <div className="global-search-empty">{t("search.searching")}</div>
           ) : isError ? (
-            <div className="global-search-empty">Unable to load search results.</div>
+            <div className="global-search-empty">{t("search.loadError")}</div>
           ) : totalCount === 0 ? (
             <div className="global-search-empty">
-              No results for &ldquo;{query}&rdquo;
+              {t("search.noResults", { query })}
             </div>
           ) : (
             groups.map((group) => (
               <div key={group.type} className="global-search-group">
-                <div className="global-search-group-label">{group.type}</div>
+                <div className="global-search-group-label">
+                  {t(`search.groups.${group.type.trim().toLowerCase()}`, {
+                    defaultValue: group.type,
+                  })}
+                </div>
                 {group.items.map((item) => (
                   <button
                     type="button"

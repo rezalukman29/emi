@@ -20,6 +20,8 @@ import {
 import type { SubAreaItem } from "../hooks/api/useGetSubArea";
 import { InventoryService } from "../service/InventoryService";
 import { useAreaController } from "./lib/useAreaController";
+import { useTranslation } from "react-i18next";
+
 
 const PAGE_SIZE = 10;
 const MONTHS_SHORT = [
@@ -60,6 +62,7 @@ function errorMessage(error: unknown, fallback: string) {
 }
 
 export default function SubAreaPage() {
+  const { t } = useTranslation();
   const [subAreas, setSubAreas] = useState<SubAreaItem[]>([]);
   const [query, setQuery] = useState("");
   const [areaFilter, setAreaFilter] = useState("");
@@ -98,8 +101,8 @@ export default function SubAreaPage() {
       sub_area_name: isModify && selected ? selected.sub_area_name : "",
     },
     validationSchema: Yup.object({
-      area_id: Yup.string().required("Required"),
-      sub_area_name: Yup.string().trim().required("Required"),
+      area_id: Yup.string().required(t("wording.required")),
+      sub_area_name: Yup.string().trim().required(t("wording.required")),
     }),
     validateOnChange: false,
     enableReinitialize: true,
@@ -116,7 +119,7 @@ export default function SubAreaPage() {
 
         if (!result.success) throw new Error(result.message);
 
-        toast(isModify ? "Sub area updated successfully." : "Sub area added successfully.", {
+        toast(isModify ? t("wording.subAreaUpdatedSuccessfully") : t("wording.subAreaAddedSuccessfully"), {
           type: "success",
         });
         setSubAreaModal(false);
@@ -125,7 +128,7 @@ export default function SubAreaPage() {
         resetForm();
         await getListSubArea();
       } catch (error) {
-        toast(errorMessage(error, isModify ? "Failed to update sub area." : "Failed to add sub area."), {
+        toast(errorMessage(error, isModify ? t("wording.failedToUpdateSubArea") : t("wording.failedToAddSubArea")), {
           type: "error",
         });
       } finally {
@@ -188,7 +191,7 @@ export default function SubAreaPage() {
       setIsLoading(true);
       const result = await InventoryService.deleteSubArea(deleteTarget.id);
       if (!result.success) throw new Error(result.message);
-      toast("Sub area deleted successfully.", { type: "success" });
+      toast(t("wording.subAreaDeletedSuccessfully"), { type: "success" });
       setDeleteModal(false);
       setDeleteTarget(null);
       await getListSubArea();
@@ -203,15 +206,15 @@ export default function SubAreaPage() {
     <>
       {isLoading && <Loading />}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22 }}>
-        <h1 className="page-title" style={{ margin: 0 }}>Sub Area</h1>
-        <button className="btn-new" onClick={openNew}><IconPlus /> New Sub Area</button>
+        <h1 className="page-title" style={{ margin: 0 }}>{t("wording.subArea")}</h1>
+        <button className="btn-new" onClick={openNew}><IconPlus /> {t("wording.newSubArea")}</button>
       </div>
 
       <div className="stats-bar" style={{ gridTemplateColumns: "repeat(3,1fr)" }}>
         {[
-          { label: "Total Sub Areas", value: subAreas.length, color: "var(--brand)", bg: "var(--brand-bg)" },
-          { label: "Parent Areas", value: areaCount, color: "var(--green)", bg: "var(--green-bg)" },
-          { label: "Search Results", value: filtered.length, color: "var(--purple)", bg: "var(--purple-bg)" },
+          { label: t("wording.totalSubAreas"), value: subAreas.length, color: "var(--brand)", bg: "var(--brand-bg)" },
+          { label: t("wording.parentAreas"), value: areaCount, color: "var(--green)", bg: "var(--green-bg)" },
+          { label: t("wording.searchResults"), value: filtered.length, color: "var(--purple)", bg: "var(--purple-bg)" },
         ].map((stat) => (
           <div key={stat.label} className="stat-card">
             <div className="stat-icon" style={{ background: stat.bg }}>
@@ -230,7 +233,7 @@ export default function SubAreaPage() {
               <input
                 className="search-input"
                 type="text"
-                placeholder="Search sub area…"
+                placeholder={t("wording.searchSubArea")}
                 value={query}
                 onChange={(event) => { setQuery(event.target.value); setPage(1); }}
               />
@@ -239,13 +242,13 @@ export default function SubAreaPage() {
               inline
               value={areaFilter}
               onChange={(value) => { setAreaFilter(String(value)); setPage(1); }}
-              options={[{ value: "", label: "All Areas" }, ...areaOptions]}
-              placeholder="All Areas"
-              searchPlaceholder="Search areas…"
+              options={[{ value: "", label: t("wording.allAreas") }, ...areaOptions]}
+              placeholder={t("wording.allAreas")}
+              searchPlaceholder={t("wording.searchAreas")}
             />
           </div>
           <div className="toolbar-right">
-            <button className="btn-new" onClick={openNew}><IconPlus /> New</button>
+            <button className="btn-new" onClick={openNew}><IconPlus /> {t("wording.new")}</button>
           </div>
         </div>
 
@@ -253,16 +256,16 @@ export default function SubAreaPage() {
           <table>
             <thead>
               <tr>
-                <SortTh label="Sub Area" id="sub_area_name" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} />
-                <SortTh label="Area" id="area_name" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ minWidth: 160 }} />
-                <SortTh label="Created At" id="created_at" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 120 }} />
-                <SortTh label="Updated At" id="updated_at" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 120 }} />
-                <th style={{ width: 100, textAlign: "center" }}>Action</th>
+                <SortTh label={t("wording.subArea")} id="sub_area_name" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} />
+                <SortTh label={t("wording.area")} id="area_name" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ minWidth: 160 }} />
+                <SortTh label={t("wording.createdAt")} id="created_at" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 120 }} />
+                <SortTh label={t("wording.updatedAt")} id="updated_at" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 120 }} />
+                <th style={{ width: 100, textAlign: "center" }}>{t("wording.action")}</th>
               </tr>
             </thead>
             <tbody>
               {!pageData.length ? (
-                <tr><td colSpan={5} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>No sub areas found.</td></tr>
+                <tr><td colSpan={5} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>{t("wording.noSubAreasFound")}</td></tr>
               ) : pageData.map((subArea) => (
                 <tr key={subArea.id}>
                   <td className="name-cell">{subArea.sub_area_name}</td>
@@ -271,8 +274,8 @@ export default function SubAreaPage() {
                   <td style={{ color: "var(--text-muted)", fontSize: 12.5 }}>{fmtDate(subArea.updated_at)}</td>
                   <td>
                     <div className="action-btns" style={{ justifyContent: "center" }}>
-                      <button className="btn-icon edit" title="Edit" onClick={() => openEdit(subArea)}><IconEdit /></button>
-                      <button className="btn-icon delete" title="Delete" onClick={() => openDelete(subArea)}><IconDelete /></button>
+                      <button className="btn-icon edit" title={t("wording.edit")} onClick={() => openEdit(subArea)}><IconEdit /></button>
+                      <button className="btn-icon delete" title={t("wording.delete")} onClick={() => openDelete(subArea)}><IconDelete /></button>
                     </div>
                   </td>
                 </tr>
@@ -280,17 +283,17 @@ export default function SubAreaPage() {
             </tbody>
           </table>
         </div>
-        <Pagination currentPage={safePage} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} label="sub areas" />
+        <Pagination currentPage={safePage} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} label={t("wording.subAreasInline")} />
       </div>
 
       <Modal
         open={subAreaModal}
-        title={isModify ? "Edit Sub Area" : "New Sub Area"}
+        title={isModify ? t("wording.editSubArea") : t("wording.newSubArea")}
         onClose={closeSubAreaModal}
         footer={(
           <>
-            <button className="btn-cancel-modal" disabled={isLoading} onClick={closeSubAreaModal}><IconClose /> Cancel</button>
-            <button className="btn-save-modal" type="submit" disabled={isLoading} onClick={() => formik.handleSubmit()}><IconCheck /> {isLoading ? "Saving…" : "Save"}</button>
+            <button className="btn-cancel-modal" disabled={isLoading} onClick={closeSubAreaModal}><IconClose /> {t("wording.cancel")}</button>
+            <button className="btn-save-modal" type="submit" disabled={isLoading} onClick={() => formik.handleSubmit()}><IconCheck /> {isLoading ? t("common.actions.saving") : t("common.actions.save")}</button>
           </>
         )}
       >
@@ -298,18 +301,18 @@ export default function SubAreaPage() {
           value={formik.values.sub_area_name}
           onChange={(value) => formik.setFieldValue("sub_area_name", value)}
           isRequired
-          label="Sub Area Name"
-          placeholder="e.g. Altar Setup"
+          label={t("wording.subAreaName")}
+          placeholder={t("wording.eGAltarSetup")}
           errorText={formik.errors.sub_area_name}
         />
         <div className="form-group">
-          <label>Parent Area <span style={{ color: "var(--red)" }}>*</span></label>
+          <label>{t("wording.parentArea")} <span style={{ color: "var(--red)" }}>*</span></label>
           <SearchableSelect
             value={formik.values.area_id}
             onChange={(value) => formik.setFieldValue("area_id", String(value))}
-            options={[{ value: "", label: "— Select Area —" }, ...areaOptions]}
-            placeholder="— Select Area —"
-            searchPlaceholder="Search areas…"
+            options={[{ value: "", label: t("wording.selectAreaOption") }, ...areaOptions]}
+            placeholder={t("wording.selectAreaOption")}
+            searchPlaceholder={t("wording.searchAreas")}
             errorText={formik.errors.area_id}
           />
         </div>
@@ -317,17 +320,17 @@ export default function SubAreaPage() {
 
       <Modal
         open={deleteModal}
-        title="Delete Sub Area"
+        title={t("wording.deleteSubArea")}
         onClose={() => { if (!isLoading) { setDeleteModal(false); setDeleteTarget(null); } }}
         footer={(
           <>
-            <button className="btn-cancel-modal" disabled={isLoading} onClick={() => { setDeleteModal(false); setDeleteTarget(null); }}>Cancel</button>
-            <button className="btn-del-ok" disabled={isLoading} onClick={confirmDelete}>{isLoading ? "Deleting…" : "Delete"}</button>
+            <button className="btn-cancel-modal" disabled={isLoading} onClick={() => { setDeleteModal(false); setDeleteTarget(null); }}>{t("wording.cancel")}</button>
+            <button className="btn-del-ok" disabled={isLoading} onClick={confirmDelete}>{isLoading ? t("common.actions.deleting") : t("common.actions.delete")}</button>
           </>
         )}
       >
         <p className="confirm-msg">
-          Are you sure you want to delete <strong>&ldquo;{deleteTarget?.sub_area_name ?? ""}&rdquo;</strong>? This action cannot be undone.
+          {t("wording.areYouSureYouWantToDelete")} <strong>&ldquo;{deleteTarget?.sub_area_name ?? ""}&rdquo;</strong>{t("wording.thisActionCannotBeUndone")}
         </p>
       </Modal>
     </>

@@ -27,6 +27,9 @@ import TextArea from "../components/TextArea";
 import { useUnitController } from "./lib/useUnitController";
 import SearchableSelect from "../components/SearchableSelect";
 import useGetInventorySummary from "../hooks/api/useGetInventorySummary";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
+
 
 export interface ISelect {
   label: string;
@@ -37,7 +40,7 @@ function ImgCell({ src, name, onClick }: any) {
   return (
     <div
       onClick={onClick}
-      title="View image"
+      title={i18n.t("wording.viewImage")}
       style={{
         width: 42,
         height: 42,
@@ -165,7 +168,7 @@ function ImageViewerModal({ open, name, src, onClose }: any) {
                 <circle cx="8.5" cy="8.5" r="1.5" />
                 <polyline points="21 15 16 10 5 21" />
               </svg>
-              <p style={{ fontSize: 13, fontWeight: 500 }}>No image uploaded</p>
+              <p style={{ fontSize: 13, fontWeight: 500 }}>{i18n.t("wording.noImageUploaded")}</p>
             </div>
           )}
         </div>
@@ -426,25 +429,26 @@ type InventoryStockStatus = "OUT_OF_STOCK" | "LOW_STOCK" | "AVAILABLE";
 
 const stockStatuses: Array<{
   value: InventoryStockStatus;
-  label: string;
+  labelKey: string;
 }> = [
-  { value: "AVAILABLE", label: "Available" },
-  { value: "LOW_STOCK", label: "Low Stock" },
-  { value: "OUT_OF_STOCK", label: "Out of Stock" },
+  { value: "AVAILABLE", labelKey: "common.status.available" },
+  { value: "LOW_STOCK", labelKey: "common.status.lowStock" },
+  { value: "OUT_OF_STOCK", labelKey: "common.status.outOfStock" },
 ];
 
 function stockBadge(s: any) {
   const normalized = String(s || "").trim().toUpperCase().replace(/\s+/g, "_");
   if (normalized === "AVAILABLE")
-    return <span className="badge badge-green">Available</span>;
+    return <span className="badge badge-green">{i18n.t("wording.available")}</span>;
   if (normalized === "LOW_STOCK")
-    return <span className="badge badge-orange">Low Stock</span>;
+    return <span className="badge badge-orange">{i18n.t("wording.lowStock")}</span>;
   if (normalized === "OUT_OF_STOCK")
-    return <span className="badge badge-red">Out of Stock</span>;
+    return <span className="badge badge-red">{i18n.t("wording.outOfStock")}</span>;
   return <span className="badge badge-gray">{s || "-"}</span>;
 }
 
 export default function InventoryPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { categoryOptions } = useCategoryController();
   const { unitOptions } = useUnitController();
@@ -602,11 +606,11 @@ export default function InventoryPage() {
       rack: isModify ? barang.rack : "",
     },
     validationSchema: Yup.object({
-      nama: Yup.string().required("Required"),
-      code: Yup.string().required("Required"),
-      kategori_id: Yup.string().required("Required"),
-      satuan_id: Yup.string().required("Required"),
-      stok: Yup.string().required("Required"),
+      nama: Yup.string().required(t("wording.required")),
+      code: Yup.string().required(t("wording.required")),
+      kategori_id: Yup.string().required(t("wording.required")),
+      satuan_id: Yup.string().required(t("wording.required")),
+      stok: Yup.string().required(t("wording.required")),
     }),
     validateOnChange: false,
     enableReinitialize: true,
@@ -629,7 +633,7 @@ export default function InventoryPage() {
             setTimeout(() => {
               setModalOpen(false);
             }, 200);
-            toast("Success modify inventory", { type: "success" });
+            toast(t("wording.successModifyInventory"), { type: "success" });
             setIsModify(false);
             setBase64("");
             formik.resetForm();
@@ -658,7 +662,7 @@ export default function InventoryPage() {
             setTimeout(() => {
               setModalOpen(false);
             }, 200);
-            toast("Success adding inventory", { type: "success" });
+            toast(t("wording.successAddingInventory"), { type: "success" });
             setIsModify(false);
             setBase64("");
             formik.resetForm();
@@ -708,7 +712,7 @@ export default function InventoryPage() {
       }));
     } catch (err) {
       setAiTuneup((prev) => ({ ...prev, loading: false }));
-      toast(err instanceof Error ? err.message : "Failed to contact AI.", {
+      toast(err instanceof Error ? err.message : t("wording.failedToContactAi"), {
         type: "error",
       });
     }
@@ -716,13 +720,13 @@ export default function InventoryPage() {
 
   const handleAITuneUp = async (r: any) => {
     if (!r.nama) {
-      toast("Product name is required before using AI tune-up.", {
+      toast(t("wording.productNameIsRequiredBeforeUsingAiTune"), {
         type: "warning",
       });
       return;
     }
     if (!r.photo) {
-      toast("A product photo must be uploaded before using AI tune-up.", {
+      toast(t("wording.aProductPhotoMustBeUploadedBeforeUsing"), {
         type: "warning",
       });
       return;
@@ -765,11 +769,11 @@ export default function InventoryPage() {
         edited: emptyAiEdited,
         language: null,
       });
-      toast("AI tune-up saved successfully!", { type: "success" });
+      toast(t("wording.aiTuneUpSavedSuccessfully"), { type: "success" });
       getInventoryList();
     } catch {
       setAiTuneup((prev) => ({ ...prev, saving: false }));
-      toast("Failed to save data.", { type: "error" });
+      toast(t("wording.failedToSaveData"), { type: "error" });
     }
   };
 
@@ -788,7 +792,7 @@ export default function InventoryPage() {
         }}
       >
         <h1 className="page-title" style={{ margin: 0 }}>
-          Inventory
+          {t("wording.inventory")}
         </h1>
         <button
           className="btn-new"
@@ -797,7 +801,7 @@ export default function InventoryPage() {
             formik.resetForm();
           }}
         >
-          <IconPlus /> New Item
+          <IconPlus /> {t("wording.newItem")}
         </button>
       </div>
 
@@ -808,25 +812,25 @@ export default function InventoryPage() {
       >
         {[
           {
-            label: "Total Items",
+            label: t("wording.totalItems"),
             value: inventorySummary?.total_items ?? 0,
             color: "var(--brand)",
             bg: "var(--brand-bg)",
           },
           {
-            label: "Available",
+            label: t("wording.available"),
             value: inventorySummary?.available ?? 0,
             color: "var(--green)",
             bg: "var(--green-bg)",
           },
           {
-            label: "Low Stock",
+            label: t("wording.lowStock"),
             value: inventorySummary?.low_stock ?? 0,
             color: "var(--orange)",
             bg: "var(--orange-bg)",
           },
           {
-            label: "Out of Stock",
+            label: t("wording.outOfStock"),
             value: inventorySummary?.out_of_stock ?? 0,
             color: "var(--red)",
             bg: "var(--red-bg)",
@@ -851,7 +855,7 @@ export default function InventoryPage() {
               <input
                 className="search-input"
                 type="text"
-                placeholder="Search name or SKU…"
+                placeholder={t("wording.searchNameOrSku")}
                 value={query}
                 onChange={(e) => {
                   setQuery(e.target.value);
@@ -867,14 +871,14 @@ export default function InventoryPage() {
                 setPage(1);
               }}
               options={[
-                { value: "", label: "All Categories" },
+                { value: "", label: t("wording.allCategories") },
                 ...categoryOptions.map((category: { value: string; label: string }) => ({
                   value: category.label,
                   label: category.label,
                 })),
               ]}
-              placeholder="All Categories"
-              searchPlaceholder="Search categories…"
+              placeholder={t("wording.allCategories")}
+              searchPlaceholder={t("wording.searchCategories")}
             />
             <SearchableSelect
               inline
@@ -884,14 +888,14 @@ export default function InventoryPage() {
                 setPage(1);
               }}
               options={[
-                { value: "", label: "All Status" },
+                { value: "", label: t("wording.allStatus") },
                 ...stockStatuses.map((status) => ({
                   value: status.value,
-                  label: status.label,
+                  label: t(status.labelKey),
                 })),
               ]}
-              placeholder="All Status"
-              searchPlaceholder="Search statuses…"
+              placeholder={t("wording.allStatus")}
+              searchPlaceholder={t("wording.searchStatuses")}
             />
             <button
               className="btn-search"
@@ -900,7 +904,7 @@ export default function InventoryPage() {
                 getInventoryList();
               }}
             >
-              Search
+              {t("wording.search")}
             </button>
           </div>
           <div className="toolbar-right">
@@ -911,7 +915,7 @@ export default function InventoryPage() {
                 formik.resetForm();
               }}
             >
-              <IconPlus /> New
+              <IconPlus /> {t("wording.new")}
             </button>
           </div>
         </div>
@@ -921,7 +925,7 @@ export default function InventoryPage() {
             <thead>
               <tr>
                 <SortTh
-                  label="Name"
+                  label={t("wording.name")}
                   colIndex={0}
                   sortCol={sortCol}
                   sortAsc={sortAsc}
@@ -929,7 +933,7 @@ export default function InventoryPage() {
                   id="nama"
                 />
                 <SortTh
-                  label="SKU"
+                  label={t("wording.sku")}
                   colIndex={1}
                   sortCol={sortCol}
                   sortAsc={sortAsc}
@@ -938,7 +942,7 @@ export default function InventoryPage() {
                   id="code"
                 />
                 <SortTh
-                  label="Category"
+                  label={t("wording.category")}
                   colIndex={2}
                   sortCol={sortCol}
                   sortAsc={sortAsc}
@@ -947,7 +951,7 @@ export default function InventoryPage() {
                   id="category"
                 />
                 <SortTh
-                  label="Unit"
+                  label={t("wording.unit")}
                   colIndex={3}
                   sortCol={sortCol}
                   sortAsc={sortAsc}
@@ -956,7 +960,7 @@ export default function InventoryPage() {
                   id="satuan"
                 />
                 <SortTh
-                  label="Warehouse"
+                  label={t("wording.warehouse")}
                   colIndex={4}
                   sortCol={sortCol}
                   sortAsc={sortAsc}
@@ -965,7 +969,7 @@ export default function InventoryPage() {
                   id="warehouse"
                 />
                 <SortTh
-                  label="Total Stock"
+                  label={t("wording.totalStock")}
                   colIndex={5}
                   sortCol={sortCol}
                   sortAsc={sortAsc}
@@ -974,7 +978,7 @@ export default function InventoryPage() {
                   id="stok_all"
                 />
                 <SortTh
-                  label="Status"
+                  label={t("wording.status")}
                   colIndex={6}
                   sortCol={sortCol}
                   sortAsc={sortAsc}
@@ -982,7 +986,7 @@ export default function InventoryPage() {
                   style={{ width: 110 }}
                 />
                 <SortTh
-                  label="Updated At"
+                  label={t("wording.updatedAt")}
                   colIndex={7}
                   sortCol={sortCol}
                   sortAsc={sortAsc}
@@ -990,8 +994,8 @@ export default function InventoryPage() {
                   style={{ width: 100 }}
                   id="updated_at"
                 />
-                <th style={{ width: 60, textAlign: "center" }}>Image</th>
-                <th style={{ width: 80, textAlign: "center" }}>Action</th>
+                <th style={{ width: 60, textAlign: "center" }}>{t("wording.image")}</th>
+                <th style={{ width: 80, textAlign: "center" }}>{t("wording.action")}</th>
               </tr>
             </thead>
             <tbody>
@@ -1005,7 +1009,7 @@ export default function InventoryPage() {
                       padding: 32,
                     }}
                   >
-                    No results found.
+                    {t("wording.noResultsFound")}
                   </td>
                 </tr>
               ) : (
@@ -1091,7 +1095,7 @@ export default function InventoryPage() {
                       >
                         <button
                           className="btn-icon"
-                          title="AI Tune-Up"
+                          title={t("wording.aiTuneUp")}
                           style={{ color: "#7c3aed" }}
                           onClick={() => handleAITuneUp(r)}
                         >
@@ -1099,7 +1103,7 @@ export default function InventoryPage() {
                         </button>
                         <button
                           className="btn-icon"
-                          title="View Detail"
+                          title={t("wording.viewDetail")}
                           style={{ color: "var(--brand)" }}
                           onClick={() =>
                             navigate(`/inventory-detail?id=${r.id}`)
@@ -1120,7 +1124,7 @@ export default function InventoryPage() {
                         </button>
                         <button
                           className="btn-icon edit"
-                          title="Edit"
+                          title={t("wording.edit")}
                           onClick={() => {
                             setBarang(r);
                             setIsModify(true);
@@ -1129,7 +1133,7 @@ export default function InventoryPage() {
                         >
                           <IconEdit />
                         </button>
-                        <button className="btn-icon delete" title="Delete">
+                        <button className="btn-icon delete" title={t("wording.delete")}>
                           <IconDelete />
                         </button>
                       </div>
@@ -1145,14 +1149,14 @@ export default function InventoryPage() {
           total={total}
           pageSize={PAGE_SIZE}
           onPage={(p: any) => setPage(p)}
-          label="items"
+          label={t("wording.itemsInline")}
         />
       </div>
 
       {/* Add / Edit Modal */}
       <Modal
         open={modalOpen}
-        title={isModify ? "Edit Inventory" : "New Inventory"}
+        title={isModify ? t("wording.editInventory") : t("wording.newInventory")}
         onClose={() => setModalOpen(false)}
         size="xl"
         footer={
@@ -1164,14 +1168,14 @@ export default function InventoryPage() {
                 formik.resetForm();
               }}
             >
-              <IconClose /> Cancel
+              <IconClose /> {t("wording.cancel")}
             </button>
             <button
               className="btn-save-modal"
               onClick={() => formik.handleSubmit()}
               type="button"
             >
-              <IconCheck /> Save Inventory
+              <IconCheck /> {t("wording.saveInventory")}
             </button>
           </>
         }
@@ -1181,15 +1185,15 @@ export default function InventoryPage() {
           value={formik.values.nama}
           onChange={(e) => formik.setFieldValue("nama", e)}
           isRequired
-          label="Name"
-          placeholder="e.g. Table"
+          label={t("wording.name")}
+          placeholder={t("wording.eGTable")}
           errorText={formik.errors.nama as string}
         />
         <TextArea
           value={formik.values.description}
           onChange={(e) => formik.setFieldValue("description", e)}
-          label="Description"
-          placeholder="Short description (optional)"
+          label={t("wording.description")}
+          placeholder={t("wording.shortDescriptionOptional")}
         />
 
         {/* DETAILS */}
@@ -1219,7 +1223,7 @@ export default function InventoryPage() {
               textTransform: "uppercase",
             }}
           >
-            Details
+            {t("wording.details")}
           </span>
           <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
         </div>
@@ -1228,23 +1232,23 @@ export default function InventoryPage() {
             value={formik.values.code}
             onChange={(e) => formik.setFieldValue("code", e)}
             isRequired
-            label="Item Code"
-            placeholder="Code"
+            label={t("wording.itemCode")}
+            placeholder={t("wording.code")}
             errorText={formik.errors.code as string}
           />
           <TextInput
             value={formik.values.stok}
             onChange={(e) => formik.setFieldValue("stok", e)}
             isRequired
-            label="Stock"
-            placeholder="Item stock"
+            label={t("wording.stock")}
+            placeholder={t("wording.itemStock")}
             errorText={formik.errors.stok as string}
           />
         </div>
         <div className="form-row">
           <div className="form-group">
             <label>
-              Unit <span style={{ color: "var(--red)" }}>*</span>
+              {t("wording.unit")} <span style={{ color: "var(--red)" }}>*</span>
             </label>
             <SearchableSelect
               value={formik.values.satuan_id}
@@ -1252,17 +1256,17 @@ export default function InventoryPage() {
                 formik.setFieldValue("satuan_id", String(value))
               }
               options={[
-                { value: "", label: "— Select Unit —" },
+                { value: "", label: t("wording.selectUnit") },
                 ...unitOptions,
               ]}
-              placeholder="— Select Unit —"
-              searchPlaceholder="Search units…"
+              placeholder={t("wording.selectUnit")}
+              searchPlaceholder={t("wording.searchUnits")}
               errorText={formik.errors.satuan_id as string}
             />
           </div>
           <div className="form-group">
             <label>
-              Category <span style={{ color: "var(--red)" }}>*</span>
+              {t("wording.category")} <span style={{ color: "var(--red)" }}>*</span>
             </label>
             <SearchableSelect
               value={formik.values.kategori_id}
@@ -1270,18 +1274,18 @@ export default function InventoryPage() {
                 formik.setFieldValue("kategori_id", String(value))
               }
               options={[
-                { value: "", label: "— Select Category —" },
+                { value: "", label: t("wording.selectCategory") },
                 ...categoryOptions,
               ]}
-              placeholder="— Select Category —"
-              searchPlaceholder="Search categories…"
+              placeholder={t("wording.selectCategory")}
+              searchPlaceholder={t("wording.searchCategories")}
               errorText={formik.errors.kategori_id as string}
             />
           </div>
         </div>
         <div className="form-row" style={{ alignItems: "flex-start" }}>
           <div className="form-group">
-            <label>Image</label>
+            <label>{t("wording.image")}</label>
             <input
               ref={imgInputRef}
               type="file"
@@ -1363,7 +1367,7 @@ export default function InventoryPage() {
                       color: "var(--text)",
                     }}
                   >
-                    Click to upload image
+                    {t("wording.clickToUploadImage")}
                   </span>
                   <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
                     PNG, JPG, GIF up to 10MB
@@ -1384,7 +1388,7 @@ export default function InventoryPage() {
                   padding: 0,
                 }}
               >
-                Remove image
+                {t("wording.removeImage")}
               </button>
             )}
           </div>
@@ -1461,7 +1465,7 @@ export default function InventoryPage() {
                     color: "var(--text)",
                   }}
                 >
-                  AI Tune-Up Produk
+                  {t("wording.aiTuneUpProduk")}
                 </div>
                 <div
                   style={{
@@ -1490,7 +1494,7 @@ export default function InventoryPage() {
                     onClick={() => handleAITuneUpLanguageChange(lang)}
                     disabled={aiTuneup.loading || aiTuneup.saving}
                     title={
-                      lang === "id" ? "Bahasa Indonesia" : "English"
+                      lang === "id" ? t("wording.bahasaIndonesia") : t("wording.english")
                     }
                     style={{
                       border: "none",
@@ -1564,11 +1568,10 @@ export default function InventoryPage() {
                         marginBottom: 4,
                       }}
                     >
-                      Select the AI Tune-Up output language
+                      {t("wording.selectTheAiTuneUpOutputLanguage")}
                     </div>
                     <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                      Descriptions, prices, and tips will be generated in the
-                      selected language.
+                      {t("wording.descriptionsPricesAndTipsWillBeGeneratedIn")}
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 10 }}>
@@ -1578,7 +1581,7 @@ export default function InventoryPage() {
                       className="btn btn-primary"
                       style={{ minWidth: 140, justifyContent: "center" }}
                     >
-                      Bahasa Indonesia
+                      {t("wording.bahasaIndonesia")}
                     </button>
                     <button
                       type="button"
@@ -1586,7 +1589,7 @@ export default function InventoryPage() {
                       className="btn btn-ghost"
                       style={{ minWidth: 140, justifyContent: "center" }}
                     >
-                      English
+                      {t("wording.english")}
                     </button>
                   </div>
                 </div>
@@ -1618,7 +1621,7 @@ export default function InventoryPage() {
                     >
                       <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                     </svg>
-                    AI is analyzing the product...
+                    {t("wording.aiIsAnalyzingTheProduct")}
                   </div>
                   {[80, 100, 60, 90, 70, 85].map((w, i) => (
                     <div
@@ -1642,12 +1645,12 @@ export default function InventoryPage() {
                     <label
                       style={{ display: "flex", alignItems: "center", gap: 6 }}
                     >
-                      Product Description
+                      {t("wording.productDescription")}
                       <span
                         className="badge badge-purple"
                         style={{ fontSize: 10 }}
                       >
-                        AI
+                        {t("wording.ai")}
                       </span>
                     </label>
                     <textarea
@@ -1677,12 +1680,12 @@ export default function InventoryPage() {
                     <label
                       style={{ display: "flex", alignItems: "center", gap: 6 }}
                     >
-                      Harga Rata-Rata Pasar
+                      {t("wording.hargaRataRataPasar")}
                       <span
                         className="badge badge-purple"
                         style={{ fontSize: 10 }}
                       >
-                        AI
+                        {t("wording.ai")}
                       </span>
                     </label>
                     <input
@@ -1697,7 +1700,7 @@ export default function InventoryPage() {
                           },
                         }))
                       }
-                      placeholder="contoh: Rp 150.000 - Rp 250.000 / pcs"
+                      placeholder={t("wording.contohRp150000Rp250000Pcs")}
                       style={{
                         width: "100%",
                         padding: "8px 10px",
@@ -1715,12 +1718,12 @@ export default function InventoryPage() {
                     <label
                       style={{ display: "flex", alignItems: "center", gap: 6 }}
                     >
-                      Cara Pemakaian
+                      {t("wording.caraPemakaian")}
                       <span
                         className="badge badge-purple"
                         style={{ fontSize: 10 }}
                       >
-                        AI
+                        {t("wording.ai")}
                       </span>
                     </label>
                     <textarea
@@ -1753,12 +1756,12 @@ export default function InventoryPage() {
                     <label
                       style={{ display: "flex", alignItems: "center", gap: 6 }}
                     >
-                      Important Considerations
+                      {t("wording.importantConsiderations")}
                       <span
                         className="badge badge-purple"
                         style={{ fontSize: 10 }}
                       >
-                        AI
+                        {t("wording.ai")}
                       </span>
                     </label>
                     <textarea
@@ -1793,7 +1796,7 @@ export default function InventoryPage() {
                       margin: 0,
                     }}
                   >
-                    You can edit the AI results before saving.
+                    {t("wording.youCanEditTheAiResultsBeforeSaving")}
                   </p>
                 </div>
               )}
@@ -1818,7 +1821,7 @@ export default function InventoryPage() {
                   }
                   disabled={aiTuneup.saving}
                 >
-                  <IconClose /> Cancel
+                  <IconClose /> {t("wording.cancel")}
                 </button>
                 <button
                   className="btn-save-modal"
@@ -1844,11 +1847,11 @@ export default function InventoryPage() {
                       >
                         <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                       </svg>
-                      Saving...
+                      {t("wording.savingPlaceholder")}
                     </>
                   ) : (
                     <>
-                      <IconCheck /> Save to Inventory
+                      <IconCheck /> {t("wording.saveToInventory")}
                     </>
                   )}
                 </button>

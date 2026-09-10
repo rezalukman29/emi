@@ -7,6 +7,7 @@ import useGetOverviewReportEvents, {
 } from "../hooks/api/useGetOverviewReportEvents";
 import useGetOverviewReportSummary from "../hooks/api/useGetOverviewReportSummary";
 import SearchableSelect from "../components/SearchableSelect";
+import { useTranslation } from "react-i18next";
 
 const PAGE_SIZE = 10;
 const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -37,6 +38,7 @@ function eventTypeLabel(type: string) {
 }
 
 export default function OverviewReportPage() {
+  const { t } = useTranslation();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<OverviewReportEventType | "">("");
@@ -89,49 +91,49 @@ export default function OverviewReportPage() {
   return (
     <>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18, flexWrap: "wrap", gap: 10 }}>
-        <h1 className="page-title" style={{ margin: 0 }}>Overview Report</h1>
-        <button className="btn-print" onClick={() => window.print()}><IconPrint /> Print Report</button>
+        <h1 className="page-title" style={{ margin: 0 }}>{t("wording.overviewReport")}</h1>
+        <button className="btn-print" onClick={() => window.print()}><IconPrint /> {t("wording.printReport")}</button>
       </div>
 
       <div className="kpi-grid" style={{ marginBottom: 22 }}>
         <div className="kpi-card brand-accent">
-          <div className="kpi-label">Total Events</div>
+          <div className="kpi-label">{t("wording.totalEvents")}</div>
           <div className="kpi-value">{summaryValue(summary?.total_events)}</div>
-          <div className="kpi-sub">all recorded events</div>
+          <div className="kpi-sub">{t("wording.allRecordedEvents")}</div>
         </div>
         <div className="kpi-card green-accent">
-          <div className="kpi-label">Upcoming</div>
+          <div className="kpi-label">{t("wording.upcoming")}</div>
           <div className="kpi-value">{summaryValue(summary?.upcoming_count)}</div>
-          <div className="kpi-sub">{percentage(summary?.upcoming_count ?? 0, totalEvents)}% of total</div>
+          <div className="kpi-sub">{percentage(summary?.upcoming_count ?? 0, totalEvents)}{t("wording.ofTotal")}</div>
         </div>
         <div className="kpi-card orange-accent">
-          <div className="kpi-label">Past Events</div>
+          <div className="kpi-label">{t("wording.pastEvents")}</div>
           <div className="kpi-value">{summaryValue(summary?.past_count)}</div>
-          <div className="kpi-sub">{percentage(summary?.past_count ?? 0, totalEvents)}% of total</div>
+          <div className="kpi-sub">{percentage(summary?.past_count ?? 0, totalEvents)}{t("wording.ofTotal")}</div>
         </div>
         <div className="kpi-card red-accent">
-          <div className="kpi-label">Warehouses</div>
+          <div className="kpi-label">{t("wording.warehouses")}</div>
           <div className="kpi-value">{summaryValue(summary?.warehouse_count)}</div>
-          <div className="kpi-sub">active warehouse locations</div>
+          <div className="kpi-sub">{t("wording.activeWarehouseLocations")}</div>
         </div>
         <div className="kpi-card brand-accent">
-          <div className="kpi-label">Areas</div>
+          <div className="kpi-label">{t("wording.areas")}</div>
           <div className="kpi-value">{summaryValue(summary?.area_count)}</div>
-          <div className="kpi-sub">registered setup areas</div>
+          <div className="kpi-sub">{t("wording.registeredSetupAreas")}</div>
         </div>
         <div className="kpi-card green-accent">
-          <div className="kpi-label">Inventory SKU</div>
+          <div className="kpi-label">{t("wording.inventorySku")}</div>
           <div className="kpi-value">{summaryValue(summary?.inventory_sku)}</div>
-          <div className="kpi-sub">registered inventory items</div>
+          <div className="kpi-sub">{t("wording.registeredInventoryItems")}</div>
         </div>
       </div>
 
       <div className="card" style={{ marginBottom: 22 }}>
-        <div className="section-title">Event Progress</div>
+        <div className="section-title">{t("wording.eventProgress")}</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 16 }}>
           {[
-            { label: "Upcoming", value: summary?.upcoming_count ?? 0, color: "var(--brand)" },
-            { label: "Past", value: summary?.past_count ?? 0, color: "var(--green)" },
+            { label: t("wording.upcoming"), value: summary?.upcoming_count ?? 0, color: "var(--brand)" },
+            { label: t("wording.past"), value: summary?.past_count ?? 0, color: "var(--green)" },
           ].map((item) => {
             const progress = percentage(item.value, totalEvents);
             return (
@@ -152,19 +154,19 @@ export default function OverviewReportPage() {
       </div>
 
       <div className="card" style={{ marginBottom: 22 }}>
-        <div className="section-title">Events by Location</div>
+        <div className="section-title">{t("wording.eventsByLocation")}</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {isSummaryLoading ? (
-            <div style={{ color: "var(--text-muted)", fontSize: 13 }}>Loading locations…</div>
+            <div style={{ color: "var(--text-muted)", fontSize: 13 }}>{t("wording.loadingLocations")}</div>
           ) : isSummaryError ? (
-            <div style={{ color: "var(--text-muted)", fontSize: 13 }}>Unable to load locations.</div>
+            <div style={{ color: "var(--text-muted)", fontSize: 13 }}>{t("wording.unableToLoadLocations")}</div>
           ) : !locationBreakdown.length ? (
-            <div style={{ color: "var(--text-muted)", fontSize: 13 }}>No location data available.</div>
+            <div style={{ color: "var(--text-muted)", fontSize: 13 }}>{t("wording.noLocationDataAvailable")}</div>
           ) : locationBreakdown.map((item) => (
             <div key={item.location}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
                 <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-2)" }}>{item.location || "-"}</span>
-                <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text)" }}>{item.event_count} events</span>
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text)" }}>{item.event_count} {t("wording.events")}</span>
               </div>
               <div className="progress-bar-track">
                 <div className="progress-bar-fill" style={{ width: `${(item.event_count / maxLocationCount) * 100}%`, background: "var(--purple)" }} />
@@ -179,20 +181,20 @@ export default function OverviewReportPage() {
           <div className="toolbar-left">
             <div className="search-wrap">
               <IconSearch />
-              <input className="search-input" type="text" placeholder="Search name, code, or location…" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} />
+              <input className="search-input" type="text" placeholder={t("wording.searchNameCodeOrLocation")} value={searchInput} onChange={(event) => setSearchInput(event.target.value)} />
             </div>
             <SearchableSelect
               inline
               value={typeFilter}
               onChange={(value) => { setTypeFilter(String(value) as OverviewReportEventType | ""); setPage(1); }}
               options={[
-                { value: "", label: "All Types" },
-                { value: "upcoming", label: "Upcoming" },
-                { value: "ongoing", label: "Ongoing" },
-                { value: "past", label: "Past" },
+                { value: "", label: t("wording.allTypes") },
+                { value: "upcoming", label: t("wording.upcoming") },
+                { value: "ongoing", label: t("wording.ongoing") },
+                { value: "past", label: t("wording.past") },
               ]}
-              placeholder="All Types"
-              searchPlaceholder="Search event types…"
+              placeholder={t("wording.allTypes")}
+              searchPlaceholder={t("wording.searchEventTypes")}
             />
           </div>
         </div>
@@ -201,20 +203,20 @@ export default function OverviewReportPage() {
           <table>
             <thead>
               <tr>
-                <th>Event Name</th>
-                <th style={{ width: 110 }}>Code</th>
-                <th style={{ width: 130 }}>Date</th>
-                <th>Location</th>
-                <th style={{ width: 110 }}>Type</th>
+                <th>{t("wording.eventName")}</th>
+                <th style={{ width: 110 }}>{t("wording.code")}</th>
+                <th style={{ width: 130 }}>{t("wording.date")}</th>
+                <th>{t("wording.location")}</th>
+                <th style={{ width: 110 }}>{t("wording.type")}</th>
               </tr>
             </thead>
             <tbody>
               {isEventsLoading && !events.length ? (
-                <tr><td colSpan={5} style={{ textAlign: "center", padding: 32, color: "var(--text-muted)" }}>Loading events…</td></tr>
+                <tr><td colSpan={5} style={{ textAlign: "center", padding: 32, color: "var(--text-muted)" }}>{t("wording.loadingEvents")}</td></tr>
               ) : isEventsError ? (
-                <tr><td colSpan={5} style={{ textAlign: "center", padding: 32, color: "var(--red)" }}>Unable to load events.</td></tr>
+                <tr><td colSpan={5} style={{ textAlign: "center", padding: 32, color: "var(--red)" }}>{t("wording.unableToLoadEvents")}</td></tr>
               ) : !events.length ? (
-                <tr><td colSpan={5} style={{ textAlign: "center", padding: 32, color: "var(--text-muted)" }}>No events found.</td></tr>
+                <tr><td colSpan={5} style={{ textAlign: "center", padding: 32, color: "var(--text-muted)" }}>{t("wording.noEventsFound")}</td></tr>
               ) : events.map((event) => (
                 <tr key={event.id}>
                   <td className="name-cell">{event.name || "-"}</td>
@@ -227,7 +229,7 @@ export default function OverviewReportPage() {
             </tbody>
           </table>
         </div>
-        <Pagination currentPage={safePage} total={totalRecords} pageSize={PAGE_SIZE} onPage={setPage} label="events" />
+        <Pagination currentPage={safePage} total={totalRecords} pageSize={PAGE_SIZE} onPage={setPage} label={t("wording.events")} />
       </div>
     </>
   );

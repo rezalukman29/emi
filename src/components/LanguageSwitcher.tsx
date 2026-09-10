@@ -1,20 +1,18 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { IconGlobe } from "./icons";
+import { LANGUAGE_STORAGE_KEY, type SupportedLanguage } from "../i18n";
 
 const LANGUAGES = [
-  { code: "en", label: "English" },
-  { code: "id", label: "Bahasa Indonesia" },
+  { code: "en", labelKey: "language.english" },
+  { code: "id", labelKey: "language.indonesian" },
 ] as const;
 
-type LanguageCode = (typeof LANGUAGES)[number]["code"];
-
 export default function LanguageSwitcher() {
+  const { t, i18n } = useTranslation();
   const [open, setOpen] = useState(false);
-  const [language, setLanguage] = useState<LanguageCode>(() => {
-    const saved = window.localStorage.getItem("emi-language");
-    return saved === "id" ? "id" : "en";
-  });
   const wrapRef = useRef<HTMLDivElement>(null);
+  const language: SupportedLanguage = i18n.resolvedLanguage === "id" ? "id" : "en";
   const current = LANGUAGES.find((item) => item.code === language) ?? LANGUAGES[0];
 
   useEffect(() => {
@@ -27,9 +25,9 @@ export default function LanguageSwitcher() {
     return () => document.removeEventListener("mousedown", closeOutside);
   }, []);
 
-  const selectLanguage = (code: LanguageCode) => {
-    setLanguage(code);
-    window.localStorage.setItem("emi-language", code);
+  const selectLanguage = (code: SupportedLanguage) => {
+    window.localStorage.setItem(LANGUAGE_STORAGE_KEY, code);
+    void i18n.changeLanguage(code);
     setOpen(false);
   };
 
@@ -39,7 +37,7 @@ export default function LanguageSwitcher() {
         type="button"
         className="header-btn lang-switcher-trigger"
         onClick={() => setOpen((value) => !value)}
-        title="Language"
+        title={t("header.language")}
         aria-expanded={open}
         aria-haspopup="listbox"
       >
@@ -47,7 +45,7 @@ export default function LanguageSwitcher() {
         <span className="lang-switcher-code">{current.code.toUpperCase()}</span>
       </button>
       {open && (
-        <div className="lang-switcher-menu" role="listbox" aria-label="Language">
+        <div className="lang-switcher-menu" role="listbox" aria-label={t("header.language")}>
           {LANGUAGES.map((item) => (
             <button
               type="button"
@@ -57,7 +55,7 @@ export default function LanguageSwitcher() {
               className={`lang-switcher-item${item.code === language ? " selected" : ""}`}
               onClick={() => selectLanguage(item.code)}
             >
-              {item.label}
+              {t(item.labelKey)}
             </button>
           ))}
         </div>

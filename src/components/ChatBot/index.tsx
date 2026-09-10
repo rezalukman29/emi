@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import { ChatService, type ChatMessage } from '../../service/ChatService'
 import ChatWindow from './ChatWindow'
 import './chatbot.css'
+import { useTranslation } from 'react-i18next'
 
 const SESSION_KEY = 'emi_chatbot_session_id'
 
@@ -21,6 +22,7 @@ const IconClose = () => (
 )
 
 export default function ChatBot() {
+  const { t } = useTranslation()
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -51,14 +53,14 @@ export default function ChatBot() {
     } catch (err) {
       const errMsg: ChatMessage = {
         role: 'assistant',
-        content: 'Sorry, an error occurred while contacting the server. Please try again.',
+        content: t('chat.serverError'),
         timestamp: new Date(),
       }
       setMessages(prev => [...prev, errMsg])
     } finally {
       setIsLoading(false)
     }
-  }, [sessionId])
+  }, [sessionId, t])
 
   return (
     <>
@@ -74,7 +76,7 @@ export default function ChatBot() {
       <button
         className="chatbot-trigger"
         onClick={() => setIsOpen(v => !v)}
-        title={isOpen ? 'Close chat' : 'Open EMI Assistant'}
+        title={isOpen ? t('chat.closeChat') : t('chat.openChat')}
       >
         {isOpen ? <IconClose /> : <IconChatBubble />}
       </button>

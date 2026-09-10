@@ -20,6 +20,8 @@ import { InventoryService } from "../service/InventoryService";
 import { toast } from "react-toastify";
 import TextInput from "../components/TextInput";
 import TextArea from "../components/TextArea";
+import { useTranslation } from "react-i18next";
+
 
 const PAGE_SIZE = 10;
 
@@ -101,6 +103,7 @@ const initialUnits = [
 ];
 
 export default function UnitPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { units, refetchUnit } = useUnitController();
   const [nextId, setNextId] = useState(initialUnits?.length + 1);
@@ -159,7 +162,7 @@ export default function UnitPage() {
       description: isModify ? selected.description : "",
     },
     validationSchema: Yup.object({
-      name: Yup.string().required("Required"),
+      name: Yup.string().required(t("wording.required")),
     }),
     validateOnChange: false,
     enableReinitialize: true,
@@ -178,7 +181,7 @@ export default function UnitPage() {
           setTimeout(() => {
             setUnitModal(false);
           }, 200);
-          toast("Success modify unit", { type: "success" });
+          toast(t("wording.successModifyUnit"), { type: "success" });
         }
       } else {
         const result: APIResponse<any> = await InventoryService.addSatuan(
@@ -188,7 +191,7 @@ export default function UnitPage() {
           setTimeout(() => {
             setUnitModal(false);
           }, 200);
-          toast("Success adding unit", { type: "success" });
+          toast(t("wording.successAddingUnit"), { type: "success" });
         }
       }
       setIsModify(false);
@@ -237,7 +240,7 @@ export default function UnitPage() {
       setDeleteModal(false);
       setIsLoading(true);
       await InventoryService.deleteSatuan(selected?.id);
-      toast("Success delete category", { type: "success" });
+      toast(t("wording.successDeleteCategory"), { type: "success" });
       refetchUnit();
       setSelecetd(null);
       setIsLoading(false);
@@ -260,10 +263,10 @@ export default function UnitPage() {
         }}
       >
         <h1 className="page-title" style={{ margin: 0 }}>
-          Unit
+          {t("wording.unit")}
         </h1>
         <button className="btn-new" onClick={openNew}>
-          <IconPlus /> New Unit
+          <IconPlus /> {t("wording.newUnit")}
         </button>
       </div>
 
@@ -273,19 +276,19 @@ export default function UnitPage() {
       >
         {[
           {
-            label: "Total Units",
+            label: t("wording.totalUnits"),
             value: units?.length,
             color: "var(--brand)",
             bg: "var(--brand-bg)",
           },
           {
-            label: "Total Items",
+            label: t("wording.totalItems"),
             value: totalItems,
             color: "var(--green)",
             bg: "var(--green-bg)",
           },
           {
-            label: "Search Results",
+            label: t("wording.searchResults"),
             value: filtered.length,
             color: "var(--purple)",
             bg: "var(--purple-bg)",
@@ -310,7 +313,7 @@ export default function UnitPage() {
               <input
                 className="search-input"
                 type="text"
-                placeholder="Search unit…"
+                placeholder={t("wording.searchUnit")}
                 value={query}
                 onChange={(e) => {
                   setQuery(e.target.value);
@@ -318,11 +321,11 @@ export default function UnitPage() {
                 }}
               />
             </div>
-            <button className="btn-search">Search</button>
+            <button className="btn-search">{t("wording.search")}</button>
           </div>
           <div className="toolbar-right">
             <button className="btn-new" onClick={openNew}>
-              <IconPlus /> New
+              <IconPlus /> {t("wording.new")}
             </button>
           </div>
         </div>
@@ -332,15 +335,15 @@ export default function UnitPage() {
             <thead>
               <tr>
                 <SortTh
-                  label="Name"
+                  label={t("wording.name")}
                   colIndex={0}
                   sortCol={sortCol}
                   sortAsc={sortAsc}
                   onSort={handleSort}
                 />
-                <th>Description</th>
+                <th>{t("wording.description")}</th>
                 <SortTh
-                  label="Items"
+                  label={t("wording.items")}
                   colIndex={3}
                   sortCol={sortCol}
                   sortAsc={sortAsc}
@@ -348,7 +351,7 @@ export default function UnitPage() {
                   style={{ width: 80, textAlign: "right" }}
                 />
                 <SortTh
-                  label="Created At"
+                  label={t("wording.createdAt")}
                   colIndex={4}
                   sortCol={sortCol}
                   sortAsc={sortAsc}
@@ -356,14 +359,14 @@ export default function UnitPage() {
                   style={{ width: 120 }}
                 />
                 <SortTh
-                  label="Updated At"
+                  label={t("wording.updatedAt")}
                   colIndex={5}
                   sortCol={sortCol}
                   sortAsc={sortAsc}
                   onSort={handleSort}
                   style={{ width: 120 }}
                 />
-                <th style={{ width: 100, textAlign: "center" }}>Action</th>
+                <th style={{ width: 100, textAlign: "center" }}>{t("wording.action")}</th>
               </tr>
             </thead>
             <tbody>
@@ -377,7 +380,7 @@ export default function UnitPage() {
                       color: "var(--text-muted)",
                     }}
                   >
-                    No units found.
+                    {t("wording.noUnitsFound")}
                   </td>
                 </tr>
               ) : (
@@ -434,7 +437,7 @@ export default function UnitPage() {
                       >
                         <button
                           className="btn-icon"
-                          title="View Detail"
+                          title={t("wording.viewDetail")}
                           style={{ color: "var(--brand)" }}
                           onClick={() => navigate(`/unit-detail?id=${r.id}`)}
                         >
@@ -453,7 +456,7 @@ export default function UnitPage() {
                         </button>
                         <button
                           className="btn-icon edit"
-                          title="Edit"
+                          title={t("wording.edit")}
                           onClick={() => {
                             setIsModify(true);
                             setSelecetd(r);
@@ -464,7 +467,7 @@ export default function UnitPage() {
                         </button>
                         <button
                           className="btn-icon delete"
-                          title="Delete"
+                          title={t("wording.delete")}
                           onClick={() => {
                             setSelecetd(r);
                             setDeleteModal(true);
@@ -485,13 +488,13 @@ export default function UnitPage() {
           total={filtered.length}
           pageSize={PAGE_SIZE}
           onPage={setPage}
-          label="units"
+          label={t("wording.units")}
         />
       </div>
 
       <Modal
         open={unitModal}
-        title={editingId ? "Edit Unit" : "New Unit"}
+        title={editingId ? t("wording.editUnit") : t("wording.newUnit")}
         onClose={() => setUnitModal(false)}
         footer={
           <>
@@ -499,14 +502,14 @@ export default function UnitPage() {
               className="btn-cancel-modal"
               onClick={() => setUnitModal(false)}
             >
-              <IconClose /> Cancel
+              <IconClose /> {t("wording.cancel")}
             </button>
             <button
               className="btn-save-modal"
               type="submit"
               onClick={() => formik.handleSubmit()}
             >
-              <IconCheck /> Save
+              <IconCheck /> {t("wording.save")}
             </button>
           </>
         }
@@ -515,21 +518,21 @@ export default function UnitPage() {
           value={formik.values.name}
           onChange={(e) => formik.setFieldValue("name", e)}
           isRequired
-          label="Name"
-          placeholder="e.g. Piece"
+          label={t("wording.name")}
+          placeholder={t("wording.eGPiece")}
           errorText={formik.errors.name as string}
         />
         <TextArea
           value={formik.values.description}
           onChange={(e) => formik.setFieldValue("description", e)}
-          label="Description"
-          placeholder="Short description (optional)"
+          label={t("wording.description")}
+          placeholder={t("wording.shortDescriptionOptional")}
         />
       </Modal>
 
       <Modal
         open={deleteModal}
-        title="Delete Unit"
+        title={t("wording.deleteUnit")}
         onClose={() => setDeleteModal(false)}
         footer={
           <>
@@ -537,18 +540,17 @@ export default function UnitPage() {
               className="btn-cancel-modal"
               onClick={() => setDeleteModal(false)}
             >
-              Cancel
+              {t("wording.cancel")}
             </button>
             <button className="btn-del-ok" onClick={confirmDelete}>
-              Delete
+              {t("wording.delete")}
             </button>
           </>
         }
       >
         <p className="confirm-msg">
-          Are you sure you want to delete{" "}
-          <strong>&ldquo;{selected?.name}&rdquo;</strong>? This action
-          cannot be undone.
+          {t("wording.areYouSureYouWantToDelete")}{" "}
+          <strong>&ldquo;{selected?.name}&rdquo;</strong>{t("wording.thisActionCannotBeUndone")}
         </p>
       </Modal>
     </>

@@ -8,6 +8,8 @@ import useGetEventSummary, {
   type EventSummaryItemDetail,
 } from '../hooks/api/useGetEventSummary';
 import useGetEventStatus from '../hooks/api/useGetEventStatus';
+import { useTranslation } from "react-i18next";
+import { translateApiValue } from "../utils/function";
 
 const TABLE_PAGE_SIZE = 12;
 
@@ -97,6 +99,7 @@ function DotNo() {
 }
 
 export default function EventSummaryPage() {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const eventId = Number(searchParams.get('id'));
@@ -194,31 +197,31 @@ export default function EventSummaryPage() {
   const pageData = tableFiltered.slice((safePage - 1) * TABLE_PAGE_SIZE, safePage * TABLE_PAGE_SIZE);
 
   const eventStatus = eventDetail?.is_complete === 1
-    ? 'Completed'
+    ? t("wording.completed")
     : (eventStatusResponse?.data?.data ?? []).find(
         status => status.id === Number(eventDetail?.status),
       )?.name ?? (eventDetail?.status ? `Status ${eventDetail.status}` : '—');
-  const statusBadge = eventDetail?.is_complete === 1 ? 'badge-green' : 'badge-blue';
+  const statusBadge = eventDetail?.is_complete === 1 ? "badge-green" : "badge-blue";
 
   const kpis: KpiItem[] = [
-    { label:'Total Items',  value:total,    sub:`Total qty: ${totalQty} units`, accent:'brand',  style:{} },
-    { label:'Checked',      value:checked,  sub:`${totalSummary?.checked_percentage ?? pct(checked,total)}% of all items`, accent:'green', style:{} },
-    { label:'Scan In',      value:scanIn,   sub:`${totalSummary?.scan_in_percentage ?? pct(scanIn,total)}% scanned in`, accent:'brand', style:{ borderLeftColor:'var(--purple)' } },
-    { label:'Scan Out',     value:scanOut,  sub:`${totalSummary?.scan_out_percentage ?? pct(scanOut,total)}% scanned out`, accent:'green', style:{ borderLeftColor:'var(--green)' } },
-    { label:'Missing',      value:missing,  sub:`${pct(missing,total)}% of items`, accent:'red',   style:{}, valueStyle:{ color:'var(--red)' } },
-    { label:'Damaged',      value:damaged,  sub:`${pct(damaged,total)}% of items`, accent:'orange', style:{}, valueStyle:{ color:'var(--orange)' } },
+    { label:t("wording.totalItems"),  value:total,    sub:t("dynamic.totalQtyUnits", { count: totalQty }), accent:'brand',  style:{} },
+    { label:t("wording.checked"),      value:checked,  sub:t("dynamic.percentAllItems", { count: totalSummary?.checked_percentage ?? pct(checked,total) }), accent:'green', style:{} },
+    { label:t("wording.scanIn"),      value:scanIn,   sub:t("dynamic.percentScannedIn", { count: totalSummary?.scan_in_percentage ?? pct(scanIn,total) }), accent:'brand', style:{ borderLeftColor:'var(--purple)' } },
+    { label:t("wording.scanOut"),     value:scanOut,  sub:t("dynamic.percentScannedOut", { count: totalSummary?.scan_out_percentage ?? pct(scanOut,total) }), accent:'green', style:{ borderLeftColor:'var(--green)' } },
+    { label:t("wording.missing"),      value:missing,  sub:t("dynamic.percentItems", { count: pct(missing,total) }), accent:'red',   style:{}, valueStyle:{ color:'var(--red)' } },
+    { label:t("wording.damaged"),      value:damaged,  sub:t("dynamic.percentItems", { count: pct(damaged,total) }), accent:'orange', style:{}, valueStyle:{ color:'var(--orange)' } },
   ];
 
   const progressBars = [
-    { label:'Checking Completion', value:checked, total, color:'var(--brand)' },
-    { label:'Scan In Completion',  value:scanIn,  total, color:'var(--purple)' },
-    { label:'Scan Out Completion', value:scanOut, total, color:'var(--green)' },
+    { label:t("wording.checkingCompletion"), value:checked, total, color:'var(--brand)' },
+    { label:t("wording.scanInCompletion"),  value:scanIn,  total, color:'var(--purple)' },
+    { label:t("wording.scanOutCompletion"), value:scanOut, total, color:'var(--green)' },
   ];
 
   return (
     <>
       <div className="breadcrumb">
-        <Link to="/event">Event</Link>
+        <Link to="/event">{t("wording.event")}</Link>
         <span className="breadcrumb-sep">/</span>
         {eventId ? (
           <Link to={`/event-detail?id=${eventId}`}>
@@ -228,7 +231,7 @@ export default function EventSummaryPage() {
           <span>{eventDetail?.name || "Event Detail"}</span>
         )}
         <span className="breadcrumb-sep">/</span>
-        <span className="breadcrumb-current">Summary</span>
+        <span className="breadcrumb-current">{t("wording.summary")}</span>
       </div>
 
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18, flexWrap:'wrap', gap:10 }}>
@@ -236,19 +239,19 @@ export default function EventSummaryPage() {
           <button onClick={() => navigate('/event')} style={{ display:'flex', alignItems:'center', color:'var(--text-muted)', background:'none', border:'none', cursor:'pointer' }}>
             <IconChevronLeft />
           </button>
-          <h1 className="page-title" style={{ margin:0 }}>Event Summary</h1>
+          <h1 className="page-title" style={{ margin:0 }}>{t("wording.eventSummary")}</h1>
         </div>
         <div style={{ display:'flex', gap:8 }}>
-          <button className="btn-print" onClick={() => window.print()}><IconPrint /> Print Report</button>
+          <button className="btn-print" onClick={() => window.print()}><IconPrint /> {t("wording.printReport")}</button>
         </div>
       </div>
 
       {!eventId ? (
-        <div className="card" style={{ marginBottom:22 }}>Invalid or missing event ID.</div>
+        <div className="card" style={{ marginBottom:22 }}>{t("wording.invalidOrMissingEventId")}</div>
       ) : isSummaryLoading || isDetailLoading ? (
-        <div className="card" style={{ marginBottom:22 }}>Loading event summary...</div>
+        <div className="card" style={{ marginBottom:22 }}>{t("wording.loadingEventSummary")}</div>
       ) : isSummaryError || isDetailError ? (
-        <div className="card" style={{ marginBottom:22 }}>Failed to load event summary.</div>
+        <div className="card" style={{ marginBottom:22 }}>{t("wording.failedToLoadEventSummary")}</div>
       ) : null}
 
       {/* Event Info */}
@@ -260,7 +263,7 @@ export default function EventSummaryPage() {
           <div className="event-info-chip"><span>{fmtDate(eventDetail?.event_start)} - {fmtDate(eventDetail?.event_end)}</span></div>
           <div className="event-info-chip"><span>{eventDetail?.address || '—'}</span></div>
           <div className="event-info-chip"><span>{eventDetail?.PIC || '—'}</span></div>
-          <div className="event-info-chip"><span>Code: <strong>{eventDetail?.event_code || '—'}</strong></span></div>
+          <div className="event-info-chip"><span>{t("wording.codePrefix")} <strong>{eventDetail?.event_code || '—'}</strong></span></div>
           <span className={`badge ${statusBadge}`}>{eventStatus}</span>
         </div>
       </div>
@@ -278,7 +281,7 @@ export default function EventSummaryPage() {
 
       {/* Progress */}
       <div className="card" style={{ marginBottom:22 }}>
-        <div className="section-title">Completion Progress</div>
+        <div className="section-title">{t("wording.completionProgress")}</div>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))', gap:16 }}>
           {progressBars.map(b => {
             const p = pct(b.value, b.total);
@@ -298,7 +301,7 @@ export default function EventSummaryPage() {
       </div>
 
       {/* Area Grid */}
-      <div className="section-title">Items by Area</div>
+      <div className="section-title">{t("wording.itemsByArea")}</div>
       <div className="area-grid">
         {Object.entries(areaMap).sort(([a],[b]) => a.localeCompare(b)).map(([name, a]) => {
           const cp = a.checkedPercentage ?? pct(a.checked, a.total);
@@ -308,12 +311,12 @@ export default function EventSummaryPage() {
             <div key={name} className="area-stat-card" style={{ background:'var(--white)', border:'1px solid var(--border)', borderRadius:'var(--r-lg)', padding:'14px 16px', boxShadow:'0 1px 4px rgba(0,0,0,.04)' }}>
               <div className="area-stat-header">
                 <span className="area-stat-name">{name}</span>
-                <span className="area-stat-count">{a.total} item{a.total !== 1 ? 's' : ''}</span>
+                <span className="area-stat-count">{a.total} {t("wording.itemInline")}{a.total !== 1 ? t("wording.s") : ''}</span>
               </div>
               {[
-                { label:'Checked', color:'var(--brand)', val:cp },
-                { label:'Scan In', color:'var(--purple)', val:sp },
-                { label:'Scan Out', color:'var(--green)', val:sop },
+                { label:t("wording.checked"), color:'var(--brand)', val:cp },
+                { label:t("wording.scanIn"), color:'var(--purple)', val:sp },
+                { label:t("wording.scanOut"), color:'var(--green)', val:sop },
               ].map(row => (
                 <div key={row.label} className="area-stat-row">
                   <span className="area-dot" style={{ background:row.color, width:8, height:8, borderRadius:'50%', flexShrink:0 }} />
@@ -337,11 +340,11 @@ export default function EventSummaryPage() {
       {/* Item Table */}
       <div className="card">
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14, flexWrap:'wrap', gap:8 }}>
-          <div className="section-title" style={{ margin:0, flex:1 }}>Item Detail</div>
+          <div className="section-title" style={{ margin:0, flex:1 }}>{t("wording.itemDetail")}</div>
           <div style={{ display:'flex', gap:7, alignItems:'center', flexWrap:'wrap' }}>
             <div className="search-wrap" style={{ maxWidth:220 }}>
               <IconSearch />
-              <input className="search-input" type="text" placeholder="Search items…" value={tableSearch} onChange={e => { setTableSearch(e.target.value); setTablePage(1); }} />
+              <input className="search-input" type="text" placeholder={t("wording.searchItemsPlaceholder")} value={tableSearch} onChange={e => { setTableSearch(e.target.value); setTablePage(1); }} />
             </div>
             <SearchableSelect
               inline
@@ -352,10 +355,10 @@ export default function EventSummaryPage() {
                 setTablePage(1);
               }}
               options={[
-                { value: "", label: "All Status" },
+                { value: "", label: t("wording.allStatus") },
                 ...statusNames.map((status) => ({ value: status, label: status })),
               ]}
-              placeholder="All Status"
+              placeholder={t("wording.allStatus")}
             />
             <SearchableSelect
               inline
@@ -366,10 +369,10 @@ export default function EventSummaryPage() {
                 setTablePage(1);
               }}
               options={[
-                { value: "", label: "All Areas" },
+                { value: "", label: t("wording.allAreas") },
                 ...areaNames.map((area) => ({ value: area, label: area })),
               ]}
-              placeholder="All Areas"
+              placeholder={t("wording.allAreas")}
             />
           </div>
         </div>
@@ -377,25 +380,25 @@ export default function EventSummaryPage() {
           <table>
             <thead>
               <tr>
-                <th>Item Name</th>
-                <th>Area</th>
-                <th style={{ width:80, textAlign:'center' }}>Qty</th>
-                <th style={{ width:100, textAlign:'center' }}>Status</th>
-                <th style={{ width:90, textAlign:'center' }}>Checking</th>
-                <th style={{ width:90, textAlign:'center' }}>Scan In</th>
-                <th style={{ width:90, textAlign:'center' }}>Scan Out</th>
-                <th>PIC</th>
+                <th>{t("wording.itemName")}</th>
+                <th>{t("wording.area")}</th>
+                <th style={{ width:80, textAlign:'center' }}>{t("wording.qty")}</th>
+                <th style={{ width:100, textAlign:'center' }}>{t("wording.status")}</th>
+                <th style={{ width:90, textAlign:'center' }}>{t("wording.checking")}</th>
+                <th style={{ width:90, textAlign:'center' }}>{t("wording.scanIn")}</th>
+                <th style={{ width:90, textAlign:'center' }}>{t("wording.scanOut")}</th>
+                <th>{t("wording.pic")}</th>
               </tr>
             </thead>
             <tbody>
               {pageData.length === 0
-                ? <tr><td colSpan={8} style={{ textAlign:'center', padding:40, color:'var(--text-muted)' }}>No items found.</td></tr>
+                ? <tr><td colSpan={8} style={{ textAlign:'center', padding:40, color:'var(--text-muted)' }}>{t("wording.noItemsFound")}</td></tr>
                 : pageData.map(it => (
                   <tr key={it.id}>
                     <td style={{ fontWeight:500 }}>{it.name}</td>
                     <td><span className="badge badge-gray" style={{ fontSize:'10.5px', textTransform:'uppercase' }}>{it.area}</span></td>
                     <td style={{ textAlign:'center' }}>{it.qty}</td>
-                    <td style={{ textAlign:'center' }}><span className={`badge ${STATUS_BADGE[it.status] || 'badge-gray'}`}>{it.status}</span></td>
+                    <td style={{ textAlign:'center' }}><span className={`badge ${STATUS_BADGE[it.status] || 'badge-gray'}`}>{translateApiValue(it.status)}</span></td>
                     <td style={{ textAlign:'center' }}>{it.checking ? <DotOk /> : <DotNo />}</td>
                     <td style={{ textAlign:'center' }}>{it.scanIn   ? <DotOk /> : <DotNo />}</td>
                     <td style={{ textAlign:'center' }}>{it.scanOut  ? <DotOk /> : <DotNo />}</td>
@@ -406,7 +409,7 @@ export default function EventSummaryPage() {
             </tbody>
           </table>
         </div>
-        <Pagination currentPage={safePage} total={tableFiltered.length} pageSize={TABLE_PAGE_SIZE} onPage={(p: number) => setTablePage(p)} label="items" />
+        <Pagination currentPage={safePage} total={tableFiltered.length} pageSize={TABLE_PAGE_SIZE} onPage={(p: number) => setTablePage(p)} label={t("wording.itemsInline")} />
       </div>
     </>
   );

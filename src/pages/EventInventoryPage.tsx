@@ -11,6 +11,7 @@ import useGetEventInventory, {
 } from "../hooks/api/useGetEventInventory";
 import useGetEventStatus from "../hooks/api/useGetEventStatus";
 import useSearchEvents from "../hooks/api/useSearchEvents";
+import { useTranslation } from "react-i18next";
 
 const PAGE_SIZE = 20;
 
@@ -31,6 +32,7 @@ function getEventStatusId(item: EventInventoryItem) {
 }
 
 export default function EventInventoryPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -131,15 +133,15 @@ export default function EventInventoryPage() {
         }}
       >
         <h1 className="page-title" style={{ margin: 0 }}>
-          Event Inventory
+          {t("wording.eventInventory")}
         </h1>
       </div>
 
       <div className="stats-bar" style={{ gridTemplateColumns: "repeat(3,1fr)" }}>
         {[
-          { label: "Total Records", value: total, color: "var(--brand)", bg: "var(--brand-bg)" },
-          { label: "Events on This Page", value: eventCount, color: "var(--green)", bg: "var(--green-bg)" },
-          { label: "Showing", value: rows.length, color: "var(--purple)", bg: "var(--purple-bg)" },
+          { label: t("wording.totalRecords"), value: total, color: "var(--brand)", bg: "var(--brand-bg)" },
+          { label: t("wording.eventsOnThisPage"), value: eventCount, color: "var(--green)", bg: "var(--green-bg)" },
+          { label: t("wording.showing"), value: rows.length, color: "var(--purple)", bg: "var(--purple-bg)" },
         ].map((stat) => (
           <div key={stat.label} className="stat-card">
             <div className="stat-icon" style={{ background: stat.bg }}>
@@ -160,7 +162,7 @@ export default function EventInventoryPage() {
               <input
                 className="search-input"
                 type="text"
-                placeholder="Search event or item…"
+                placeholder={t("wording.searchEventOrItem")}
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
                 onKeyDown={(event) => {
@@ -169,7 +171,7 @@ export default function EventInventoryPage() {
               />
             </div>
             <button className="btn-search" onClick={applySearch}>
-              Search
+              {t("wording.search")}
             </button>
           </div>
         </div>
@@ -179,7 +181,7 @@ export default function EventInventoryPage() {
             <thead>
               <tr>
                 <SortTh
-                  label="Event"
+                  label={t("wording.event")}
                   id="event_name"
                   sortCol={sortBy}
                   sortAsc={sort === "ASC"}
@@ -187,7 +189,7 @@ export default function EventInventoryPage() {
                   style={{ minWidth: 120 }}
                 />
                 <SortTh
-                  label="Location"
+                  label={t("wording.location")}
                   id="event_location"
                   sortCol={sortBy}
                   sortAsc={sort === "ASC"}
@@ -195,7 +197,7 @@ export default function EventInventoryPage() {
                   style={{ width: 140 }}
                 />
                 <SortTh
-                  label="Status"
+                  label={t("wording.status")}
                   id="event_status"
                   sortCol={sortBy}
                   sortAsc={sort === "ASC"}
@@ -203,22 +205,22 @@ export default function EventInventoryPage() {
                   style={{ width: 180 }}
                 />
                 <SortTh
-                  label="Item"
+                  label={t("wording.item")}
                   id="nama_barang"
                   sortCol={sortBy}
                   sortAsc={sort === "ASC"}
                   onSort={handleSort}
                 />
-                <th style={{ width: 110, textAlign: "right" }}>Stock Item</th>
-                <th style={{ width: 120, textAlign: "right" }}>Stock in Cart</th>
-                <th style={{ width: 70, textAlign: "center" }}>Action</th>
+                <th style={{ width: 110, textAlign: "right" }}>{t("wording.stockItem")}</th>
+                <th style={{ width: 120, textAlign: "right" }}>{t("wording.stockInCart")}</th>
+                <th style={{ width: 70, textAlign: "center" }}>{t("wording.action")}</th>
               </tr>
             </thead>
             <tbody>
               {isLoading && rows.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ textAlign: "center", padding: 32 }}>
-                    Loading event inventory…
+                    {t("wording.loadingEventInventory")}
                   </td>
                 </tr>
               ) : isError ? (
@@ -227,7 +229,7 @@ export default function EventInventoryPage() {
                     colSpan={7}
                     style={{ textAlign: "center", color: "var(--red)", padding: 32 }}
                   >
-                    Failed to load event inventory.
+                    {t("wording.failedToLoadEventInventory")}
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
@@ -236,7 +238,7 @@ export default function EventInventoryPage() {
                     colSpan={7}
                     style={{ textAlign: "center", color: "var(--text-muted)", padding: 32 }}
                   >
-                    No results found.
+                    {t("wording.noResultsFound")}
                   </td>
                 </tr>
               ) : (
@@ -288,8 +290,8 @@ export default function EventInventoryPage() {
                           <button
                             type="button"
                             className="btn-icon"
-                            title="View Event Detail"
-                            aria-label={`View ${row.event_name} event detail`}
+                            title={t("wording.viewEventDetail")}
+                            aria-label={t("dynamic.viewEventDetail", { name: row.event_name })}
                             style={{ color: "var(--brand)" }}
                             onClick={() => navigate(`/event-detail?id=${eventId}`)}
                           >
@@ -297,7 +299,7 @@ export default function EventInventoryPage() {
                           </button>
                         ) : (
                           <span
-                            title="Event detail is unavailable because a unique event ID could not be resolved."
+                            title={t("wording.eventDetailIsUnavailableBecauseAUniqueEvent")}
                             style={{ color: "var(--text-muted)" }}
                           >
                             —
@@ -317,7 +319,7 @@ export default function EventInventoryPage() {
           total={total}
           pageSize={PAGE_SIZE}
           onPage={(nextPage: number) => setPage(nextPage)}
-          label="records"
+          label={t("wording.records")}
         />
       </div>
     </>

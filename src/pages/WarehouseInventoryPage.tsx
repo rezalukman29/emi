@@ -51,6 +51,10 @@ import {
   getStockOpnameLocalSubmission,
 } from "../lib/stockOpnameSession";
 import type { RootState } from "../store/store";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
+
+
 
 const PAGE_SIZE = 10;
 const GET_ALL_LIMIT = 99999;
@@ -158,12 +162,12 @@ function opnameAfter(item: StockOpnameHistoryItem) {
 function opnameStatusBadge(record: StockOpnameHistoryRecord) {
   const status = normalizedOpnameStatus(record);
   if (status === "APPROVED" || status === "APPLIED") {
-    return <span className="badge badge-green">Applied</span>;
+    return <span className="badge badge-green">{i18n.t("wording.applied")}</span>;
   }
   if (status === "REJECTED" || status === "CANCELLED") {
-    return <span className="badge badge-red">Rejected</span>;
+    return <span className="badge badge-red">{i18n.t("wording.rejected")}</span>;
   }
-  return <span className="badge badge-orange">Pending</span>;
+  return <span className="badge badge-orange">{i18n.t("wording.pending")}</span>;
 }
 
 function tokenizeKeyword(value: any) {
@@ -200,11 +204,11 @@ function ItemThumb({ name }: any) {
 
 function statusBadge(s: any) {
   const status = String(s || "").toUpperCase();
-  if (status === "SAFE") return <span className="badge badge-green">Safe</span>;
+  if (status === "SAFE") return <span className="badge badge-green">{i18n.t("wording.safe")}</span>;
   if (status === "WARNING")
-    return <span className="badge badge-orange">Warning</span>;
+    return <span className="badge badge-orange">{i18n.t("wording.warning")}</span>;
   if (status === "CRITICAL")
-    return <span className="badge badge-red">Critical</span>;
+    return <span className="badge badge-red">{i18n.t("wording.critical")}</span>;
   return (
     <span
       className="badge"
@@ -215,7 +219,7 @@ function statusBadge(s: any) {
         fontWeight: 400,
       }}
     >
-      Not Set
+      {i18n.t("wording.notSet")}
     </span>
   );
 }
@@ -224,7 +228,7 @@ function ImagePlaceholder({ onClick }: any) {
   return (
     <div
       onClick={onClick}
-      title="View image"
+      title={i18n.t("wording.viewImage")}
       style={{
         width: 42,
         height: 42,
@@ -339,7 +343,7 @@ function ImageViewerModal({ open, name, src, onClose }: any) {
                 <circle cx="8.5" cy="8.5" r="1.5" />
                 <polyline points="21 15 16 10 5 21" />
               </svg>
-              <p style={{ fontSize: 13, fontWeight: 500 }}>No image uploaded</p>
+              <p style={{ fontSize: 13, fontWeight: 500 }}>{i18n.t("wording.noImageUploaded")}</p>
             </div>
           )}
         </div>
@@ -349,6 +353,7 @@ function ImageViewerModal({ open, name, src, onClose }: any) {
 }
 
 export default function WarehouseInventoryPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
@@ -505,15 +510,15 @@ export default function WarehouseInventoryPage() {
       valuation: isModify ? String(barang?.valuation ?? "") : "",
     },
     validationSchema: Yup.object({
-      stok: Yup.string().required("Required"),
-      gudang_id: Yup.string().required("Required"),
-      stok_minimum: Yup.string().required("Required"),
+      stok: Yup.string().required(t("wording.required")),
+      gudang_id: Yup.string().required(t("wording.required")),
+      stok_minimum: Yup.string().required(t("wording.required")),
     }),
     validateOnChange: false,
     enableReinitialize: true,
     onSubmit: async (values) => {
       if (!isModify && !inventory) {
-        return toast("Please select item", { type: "error" });
+        return toast(t("wording.pleaseSelectItem"), { type: "error" });
       }
       setIsLoading(true);
       const payload = {
@@ -929,7 +934,7 @@ export default function WarehouseInventoryPage() {
         }}
       >
         <h1 className="page-title" style={{ margin: 0 }}>
-          Warehouse Inventory
+          {t("wording.warehouseInventory")}
         </h1>
       </div>
 
@@ -940,25 +945,25 @@ export default function WarehouseInventoryPage() {
       >
         {[
           {
-            label: "Total Items",
+            label: t("wording.totalItems"),
             value: warehouseSummary?.total_items ?? 0,
             color: "var(--brand)",
             bg: "var(--brand-bg)",
           },
           {
-            label: "Safe",
+            label: t("wording.safe"),
             value: warehouseSummary?.safe ?? 0,
             color: "var(--green)",
             bg: "var(--green-bg)",
           },
           {
-            label: "Warning",
+            label: t("wording.warning"),
             value: warehouseSummary?.warning ?? 0,
             color: "var(--orange)",
             bg: "var(--orange-bg)",
           },
           {
-            label: "Critical",
+            label: t("wording.critical"),
             value: warehouseSummary?.critical ?? 0,
             color: "var(--red)",
             bg: "var(--red-bg)",
@@ -978,9 +983,9 @@ export default function WarehouseInventoryPage() {
       {/* Pill tabs */}
       <div className="wi-tabs">
         {[
-          { id: "inventory", label: "Inventory" },
-          { id: "movingorder", label: "Moving Order" },
-          { id: "opnamehistory", label: "Opname History" },
+          { id: "inventory", label: t("wording.inventory") },
+          { id: "movingorder", label: t("wording.movingOrder") },
+          { id: "opnamehistory", label: t("wording.opnameHistory") },
         ].map((t) => (
           <button
             key={t.id}
@@ -1001,7 +1006,7 @@ export default function WarehouseInventoryPage() {
                 <input
                   className="search-input"
                   type="text"
-                  placeholder="Search item or warehouse…"
+                  placeholder={t("wording.searchItemOrWarehouse")}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={(e) => {
@@ -1016,10 +1021,10 @@ export default function WarehouseInventoryPage() {
                 inline
                 value={warehouseFilter}
                 onChange={(value) => setWarehouseFilter(String(value))}
-                placeholder="All Warehouses"
-                searchPlaceholder="Search warehouse…"
+                placeholder={t("wording.allWarehouses")}
+                searchPlaceholder={t("wording.searchWarehouse")}
                 options={[
-                  { value: "", label: "All Warehouses" },
+                  { value: "", label: t("wording.allWarehouses") },
                   ...warehouseOptions,
                 ]}
               />
@@ -1027,21 +1032,21 @@ export default function WarehouseInventoryPage() {
                 inline
                 value={statusFilter}
                 onChange={(value) => setStatusFilter(String(value) as BarangGudangStatus | "")}
-                placeholder="All Status"
+                placeholder={t("wording.allStatus")}
                 options={[
-                  { value: "", label: "All Status" },
-                  { value: "SAFE", label: "Safe" },
-                  { value: "WARNING", label: "Warning" },
-                  { value: "CRITICAL", label: "Critical" },
+                  { value: "", label: t("wording.allStatus") },
+                  { value: "SAFE", label: t("wording.safe") },
+                  { value: "WARNING", label: t("wording.warning") },
+                  { value: "CRITICAL", label: t("wording.critical") },
                 ]}
               />
               <button className="btn-search" onClick={applyInventoryFilters}>
-                <IconSearch /> Search
+                <IconSearch /> {t("wording.search")}
               </button>
             </div>
             <div className="toolbar-right">
               <button className="btn-new" onClick={openModal}>
-                <IconPlus /> New
+                <IconPlus /> {t("wording.new")}
               </button>
             </div>
           </div>
@@ -1051,7 +1056,7 @@ export default function WarehouseInventoryPage() {
               <thead>
                 <tr>
                   <SortTh
-                    label="Name"
+                    label={t("wording.name")}
                     colIndex={0}
                     sortCol={sortCol}
                     sortAsc={sortAsc}
@@ -1059,7 +1064,7 @@ export default function WarehouseInventoryPage() {
                     style={{ minWidth: 180 }}
                   />
                   <SortTh
-                    label="Wh. Stock"
+                    label={t("wording.whStock")}
                     colIndex={1}
                     sortCol={sortCol}
                     sortAsc={sortAsc}
@@ -1067,7 +1072,7 @@ export default function WarehouseInventoryPage() {
                     style={{ width: 80, textAlign: "right" }}
                   />
                   <SortTh
-                    label="Warehouse"
+                    label={t("wording.warehouse")}
                     colIndex={2}
                     sortCol={sortCol}
                     sortAsc={sortAsc}
@@ -1075,7 +1080,7 @@ export default function WarehouseInventoryPage() {
                     style={{ minWidth: 130 }}
                   />
                   <SortTh
-                    label="Item Stock"
+                    label={t("wording.itemStockTitle")}
                     colIndex={3}
                     sortCol={sortCol}
                     sortAsc={sortAsc}
@@ -1083,7 +1088,7 @@ export default function WarehouseInventoryPage() {
                     style={{ width: 80, textAlign: "right" }}
                   />
                   <SortTh
-                    label="Min"
+                    label={t("wording.min")}
                     colIndex={4}
                     sortCol={sortCol}
                     sortAsc={sortAsc}
@@ -1091,7 +1096,7 @@ export default function WarehouseInventoryPage() {
                     style={{ width: 60, textAlign: "right" }}
                   />
                   <SortTh
-                    label="Used"
+                    label={t("wording.used")}
                     colIndex={5}
                     sortCol={sortCol}
                     sortAsc={sortAsc}
@@ -1099,7 +1104,7 @@ export default function WarehouseInventoryPage() {
                     style={{ width: 60, textAlign: "right" }}
                   />
                   <SortTh
-                    label="Valuation"
+                    label={t("wording.valuation")}
                     colIndex={6}
                     sortCol={sortCol}
                     sortAsc={sortAsc}
@@ -1107,7 +1112,7 @@ export default function WarehouseInventoryPage() {
                     style={{ width: 80, textAlign: "right" }}
                   />
                   <SortTh
-                    label="Total Val."
+                    label={t("wording.totalVal")}
                     colIndex={7}
                     sortCol={sortCol}
                     sortAsc={sortAsc}
@@ -1115,7 +1120,7 @@ export default function WarehouseInventoryPage() {
                     style={{ width: 90, textAlign: "right" }}
                   />
                   <SortTh
-                    label="Status"
+                    label={t("wording.status")}
                     colIndex={8}
                     sortCol={sortCol}
                     sortAsc={sortAsc}
@@ -1139,7 +1144,7 @@ export default function WarehouseInventoryPage() {
                     style={{ width: 45, textAlign: "center" }}
                   />
                   <SortTh
-                    label="Aisle"
+                    label={t("wording.aisle")}
                     colIndex={11}
                     sortCol={sortCol}
                     sortAsc={sortAsc}
@@ -1147,7 +1152,7 @@ export default function WarehouseInventoryPage() {
                     style={{ width: 50, textAlign: "center" }}
                   />
                   <SortTh
-                    label="Rack"
+                    label={t("wording.rack")}
                     colIndex={12}
                     sortCol={sortCol}
                     sortAsc={sortAsc}
@@ -1155,7 +1160,7 @@ export default function WarehouseInventoryPage() {
                     style={{ width: 50, textAlign: "center" }}
                   />
                   <SortTh
-                    label="Level"
+                    label={t("wording.level")}
                     colIndex={13}
                     sortCol={sortCol}
                     sortAsc={sortAsc}
@@ -1163,7 +1168,7 @@ export default function WarehouseInventoryPage() {
                     style={{ width: 50, textAlign: "center" }}
                   />
                   <SortTh
-                    label="Floor"
+                    label={t("wording.floor")}
                     colIndex={14}
                     sortCol={sortCol}
                     sortAsc={sortAsc}
@@ -1171,28 +1176,28 @@ export default function WarehouseInventoryPage() {
                     style={{ width: 55, textAlign: "center" }}
                   />
                   <SortTh
-                    label="Lane"
+                    label={t("wording.lane")}
                     colIndex={15}
                     sortCol={sortCol}
                     sortAsc={sortAsc}
                     onSort={handleSort}
                     style={{ width: 55, textAlign: "center" }}
                   />
-                  <th style={{ width: 58, textAlign: "center" }}>Img</th>
+                  <th style={{ width: 58, textAlign: "center" }}>{t("wording.img")}</th>
                   <SortTh
-                    label="Updated"
+                    label={t("wording.updated")}
                     colIndex={16}
                     sortCol={sortCol}
                     sortAsc={sortAsc}
                     onSort={handleSort}
                     style={{ width: 95 }}
                   />
-                  <th style={{ width: 80, textAlign: "center" }}>Action</th>
+                  <th style={{ width: 80, textAlign: "center" }}>{t("wording.action")}</th>
                 </tr>
               </thead>
               <tbody>
                 {isLoading && listBarang.length === 0 ? (
-                  <tr><td colSpan={19} style={{ padding: 32, textAlign: "center" }}>Loading warehouse inventory…</td></tr>
+                  <tr><td colSpan={19} style={{ padding: 32, textAlign: "center" }}>{t("wording.loadingWarehouseInventory")}</td></tr>
                 ) : listBarang.length === 0 ? (
                   <tr>
                     <td
@@ -1203,7 +1208,7 @@ export default function WarehouseInventoryPage() {
                         padding: 32,
                       }}
                     >
-                      No results found.
+                      {t("wording.noResultsFound")}
                     </td>
                   </tr>
                 ) : (
@@ -1364,7 +1369,7 @@ export default function WarehouseInventoryPage() {
                         >
                           <button
                             className="btn-icon"
-                            title="Detail"
+                            title={t("wording.detail")}
                             style={{ color: "var(--green)" }}
                             onClick={() => setDetailRow(r)}
                           >
@@ -1380,10 +1385,10 @@ export default function WarehouseInventoryPage() {
                               <polygon points="5 3 19 12 5 21 5 3" />
                             </svg>
                           </button>
-                          <button className="btn-icon edit" title="Edit" onClick={() => openEditItem(r)}>
+                          <button className="btn-icon edit" title={t("wording.edit")} onClick={() => openEditItem(r)}>
                             <IconEdit />
                           </button>
-                          <button className="btn-icon delete" title="Delete" onClick={() => setDeleteTarget(r)}>
+                          <button className="btn-icon delete" title={t("wording.delete")} onClick={() => setDeleteTarget(r)}>
                             <IconDelete />
                           </button>
                         </div>
@@ -1399,7 +1404,7 @@ export default function WarehouseInventoryPage() {
             total={total}
             pageSize={PAGE_SIZE}
             onPage={(p: any) => setPage(p)}
-            label="items"
+            label={t("wording.itemsInline")}
           />
         </div>
       )}
@@ -1413,13 +1418,13 @@ export default function WarehouseInventoryPage() {
 
       <Modal
         open={modalOpen}
-        title={isModify ? "Edit Warehouse Item" : "Add Warehouse Item"}
+        title={isModify ? t("wording.editWarehouseItem") : t("wording.addWarehouseItem")}
         onClose={closeModal}
         size="xl"
         footer={
           <>
             <button className="btn-cancel-modal" disabled={isLoading} onClick={closeModal}>
-              <IconClose /> Cancel
+              <IconClose /> {t("wording.cancel")}
             </button>
             <button
               className="btn-save-modal"
@@ -1427,25 +1432,25 @@ export default function WarehouseInventoryPage() {
               disabled={isLoading}
               onClick={() => formik.handleSubmit()}
             >
-              <IconCheck /> {isLoading ? "Saving…" : isModify ? "Save Changes" : "Save Item"}
+              <IconCheck /> {isLoading ? t("common.actions.saving") : isModify ? t("common.actions.saveChanges") : t("common.actions.saveItem")}
             </button>
           </>
         }
       >
         {isModify ? (
           <div className="inventory-selected-item" style={{ marginBottom: 16 }}>
-            <span>Item Name</span>
+            <span>{t("wording.itemName")}</span>
             <strong>{barang?.nama_barang ?? "-"}</strong>
           </div>
         ) : (
           <>
         <div className="inventory-modal-search-row">
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label>Keywords</label>
+            <label>{t("wording.keywords")}</label>
             <input
               type="text"
               value={itemSearchDraft}
-              placeholder="Search by item name, e.g. acrylic ball"
+              placeholder={t("wording.searchByItemNameEGAcrylicBall")}
               onChange={(e) => setItemSearchDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
@@ -1459,7 +1464,7 @@ export default function WarehouseInventoryPage() {
             className="btn-search inventory-modal-search-btn"
             onClick={() => getBarang()}
           >
-            <IconSearch /> Search
+            <IconSearch /> {t("wording.search")}
           </button>
         </div>
 
@@ -1467,7 +1472,7 @@ export default function WarehouseInventoryPage() {
           {hasPendingItemSearch ? (
             <>
               <span className="inventory-search-count">
-                Search not applied yet
+                {t("wording.searchNotAppliedYet")}
               </span>
               {draftKeyword && (
                 <span className="inventory-search-chip">"{draftKeyword}"</span>
@@ -1477,14 +1482,14 @@ export default function WarehouseInventoryPage() {
                 className="inventory-search-clear"
                 onClick={clearItemSearch}
               >
-                Reset
+                {t("wording.reset")}
               </button>
             </>
           ) : (
             <>
               <span className="inventory-search-count">
-                {listInventory.length} item
-                {listInventory.length === 1 ? "" : "s"} found
+                {listInventory.length} {t("wording.itemInline")}
+                {listInventory.length === 1 ? "" : t("wording.s")} {t("wording.found")}
               </span>
               {hasActiveItemSearch && (
                 <span className="inventory-search-chip">"{itemSearch}"</span>
@@ -1495,7 +1500,7 @@ export default function WarehouseInventoryPage() {
                   className="inventory-search-clear"
                   onClick={clearItemSearch}
                 >
-                  Clear
+                  {t("wording.clear")}
                 </button>
               )}
             </>
@@ -1505,13 +1510,13 @@ export default function WarehouseInventoryPage() {
         <div
           className="inventory-item-grid"
           role="list"
-          aria-label="Inventory item list"
+          aria-label={t("wording.inventoryItemList")}
         >
           {listInventory.length === 0 ? (
             <div className="inventory-search-empty">
-              <strong>No matching items</strong>
+              <strong>{t("wording.noMatchingItems")}</strong>
               <span>
-                Try a shorter keyword or clear the search to browse all items.
+                {t("wording.tryAShorterKeywordOrClearTheSearch")}
               </span>
             </div>
           ) : (
@@ -1524,7 +1529,7 @@ export default function WarehouseInventoryPage() {
                 }`}
                 onClick={() => {
                   if (item.stok_barang === 0) {
-                    toast("No stock", { type: "error" });
+                    toast(t("wording.noStock"), { type: "error" });
                   } else {
                     setSelectedItemId(item.id);
                     setInventory(item);
@@ -1535,7 +1540,7 @@ export default function WarehouseInventoryPage() {
                 <span className="inventory-item-meta">
                   <span className="inventory-item-name">{item.nama}</span>
                   <span className="inventory-item-stock">
-                    Stock: {item.stok_barang}
+                    {t("wording.stockPrefix")} {item.stok_barang}
                   </span>
                 </span>
               </button>
@@ -1544,7 +1549,7 @@ export default function WarehouseInventoryPage() {
         </div>
 
         <div className="inventory-selected-item">
-          <span>Selected Item</span>
+          <span>{t("wording.selectedItem")}</span>
           <strong>{selectedItem?.nama || "No item selected"}</strong>
         </div>
           </>
@@ -1555,7 +1560,7 @@ export default function WarehouseInventoryPage() {
             value={formik.values.stok}
             onChange={(e) => formik.setFieldValue("stok", e)}
             isRequired
-            label="Stock"
+            label={t("wording.stock")}
             placeholder=""
             errorText={formik.errors.stok as string}
             isNumeric
@@ -1564,7 +1569,7 @@ export default function WarehouseInventoryPage() {
             value={formik.values.stok_minimum}
             onChange={(e) => formik.setFieldValue("stok_minimum", e)}
             isRequired
-            label="Minimum Stock"
+            label={t("wording.minimumStock")}
             placeholder=""
             errorText={formik.errors.stok_minimum as string}
             isNumeric
@@ -1572,57 +1577,57 @@ export default function WarehouseInventoryPage() {
           <TextInput
             value={formik.values.kode}
             onChange={(e) => formik.setFieldValue("kode", e)}
-            label="Code"
+            label={t("wording.code")}
             placeholder=""
           />
           <TextInput
             value={formik.values.rack}
             onChange={(e) => formik.setFieldValue("rack", e)}
-            label="Rack"
+            label={t("wording.rack")}
             placeholder=""
           />
           <TextInput
             value={formik.values.lantai}
             onChange={(e) => formik.setFieldValue("lantai", e)}
-            label="Floor"
+            label={t("wording.floor")}
             placeholder=""
           />
           <TextInput
             value={formik.values.lorong}
             onChange={(e) => formik.setFieldValue("lorong", e)}
-            label="Lane"
+            label={t("wording.lane")}
             placeholder=""
           />
           <TextInput
             value={formik.values.flag_1}
             onChange={(e) => formik.setFieldValue("flag_1", e)}
-            label="Flag 1"
+            label={t("wording.flag1")}
             placeholder=""
           />
           <TextInput
             value={formik.values.flag_2}
             onChange={(e) => formik.setFieldValue("flag_2", e)}
-            label="Flag 2"
+            label={t("wording.flag2")}
             placeholder=""
           />
           <TextInput
             value={formik.values.valuation}
             onChange={(e) => formik.setFieldValue("valuation", e)}
-            label="Valuation"
+            label={t("wording.valuation")}
             placeholder=""
             isNumeric
           />
           <div className="form-group">
             <label>
-              Warehouse <span style={{ color: "var(--red)" }}>*</span>
+              {t("wording.warehouse")} <span style={{ color: "var(--red)" }}>*</span>
             </label>
             <SearchableSelect
               onChange={(value) =>
                 formik.setFieldValue("gudang_id", String(value))
               }
               value={formik.values.gudang_id}
-              placeholder="Select warehouse"
-              searchPlaceholder="Search warehouse…"
+              placeholder={t("wording.selectWarehouseText")}
+              searchPlaceholder={t("wording.searchWarehouse")}
               options={warehouseOptions}
               errorText={formik.errors.gudang_id as string}
             />
@@ -1632,42 +1637,42 @@ export default function WarehouseInventoryPage() {
 
       <Modal
         open={Boolean(detailRow)}
-        title="Warehouse Item Detail"
+        title={t("wording.warehouseItemDetail")}
         onClose={() => setDetailRow(null)}
-        footer={<button className="btn-cancel-modal" onClick={() => setDetailRow(null)}><IconClose /> Close</button>}
+        footer={<button className="btn-cancel-modal" onClick={() => setDetailRow(null)}><IconClose /> {t("wording.close")}</button>}
       >
         {detailRow && (
           <div className="item-detail-grid">
-            <div className="item-detail-row"><span>Name</span><strong>{detailRow.nama_barang}</strong></div>
-            <div className="item-detail-row"><span>Warehouse</span><strong>{detailRow.gudang_name ?? detailRow.gudang?.gudang_name ?? "-"}</strong></div>
-            <div className="item-detail-row"><span>Warehouse Stock</span><strong>{detailRow.stok_gudang}</strong></div>
-            <div className="item-detail-row"><span>Item Stock</span><strong>{detailRow.stok_barang}</strong></div>
-            <div className="item-detail-row"><span>Minimum Stock</span><strong>{detailRow.stok_minimum}</strong></div>
-            <div className="item-detail-row"><span>Used</span><strong>{detailRow.stock_used}</strong></div>
-            <div className="item-detail-row"><span>Valuation</span><strong>{detailRow.valuation ? currency(Number(detailRow.valuation)) : "0"}</strong></div>
-            <div className="item-detail-row"><span>Total Valuation</span><strong>{detailRow.valuation ? currency(Number(detailRow.valuation) * Number(detailRow.stok_gudang)) : "0"}</strong></div>
-            <div className="item-detail-row"><span>Status</span><span>{statusBadge(detailRow.status)}</span></div>
-            <div className="item-detail-row"><span>Flag 1 / Flag 2</span><strong>{detailRow.flag_1 || "—"} / {detailRow.flag_2 || "—"}</strong></div>
-            <div className="item-detail-row"><span>Aisle / Rack / Level</span><strong>{detailRow.asile || "—"} / {detailRow.rack || "—"} / {detailRow.level || "—"}</strong></div>
-            <div className="item-detail-row"><span>Floor / Lane</span><strong>{detailRow.lantai || "—"} / {detailRow.lorong || "—"}</strong></div>
-            <div className="item-detail-row"><span>Updated At</span><strong>{detailRow.updated_at ? moment(detailRow.updated_at).format("D MMM YYYY, HH:mm") : "-"}</strong></div>
+            <div className="item-detail-row"><span>{t("wording.name")}</span><strong>{detailRow.nama_barang}</strong></div>
+            <div className="item-detail-row"><span>{t("wording.warehouse")}</span><strong>{detailRow.gudang_name ?? detailRow.gudang?.gudang_name ?? "-"}</strong></div>
+            <div className="item-detail-row"><span>{t("wording.warehouseStock")}</span><strong>{detailRow.stok_gudang}</strong></div>
+            <div className="item-detail-row"><span>{t("wording.itemStockTitle")}</span><strong>{detailRow.stok_barang}</strong></div>
+            <div className="item-detail-row"><span>{t("wording.minimumStock")}</span><strong>{detailRow.stok_minimum}</strong></div>
+            <div className="item-detail-row"><span>{t("wording.used")}</span><strong>{detailRow.stock_used}</strong></div>
+            <div className="item-detail-row"><span>{t("wording.valuation")}</span><strong>{detailRow.valuation ? currency(Number(detailRow.valuation)) : "0"}</strong></div>
+            <div className="item-detail-row"><span>{t("wording.totalValuation")}</span><strong>{detailRow.valuation ? currency(Number(detailRow.valuation) * Number(detailRow.stok_gudang)) : "0"}</strong></div>
+            <div className="item-detail-row"><span>{t("wording.status")}</span><span>{statusBadge(detailRow.status)}</span></div>
+            <div className="item-detail-row"><span>{t("wording.flag1Flag2")}</span><strong>{detailRow.flag_1 || "—"} / {detailRow.flag_2 || "—"}</strong></div>
+            <div className="item-detail-row"><span>{t("wording.aisleRackLevel")}</span><strong>{detailRow.asile || "—"} / {detailRow.rack || "—"} / {detailRow.level || "—"}</strong></div>
+            <div className="item-detail-row"><span>{t("wording.floorLane")}</span><strong>{detailRow.lantai || "—"} / {detailRow.lorong || "—"}</strong></div>
+            <div className="item-detail-row"><span>{t("wording.updatedAt")}</span><strong>{detailRow.updated_at ? moment(detailRow.updated_at).format("D MMM YYYY, HH:mm") : "-"}</strong></div>
           </div>
         )}
       </Modal>
 
       <Modal
         open={Boolean(deleteTarget)}
-        title="Delete Warehouse Item"
+        title={t("wording.deleteWarehouseItem")}
         onClose={() => !isDeleting && setDeleteTarget(null)}
         footer={(
           <>
-            <button className="btn-cancel-modal" disabled={isDeleting} onClick={() => setDeleteTarget(null)}>Cancel</button>
-            <button className="btn-del-ok" disabled={isDeleting} onClick={confirmDeleteItem}>{isDeleting ? "Deleting…" : "Delete"}</button>
+            <button className="btn-cancel-modal" disabled={isDeleting} onClick={() => setDeleteTarget(null)}>{t("wording.cancel")}</button>
+            <button className="btn-del-ok" disabled={isDeleting} onClick={confirmDeleteItem}>{isDeleting ? t("common.actions.deleting") : t("common.actions.delete")}</button>
           </>
         )}
       >
         <p className="confirm-msg">
-          Are you sure you want to delete <strong>&ldquo;{deleteTarget?.nama_barang}&rdquo;</strong> from <strong>{deleteTarget?.gudang_name ?? deleteTarget?.gudang?.gudang_name ?? "this warehouse"}</strong>? This action cannot be undone.
+          {t("wording.areYouSureYouWantToDelete")} <strong>&ldquo;{deleteTarget?.nama_barang}&rdquo;</strong> {t("wording.fromInline")} <strong>{deleteTarget?.gudang_name ?? deleteTarget?.gudang?.gudang_name ?? "this warehouse"}</strong>{t("wording.thisActionCannotBeUndone")}
         </p>
       </Modal>
 
@@ -1676,36 +1681,36 @@ export default function WarehouseInventoryPage() {
           <div className="toolbar">
             <div className="toolbar-left">
               <p style={{ color: "var(--text-muted)", fontSize: 12.5, margin: 0 }}>
-                Prepare a multi-item stock transfer between warehouses.
+                {t("wording.prepareAMultiItemStockTransferBetweenWarehouses")}
               </p>
             </div>
             <div className="toolbar-right">
-              <button className="btn-new" onClick={openMovingOrder}><IconPlus /> Create Moving Order</button>
+              <button className="btn-new" onClick={openMovingOrder}><IconPlus /> {t("wording.createMovingOrder")}</button>
             </div>
           </div>
           <p style={{ background: "var(--brand-bg)", borderRadius: "var(--r-lg)", color: "var(--brand)", fontSize: 12.5, marginBottom: 16, padding: "9px 14px" }}>
-            Moving orders are loaded directly from the API.
+            {t("wording.movingOrdersAreLoadedDirectlyFromTheApi")}
           </p>
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Date</th><th>From</th><th>To</th><th style={{ textAlign: "right" }}>Total Items</th><th>Notes</th><th>Moved By</th></tr></thead>
+              <thead><tr><th>{t("wording.date")}</th><th>{t("wording.from")}</th><th>{t("wording.to")}</th><th style={{ textAlign: "right" }}>{t("wording.totalItems")}</th><th>{t("wording.notes")}</th><th>{t("wording.movedBy")}</th></tr></thead>
               <tbody>
                 {isMovingOrderListLoading && movingOrders.length === 0 ? (
                   <tr>
                     <td colSpan={6} style={{ color: "var(--text-muted)", padding: 32, textAlign: "center" }}>
-                      Loading moving orders…
+                      {t("wording.loadingMovingOrders")}
                     </td>
                   </tr>
                 ) : isMovingOrderListError ? (
                   <tr>
                     <td colSpan={6} style={{ color: "var(--red)", padding: 32, textAlign: "center" }}>
-                      Unable to load moving orders.
+                      {t("wording.unableToLoadMovingOrders")}
                     </td>
                   </tr>
                 ) : movingOrders.length === 0 ? (
                   <tr>
                     <td colSpan={6} style={{ color: "var(--text-muted)", padding: 32, textAlign: "center" }}>
-                      No moving orders found.
+                      {t("wording.noMovingOrdersFound")}
                     </td>
                   </tr>
                 ) : movingOrders.map((order) => (
@@ -1728,27 +1733,31 @@ export default function WarehouseInventoryPage() {
             total={movingOrderResponse?.total_records ?? 0}
             pageSize={PAGE_SIZE}
             onPage={setMovingOrderPage}
-            label="moving orders"
+            label={t("wording.movingOrders")}
           />
         </div>
       )}
 
       <Modal
         open={movingOrderOpen}
-        title="Create Moving Order"
+        title={t("wording.createMovingOrder")}
         onClose={() => !isCreatingMovingOrder && setMovingOrderOpen(false)}
         size="lg"
         footer={(
           <>
-            <button className="btn-cancel-modal" disabled={isCreatingMovingOrder} onClick={() => setMovingOrderOpen(false)}><IconClose /> Cancel</button>
+            <button className="btn-cancel-modal" disabled={isCreatingMovingOrder} onClick={() => setMovingOrderOpen(false)}><IconClose /> {t("wording.cancel")}</button>
             <button className="btn-save-modal" disabled={!movingOrderValid || isCreatingMovingOrder} onClick={submitMovingOrder}>
-              <IconCheck /> {isCreatingMovingOrder ? "Creating…" : `Create Order${selectedMovingRows.length > 1 ? ` (${selectedMovingRows.length} items)` : ""}`}
+              <IconCheck /> {isCreatingMovingOrder
+                ? t("wording.creating")
+                : selectedMovingRows.length > 1
+                  ? t("dynamic.createOrderItems", { count: selectedMovingRows.length })
+                  : t("dynamic.createOrder")}
             </button>
           </>
         )}
       >
         <div className="form-group">
-          <label>Source Warehouse <span style={{ color: "var(--red)" }}>*</span></label>
+          <label>{t("wording.sourceWarehouse")} <span style={{ color: "var(--red)" }}>*</span></label>
           <SearchableSelect
             value={movingSourceWarehouse}
             onChange={(value) => {
@@ -1758,19 +1767,19 @@ export default function WarehouseInventoryPage() {
               setDebouncedMovingItemQuery("");
               setMovingSelection({});
             }}
-            placeholder="Choose warehouse…"
-            searchPlaceholder="Search warehouse…"
+            placeholder={t("wording.chooseWarehouse")}
+            searchPlaceholder={t("wording.searchWarehouse")}
             options={warehouseOptions}
           />
         </div>
 
         {movingSourceWarehouse && (
           <div className="form-group">
-            <label>Items to Move <span style={{ color: "var(--red)" }}>*</span>{selectedMovingRows.length > 0 && <span style={{ color: "var(--text-muted)", letterSpacing: 0, marginLeft: 6, textTransform: "none" }}>({selectedMovingRows.length} selected)</span>}</label>
+            <label>{t("wording.itemsToMove")} <span style={{ color: "var(--red)" }}>*</span>{selectedMovingRows.length > 0 && <span style={{ color: "var(--text-muted)", letterSpacing: 0, marginLeft: 6, textTransform: "none" }}>({selectedMovingRows.length} {t("wording.selected")}</span>}</label>
             <div className="mo-item-search">
               <IconSearch />
               <input
-                placeholder="Search item…"
+                placeholder={t("wording.searchItemPlaceholder")}
                 value={movingItemQuery}
                 onChange={(event) => setMovingItemQuery(event.target.value)}
                 onKeyDown={(event) => {
@@ -1783,11 +1792,11 @@ export default function WarehouseInventoryPage() {
             </div>
             <div className="mo-item-list">
               {isMovingInventoryLoading ? (
-                <div className="mo-item-empty">Loading warehouse items…</div>
+                <div className="mo-item-empty">{t("wording.loadingWarehouseItems")}</div>
               ) : isMovingInventoryError ? (
-                <div className="mo-item-empty" style={{ color: "var(--red)" }}>Unable to load warehouse items.</div>
+                <div className="mo-item-empty" style={{ color: "var(--red)" }}>{t("wording.unableToLoadWarehouseItems")}</div>
               ) : !filteredMovingRows.length ? (
-                <div className="mo-item-empty">No items with stock at this warehouse.</div>
+                <div className="mo-item-empty">{t("wording.noItemsWithStockAtThisWarehouse")}</div>
               ) : filteredMovingRows.map((row) => {
                 const checked = movingSelection[row.barang_gudang_id] !== undefined;
                 return (
@@ -1795,7 +1804,7 @@ export default function WarehouseInventoryPage() {
                     <label className="mo-item-check">
                       <input type="checkbox" checked={checked} onChange={() => toggleMovingItem(row)} />
                       <span className="mo-item-name">{row.nama_barang}</span>
-                      <span className="mo-item-stock">stock: {row.stok_gudang}</span>
+                      <span className="mo-item-stock">{t("wording.stockPrefixOnWarehouseInventoryPage")} {row.stok_gudang}</span>
                     </label>
                     {checked && (
                       <input
@@ -1815,19 +1824,19 @@ export default function WarehouseInventoryPage() {
         )}
 
         <div className="form-group">
-          <label>Destination Warehouse <span style={{ color: "var(--red)" }}>*</span></label>
+          <label>{t("wording.destinationWarehouse")} <span style={{ color: "var(--red)" }}>*</span></label>
           <SearchableSelect
             value={movingDestinationWarehouse}
             onChange={(value) => setMovingDestinationWarehouse(String(value))}
             disabled={!movingSourceWarehouse}
-            placeholder="Choose warehouse…"
-            searchPlaceholder="Search warehouse…"
+            placeholder={t("wording.chooseWarehouse")}
+            searchPlaceholder={t("wording.searchWarehouse")}
             options={warehouseOptions.filter((warehouse) => String(warehouse.value) !== movingSourceWarehouse)}
           />
         </div>
         {movingOrderValid && (
           <div className="mo-flow" style={{ background: "var(--bg)", borderRadius: "var(--r-lg)", fontSize: 12.5, marginTop: 4, padding: "10px 12px" }}>
-            <strong>{selectedMovingRows.length} item{selectedMovingRows.length === 1 ? "" : "s"}</strong>
+            <strong>{selectedMovingRows.length} {t("wording.itemInline")}{selectedMovingRows.length === 1 ? "" : t("wording.s")}</strong>
             <span className="mo-flow-arrow" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="5" y1="12" x2="19" y2="12" />
@@ -1847,10 +1856,10 @@ export default function WarehouseInventoryPage() {
         <div className="card">
           <div className="stats-bar" style={{ gridTemplateColumns: "repeat(4,1fr)", marginBottom: 18 }}>
             {[
-              { label: "Total Sessions", value: historyResponse?.total_records ?? historyRecords.length, color: "var(--brand)", bg: "var(--brand-bg)" },
-              { label: "Pending Approval", value: pendingCount, color: "var(--orange)", bg: "var(--orange-bg)" },
-              { label: "Items Adjusted", value: totalItemsAdjusted, color: "var(--green)", bg: "var(--green-bg)" },
-              { label: "Last Submitted", value: historyRecords[0]?.created_at ? moment(historyRecords[0].created_at).format("D MMM YYYY") : "-", color: "var(--text-2)", bg: "var(--bg)" },
+              { label: t("wording.totalSessions"), value: historyResponse?.total_records ?? historyRecords.length, color: "var(--brand)", bg: "var(--brand-bg)" },
+              { label: t("wording.pendingApproval"), value: pendingCount, color: "var(--orange)", bg: "var(--orange-bg)" },
+              { label: t("wording.itemsAdjusted"), value: totalItemsAdjusted, color: "var(--green)", bg: "var(--green-bg)" },
+              { label: t("wording.lastSubmitted"), value: historyRecords[0]?.created_at ? moment(historyRecords[0].created_at).format("D MMM YYYY") : "-", color: "var(--text-2)", bg: "var(--bg)" },
             ].map((stat) => (
               <div className="stat-card" key={stat.label}>
                 <div className="stat-icon" style={{ background: stat.bg }}><span className="stat-value" style={{ color: stat.color, fontSize: typeof stat.value === "string" ? 14 : undefined }}>{stat.value}</span></div>
@@ -1864,33 +1873,33 @@ export default function WarehouseInventoryPage() {
                 inline
                 value={historyWarehouse}
                 onChange={(value) => setHistoryWarehouse(String(value))}
-                placeholder="All Warehouses"
-                searchPlaceholder="Search warehouse…"
-                options={[{ value: "", label: "All Warehouses" }, ...historyWarehouseOptions]}
+                placeholder={t("wording.allWarehouses")}
+                searchPlaceholder={t("wording.searchWarehouse")}
+                options={[{ value: "", label: t("wording.allWarehouses") }, ...historyWarehouseOptions]}
               />
             </div>
             <div className="toolbar-right">
               <button
                 className="btn-save-modal"
                 disabled={pendingOpname}
-                title={pendingOpname ? "Resolve the pending stock opname before starting a new one" : "Start a new stock opname"}
+                title={pendingOpname ? t("wording.resolveThePendingStockOpnameBeforeStartingA") : t("wording.startANewStockOpname")}
                 onClick={() => navigate("/stock-opname")}
               >
-                <IconPlus /> Start Stock Opname
+                <IconPlus /> {t("wording.startStockOpname")}
               </button>
             </div>
           </div>
-          {pendingOpname && <p style={{ background: "var(--orange-bg)", borderRadius: "var(--r-lg)", color: "var(--orange)", fontSize: 12.5, marginBottom: 16, padding: "9px 14px" }}>A stock opname is awaiting approval. Resolve it before starting a new one.</p>}
+          {pendingOpname && <p style={{ background: "var(--orange-bg)", borderRadius: "var(--r-lg)", color: "var(--orange)", fontSize: 12.5, marginBottom: 16, padding: "9px 14px" }}>{t("wording.aStockOpnameIsAwaitingApprovalResolveIt")}</p>}
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Date Submitted</th><th>Period</th><th>Warehouse</th><th>Submitted By</th><th style={{ textAlign: "right" }}>Items</th><th>Status</th><th style={{ textAlign: "center" }}>Action</th></tr></thead>
+              <thead><tr><th>{t("wording.dateSubmitted")}</th><th>{t("wording.period")}</th><th>{t("wording.warehouse")}</th><th>{t("wording.submittedBy")}</th><th style={{ textAlign: "right" }}>{t("wording.items")}</th><th>{t("wording.status")}</th><th style={{ textAlign: "center" }}>{t("wording.action")}</th></tr></thead>
               <tbody>
                 {isHistoryLoading ? (
-                  <tr><td colSpan={7} style={{ padding: 32, textAlign: "center" }}>Loading opname history…</td></tr>
+                  <tr><td colSpan={7} style={{ padding: 32, textAlign: "center" }}>{t("wording.loadingOpnameHistory")}</td></tr>
                 ) : isHistoryError ? (
-                  <tr><td colSpan={7} style={{ color: "var(--red)", padding: 32, textAlign: "center" }}>Unable to load opname history.</td></tr>
+                  <tr><td colSpan={7} style={{ color: "var(--red)", padding: 32, textAlign: "center" }}>{t("wording.unableToLoadOpnameHistory")}</td></tr>
                 ) : !filteredHistory.length ? (
-                  <tr><td colSpan={7} style={{ color: "var(--text-muted)", padding: 32, textAlign: "center" }}>No opname history found.</td></tr>
+                  <tr><td colSpan={7} style={{ color: "var(--text-muted)", padding: 32, textAlign: "center" }}>{t("wording.noOpnameHistoryFound")}</td></tr>
                 ) : filteredHistory.map((record) => {
                   const flag = record.flag?.trim().toLowerCase();
                   const isDraft = flag === "draft";
@@ -1900,20 +1909,20 @@ export default function WarehouseInventoryPage() {
                       <td>{record.created_at ? moment(record.created_at).format("D MMM YYYY, HH:mm") : "-"}</td>
                       <td>{record.period || "-"}</td>
                       <td>{opnameWarehouse(record)}</td>
-                      <td>{record.user_name ?? record.created_by ?? (record.userId ? `User #${record.userId}` : "-")}</td>
+                      <td>{record.user_name ?? record.created_by ?? (record.userId ? t("dynamic.userNumber", { id: record.userId }) : "-")}</td>
                       <td style={{ textAlign: "right" }}>{opnameItems(record).length}</td>
                       <td>{opnameStatusBadge(record)}</td>
                       <td style={{ textAlign: "center" }}>
                         <div className="action-btns" style={{ justifyContent: "center" }}>
-                          <button className="btn-icon" title="View Detail" style={{ color: "var(--brand)" }} onClick={() => setHistoryDetail(record)}>
+                          <button className="btn-icon" title={t("wording.viewDetail")} style={{ color: "var(--brand)" }} onClick={() => setHistoryDetail(record)}>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                           </button>
                           {isAdmin && isDraft && (
                             <>
-                              <button className="btn-icon" title="Apply" disabled={isApplyingStockOpname && approvingId === record.id} style={{ color: "var(--green)" }} onClick={() => approveOpname(record)}><IconCheck /></button>
+                              <button className="btn-icon" title={t("wording.apply")} disabled={isApplyingStockOpname && approvingId === record.id} style={{ color: "var(--green)" }} onClick={() => approveOpname(record)}><IconCheck /></button>
                               <button
                                 className="btn-icon delete"
-                                title="Delete"
+                                title={t("wording.delete")}
                                 disabled={isDeletingStockOpname && deletingStockOpnameId === record.id}
                                 onClick={() => deleteOpname(record)}
                               >
@@ -1924,7 +1933,7 @@ export default function WarehouseInventoryPage() {
                           {isAdmin && isDone && (
                             <button
                               className="btn-icon delete"
-                              title="Rollback"
+                              title={t("wording.rollback")}
                               disabled={isRollingBackStockOpname && rollingBackId === record.id}
                               onClick={() => rollbackOpname(record)}
                             >
@@ -1944,23 +1953,24 @@ export default function WarehouseInventoryPage() {
 
       <Modal
         open={Boolean(historyDetail)}
-        title={historyDetail ? `Opname Detail — ${historyDetail.period || `#${historyDetail.id}`}` : "Opname Detail"}
+        title={historyDetail
+          ? t("dynamic.opnameDetail", { period: historyDetail.period || `#${historyDetail.id}` })
+          : t("wording.opnameDetail")}
         onClose={() => setHistoryDetail(null)}
-        footer={<button className="btn-cancel-modal" onClick={() => setHistoryDetail(null)}><IconClose /> Close</button>}
+        footer={<button className="btn-cancel-modal" onClick={() => setHistoryDetail(null)}><IconClose /> {t("wording.close")}</button>}
       >
         {historyDetail && (
           <>
             <p className="confirm-msg" style={{ marginBottom: 10 }}>
-              <strong>{opnameItems(historyDetail).length}</strong> item{opnameItems(historyDetail).length === 1 ? "" : "s"} in <strong>{opnameWarehouse(historyDetail)}</strong>.
+              <strong>{opnameItems(historyDetail).length}</strong> {t("wording.itemInline")}{opnameItems(historyDetail).length === 1 ? "" : t("wording.s")} {t("wording.in")} <strong>{opnameWarehouse(historyDetail)}</strong>.
             </p>
             <p style={{ marginBottom: 12 }}>{opnameStatusBadge(historyDetail)}{historyDetail.remark && <span style={{ color: "var(--text-muted)", fontSize: 12, marginLeft: 8 }}>{historyDetail.remark}</span>}</p>
             {normalizedOpnameStatus(historyDetail) === "REJECTED"
               && getStockOpnameLocalResolution(historyDetail.id) && (
               <p style={{ color: "var(--text-muted)", fontSize: 12, marginBottom: 12 }}>
-                Rejected locally by {getStockOpnameLocalResolution(historyDetail.id)?.resolvedBy}
+                {t("wording.rejectedLocallyBy")} {getStockOpnameLocalResolution(historyDetail.id)?.resolvedBy}
                 {" on "}
-                {moment(getStockOpnameLocalResolution(historyDetail.id)?.resolvedAt).format("D MMM YYYY, HH:mm")}.
-                This current-session override does not replace the API history record.
+                {moment(getStockOpnameLocalResolution(historyDetail.id)?.resolvedAt).format("D MMM YYYY, HH:mm")}{t("wording.thisCurrentSessionOverrideDoesNotReplaceThe")}
               </p>
             )}
             <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 320, overflowY: "auto" }}>
@@ -1993,13 +2003,13 @@ export default function WarehouseInventoryPage() {
             </div>
             {isAdmin && historyDetail.flag?.trim().toLowerCase() === "draft" && (
               <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-                <button className="btn-save-modal" disabled={isApplyingStockOpname} onClick={() => approveOpname(historyDetail)}><IconCheck /> {isApplyingStockOpname ? "Applying…" : "Apply"}</button>
+                <button className="btn-save-modal" disabled={isApplyingStockOpname} onClick={() => approveOpname(historyDetail)}><IconCheck /> {isApplyingStockOpname ? t("wording.applying") : t("wording.apply")}</button>
                 <button
                   className="btn-cancel-modal"
                   disabled={isDeletingStockOpname}
                   onClick={() => deleteOpname(historyDetail)}
                 >
-                  <IconDelete /> {isDeletingStockOpname ? "Deleting…" : "Delete"}
+                  <IconDelete /> {isDeletingStockOpname ? t("wording.deleting") : t("wording.delete")}
                 </button>
               </div>
             )}
@@ -2010,7 +2020,7 @@ export default function WarehouseInventoryPage() {
                   disabled={isRollingBackStockOpname}
                   onClick={() => rollbackOpname(historyDetail)}
                 >
-                  <IconClose /> {isRollingBackStockOpname ? "Rolling back…" : "Rollback"}
+                  <IconClose /> {isRollingBackStockOpname ? t("wording.rollingBack") : t("wording.rollback")}
                 </button>
               </div>
             )}

@@ -4,6 +4,9 @@ import { useSelector } from "react-redux";
 import { initialPricingPlans } from "../data/pricingPlans";
 import { computePlanPrice, planFeatureList } from "../lib/pricingCalc";
 import type { RootState } from "../store/store";
+import { useTranslation } from "react-i18next";
+import { translateApiValue } from "../utils/function";
+
 
 function formatIDR(value: number) {
   return `Rp${Number(value || 0).toLocaleString("id-ID")}`;
@@ -28,6 +31,7 @@ const faqItems = [
 ];
 
 export default function UpgradePage() {
+  const { t } = useTranslation();
   const [requestedPlanId, setRequestedPlanId] = useState<number | null>(null);
   const currentPlan = useSelector((state: RootState) => state.userPlan.data);
   const storagePercentage = Math.min(
@@ -37,22 +41,21 @@ export default function UpgradePage() {
 
   return (
     <>
-      <h1 className="page-title">Upgrade Your Plan</h1>
+      <h1 className="page-title">{t("wording.upgradeYourPlan")}</h1>
       <p className="upgrade-page-intro">
-        Unlock more modules, storage, and AI features for your team. Plan
-        requests are previews until the payment flow is connected.
+        {t("wording.unlockMoreModulesStorageAndAiFeaturesFor")}
       </p>
 
       <div className="card upgrade-current-plan">
-        <div className="section-title">Current Plan</div>
+        <div className="section-title">{t("wording.currentPlan")}</div>
         <p className="upgrade-current-plan-copy">
-          You&apos;re on the <strong>{currentPlan?.plan_name || "Current"}</strong>{" "}
-          plan.
+          {t("wording.youreOnThe")} <strong>{currentPlan?.plan_name || "Current"}</strong>{" "}
+          {t("wording.planInline")}
         </p>
         <div className="upgrade-usage-grid">
           <div>
             <div className="upgrade-usage-heading">
-              <span>Storage used</span>
+              <span>{t("wording.storageUsed")}</span>
               <strong>
                 {currentPlan?.storage_used_readable ?? "—"} /{" "}
                 {currentPlan?.storage_limit_readable ?? "—"}
@@ -69,12 +72,12 @@ export default function UpgradePage() {
             </div>
           </div>
           <div className="upgrade-plan-summary">
-            <span>Billing cycle</span>
-            <strong>{currentPlan?.billing_cycle || "—"}</strong>
+            <span>{t("wording.billingCycle")}</span>
+            <strong>{currentPlan?.billing_cycle ? translateApiValue(currentPlan.billing_cycle) : "—"}</strong>
           </div>
           <div className="upgrade-plan-summary">
-            <span>Plan status</span>
-            <strong>{currentPlan?.status || "—"}</strong>
+            <span>{t("wording.planStatus")}</span>
+            <strong>{currentPlan?.status ? translateApiValue(currentPlan.status) : "—"}</strong>
           </div>
         </div>
       </div>
@@ -91,12 +94,12 @@ export default function UpgradePage() {
               className={`upgrade-plan-card${plan.highlighted ? " highlighted" : ""}`}
             >
               {plan.highlighted && (
-                <span className="upgrade-plan-badge">Most Popular</span>
+                <span className="upgrade-plan-badge">{t("wording.mostPopular")}</span>
               )}
               <div className="upgrade-plan-name">{plan.name}</div>
               <div className="upgrade-plan-desc">{plan.description}</div>
               <div className="upgrade-plan-price">
-                {plan.cycle === "custom" ? "Custom" : formatIDR(price)}
+                {plan.cycle === "custom" ? t("wording.custom") : formatIDR(price)}
                 {plan.cycle !== "custom" && <span>/month</span>}
               </div>
               <ul className="upgrade-plan-features">
@@ -123,9 +126,9 @@ export default function UpgradePage() {
                 onClick={() => setRequestedPlanId(plan.id)}
               >
                 {requested
-                  ? "Request sent — we’ll be in touch"
+                  ? t("wording.requestSentWellBeInTouch")
                   : plan.cycle === "custom"
-                    ? "Contact Sales"
+                    ? t("wording.contactSales")
                     : `Upgrade to ${plan.name}`}
               </button>
             </div>
@@ -134,7 +137,7 @@ export default function UpgradePage() {
       </div>
 
       <div className="card upgrade-faq-card">
-        <div className="section-title">Frequently Asked Questions</div>
+        <div className="section-title">{t("wording.frequentlyAskedQuestions")}</div>
         <div className="upgrade-faq-list">
           {faqItems.map((item) => (
             <div key={item.question}>

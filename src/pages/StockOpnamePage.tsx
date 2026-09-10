@@ -16,6 +16,8 @@ import useGetStockOpname from "../hooks/api/useGetStockOpname";
 import usePostStockOpname from "../hooks/api/usePostStockOpname";
 // import { saveStockOpnameLocalSubmission } from "../lib/stockOpnameSession";
 import { useWarehouseController } from "./lib/useWarehouseController";
+import { useTranslation } from "react-i18next";
+
 
 const GET_ALL_LIMIT = 99999;
 
@@ -27,6 +29,7 @@ function errorMessage(error: unknown, fallback: string) {
 }
 
 export default function StockOpnamePage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { warehouseOptions } = useWarehouseController();
@@ -145,8 +148,8 @@ export default function StockOpnamePage() {
       remark: "",
     },
     validationSchema: Yup.object({
-      period: Yup.string().trim().required("Required"),
-      remark: Yup.string().trim().required("Required"),
+      period: Yup.string().trim().required(t("wording.required")),
+      remark: Yup.string().trim().required(t("wording.required")),
     }),
     validateOnChange: false,
     onSubmit: async (values, { resetForm }) => {
@@ -212,9 +215,9 @@ export default function StockOpnamePage() {
   if (isHistoryLoading && !historyResponse) {
     return (
       <>
-        <h1 className="page-title">Stock Opname</h1>
+        <h1 className="page-title">{t("wording.stockOpname")}</h1>
         <div className="card" style={{ padding: 40, textAlign: "center" }}>
-          Loading stock opname status…
+          {t("wording.loadingStockOpnameStatus")}
         </div>
       </>
     );
@@ -223,12 +226,12 @@ export default function StockOpnamePage() {
   if (isHistoryError && !historyResponse) {
     return (
       <>
-        <h1 className="page-title">Stock Opname</h1>
+        <h1 className="page-title">{t("wording.stockOpname")}</h1>
         <div className="card" style={{ padding: 40, textAlign: "center" }}>
           <p style={{ color: "var(--red)", fontSize: 13, marginBottom: 14 }}>
-            Unable to verify pending stock opname submissions.
+            {t("wording.unableToVerifyPendingStockOpnameSubmissions")}
           </p>
-          <button className="btn-cancel-modal" onClick={() => navigate("/warehouse-inventory?tab=opnamehistory")}>Back to History</button>
+          <button className="btn-cancel-modal" onClick={() => navigate("/warehouse-inventory?tab=opnamehistory")}>{t("wording.backToHistory")}</button>
         </div>
       </>
     );
@@ -237,17 +240,16 @@ export default function StockOpnamePage() {
   if (pendingOpname && !submitted) {
     return (
       <>
-        <h1 className="page-title">Stock Opname</h1>
+        <h1 className="page-title">{t("wording.stockOpname")}</h1>
         <div className="card" style={{ padding: 48, textAlign: "center" }}>
           <p style={{ color: "var(--text-2)", fontSize: 13.5, marginBottom: 16 }}>
-            A stock opname is awaiting approval. A new count cannot be started
-            until the pending submission is resolved.
+            {t("wording.aStockOpnameIsAwaitingApprovalANew")}
           </p>
           <button
             className="btn-save-modal"
             onClick={() => navigate("/warehouse-inventory?tab=opnamehistory")}
           >
-            View Opname History
+            {t("wording.viewOpnameHistory")}
           </button>
         </div>
       </>
@@ -257,19 +259,19 @@ export default function StockOpnamePage() {
   if (submitted) {
     return (
       <>
-        <h1 className="page-title">Stock Opname</h1>
+        <h1 className="page-title">{t("wording.stockOpname")}</h1>
         <div className="card" style={{ padding: 48, textAlign: "center" }}>
           <p style={{ color: "var(--green)", fontWeight: 700, marginBottom: 8 }}>
-            Submitted for approval.
+            {t("wording.submittedForApproval")}
           </p>
           <p style={{ color: "var(--text-muted)", fontSize: 12.5, marginBottom: 16 }}>
-            The submission is Pending. Inventory stock has not been changed yet.
+            {t("wording.theSubmissionIsPendingInventoryStockHasNot")}
           </p>
           <button
             className="btn-save-modal"
             onClick={() => navigate("/warehouse-inventory?tab=opnamehistory")}
           >
-            Go to Opname History
+            {t("wording.goToOpnameHistory")}
           </button>
         </div>
       </>
@@ -279,22 +281,22 @@ export default function StockOpnamePage() {
   if (!started) {
     return (
       <>
-        <h1 className="page-title">Stock Opname</h1>
+        <h1 className="page-title">{t("wording.stockOpname")}</h1>
         <div className="card" style={{ maxWidth: 500 }}>
-          <div className="section-title">Select Warehouse</div>
+          <div className="section-title">{t("wording.selectWarehouse")}</div>
           <p style={{ color: "var(--text-muted)", fontSize: 12.5, marginBottom: 16 }}>
-            Stock opname is counted one warehouse at a time.
+            {t("wording.stockOpnameIsCountedOneWarehouseAtA")}
           </p>
           <div style={{ marginBottom: 16 }}>
             <SearchableSelect
               value={selectedWarehouse}
               onChange={(value) => setSelectedWarehouse(String(value))}
-              placeholder="Choose a warehouse…"
-              searchPlaceholder="Search warehouse…"
+              placeholder={t("wording.chooseAWarehouse")}
+              searchPlaceholder={t("wording.searchWarehouse")}
               options={warehouseOptions.map((warehouse) => ({
                 value: warehouse.value,
                 label: warehouse.label,
-                meta: `${warehouseItemCounts[String(warehouse.value)] ?? 0} items`,
+                meta: t("dynamic.itemCount", { count: warehouseItemCounts[String(warehouse.value)] ?? 0 }),
               }))}
             />
           </div>
@@ -303,7 +305,7 @@ export default function StockOpnamePage() {
             disabled={!selectedWarehouse}
             onClick={startCounting}
           >
-            <IconCheck /> Start Counting
+            <IconCheck /> {t("wording.startCounting")}
           </button>
         </div>
       </>
@@ -312,7 +314,7 @@ export default function StockOpnamePage() {
 
   return (
     <>
-      <h1 className="page-title">Stock Opname — {selectedWarehouseLabel}</h1>
+      <h1 className="page-title">{t("wording.stockOpnameTitle")} {selectedWarehouseLabel}</h1>
       <div className="card">
         <div className="toolbar">
           <div className="toolbar-left">
@@ -320,7 +322,7 @@ export default function StockOpnamePage() {
               <IconSearch />
               <input
                 className="search-input"
-                placeholder="Search item name…"
+                placeholder={t("wording.searchItemName")}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
               />
@@ -335,7 +337,7 @@ export default function StockOpnamePage() {
                 setConfirmOpen(true);
               }}
             >
-              <IconCheck /> Submit for Approval ({changedRows.length})
+              <IconCheck /> {t("wording.submitForApproval")}{changedRows.length})
             </button>
           </div>
         </div>
@@ -350,30 +352,28 @@ export default function StockOpnamePage() {
             padding: "9px 12px",
           }}
         >
-          Condition and condition notes are retained for review in this browser
-          session. The current API payload persists the counted stock, period,
-          and remark.
+          {t("wording.conditionAndConditionNotesAreRetainedForReview")}
         </p>
 
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Item Name</th>
-                <th style={{ textAlign: "right", width: 100 }}>System Stock</th>
-                <th style={{ textAlign: "right", width: 110 }}>Actual Stock</th>
-                <th style={{ textAlign: "right", width: 80 }}>Variance</th>
-                <th style={{ width: 150 }}>Condition</th>
-                <th>Condition Notes</th>
+                <th>{t("wording.itemName")}</th>
+                <th style={{ textAlign: "right", width: 100 }}>{t("wording.systemStock")}</th>
+                <th style={{ textAlign: "right", width: 110 }}>{t("wording.actualStock")}</th>
+                <th style={{ textAlign: "right", width: 80 }}>{t("wording.variance")}</th>
+                <th style={{ width: 150 }}>{t("wording.condition")}</th>
+                <th>{t("wording.conditionNotes")}</th>
               </tr>
             </thead>
             <tbody>
               {isInventoryLoading ? (
-                <tr><td colSpan={6} style={{ padding: 32, textAlign: "center" }}>Loading items…</td></tr>
+                <tr><td colSpan={6} style={{ padding: 32, textAlign: "center" }}>{t("wording.loadingItems")}</td></tr>
               ) : isInventoryError ? (
-                <tr><td colSpan={6} style={{ color: "var(--red)", padding: 32, textAlign: "center" }}>Unable to load warehouse items.</td></tr>
+                <tr><td colSpan={6} style={{ color: "var(--red)", padding: 32, textAlign: "center" }}>{t("wording.unableToLoadWarehouseItems")}</td></tr>
               ) : !visibleRows.length ? (
-                <tr><td colSpan={6} style={{ color: "var(--text-muted)", padding: 32, textAlign: "center" }}>No items found.</td></tr>
+                <tr><td colSpan={6} style={{ color: "var(--text-muted)", padding: 32, textAlign: "center" }}>{t("wording.noItemsFound")}</td></tr>
               ) : visibleRows.map((row) => {
                 const difference = variance(row);
                 const rowCondition = getCondition(row);
@@ -415,21 +415,21 @@ export default function StockOpnamePage() {
                           className={`condition-btn good${rowCondition === "Good" ? " active" : ""}`}
                           onClick={() => setCondition((current) => ({ ...current, [row.barang_gudang_id]: "Good" }))}
                         >
-                          Good
+                          {t("wording.good")}
                         </button>
                         <button
                           type="button"
                           className={`condition-btn poor${rowCondition === "Poor" ? " active" : ""}`}
                           onClick={() => setCondition((current) => ({ ...current, [row.barang_gudang_id]: "Poor" }))}
                         >
-                          Poor
+                          {t("wording.poor")}
                         </button>
                       </div>
                     </td>
                     <td>
                       {rowCondition === "Poor" && (
                         <input
-                          placeholder="Describe the issue…"
+                          placeholder={t("wording.describeTheIssue")}
                           style={{ width: "100%" }}
                           value={conditionNote[row.barang_gudang_id] ?? ""}
                           onChange={(event) =>
@@ -451,13 +451,13 @@ export default function StockOpnamePage() {
 
       <Modal
         open={confirmOpen}
-        title="Submit Stock Opname for Approval"
+        title={t("wording.submitStockOpnameForApproval")}
         onClose={() => !isSubmitting && setConfirmOpen(false)}
         footer={(
           <>
-            <button className="btn-cancel-modal" disabled={isSubmitting} onClick={() => setConfirmOpen(false)}>Cancel</button>
+            <button className="btn-cancel-modal" disabled={isSubmitting} onClick={() => setConfirmOpen(false)}>{t("wording.cancel")}</button>
             <button className="btn-save-modal" disabled={isSubmitting} onClick={() => formik.handleSubmit()}>
-              <IconCheck /> {isSubmitting ? "Submitting…" : "Submit"}
+              <IconCheck /> {isSubmitting ? t("common.actions.submitting") : t("common.actions.submit")}
             </button>
           </>
         )}
@@ -466,27 +466,27 @@ export default function StockOpnamePage() {
           value={formik.values.period}
           onChange={(value) => formik.setFieldValue("period", value)}
           isRequired
-          label="Period"
-          placeholder="Example: July 2026"
+          label={t("wording.period")}
+          placeholder={t("wording.exampleJuly2026")}
           errorText={formik.errors.period}
         />
         <TextInput
           value={formik.values.remark}
           onChange={(value) => formik.setFieldValue("remark", value)}
           isRequired
-          label="Remark"
-          placeholder="Add a remark"
+          label={t("wording.remark")}
+          placeholder={t("wording.addARemark")}
           errorText={formik.errors.remark}
         />
         <p className="confirm-msg" style={{ marginBottom: 12 }}>
-          <strong>{changedRows.length}</strong> item{changedRows.length === 1 ? "" : "s"} will be submitted as Pending. Stock will not change until an Admin approves it.
+          <strong>{changedRows.length}</strong> {t("wording.itemInline")}{changedRows.length === 1 ? "" : t("wording.s")} {t("wording.willBeSubmittedAsPendingStockWillNot")}
         </p>
         <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 240, overflowY: "auto" }}>
           {changedRows.map((row) => {
             const difference = variance(row);
             return (
               <div key={row.barang_gudang_id} style={{ borderBottom: "1px solid var(--border-2)", display: "flex", fontSize: 12.5, justifyContent: "space-between", padding: "6px 0" }}>
-                <span>{row.nama_barang}{getCondition(row) === "Poor" && <span className="badge badge-red" style={{ fontSize: 10, marginLeft: 6 }}>Poor</span>}</span>
+                <span>{row.nama_barang}{getCondition(row) === "Poor" && <span className="badge badge-red" style={{ fontSize: 10, marginLeft: 6 }}>{t("wording.poor")}</span>}</span>
                 <strong>{row.stok_gudang} → {getActual(row)} ({difference > 0 ? "+" : ""}{difference})</strong>
               </div>
             );

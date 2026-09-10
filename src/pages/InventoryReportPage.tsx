@@ -9,12 +9,14 @@ import useGetBarangGudang, {
 import useGetInventoryReportSummary from "../hooks/api/useGetInventoryReportSummary";
 import { useCategoryController } from "./lib/useCategoryController";
 import SearchableSelect from "../components/SearchableSelect";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
 
 const PAGE_SIZE = 10;
-const STATUS_OPTIONS: Array<{ label: string; value: BarangGudangStatus }> = [
-  { label: "Available", value: "SAFE" },
-  { label: "Low Stock", value: "WARNING" },
-  { label: "Out of Stock", value: "CRITICAL" },
+const STATUS_OPTIONS: Array<{ labelKey: string; value: BarangGudangStatus }> = [
+  { labelKey: "common.status.available", value: "SAFE" },
+  { labelKey: "common.status.lowStock", value: "WARNING" },
+  { labelKey: "common.status.outOfStock", value: "CRITICAL" },
 ];
 
 function normalizeStatus(item: BarangGudangItem): BarangGudangStatus {
@@ -28,7 +30,8 @@ function normalizeStatus(item: BarangGudangItem): BarangGudangStatus {
 }
 
 function statusLabel(status: BarangGudangStatus) {
-  return STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
+  const labelKey = STATUS_OPTIONS.find((option) => option.value === status)?.labelKey;
+  return labelKey ? i18n.t(labelKey) : status;
 }
 
 function stockBadgeClass(status: BarangGudangStatus) {
@@ -46,6 +49,7 @@ function EmptySummary({ children }: { children: string }) {
 }
 
 export default function InventoryReportPage() {
+  const { t } = useTranslation();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
@@ -110,45 +114,45 @@ export default function InventoryReportPage() {
   return (
     <>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18, flexWrap: "wrap", gap: 10 }}>
-        <h1 className="page-title" style={{ margin: 0 }}>Inventory Report</h1>
-        <button className="btn-print" onClick={() => window.print()}><IconPrint /> Print Report</button>
+        <h1 className="page-title" style={{ margin: 0 }}>{t("wording.inventoryReport")}</h1>
+        <button className="btn-print" onClick={() => window.print()}><IconPrint /> {t("wording.printReport")}</button>
       </div>
 
       <div className="kpi-grid" style={{ marginBottom: 22 }}>
         <div className="kpi-card brand-accent">
-          <div className="kpi-label">Total SKU</div>
+          <div className="kpi-label">{t("wording.totalSku")}</div>
           <div className="kpi-value">{summaryValue(summary?.total_sku)}</div>
-          <div className="kpi-sub">registered item types</div>
+          <div className="kpi-sub">{t("wording.registeredItemTypes")}</div>
         </div>
         <div className="kpi-card green-accent">
-          <div className="kpi-label">Total Stock</div>
+          <div className="kpi-label">{t("wording.totalStock")}</div>
           <div className="kpi-value">{summaryValue(summary?.total_stock)}</div>
-          <div className="kpi-sub">units across all warehouses</div>
+          <div className="kpi-sub">{t("wording.unitsAcrossAllWarehouses")}</div>
         </div>
         <div className="kpi-card orange-accent">
-          <div className="kpi-label">Low Stock</div>
+          <div className="kpi-label">{t("wording.lowStock")}</div>
           <div className="kpi-value">{summaryValue(summary?.low_stock)}</div>
-          <div className="kpi-sub">need immediate restocking</div>
+          <div className="kpi-sub">{t("wording.needImmediateRestocking")}</div>
         </div>
         <div className="kpi-card red-accent">
-          <div className="kpi-label">Out of Stock</div>
+          <div className="kpi-label">{t("wording.outOfStock")}</div>
           <div className="kpi-value">{summaryValue(summary?.out_of_stock)}</div>
-          <div className="kpi-sub">completely out of stock</div>
+          <div className="kpi-sub">{t("wording.completelyOutOfStock")}</div>
         </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 18, marginBottom: 22 }}>
         <div className="card">
-          <div className="section-title">Stock by Category</div>
+          <div className="section-title">{t("wording.stockByCategory")}</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {isSummaryLoading ? <EmptySummary>Loading summary…</EmptySummary>
-              : isSummaryError ? <EmptySummary>Unable to load summary.</EmptySummary>
-                : !categoryBreakdown.length ? <EmptySummary>No category data available.</EmptySummary>
+            {isSummaryLoading ? <EmptySummary>{t("wording.loadingSummary")}</EmptySummary>
+              : isSummaryError ? <EmptySummary>{t("wording.unableToLoadSummary")}</EmptySummary>
+                : !categoryBreakdown.length ? <EmptySummary>{t("wording.noCategoryDataAvailable")}</EmptySummary>
                   : categoryBreakdown.map((item) => (
                     <div key={item.category_id}>
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
                         <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-2)" }}>
-                          {item.category} <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>({item.sku_count} SKU)</span>
+                          {item.category} <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>({item.sku_count} {t("wording.skuText")}</span>
                         </span>
                         <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text)" }}>{item.total_stock.toLocaleString("en-US")}</span>
                       </div>
@@ -161,16 +165,16 @@ export default function InventoryReportPage() {
         </div>
 
         <div className="card">
-          <div className="section-title">Stock by Warehouse</div>
+          <div className="section-title">{t("wording.stockByWarehouse")}</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {isSummaryLoading ? <EmptySummary>Loading summary…</EmptySummary>
-              : isSummaryError ? <EmptySummary>Unable to load summary.</EmptySummary>
-                : !warehouseBreakdown.length ? <EmptySummary>No warehouse data available.</EmptySummary>
+            {isSummaryLoading ? <EmptySummary>{t("wording.loadingSummary")}</EmptySummary>
+              : isSummaryError ? <EmptySummary>{t("wording.unableToLoadSummary")}</EmptySummary>
+                : !warehouseBreakdown.length ? <EmptySummary>{t("wording.noWarehouseDataAvailable")}</EmptySummary>
                   : warehouseBreakdown.map((item, index) => (
                     <div key={`${item.warehouse}-${index}`}>
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
                         <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-2)" }}>
-                          {item.warehouse} <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>({item.sku_count} SKU)</span>
+                          {item.warehouse} <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>({item.sku_count} {t("wording.skuText")}</span>
                         </span>
                         <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text)" }}>{item.total_stock.toLocaleString("en-US")}</span>
                       </div>
@@ -188,23 +192,29 @@ export default function InventoryReportPage() {
           <div className="toolbar-left">
             <div className="search-wrap">
               <IconSearch />
-              <input className="search-input" type="text" placeholder="Search name or SKU…" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} />
+              <input className="search-input" type="text" placeholder={t("wording.searchNameOrSku")} value={searchInput} onChange={(event) => setSearchInput(event.target.value)} />
             </div>
             <SearchableSelect
               inline
               value={categoryFilter}
               onChange={(value) => { setCategoryFilter(String(value)); setPage(1); }}
-              options={[{ value: "", label: "All Categories" }, ...categoryOptions]}
-              placeholder="All Categories"
-              searchPlaceholder="Search categories…"
+              options={[{ value: "", label: t("wording.allCategories") }, ...categoryOptions]}
+              placeholder={t("wording.allCategories")}
+              searchPlaceholder={t("wording.searchCategories")}
             />
             <SearchableSelect
               inline
               value={statusFilter}
               onChange={(value) => { setStatusFilter(String(value) as BarangGudangStatus | ""); setPage(1); }}
-              options={[{ value: "", label: "All Statuses" }, ...STATUS_OPTIONS]}
-              placeholder="All Statuses"
-              searchPlaceholder="Search statuses…"
+              options={[
+                { value: "", label: t("wording.allStatuses") },
+                ...STATUS_OPTIONS.map((option) => ({
+                  value: option.value,
+                  label: t(option.labelKey),
+                })),
+              ]}
+              placeholder={t("wording.allStatuses")}
+              searchPlaceholder={t("wording.searchStatuses")}
             />
           </div>
         </div>
@@ -213,22 +223,22 @@ export default function InventoryReportPage() {
           <table>
             <thead>
               <tr>
-                <th>Item Name</th>
-                <th style={{ width: 90 }}>SKU</th>
-                <th style={{ width: 110 }}>Category</th>
-                <th style={{ width: 70 }}>Unit</th>
-                <th>Warehouse</th>
-                <th style={{ width: 80, textAlign: "right" }}>Stock</th>
-                <th style={{ width: 120 }}>Status</th>
+                <th>{t("wording.itemName")}</th>
+                <th style={{ width: 90 }}>{t("wording.sku")}</th>
+                <th style={{ width: 110 }}>{t("wording.category")}</th>
+                <th style={{ width: 70 }}>{t("wording.unit")}</th>
+                <th>{t("wording.warehouse")}</th>
+                <th style={{ width: 80, textAlign: "right" }}>{t("wording.stock")}</th>
+                <th style={{ width: 120 }}>{t("wording.status")}</th>
               </tr>
             </thead>
             <tbody>
               {isInventoryLoading && !inventoryRows.length ? (
-                <tr><td colSpan={7} style={{ textAlign: "center", padding: 32, color: "var(--text-muted)" }}>Loading inventory…</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: "center", padding: 32, color: "var(--text-muted)" }}>{t("wording.loadingInventory")}</td></tr>
               ) : isInventoryError ? (
-                <tr><td colSpan={7} style={{ textAlign: "center", padding: 32, color: "var(--red)" }}>Unable to load inventory.</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: "center", padding: 32, color: "var(--red)" }}>{t("wording.unableToLoadInventory")}</td></tr>
               ) : !inventoryRows.length ? (
-                <tr><td colSpan={7} style={{ textAlign: "center", padding: 32, color: "var(--text-muted)" }}>No items found.</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: "center", padding: 32, color: "var(--text-muted)" }}>{t("wording.noItemsFound")}</td></tr>
               ) : inventoryRows.map((item) => {
                 const status = normalizeStatus(item);
                 return (
@@ -246,7 +256,7 @@ export default function InventoryReportPage() {
             </tbody>
           </table>
         </div>
-        <Pagination currentPage={safePage} total={totalRecords} pageSize={PAGE_SIZE} onPage={setPage} label="items" />
+        <Pagination currentPage={safePage} total={totalRecords} pageSize={PAGE_SIZE} onPage={setPage} label={t("wording.itemsInline")} />
       </div>
     </>
   );

@@ -1,4 +1,5 @@
 import moment from "moment";
+import i18n from "../i18n";
 
 export const STORAGE_BOOQABLE = "https://storage-booqable.emi.web.id/booqable/"
 export const noImage =
@@ -32,4 +33,63 @@ export const formatUtcToLocalDateTime = (value?: string) => {
   }
 
   return parsed.local().format("D MMM YYYY, HH:mm");
+};
+
+const API_VALUE_TRANSLATION_KEYS: Record<string, string> = {
+  active: "common.status.active",
+  available: "common.status.available",
+  canceled: "common.status.canceled",
+  cancelled: "common.status.canceled",
+  critical: "common.status.critical",
+  done: "common.status.applied",
+  draft: "common.status.draft",
+  failed: "common.status.failed",
+  inactive: "common.status.inactive",
+  loaned: "common.status.loaned",
+  low_stock: "common.status.lowStock",
+  ongoing: "common.status.ongoing",
+  out_of_stock: "common.status.outOfStock",
+  overdue: "common.status.overdue",
+  paid: "common.status.paid",
+  past: "common.status.past",
+  pending: "common.status.pending",
+  refunded: "common.status.refunded",
+  returned: "common.status.returned",
+  safe: "common.status.safe",
+  suspended: "common.status.suspended",
+  trial: "common.status.trial",
+  upcoming: "common.status.upcoming",
+  warning: "common.status.warning",
+  monthly: "common.billing.monthly",
+  yearly: "common.billing.yearly",
+  custom: "common.billing.custom",
+  admin: "common.roles.admin",
+  employee: "common.roles.employee",
+  owner: "common.roles.owner",
+  superadmin: "common.roles.superadmin",
+};
+
+/** Translate labels returned by the API without changing their payload value. */
+export const translateApiValue = (value?: string | null) => {
+  if (!value) return "-";
+  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  const translationKey = API_VALUE_TRANSLATION_KEYS[normalized];
+  return translationKey ? i18n.t(translationKey) : value;
+};
+
+export const getDateLocale = () => (i18n.resolvedLanguage === "id" ? "id-ID" : "en-GB");
+
+/** Format a date-only API value without introducing a timezone shift. */
+export const formatLocalDate = (value?: string | null) => {
+  if (!value) return "—";
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return value;
+  const [, year, month, day] = match;
+  const date = new Date(Number(year), Number(month) - 1, Number(day));
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat(getDateLocale(), {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(date);
 };

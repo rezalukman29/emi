@@ -22,6 +22,8 @@ import useGetDefaultUnit, {
   type DefaultUnitItem,
 } from "../../hooks/api/useGetDefaultUnit";
 import useUpdateDefaultUnit from "../../hooks/api/useUpdateDefaultUnit";
+import { useTranslation } from "react-i18next";
+
 
 const PAGE_SIZE = 20;
 const TYPES = ["Length", "Weight", "Volume", "Count"];
@@ -50,6 +52,7 @@ function requestErrorMessage(error: unknown, fallback: string) {
 }
 
 export default function DefaultUnitsPage() {
+  const { t } = useTranslation();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [sortCol, setSortCol] = useState(-1);
@@ -87,10 +90,10 @@ export default function DefaultUnitsPage() {
   const formik = useFormik<DefaultUnitForm>({
     initialValues: emptyForm(),
     validationSchema: Yup.object({
-      name: Yup.string().trim().required("Unit name is required."),
-      abbreviation: Yup.string().trim().required("Abbreviation is required."),
-      type: Yup.string().oneOf(TYPES).required("Type is required."),
-      isActive: Yup.string().oneOf(["0", "1"]).required("Status is required."),
+      name: Yup.string().trim().required(t("wording.unitNameIsRequired")),
+      abbreviation: Yup.string().trim().required(t("wording.abbreviationIsRequired")),
+      type: Yup.string().oneOf(TYPES).required(t("wording.typeIsRequired")),
+      isActive: Yup.string().oneOf(["0", "1"]).required(t("wording.statusIsRequired")),
     }),
     onSubmit: async (values, { resetForm }) => {
       const payload = {
@@ -113,7 +116,7 @@ export default function DefaultUnitsPage() {
         toast(
           requestErrorMessage(
             error,
-            editingId ? "Failed to update default unit." : "Failed to create default unit.",
+            editingId ? t("wording.failedToUpdateDefaultUnit") : t("wording.failedToCreateDefaultUnit"),
           ),
           { type: "error" },
         );
@@ -219,16 +222,16 @@ export default function DefaultUnitsPage() {
   return (
     <>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-        <h1 className="page-title" style={{ margin: 0 }}>Default Units</h1>
-        <button className="btn-new" onClick={openNew}><IconPlus /> New Unit</button>
+        <h1 className="page-title" style={{ margin: 0 }}>{t("wording.defaultUnits")}</h1>
+        <button className="btn-new" onClick={openNew}><IconPlus /> {t("wording.newUnit")}</button>
       </div>
-      <p className="summary-text">Template measurement units (e.g. cm, m, kg) offered to every new customer.</p>
+      <p className="summary-text">{t("wording.templateMeasurementUnitsEGCmMKg")}</p>
 
       <div className="stats-bar" style={{ gridTemplateColumns: "repeat(3,1fr)" }}>
         {[
-          { label: "Total Units", value: stats?.total ?? 0, color: "var(--brand)", bg: "var(--brand-bg)" },
-          { label: "Active", value: stats?.active ?? 0, color: "var(--green)", bg: "var(--green-bg)" },
-          { label: "Customers Using", value: stats?.customers_using ?? 0, color: "var(--purple)", bg: "var(--purple-bg)" },
+          { label: t("wording.totalUnits"), value: stats?.total ?? 0, color: "var(--brand)", bg: "var(--brand-bg)" },
+          { label: t("wording.active"), value: stats?.active ?? 0, color: "var(--green)", bg: "var(--green-bg)" },
+          { label: t("wording.customersUsing"), value: stats?.customers_using ?? 0, color: "var(--purple)", bg: "var(--purple-bg)" },
         ].map((stat) => (
           <div key={stat.label} className="stat-card">
             <div className="stat-icon" style={{ background: stat.bg }}>
@@ -247,14 +250,14 @@ export default function DefaultUnitsPage() {
               <input
                 className="search-input"
                 type="text"
-                placeholder="Search unit…"
+                placeholder={t("wording.searchUnit")}
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
               />
             </div>
           </div>
           <div className="toolbar-right">
-            <button className="btn-new" onClick={openNew}><IconPlus /> New</button>
+            <button className="btn-new" onClick={openNew}><IconPlus /> {t("wording.new")}</button>
           </div>
         </div>
 
@@ -262,21 +265,21 @@ export default function DefaultUnitsPage() {
           <table>
             <thead>
               <tr>
-                <SortTh label="Name" colIndex={0} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} />
-                <SortTh label="Abbreviation" colIndex={1} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 110 }} />
-                <th style={{ width: 100 }}>Type</th>
-                <SortTh label="Customers Using" colIndex={3} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 150, textAlign: "right" }} />
-                <th style={{ width: 100 }}>Status</th>
-                <th style={{ width: 100, textAlign: "center" }}>Action</th>
+                <SortTh label={t("wording.name")} colIndex={0} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} />
+                <SortTh label={t("wording.abbreviation")} colIndex={1} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 110 }} />
+                <th style={{ width: 100 }}>{t("wording.type")}</th>
+                <SortTh label={t("wording.customersUsing")} colIndex={3} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 150, textAlign: "right" }} />
+                <th style={{ width: 100 }}>{t("wording.status")}</th>
+                <th style={{ width: 100, textAlign: "center" }}>{t("wording.action")}</th>
               </tr>
             </thead>
             <tbody>
               {isUnitsLoading && !unitData ? (
-                <tr><td colSpan={6} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>Loading units…</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>{t("wording.loadingUnits")}</td></tr>
               ) : isUnitsError ? (
-                <tr><td colSpan={6} style={{ textAlign: "center", padding: 40, color: "var(--red)" }}>Unable to load units.</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: "center", padding: 40, color: "var(--red)" }}>{t("wording.unableToLoadUnits")}</td></tr>
               ) : !pageData.length ? (
-                <tr><td colSpan={6} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>No units found.</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>{t("wording.noUnitsFound")}</td></tr>
               ) : pageData.map((unit) => (
                 <tr key={unit.id}>
                   <td className="name-cell">{unit.name}</td>
@@ -289,13 +292,13 @@ export default function DefaultUnitsPage() {
                   <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>{unit.customers_using}</td>
                   <td>
                     <span className={`badge badge-${unit.is_active === 1 ? "green" : "gray"}`}>
-                      {unit.is_active === 1 ? "Active" : "Inactive"}
+                      {unit.is_active === 1 ? t("wording.active") : t("wording.inactive")}
                     </span>
                   </td>
                   <td>
                     <div className="action-btns" style={{ justifyContent: "center" }}>
-                      <button className="btn-icon edit" title="Edit" onClick={() => openEdit(unit)}><IconEdit /></button>
-                      <button className="btn-icon delete" title="Delete" onClick={() => openDelete(unit.id)}><IconDelete /></button>
+                      <button className="btn-icon edit" title={t("wording.edit")} onClick={() => openEdit(unit)}><IconEdit /></button>
+                      <button className="btn-icon delete" title={t("wording.delete")} onClick={() => openDelete(unit.id)}><IconDelete /></button>
                     </div>
                   </td>
                 </tr>
@@ -303,18 +306,18 @@ export default function DefaultUnitsPage() {
             </tbody>
           </table>
         </div>
-        <Pagination currentPage={safePage} total={total} pageSize={PAGE_SIZE} onPage={setPage} label="units" />
+        <Pagination currentPage={safePage} total={total} pageSize={PAGE_SIZE} onPage={setPage} label={t("wording.units")} />
       </div>
 
       <Modal
         open={modalOpen}
-        title={editingId ? "Edit Unit" : "New Unit"}
+        title={editingId ? t("wording.editUnit") : t("wording.newUnit")}
         onClose={closeUnitModal}
         footer={(
           <>
-            <button className="btn-cancel-modal" disabled={isSaving} onClick={closeUnitModal}><IconClose /> Cancel</button>
+            <button className="btn-cancel-modal" disabled={isSaving} onClick={closeUnitModal}><IconClose /> {t("wording.cancel")}</button>
             <button className="btn-save-modal" disabled={isSaving} onClick={() => formik.handleSubmit()}>
-              <IconCheck /> {isSaving ? "Saving…" : "Save"}
+              <IconCheck /> {isSaving ? t("common.actions.saving") : t("common.actions.save")}
             </button>
           </>
         )}
@@ -325,8 +328,8 @@ export default function DefaultUnitsPage() {
             value={formik.values.name}
             onChange={(value) => formik.setFieldValue("name", value)}
             isRequired
-            label="Unit Name"
-            placeholder="e.g. Centimeter"
+            label={t("wording.unitName")}
+            placeholder={t("wording.eGCentimeter")}
             errorText={formik.touched.name ? formik.errors.name : undefined}
           />
           <TextInput
@@ -334,33 +337,33 @@ export default function DefaultUnitsPage() {
             value={formik.values.abbreviation}
             onChange={(value) => formik.setFieldValue("abbreviation", value)}
             isRequired
-            label="Abbreviation"
-            placeholder="e.g. cm"
+            label={t("wording.abbreviation")}
+            placeholder={t("wording.eGCm")}
             errorText={formik.touched.abbreviation ? formik.errors.abbreviation : undefined}
           />
         </div>
         <div className="form-row">
           <div className="form-group">
-            <label>Type <span style={{ color: "var(--red)" }}>*</span></label>
+            <label>{t("wording.type")} <span style={{ color: "var(--red)" }}>*</span></label>
             <SearchableSelect
               value={formik.values.type}
               onChange={(value) => formik.setFieldValue("type", String(value))}
               options={TYPES.map((type) => ({ value: type, label: type }))}
-              placeholder="Select type…"
-              searchPlaceholder="Search types…"
+              placeholder={t("wording.selectType")}
+              searchPlaceholder={t("wording.searchTypes")}
               errorText={formik.touched.type ? formik.errors.type : undefined}
             />
           </div>
           <div className="form-group">
-            <label>Status <span style={{ color: "var(--red)" }}>*</span></label>
+            <label>{t("wording.status")} <span style={{ color: "var(--red)" }}>*</span></label>
             <SearchableSelect
               value={formik.values.isActive}
               onChange={(value) => formik.setFieldValue("isActive", String(value))}
               options={[
-                { value: "1", label: "Active" },
-                { value: "0", label: "Inactive" },
+                { value: "1", label: t("wording.active") },
+                { value: "0", label: t("wording.inactive") },
               ]}
-              placeholder="Select status…"
+              placeholder={t("wording.selectStatus")}
               errorText={formik.touched.isActive ? formik.errors.isActive : undefined}
             />
           </div>
@@ -369,19 +372,19 @@ export default function DefaultUnitsPage() {
 
       <Modal
         open={deleteOpen}
-        title="Delete Unit"
+        title={t("wording.deleteUnit")}
         onClose={() => { if (!isDeleting) setDeleteOpen(false); }}
         footer={(
           <>
-            <button className="btn-cancel-modal" disabled={isDeleting} onClick={() => setDeleteOpen(false)}>Cancel</button>
+            <button className="btn-cancel-modal" disabled={isDeleting} onClick={() => setDeleteOpen(false)}>{t("wording.cancel")}</button>
             <button className="btn-del-ok" disabled={isDeleting} onClick={confirmDelete}>
-              {isDeleting ? "Deleting…" : "Delete"}
+              {isDeleting ? t("common.actions.deleting") : t("common.actions.delete")}
             </button>
           </>
         )}
       >
         <p className="confirm-msg">
-          Are you sure you want to delete <strong>&ldquo;{deleteTarget?.name}&rdquo;</strong>? This action cannot be undone.
+          {t("wording.areYouSureYouWantToDelete")} <strong>&ldquo;{deleteTarget?.name}&rdquo;</strong>{t("wording.thisActionCannotBeUndone")}
         </p>
       </Modal>
     </>

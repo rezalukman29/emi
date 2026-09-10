@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { IconGrid, IconUsers, IconCreditCard, IconTag, IconLayers, IconRuler } from './icons';
 
 const SECTIONS = [
@@ -21,12 +22,30 @@ const SECTIONS = [
   },
 ];
 
+const SECTION_TRANSLATION_KEYS = {
+  'Owner Panel': 'navigation.sections.ownerPanel',
+  CMS: 'navigation.sections.cms',
+};
+
+const ITEM_TRANSLATION_KEYS = {
+  Dashboard: 'navigation.items.dashboard',
+  Customers: 'navigation.items.customers',
+  Users: 'navigation.items.users',
+  Payments: 'navigation.items.payments',
+  'Pricing Plans': 'navigation.items.pricingPlans',
+  'Default Categories': 'navigation.items.defaultCategories',
+  'Default Units': 'navigation.items.defaultUnits',
+};
+
 export default function SuperAdminSidebar({ visible }) {
+  const { t } = useTranslation();
   return (
     <nav className="sidebar" style={visible ? {} : { display: 'none' }}>
       {SECTIONS.map(section => (
         <div key={section.label} className="sidebar-section">
-          <div className="sidebar-section-label">{section.label}</div>
+          <div className="sidebar-section-label">
+            {t(SECTION_TRANSLATION_KEYS[section.label] ?? section.label)}
+          </div>
           {section.items.map(({ to, label, icon }) => (
             <NavLink
               key={to}
@@ -34,12 +53,12 @@ export default function SuperAdminSidebar({ visible }) {
               className={({ isActive }) => 'nav-item' + (isActive ? ' active' : '')}
             >
               {icon}
-              <span>{label}</span>
+              <span>{t(ITEM_TRANSLATION_KEYS[label] ?? label)}</span>
             </NavLink>
           ))}
         </div>
       ))}
-      <div className="sidebar-version">SaaS Owner</div>
+      <div className="sidebar-version">{t('navigation.saasOwner')}</div>
     </nav>
   );
 }

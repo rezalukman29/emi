@@ -13,6 +13,9 @@ import usePostRegister from "../hooks/api/usePostRegister";
 import usePutUser from "../hooks/api/usePutUser";
 import useDeleteUser from "../hooks/api/useDeleteUser";
 import SearchableSelect from "../components/SearchableSelect";
+import { useTranslation } from "react-i18next";
+import { translateApiValue } from "../utils/function";
+
 
 const PAGE_SIZE = 10;
 const ROLES = ["ADMIN", "EMPLOYEE"] as const;
@@ -31,12 +34,12 @@ function emptyForm(): UserForm {
   return { fullname: "", email: "", password: "", user_type: "EMPLOYEE", status: "active" };
 }
 
-function roleLabel(userType: string): "Admin" | "Staff" {
-  return userType.toUpperCase() === "ADMIN" ? "Admin" : "Staff";
+function roleLabel(userType: string) {
+  return translateApiValue(userType);
 }
 
 function roleBadgeClass(role: string) {
-  return role === "Admin" ? "badge-purple" : "badge-blue";
+  return role.toUpperCase() === "ADMIN" ? "badge-purple" : "badge-blue";
 }
 
 function displayName(user: UserListItem) {
@@ -75,6 +78,7 @@ function Avatar({ name }: { name: string }) {
 }
 
 export default function UsersPage() {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -122,11 +126,11 @@ export default function UsersPage() {
   const userFormik = useFormik<UserForm>({
     initialValues: emptyForm(),
     validationSchema: Yup.object({
-      fullname: Yup.string().trim().required("Required"),
-      email: Yup.string().trim().email("Invalid email address").required("Required"),
-      password: Yup.string().required("Required"),
-      user_type: Yup.string().oneOf(ROLES).required("Required"),
-      status: Yup.string().required("Required"),
+      fullname: Yup.string().trim().required(t("wording.required")),
+      email: Yup.string().trim().email("Invalid email address").required(t("wording.required")),
+      password: Yup.string().required(t("wording.required")),
+      user_type: Yup.string().oneOf(ROLES).required(t("wording.required")),
+      status: Yup.string().required(t("wording.required")),
     }),
     validateOnChange: false,
     onSubmit: async (values, { resetForm }) => {
@@ -151,8 +155,8 @@ export default function UsersPage() {
           error instanceof Error
             ? error.message
             : editingUser
-              ? "Failed to update user."
-              : "Failed to add user.",
+              ? t("wording.failedToUpdateUser")
+              : t("wording.failedToAddUser"),
           { type: "error" },
         );
       }
@@ -210,7 +214,7 @@ export default function UsersPage() {
       await refetchUsers();
     } catch (error) {
       toast(
-        error instanceof Error ? error.message : "Failed to delete user.",
+        error instanceof Error ? error.message : t("wording.failedToDeleteUser"),
         { type: "error" },
       );
     }
@@ -219,15 +223,15 @@ export default function UsersPage() {
   return (
     <>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22 }}>
-        <h1 className="page-title" style={{ margin: 0 }}>Users</h1>
-        <button className="btn-new" onClick={openNew}><IconPlus /> New User</button>
+        <h1 className="page-title" style={{ margin: 0 }}>{t("wording.users")}</h1>
+        <button className="btn-new" onClick={openNew}><IconPlus /> {t("wording.newUser")}</button>
       </div>
 
       <div className="stats-bar" style={{ gridTemplateColumns: "repeat(3,1fr)" }}>
         {[
-          { label: "Total Users", value: total, color: "var(--brand)", bg: "var(--brand-bg)" },
-          { label: "Active", value: total, color: "var(--green)", bg: "var(--green-bg)" },
-          { label: "Admins on This Page", value: adminCount, color: "var(--purple)", bg: "var(--purple-bg)" },
+          { label: t("wording.totalUsers"), value: total, color: "var(--brand)", bg: "var(--brand-bg)" },
+          { label: t("wording.active"), value: total, color: "var(--green)", bg: "var(--green-bg)" },
+          { label: t("wording.adminsOnThisPage"), value: adminCount, color: "var(--purple)", bg: "var(--purple-bg)" },
         ].map((stat) => (
           <div key={stat.label} className="stat-card">
             <div className="stat-icon" style={{ background: stat.bg }}>
@@ -246,7 +250,7 @@ export default function UsersPage() {
               <input
                 className="search-input"
                 type="text"
-                placeholder="Search name or email…"
+                placeholder={t("wording.searchNameOrEmail")}
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
               />
@@ -259,16 +263,16 @@ export default function UsersPage() {
                 setPage(1);
               }}
               options={[
-                { value: "", label: "All Roles" },
-                { value: "ADMIN", label: "Admin" },
-                { value: "EMPLOYEE", label: "Staff" },
+                { value: "", label: t("wording.allRoles") },
+                { value: "ADMIN", label: t("wording.admin") },
+                { value: "EMPLOYEE", label: t("wording.staff") },
               ]}
-              placeholder="All Roles"
-              searchPlaceholder="Search roles…"
+              placeholder={t("wording.allRoles")}
+              searchPlaceholder={t("wording.searchRoles")}
             />
           </div>
           <div className="toolbar-right">
-            <button className="btn-new" onClick={openNew}><IconPlus /> New</button>
+            <button className="btn-new" onClick={openNew}><IconPlus /> {t("wording.new")}</button>
           </div>
         </div>
 
@@ -276,21 +280,21 @@ export default function UsersPage() {
           <table>
             <thead>
               <tr>
-                <SortTh label="Name" id="fullname" sortCol={sortBy} sortAsc={sortDir === "asc"} onSort={handleSort} />
-                <SortTh label="Email" id="email" sortCol={sortBy} sortAsc={sortDir === "asc"} onSort={handleSort} style={{ minWidth: 190 }} />
-                <SortTh label="Role" id="user_type" sortCol={sortBy} sortAsc={sortDir === "asc"} onSort={handleSort} style={{ width: 110 }} />
-                <th style={{ width: 100 }}>Status</th>
-                <th style={{ width: 140 }}>Last Active</th>
-                <th style={{ width: 100, textAlign: "center" }}>Actions</th>
+                <SortTh label={t("wording.name")} id="fullname" sortCol={sortBy} sortAsc={sortDir === "asc"} onSort={handleSort} />
+                <SortTh label={t("wording.email")} id="email" sortCol={sortBy} sortAsc={sortDir === "asc"} onSort={handleSort} style={{ minWidth: 190 }} />
+                <SortTh label={t("wording.role")} id="user_type" sortCol={sortBy} sortAsc={sortDir === "asc"} onSort={handleSort} style={{ width: 110 }} />
+                <th style={{ width: 100 }}>{t("wording.status")}</th>
+                <th style={{ width: 140 }}>{t("wording.lastActive")}</th>
+                <th style={{ width: 100, textAlign: "center" }}>{t("wording.actions")}</th>
               </tr>
             </thead>
             <tbody>
               {isLoading && users.length === 0 ? (
-                <tr><td colSpan={6} style={{ textAlign: "center", padding: 32 }}>Loading users…</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: "center", padding: 32 }}>{t("wording.loadingUsers")}</td></tr>
               ) : isError ? (
-                <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--red)", padding: 32 }}>Failed to load users.</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--red)", padding: 32 }}>{t("wording.failedToLoadUsers")}</td></tr>
               ) : users.length === 0 ? (
-                <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--text-muted)", padding: 32 }}>No users found.</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--text-muted)", padding: 32 }}>{t("wording.noUsersFound")}</td></tr>
               ) : (
                 users.map((user) => {
                   const name = displayName(user);
@@ -304,13 +308,13 @@ export default function UsersPage() {
                         </div>
                       </td>
                       <td style={{ color: "var(--text-2)" }}>{user.email || "-"}</td>
-                      <td><span className={`badge ${roleBadgeClass(role)}`}>{role}</span></td>
-                      <td><span className="badge badge-green">Active</span></td>
+                      <td><span className={`badge ${roleBadgeClass(user.user_type)}`}>{role}</span></td>
+                      <td><span className="badge badge-green">{t("wording.active")}</span></td>
                       <td style={{ color: "var(--text-muted)", fontSize: "12.5px" }}>-</td>
                       <td>
                         <div className="action-btns" style={{ justifyContent: "center" }}>
-                          <button className="btn-icon edit" title="Edit" onClick={() => openEdit(user)}><IconEdit /></button>
-                          <button className="btn-icon delete" title="Delete" onClick={() => openDelete(user)}><IconDelete /></button>
+                          <button className="btn-icon edit" title={t("wording.edit")} onClick={() => openEdit(user)}><IconEdit /></button>
+                          <button className="btn-icon delete" title={t("wording.delete")} onClick={() => openDelete(user)}><IconDelete /></button>
                         </div>
                       </td>
                     </tr>
@@ -326,47 +330,47 @@ export default function UsersPage() {
           total={total}
           pageSize={PAGE_SIZE}
           onPage={(nextPage: number) => setPage(nextPage)}
-          label="users"
+          label={t("wording.usersInline")}
         />
       </div>
 
       <Modal
         open={modalOpen}
-        title={editingUser ? "Edit User" : "Add User"}
+        title={editingUser ? t("wording.editUser") : t("wording.addUser")}
         onClose={closeUserModal}
         footer={
           <>
-            <button className="btn-cancel-modal" disabled={isSavingUser} onClick={closeUserModal}><IconClose /> Cancel</button>
-            <button className="btn-save-modal" type="submit" disabled={isSavingUser} onClick={() => userFormik.handleSubmit()}><IconCheck /> {isSavingUser ? "Saving…" : "Save"}</button>
+            <button className="btn-cancel-modal" disabled={isSavingUser} onClick={closeUserModal}><IconClose /> {t("wording.cancel")}</button>
+            <button className="btn-save-modal" type="submit" disabled={isSavingUser} onClick={() => userFormik.handleSubmit()}><IconCheck /> {isSavingUser ? t("common.actions.saving") : t("common.actions.save")}</button>
           </>
         }
       >
-        <TextInput value={userFormik.values.fullname} onChange={(value) => userFormik.setFieldValue("fullname", value)} isRequired label="Name" placeholder="Full name" errorText={userFormik.errors.fullname} />
-        <TextInput value={userFormik.values.email} onChange={(value) => userFormik.setFieldValue("email", value)} isRequired inputType="email" label="Email" placeholder="user@example.com" errorText={userFormik.errors.email} />
-        <TextInput value={userFormik.values.password} onChange={(value) => userFormik.setFieldValue("password", value)} isRequired inputType="password" label="Password" placeholder="Enter password" errorText={userFormik.errors.password} />
+        <TextInput value={userFormik.values.fullname} onChange={(value) => userFormik.setFieldValue("fullname", value)} isRequired label={t("wording.name")} placeholder={t("wording.fullName")} errorText={userFormik.errors.fullname} />
+        <TextInput value={userFormik.values.email} onChange={(value) => userFormik.setFieldValue("email", value)} isRequired inputType="email" label={t("wording.email")} placeholder={t("wording.userExampleCom")} errorText={userFormik.errors.email} />
+        <TextInput value={userFormik.values.password} onChange={(value) => userFormik.setFieldValue("password", value)} isRequired inputType="password" label={t("wording.password")} placeholder={t("wording.enterPassword")} errorText={userFormik.errors.password} />
         <div className="form-row">
           <div className="form-group">
-            <label>Role <span style={{ color: "var(--red)" }}>*</span></label>
+            <label>{t("wording.role")} <span style={{ color: "var(--red)" }}>*</span></label>
             <SearchableSelect
               value={userFormik.values.user_type}
               onChange={(value) => userFormik.setFieldValue("user_type", String(value) as UserRole)}
-              options={ROLES.map((role) => ({ value: role, label: role }))}
-              placeholder="Select a role"
-              searchPlaceholder="Search roles…"
+              options={ROLES.map((role) => ({ value: role, label: translateApiValue(role) }))}
+              placeholder={t("wording.selectARole")}
+              searchPlaceholder={t("wording.searchRoles")}
               errorText={userFormik.errors.user_type}
             />
           </div>
           <div className="form-group">
-            <label>Status <span style={{ color: "var(--red)" }}>*</span></label>
+            <label>{t("wording.status")} <span style={{ color: "var(--red)" }}>*</span></label>
             <SearchableSelect
               value={userFormik.values.status}
               onChange={(value) => userFormik.setFieldValue("status", String(value) as UserStatus)}
               options={[
-                { value: "active", label: "Active" },
-                { value: "inactive", label: "Inactive" },
+                { value: "active", label: t("wording.active") },
+                { value: "inactive", label: t("wording.inactive") },
               ]}
-              placeholder="Select a status"
-              searchPlaceholder="Search statuses…"
+              placeholder={t("wording.selectAStatus")}
+              searchPlaceholder={t("wording.searchStatuses")}
               errorText={userFormik.errors.status}
             />
           </div>
@@ -375,17 +379,17 @@ export default function UsersPage() {
 
       <Modal
         open={deleteOpen}
-        title="Delete User"
+        title={t("wording.deleteUser")}
         onClose={() => { if (!isDeletingUser) { setDeleteOpen(false); setDeletingUser(null); } }}
         footer={
           <>
-            <button className="btn-cancel-modal" disabled={isDeletingUser} onClick={() => { setDeleteOpen(false); setDeletingUser(null); }}>Cancel</button>
-            <button className="btn-del-ok" disabled={isDeletingUser} onClick={confirmDelete}>{isDeletingUser ? "Deleting…" : "Delete"}</button>
+            <button className="btn-cancel-modal" disabled={isDeletingUser} onClick={() => { setDeleteOpen(false); setDeletingUser(null); }}>{t("wording.cancel")}</button>
+            <button className="btn-del-ok" disabled={isDeletingUser} onClick={confirmDelete}>{isDeletingUser ? t("common.actions.deleting") : t("common.actions.delete")}</button>
           </>
         }
       >
         <p className="confirm-msg">
-          Are you sure you want to delete <strong>&ldquo;{deletingUser ? displayName(deletingUser) : ""}&rdquo;</strong>? This action cannot be undone.
+          {t("wording.areYouSureYouWantToDelete")} <strong>&ldquo;{deletingUser ? displayName(deletingUser) : ""}&rdquo;</strong>{t("wording.thisActionCannotBeUndone")}
         </p>
       </Modal>
     </>

@@ -1,6 +1,9 @@
 import { initialPayments } from "../../data/payments";
 import useGetSuperAdminDashboard from "../../hooks/api/useGetSuperAdminDashboard";
 import { customerStatusBadge, formatIDR, paymentStatusBadge } from "../../lib/superAdminUtils";
+import { useTranslation } from "react-i18next";
+import { translateApiValue } from "../../utils/function";
+
 
 function formatSignupDate(value: string) {
   if (!value) return "-";
@@ -14,6 +17,7 @@ function formatSignupDate(value: string) {
 }
 
 export default function DashboardPage() {
+  const { t } = useTranslation();
   const {
     data: dashboardResponse,
     isLoading,
@@ -25,46 +29,46 @@ export default function DashboardPage() {
 
   return (
     <>
-      <h1 className="page-title">Dashboard</h1>
+      <h1 className="page-title">{t("wording.dashboard")}</h1>
 
       <div className="kpi-grid" style={{ marginBottom: 22 }}>
         <div className="kpi-card brand-accent">
-          <div className="kpi-label">Total Customers</div>
+          <div className="kpi-label">{t("wording.totalCustomers")}</div>
           <div className="kpi-value">{dashboard?.total_customers ?? 0}</div>
-          <div className="kpi-sub">{dashboard?.trial_count ?? 0} on trial</div>
+          <div className="kpi-sub">{dashboard?.trial_count ?? 0} {t("wording.onTrial")}</div>
         </div>
         <div className="kpi-card green-accent">
-          <div className="kpi-label">Monthly Recurring Revenue</div>
+          <div className="kpi-label">{t("wording.monthlyRecurringRevenue")}</div>
           <div className="kpi-value" style={{ fontSize: 22 }}>{formatIDR(dashboard?.mrr ?? 0)}</div>
-          <div className="kpi-sub">from {dashboard?.active_subscriptions ?? 0} active accounts</div>
+          <div className="kpi-sub">{t("wording.fromInline")} {dashboard?.active_subscriptions ?? 0} {t("wording.activeAccounts")}</div>
         </div>
         <div className="kpi-card orange-accent">
-          <div className="kpi-label">Active Subscriptions</div>
+          <div className="kpi-label">{t("wording.activeSubscriptions")}</div>
           <div className="kpi-value">{dashboard?.active_subscriptions ?? 0}</div>
-          <div className="kpi-sub">of {dashboard?.total_customers ?? 0} total</div>
+          <div className="kpi-sub">{t("wording.of")} {dashboard?.total_customers ?? 0} {t("wording.total")}</div>
         </div>
         <div className="kpi-card red-accent">
-          <div className="kpi-label">Churn Rate</div>
+          <div className="kpi-label">{t("wording.churnRate")}</div>
           <div className="kpi-value">{dashboard?.churn_rate ?? 0}%</div>
-          <div className="kpi-sub">{dashboard?.canceled_count ?? 0} cancelled accounts</div>
+          <div className="kpi-sub">{dashboard?.canceled_count ?? 0} {t("wording.cancelledAccounts")}</div>
         </div>
       </div>
 
       <div className="sa-dash-grid">
         <div className="card">
-          <div className="section-title">Recent Signups</div>
+          <div className="section-title">{t("wording.recentSignups")}</div>
           <div className="sa-mini-list">
             {isLoading ? (
               <div style={{ textAlign: "center", color: "var(--text-muted)", padding: 24 }}>
-                Loading recent signups…
+                {t("wording.loadingRecentSignups")}
               </div>
             ) : isError ? (
               <div style={{ textAlign: "center", color: "var(--red)", padding: 24 }}>
-                Unable to load recent signups.
+                {t("wording.unableToLoadRecentSignups")}
               </div>
             ) : !recentSignups.length ? (
               <div style={{ textAlign: "center", color: "var(--text-muted)", padding: 24 }}>
-                No recent signups.
+                {t("wording.noRecentSignups")}
               </div>
             ) : recentSignups.map((signup) => (
               <div className="sa-mini-item" key={signup.user_id}>
@@ -76,7 +80,7 @@ export default function DashboardPage() {
                   <div className="sa-mini-sub">{signup.email}</div>
                 </div>
                 <span className={`badge badge-${customerStatusBadge(signup.status.toLowerCase())}`}>
-                  {signup.status}
+                  {translateApiValue(signup.status)}
                 </span>
               </div>
             ))}
@@ -84,7 +88,7 @@ export default function DashboardPage() {
         </div>
 
         <div className="card">
-          <div className="section-title">Recent Payments</div>
+          <div className="section-title">{t("wording.recentPayments")}</div>
           <div className="sa-mini-list">
             {recentPayments.map((payment) => (
               <div className="sa-mini-item" key={payment.id}>
@@ -94,7 +98,7 @@ export default function DashboardPage() {
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <div className="sa-mini-amount">{formatIDR(payment.amount)}</div>
-                  <span className={`badge badge-${paymentStatusBadge(payment.status)}`}>{payment.status}</span>
+                  <span className={`badge badge-${paymentStatusBadge(payment.status)}`}>{translateApiValue(payment.status)}</span>
                 </div>
               </div>
             ))}

@@ -26,36 +26,12 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { utils } from "react-modern-calendar-datepicker";
 import { InventoryService } from "../service/InventoryService";
+import { useTranslation } from "react-i18next";
+import { getDateLocale } from "../utils/function";
 
 const PAGE_SIZE = 8;
-const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-const MONTHS_SHORT = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
+const monthLabel = (month: number, style: "short" | "long" = "short") =>
+  new Intl.DateTimeFormat(getDateLocale(), { month: style }).format(new Date(2020, month, 1));
 
 type EventRecord = Record<string, any> & { id: number };
 
@@ -74,15 +50,15 @@ interface PastEventGroup {
 function fmtRange(start?: string, finish?: string) {
   if (!start || start === "-") return "—";
   const [sy, sm, sd] = start.split("-");
-  const s = `${parseInt(sd)} ${MONTHS_SHORT[parseInt(sm) - 1]} ${sy}`;
+  const s = `${parseInt(sd)} ${monthLabel(parseInt(sm) - 1)} ${sy}`;
   if (!finish || finish === start || finish === "-") return s;
   const [fy, fm, fd] = finish.split("-");
   if (sy === fy && sm === fm)
     return `${parseInt(sd)}–${parseInt(fd)} ${
-      MONTHS_SHORT[parseInt(sm) - 1]
+      monthLabel(parseInt(sm) - 1)
     } ${sy}`;
-  return `${parseInt(sd)} ${MONTHS_SHORT[parseInt(sm) - 1]} – ${parseInt(fd)} ${
-    MONTHS_SHORT[parseInt(fm) - 1]
+  return `${parseInt(sd)} ${monthLabel(parseInt(sm) - 1)} – ${parseInt(fd)} ${
+    monthLabel(parseInt(fm) - 1)
   } ${fy}`;
 }
 
@@ -169,6 +145,7 @@ function CountdownChip({ days }: { days: number | null }) {
 }
 
 export default function EventPage() {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("upcoming");
   const [isModify, setIsModify] = useState(false);
@@ -208,17 +185,17 @@ export default function EventPage() {
       date_event: isModify ? event?.date_event : null,
     },
     validationSchema: Yup.object({
-      name: Yup.string().required("Required"),
-      event_code: Yup.string().required("Required"),
-      description: Yup.string().required("Required"),
-      event_start: Yup.string().required("Required"),
-      event_end: Yup.string().required("Required"),
-      date_event: Yup.string().required("Required"),
-      PIC: Yup.string().required("Required"),
-      status: Yup.number().required("Required"),
-      address: Yup.string().required("Required"),
-      notes: Yup.string().required("Required"),
-      scan_type: Yup.string().required("Required"),
+      name: Yup.string().required(t("wording.required")),
+      event_code: Yup.string().required(t("wording.required")),
+      description: Yup.string().required(t("wording.required")),
+      event_start: Yup.string().required(t("wording.required")),
+      event_end: Yup.string().required(t("wording.required")),
+      date_event: Yup.string().required(t("wording.required")),
+      PIC: Yup.string().required(t("wording.required")),
+      status: Yup.number().required(t("wording.required")),
+      address: Yup.string().required(t("wording.required")),
+      notes: Yup.string().required(t("wording.required")),
+      scan_type: Yup.string().required(t("wording.required")),
     }),
     validateOnChange: false,
     enableReinitialize: true,
@@ -261,16 +238,16 @@ export default function EventPage() {
           throw new Error(
             result.message ||
               (isModify
-                ? "Failed to update event."
-                : "Failed to create event."),
+                ? t("wording.failedToUpdateEvent")
+                : t("wording.failedToCreateEvent")),
           );
         }
 
         toast.success(
           result.message ||
             (isModify
-              ? "Event updated successfully."
-              : "Event created successfully."),
+              ? t("wording.eventUpdatedSuccessfully")
+              : t("wording.eventCreatedSuccessfully")),
         );
         setModalOpen(false);
         formik.resetForm();
@@ -288,8 +265,8 @@ export default function EventPage() {
             (error instanceof Error
               ? error.message
               : isModify
-                ? "Failed to update event."
-                : "Failed to create event."),
+                ? t("wording.failedToUpdateEvent")
+                : t("wording.failedToCreateEvent")),
         );
       }
     },
@@ -359,11 +336,11 @@ export default function EventPage() {
       const [y, m] = (e.event_start || "").split("-");
       const key = `${y}-${m}`;
       if (!map[key])
-        map[key] = { label: `${MONTHS[parseInt(m) - 1]} ${y}`, items: [] };
+        map[key] = { label: `${monthLabel(parseInt(m) - 1, "long")} ${y}`, items: [] };
       map[key].items.push(e);
     });
     return Object.values(map);
-  }, [pastEvents, pastQuery]);
+  }, [pastEvents, pastQuery, i18n.resolvedLanguage]);
 
   const pastFlat = useMemo(
     () => pastEvents?.slice((pastPage - 1) * PAGE_SIZE, pastPage * PAGE_SIZE),
@@ -413,7 +390,7 @@ export default function EventPage() {
       )?.response?.data?.message;
       toast.error(
         apiMessage ||
-          (error instanceof Error ? error.message : "Failed to delete event."),
+          (error instanceof Error ? error.message : t("wording.failedToDeleteEvent")),
       );
     } finally {
       setIsDeleting(false);
@@ -539,14 +516,14 @@ export default function EventPage() {
         >
           <button
             className="btn-icon cart"
-            title="Detail / Cart"
+            title={t("wording.detailCart")}
             onClick={() => navigate(`/event-detail?id=${r.id}`)}
           >
             <IconCart />
           </button>
           <button
             className="btn-icon"
-            title="Summary"
+            title={t("wording.summary")}
             style={{ color: "var(--purple)" }}
             onClick={() => navigate(`/event-summary?id=${r.id}`)}
           >
@@ -555,19 +532,19 @@ export default function EventPage() {
           <div style={{ flex: 1 }} />
           <button
             className="btn-icon edit"
-            title="Edit"
+            title={t("wording.edit")}
             onClick={() => openEdit(r.id)}
           >
             <IconEdit />
           </button>
           <button
             className="btn-icon delete"
-            title="Delete"
+            title={t("wording.delete")}
             onClick={() => onDelete(r.id)}
           >
             <IconDelete />
           </button>
-          <button className="btn-icon history" title="History">
+          <button className="btn-icon history" title={t("wording.history")}>
             <IconHistory />
           </button>
         </div>
@@ -582,7 +559,7 @@ export default function EventPage() {
         : "—";
     const month =
       r.event_start && r.event_start !== "-"
-        ? MONTHS_SHORT[parseInt(r.event_start.split("-")[1]) - 1]
+        ? monthLabel(parseInt(r.event_start.split("-")[1]) - 1)
         : "";
 
     return (
@@ -714,14 +691,14 @@ export default function EventPage() {
         <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
           <button
             className="btn-icon cart"
-            title="Detail / Cart"
+            title={t("wording.detailCart")}
             onClick={() => navigate(`/event-detail?id=${r.id}`)}
           >
             <IconCart />
           </button>
           <button
             className="btn-icon"
-            title="Summary"
+            title={t("wording.summary")}
             style={{ color: "var(--purple)" }}
             onClick={() => navigate(`/event-summary?id=${r.id}`)}
           >
@@ -729,19 +706,19 @@ export default function EventPage() {
           </button>
           <button
             className="btn-icon edit"
-            title="Edit"
+            title={t("wording.edit")}
             onClick={() => onEdit(r.id)}
           >
             <IconEdit />
           </button>
           <button
             className="btn-icon delete"
-            title="Delete"
+            title={t("wording.delete")}
             onClick={() => onDelete(r.id)}
           >
             <IconDelete />
           </button>
-          <button className="btn-icon history" title="History">
+          <button className="btn-icon history" title={t("wording.history")}>
             <IconHistory />
           </button>
         </div>
@@ -761,10 +738,10 @@ export default function EventPage() {
         }}
       >
         <h1 className="page-title" style={{ margin: 0 }}>
-          Event
+          {t("wording.event")}
         </h1>
         <button className="btn-new" onClick={openNew}>
-          <IconPlus /> New Event
+          <IconPlus /> {t("wording.newEvent")}
         </button>
       </div>
 
@@ -779,7 +756,7 @@ export default function EventPage() {
       >
         {[
           {
-            label: "Total Events",
+            label: t("wording.totalEvents"),
             value:
               (upcomings?.data?.total_records ?? 0) +
               (pasts?.data?.total_records ?? 0),
@@ -787,13 +764,13 @@ export default function EventPage() {
             bg: "var(--brand-bg)",
           },
           {
-            label: "Upcoming",
+            label: t("wording.upcoming"),
             value: upcomings?.data?.total_records ?? 0,
             color: "var(--green)",
             bg: "var(--green-bg)",
           },
           {
-            label: "Past Events",
+            label: t("wording.pastEvents"),
             value: pasts?.data?.total_records,
             color: "var(--text-muted)",
             bg: "var(--bg)",
@@ -859,15 +836,15 @@ export default function EventPage() {
         {[
           {
             id: "upcoming",
-            label: "Upcoming",
+            label: t("wording.upcoming"),
             count: upcomings?.data?.total_records,
           },
           {
             id: "past",
-            label: "Past Events",
+            label: t("wording.pastEvents"),
             count: pasts?.data?.total_records,
           },
-          { id: "invite", label: "Invite User", count: null },
+          { id: "invite", label: t("wording.inviteUser"), count: null },
         ].map((t) => (
           <button
             key={t.id}
@@ -927,13 +904,13 @@ export default function EventPage() {
               <input
                 className="search-input"
                 type="text"
-                placeholder="Search events…"
+                placeholder={t("wording.searchEvents")}
                 value={upQuery}
                 onChange={(e) => setUpQuery(e.target.value)}
               />
             </div>
             <button className="btn-print" onClick={() => window.print()}>
-              <IconPrint /> Print
+              <IconPrint /> {t("wording.print")}
             </button>
           </div>
 
@@ -944,8 +921,8 @@ export default function EventPage() {
             >
               <p style={{ fontSize: 14, color: "var(--text-muted)" }}>
                 {upQuery
-                  ? "No events match your search."
-                  : "No upcoming events."}
+                  ? t("wording.noEventsMatchYourSearch")
+                  : t("wording.noUpcomingEvents")}
               </p>
             </div>
           ) : (
@@ -986,7 +963,7 @@ export default function EventPage() {
               <input
                 className="search-input"
                 type="text"
-                placeholder="Search past events…"
+                placeholder={t("wording.searchPastEvents")}
                 value={pastQuery}
                 onChange={(e) => {
                   setPastQuery(e.target.value);
@@ -995,7 +972,7 @@ export default function EventPage() {
               />
             </div>
             <button className="btn-print" onClick={() => window.print()}>
-              <IconPrint /> Print
+              <IconPrint /> {t("wording.print")}
             </button>
           </div>
 
@@ -1005,7 +982,7 @@ export default function EventPage() {
               style={{ padding: "56px 32px", textAlign: "center" }}
             >
               <p style={{ fontSize: 14, color: "var(--text-muted)" }}>
-                {pastQuery ? "No events match your search." : "No past events."}
+                {pastQuery ? t("wording.noEventsMatchYourSearch") : t("wording.noPastEvents")}
               </p>
             </div>
           ) : pastQuery ? (
@@ -1026,7 +1003,7 @@ export default function EventPage() {
                 total={pastEvents.length}
                 pageSize={PAGE_SIZE}
                 onPage={setPastPage}
-                label="events"
+                label={t("wording.events")}
               />
             </>
           ) : (
@@ -1106,10 +1083,10 @@ export default function EventPage() {
               marginBottom: 6,
             }}
           >
-            Invite User
+            {t("wording.inviteUser")}
           </p>
           <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
-            This feature will be available soon
+            {t("wording.thisFeatureWillBeAvailableSoon")}
           </p>
         </div>
       )}
@@ -1117,7 +1094,7 @@ export default function EventPage() {
       {/* Add / Edit Modal */}
       <Modal
         open={modalOpen}
-        title={editingId ? "Edit Event" : "New Event"}
+        title={editingId ? t("wording.editEvent") : t("wording.newEvent")}
         onClose={() => setModalOpen(false)}
         size="xl"
         footer={
@@ -1129,14 +1106,14 @@ export default function EventPage() {
                 formik.resetForm();
               }}
             >
-              <IconClose /> Cancel
+              <IconClose /> {t("wording.cancel")}
             </button>
             <button
               className="btn-save-modal"
               onClick={() => formik.handleSubmit()}
               type="button"
             >
-              <IconCheck /> Save Event
+              <IconCheck /> {t("wording.saveEvent")}
             </button>
           </>
         }
@@ -1147,8 +1124,8 @@ export default function EventPage() {
             value={formik.values.name}
             onChange={(value) => formik.setFieldValue("name", value)}
             isRequired
-            label="Event Name"
-            placeholder="Enter event name"
+            label={t("wording.eventName")}
+            placeholder={t("wording.enterEventName")}
             errorText={formik.errors.name as string}
           />
           <div style={{ maxWidth: 120, flex: 1 }}>
@@ -1156,8 +1133,8 @@ export default function EventPage() {
               value={formik.values.event_code}
               onChange={(value) => formik.setFieldValue("event_code", value)}
               isRequired
-              label="Code"
-              placeholder="e.g. WB"
+              label={t("wording.code")}
+              placeholder={t("wording.eGWb")}
               errorText={formik.errors.event_code as string}
             />
           </div>
@@ -1166,8 +1143,8 @@ export default function EventPage() {
           value={formik.values.description}
           onChange={(value) => formik.setFieldValue("description", value)}
           isRequired
-          label="Description"
-          placeholder="Short event description"
+          label={t("wording.description")}
+          placeholder={t("wording.shortEventDescription")}
           rows={2}
           errorText={formik.errors.description as string}
         />
@@ -1177,7 +1154,7 @@ export default function EventPage() {
             onChange={(value) => formik.setFieldValue("event_start", value)}
             isRequired
             inputType="date"
-            label="Start Date"
+            label={t("wording.startDate")}
             errorText={formik.errors.event_start ? "Required" : ("" as string)}
           />
           <TextInput
@@ -1185,7 +1162,7 @@ export default function EventPage() {
             onChange={(value) => formik.setFieldValue("event_end", value)}
             isRequired
             inputType="date"
-            label="Finish Date"
+            label={t("wording.finishDate")}
             errorText={formik.errors.event_end ? "Required" : ("" as string)}
           />
         </div>
@@ -1195,7 +1172,7 @@ export default function EventPage() {
             onChange={(value) => formik.setFieldValue("date_event", value)}
             isRequired
             inputType="date"
-            label="Event Date"
+            label={t("wording.eventDate")}
             errorText={formik.errors.date_event as string}
           />
         </div>
@@ -1227,7 +1204,7 @@ export default function EventPage() {
               textTransform: "uppercase",
             }}
           >
-            Details
+            {t("wording.details")}
           </span>
           <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
         </div>
@@ -1236,13 +1213,13 @@ export default function EventPage() {
             value={formik.values.PIC}
             onChange={(value) => formik.setFieldValue("PIC", value)}
             isRequired
-            label="PIC"
-            placeholder="Person in charge"
+            label={t("wording.pic")}
+            placeholder={t("wording.personInCharge")}
             errorText={formik.errors.PIC as string}
           />
           <div className="form-group">
             <label>
-              Status <span style={{ color: "var(--red)" }}>*</span>
+              {t("wording.status")} <span style={{ color: "var(--red)" }}>*</span>
             </label>
             <SearchableSelect
               value={formik.values.status}
@@ -1253,14 +1230,14 @@ export default function EventPage() {
                 )
               }
               options={[
-                { value: "", label: "— Select Status —" },
+                { value: "", label: t("wording.selectStatusOption") },
                 ...(eventStatus?.data?.data ?? []).map((status) => ({
                   value: status.id,
                   label: status.name,
                 })),
               ]}
-              placeholder="— Select Status —"
-              searchPlaceholder="Search statuses…"
+              placeholder={t("wording.selectStatusOption")}
+              searchPlaceholder={t("wording.searchStatuses")}
               errorText={formik.errors.status as string}
             />
           </div>
@@ -1270,13 +1247,13 @@ export default function EventPage() {
             value={formik.values.address}
             onChange={(value) => formik.setFieldValue("address", value)}
             isRequired
-            label="Address"
-            placeholder="Event location / address"
+            label={t("wording.address")}
+            placeholder={t("wording.eventLocationAddress")}
             errorText={formik.errors.address as string}
           />
           <div className="form-group">
             <label>
-              QR Type <span style={{ color: "var(--red)" }}>*</span>
+              {t("wording.qrType")} <span style={{ color: "var(--red)" }}>*</span>
             </label>
             <SearchableSelect
               value={formik.values.scan_type}
@@ -1284,11 +1261,11 @@ export default function EventPage() {
                 formik.setFieldValue("scan_type", String(value))
               }
               options={[
-                { value: "", label: "Select QR Type" },
+                { value: "", label: t("wording.selectQrType") },
                 { value: "GROUP", label: "GROUP" },
                 { value: "INDIVIDUAL", label: "INDIVIDUAL" },
               ]}
-              placeholder="Select QR Type"
+              placeholder={t("wording.selectQrType")}
               errorText={formik.errors.scan_type as string}
             />
           </div>
@@ -1321,7 +1298,7 @@ export default function EventPage() {
               textTransform: "uppercase",
             }}
           >
-            Additional
+            {t("wording.additional")}
           </span>
           <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
         </div>
@@ -1330,13 +1307,13 @@ export default function EventPage() {
             value={formik.values.notes}
             onChange={(value) => formik.setFieldValue("notes", value)}
             isRequired
-            label="Note"
-            placeholder="Any additional notes…"
+            label={t("wording.note")}
+            placeholder={t("wording.anyAdditionalNotes")}
             rows={4}
             errorText={formik.errors.notes as string}
           />
           <div className="form-group">
-            <label>Image</label>
+            <label>{t("wording.image")}</label>
             <input
               ref={imgInputRef}
               type="file"
@@ -1421,7 +1398,7 @@ export default function EventPage() {
                       color: "var(--text)",
                     }}
                   >
-                    Click to upload image
+                    {t("wording.clickToUploadImage")}
                   </span>
                   <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
                     PNG, JPG, GIF up to 10MB
@@ -1442,7 +1419,7 @@ export default function EventPage() {
                   padding: 0,
                 }}
               >
-                Remove image
+                {t("wording.removeImage")}
               </button>
             )}
           </div>
@@ -1452,7 +1429,7 @@ export default function EventPage() {
       {/* Delete confirm modal */}
       <Modal
         open={deleteOpen}
-        title="Delete Event"
+        title={t("wording.deleteEvent")}
         onClose={() => setDeleteOpen(false)}
         footer={
           <>
@@ -1460,20 +1437,20 @@ export default function EventPage() {
               className="btn-cancel-modal"
               onClick={() => setDeleteOpen(false)}
             >
-              Cancel
+              {t("wording.cancel")}
             </button>
             <button
               className="btn-del-ok"
               disabled={isDeleting}
               onClick={confirmDelete}
             >
-              {isDeleting ? "Deleting…" : "Delete"}
+              {isDeleting ? t("common.actions.deleting") : t("common.actions.delete")}
             </button>
           </>
         }
       >
         <p className="confirm-msg">
-          Are you sure you want to delete &ldquo;{delTarget?.name}&rdquo;?
+          {t("wording.areYouSureYouWantToDeletePrefix")}{delTarget?.name}&rdquo;?
         </p>
       </Modal>
     </>

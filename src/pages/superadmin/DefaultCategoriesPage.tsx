@@ -22,6 +22,8 @@ import useGetDefaultCategories, {
   type DefaultCategoryItem,
 } from "../../hooks/api/useGetDefaultCategories";
 import useUpdateDefaultCategory from "../../hooks/api/useUpdateDefaultCategory";
+import { useTranslation } from "react-i18next";
+
 
 const PAGE_SIZE = 20;
 
@@ -47,6 +49,7 @@ function requestErrorMessage(error: unknown, fallback: string) {
 }
 
 export default function DefaultCategoriesPage() {
+  const { t } = useTranslation();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [sortCol, setSortCol] = useState(-1);
@@ -84,9 +87,9 @@ export default function DefaultCategoriesPage() {
   const formik = useFormik<DefaultCategoryForm>({
     initialValues: emptyForm(),
     validationSchema: Yup.object({
-      name: Yup.string().trim().required("Category name is required."),
+      name: Yup.string().trim().required(t("wording.categoryNameIsRequired")),
       description: Yup.string(),
-      isActive: Yup.string().oneOf(["0", "1"]).required("Status is required."),
+      isActive: Yup.string().oneOf(["0", "1"]).required(t("wording.statusIsRequired")),
     }),
     onSubmit: async (values, { resetForm }) => {
       const payload = {
@@ -109,8 +112,8 @@ export default function DefaultCategoriesPage() {
           requestErrorMessage(
             error,
             editingId
-              ? "Failed to update default category."
-              : "Failed to create default category.",
+              ? t("wording.failedToUpdateDefaultCategory")
+              : t("wording.failedToCreateDefaultCategory"),
           ),
           { type: "error" },
         );
@@ -204,16 +207,16 @@ export default function DefaultCategoriesPage() {
   return (
     <>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-        <h1 className="page-title" style={{ margin: 0 }}>Default Categories</h1>
-        <button className="btn-new" onClick={openNew}><IconPlus /> New Category</button>
+        <h1 className="page-title" style={{ margin: 0 }}>{t("wording.defaultCategories")}</h1>
+        <button className="btn-new" onClick={openNew}><IconPlus /> {t("wording.newCategory")}</button>
       </div>
-      <p className="summary-text">Template categories offered to every new customer when their account is provisioned.</p>
+      <p className="summary-text">{t("wording.templateCategoriesOfferedToEveryNewCustomerWhen")}</p>
 
       <div className="stats-bar" style={{ gridTemplateColumns: "repeat(3,1fr)" }}>
         {[
-          { label: "Total Categories", value: stats?.total ?? 0, color: "var(--brand)", bg: "var(--brand-bg)" },
-          { label: "Active", value: stats?.active ?? 0, color: "var(--green)", bg: "var(--green-bg)" },
-          { label: "Customers Using", value: stats?.customers_using ?? 0, color: "var(--purple)", bg: "var(--purple-bg)" },
+          { label: t("wording.totalCategories"), value: stats?.total ?? 0, color: "var(--brand)", bg: "var(--brand-bg)" },
+          { label: t("wording.active"), value: stats?.active ?? 0, color: "var(--green)", bg: "var(--green-bg)" },
+          { label: t("wording.customersUsing"), value: stats?.customers_using ?? 0, color: "var(--purple)", bg: "var(--purple-bg)" },
         ].map((stat) => (
           <div key={stat.label} className="stat-card">
             <div className="stat-icon" style={{ background: stat.bg }}>
@@ -232,14 +235,14 @@ export default function DefaultCategoriesPage() {
               <input
                 className="search-input"
                 type="text"
-                placeholder="Search category…"
+                placeholder={t("wording.searchCategory")}
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
               />
             </div>
           </div>
           <div className="toolbar-right">
-            <button className="btn-new" onClick={openNew}><IconPlus /> New</button>
+            <button className="btn-new" onClick={openNew}><IconPlus /> {t("wording.new")}</button>
           </div>
         </div>
 
@@ -247,20 +250,20 @@ export default function DefaultCategoriesPage() {
           <table>
             <thead>
               <tr>
-                <SortTh label="Name" colIndex={0} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} />
-                <th>Description</th>
-                <SortTh label="Customers Using" colIndex={2} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 150, textAlign: "right" }} />
-                <th style={{ width: 100 }}>Status</th>
-                <th style={{ width: 100, textAlign: "center" }}>Action</th>
+                <SortTh label={t("wording.name")} colIndex={0} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} />
+                <th>{t("wording.description")}</th>
+                <SortTh label={t("wording.customersUsing")} colIndex={2} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 150, textAlign: "right" }} />
+                <th style={{ width: 100 }}>{t("wording.status")}</th>
+                <th style={{ width: 100, textAlign: "center" }}>{t("wording.action")}</th>
               </tr>
             </thead>
             <tbody>
               {isCategoriesLoading && !categoryData ? (
-                <tr><td colSpan={5} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>Loading categories…</td></tr>
+                <tr><td colSpan={5} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>{t("wording.loadingCategories")}</td></tr>
               ) : isCategoriesError ? (
-                <tr><td colSpan={5} style={{ textAlign: "center", padding: 40, color: "var(--red)" }}>Unable to load categories.</td></tr>
+                <tr><td colSpan={5} style={{ textAlign: "center", padding: 40, color: "var(--red)" }}>{t("wording.unableToLoadCategories")}</td></tr>
               ) : !pageData.length ? (
-                <tr><td colSpan={5} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>No categories found.</td></tr>
+                <tr><td colSpan={5} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>{t("wording.noCategoriesFound")}</td></tr>
               ) : pageData.map((category) => (
                 <tr key={category.id}>
                   <td className="name-cell">{category.name}</td>
@@ -272,13 +275,13 @@ export default function DefaultCategoriesPage() {
                   </td>
                   <td>
                     <span className={`badge badge-${category.is_active === 1 ? "green" : "gray"}`}>
-                      {category.is_active === 1 ? "Active" : "Inactive"}
+                      {category.is_active === 1 ? t("wording.active") : t("wording.inactive")}
                     </span>
                   </td>
                   <td>
                     <div className="action-btns" style={{ justifyContent: "center" }}>
-                      <button className="btn-icon edit" title="Edit" onClick={() => openEdit(category)}><IconEdit /></button>
-                      <button className="btn-icon delete" title="Delete" onClick={() => openDelete(category.id)}><IconDelete /></button>
+                      <button className="btn-icon edit" title={t("wording.edit")} onClick={() => openEdit(category)}><IconEdit /></button>
+                      <button className="btn-icon delete" title={t("wording.delete")} onClick={() => openDelete(category.id)}><IconDelete /></button>
                     </div>
                   </td>
                 </tr>
@@ -286,18 +289,18 @@ export default function DefaultCategoriesPage() {
             </tbody>
           </table>
         </div>
-        <Pagination currentPage={safePage} total={total} pageSize={PAGE_SIZE} onPage={setPage} label="categories" />
+        <Pagination currentPage={safePage} total={total} pageSize={PAGE_SIZE} onPage={setPage} label={t("wording.categories")} />
       </div>
 
       <Modal
         open={modalOpen}
-        title={editingId ? "Edit Category" : "New Category"}
+        title={editingId ? t("wording.editCategory") : t("wording.newCategory")}
         onClose={closeCategoryModal}
         footer={(
           <>
-            <button className="btn-cancel-modal" disabled={isSaving} onClick={closeCategoryModal}><IconClose /> Cancel</button>
+            <button className="btn-cancel-modal" disabled={isSaving} onClick={closeCategoryModal}><IconClose /> {t("wording.cancel")}</button>
             <button className="btn-save-modal" disabled={isSaving} onClick={() => formik.handleSubmit()}>
-              <IconCheck /> {isSaving ? "Saving…" : "Save"}
+              <IconCheck /> {isSaving ? t("common.actions.saving") : t("common.actions.save")}
             </button>
           </>
         )}
@@ -307,28 +310,28 @@ export default function DefaultCategoriesPage() {
           value={formik.values.name}
           onChange={(value) => formik.setFieldValue("name", value)}
           isRequired
-          label="Name"
-          placeholder="e.g. Floral"
+          label={t("wording.name")}
+          placeholder={t("wording.eGFloral")}
           errorText={formik.touched.name ? formik.errors.name : undefined}
         />
         <TextInput
           variant="secondary"
           value={formik.values.description}
           onChange={(value) => formik.setFieldValue("description", value)}
-          label="Description"
-          placeholder="Short description (optional)"
+          label={t("wording.description")}
+          placeholder={t("wording.shortDescriptionOptional")}
           errorText={formik.touched.description ? formik.errors.description : undefined}
         />
         <div className="form-group">
-          <label>Status <span style={{ color: "var(--red)" }}>*</span></label>
+          <label>{t("wording.status")} <span style={{ color: "var(--red)" }}>*</span></label>
           <SearchableSelect
             value={formik.values.isActive}
             onChange={(value) => formik.setFieldValue("isActive", String(value))}
             options={[
-              { value: "1", label: "Active" },
-              { value: "0", label: "Inactive" },
+              { value: "1", label: t("wording.active") },
+              { value: "0", label: t("wording.inactive") },
             ]}
-            placeholder="Select status…"
+            placeholder={t("wording.selectStatus")}
             errorText={formik.touched.isActive ? formik.errors.isActive : undefined}
           />
         </div>
@@ -336,19 +339,19 @@ export default function DefaultCategoriesPage() {
 
       <Modal
         open={deleteOpen}
-        title="Delete Category"
+        title={t("wording.deleteCategory")}
         onClose={() => { if (!isDeleting) setDeleteOpen(false); }}
         footer={(
           <>
-            <button className="btn-cancel-modal" disabled={isDeleting} onClick={() => setDeleteOpen(false)}>Cancel</button>
+            <button className="btn-cancel-modal" disabled={isDeleting} onClick={() => setDeleteOpen(false)}>{t("wording.cancel")}</button>
             <button className="btn-del-ok" disabled={isDeleting} onClick={confirmDelete}>
-              {isDeleting ? "Deleting…" : "Delete"}
+              {isDeleting ? t("common.actions.deleting") : t("common.actions.delete")}
             </button>
           </>
         )}
       >
         <p className="confirm-msg">
-          Are you sure you want to delete <strong>&ldquo;{deleteTarget?.name}&rdquo;</strong>? This action cannot be undone.
+          {t("wording.areYouSureYouWantToDelete")} <strong>&ldquo;{deleteTarget?.name}&rdquo;</strong>{t("wording.thisActionCannotBeUndone")}
         </p>
       </Modal>
     </>

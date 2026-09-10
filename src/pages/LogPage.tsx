@@ -4,6 +4,7 @@ import { IconSearch } from '../components/icons';
 import { initialActivityLogs } from '../data/activityLogs';
 import { TODAY } from '../data/events';
 import SearchableSelect from '../components/SearchableSelect';
+import { useTranslation } from "react-i18next";
 
 const PAGE_SIZE = 10;
 const ACTIONS = ['Login', 'Logout', 'Create', 'Update', 'Delete'];
@@ -22,6 +23,7 @@ function todayIso() {
 }
 
 export default function LogPage() {
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [moduleFilter, setModuleFilter] = useState('');
   const [actionFilter, setActionFilter] = useState('');
@@ -45,13 +47,13 @@ export default function LogPage() {
 
   return (
     <>
-      <h1 className="page-title">Log</h1>
+      <h1 className="page-title">{t("wording.log")}</h1>
 
       <div className="stats-bar" style={{ gridTemplateColumns: 'repeat(3,1fr)' }}>
         {[
-          { label: 'Total Logs',      value: initialActivityLogs.length, color: 'var(--brand)',  bg: 'var(--brand-bg)' },
-          { label: "Today's Activity", value: todayCount,               color: 'var(--green)',  bg: 'var(--green-bg)' },
-          { label: 'Active Users',      value: activeUserCount,            color: 'var(--purple)', bg: 'var(--purple-bg)' },
+          { label: t("wording.totalLogs"),      value: initialActivityLogs.length, color: 'var(--brand)',  bg: 'var(--brand-bg)' },
+          { label: t("wording.todaysActivity"), value: todayCount,               color: 'var(--green)',  bg: 'var(--green-bg)' },
+          { label: t("wording.activeUsers"),      value: activeUserCount,            color: 'var(--purple)', bg: 'var(--purple-bg)' },
         ].map(s => (
           <div key={s.label} className="stat-card">
             <div className="stat-icon" style={{ background: s.bg }}>
@@ -68,7 +70,7 @@ export default function LogPage() {
             <div className="search-wrap">
               <IconSearch />
               <input
-                className="search-input" type="text" placeholder="Search activity or user…"
+                className="search-input" type="text" placeholder={t("wording.searchActivityOrUser")}
                 value={query} onChange={e => { setQuery(e.target.value); setPage(1); }}
               />
             </div>
@@ -77,22 +79,22 @@ export default function LogPage() {
               value={moduleFilter}
               onChange={value => { setModuleFilter(String(value)); setPage(1); }}
               options={[
-                { value: '', label: 'All Modules' },
+                { value: '', label: t("wording.allModules") },
                 ...MODULES.map(module => ({ value: module, label: module })),
               ]}
-              placeholder="All Modules"
-              searchPlaceholder="Search modules…"
+              placeholder={t("wording.allModules")}
+              searchPlaceholder={t("wording.searchModules")}
             />
             <SearchableSelect
               inline
               value={actionFilter}
               onChange={value => { setActionFilter(String(value)); setPage(1); }}
               options={[
-                { value: '', label: 'All Actions' },
+                { value: '', label: t("wording.allActions") },
                 ...ACTIONS.map(action => ({ value: action, label: action })),
               ]}
-              placeholder="All Actions"
-              searchPlaceholder="Search actions…"
+              placeholder={t("wording.allActions")}
+              searchPlaceholder={t("wording.searchActions")}
             />
           </div>
         </div>
@@ -101,16 +103,16 @@ export default function LogPage() {
           <table>
             <thead>
               <tr>
-                <th style={{ width: 140 }}>Time</th>
-                <th style={{ width: 130 }}>User</th>
-                <th style={{ width: 90 }}>Action</th>
-                <th style={{ width: 150 }}>Module</th>
-                <th>Description</th>
+                <th style={{ width: 140 }}>{t("wording.time")}</th>
+                <th style={{ width: 130 }}>{t("wording.user")}</th>
+                <th style={{ width: 90 }}>{t("wording.action")}</th>
+                <th style={{ width: 150 }}>{t("wording.module")}</th>
+                <th>{t("wording.description")}</th>
               </tr>
             </thead>
             <tbody>
               {pageData.length === 0
-                ? <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>No logs found.</td></tr>
+                ? <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>{t("wording.noLogsFound")}</td></tr>
                 : pageData.map(l => (
                   <tr key={l.id}>
                     <td style={{ color: 'var(--text-muted)', fontSize: '12.5px' }}>{l.timestamp}</td>
@@ -124,7 +126,7 @@ export default function LogPage() {
             </tbody>
           </table>
         </div>
-        <Pagination currentPage={safePage} total={filtered.length} pageSize={PAGE_SIZE} onPage={(p: number) => setPage(p)} label="logs" />
+        <Pagination currentPage={safePage} total={filtered.length} pageSize={PAGE_SIZE} onPage={(p: number) => setPage(p)} label={t("wording.logs")} />
       </div>
     </>
   );

@@ -1,7 +1,9 @@
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 export default function UpgradeCTA() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   return (
     <button
@@ -19,7 +21,7 @@ export default function UpgradeCTA() {
       >
         <path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z" />
       </svg>
-      Upgrade
+      {t("header.upgrade")}
     </button>
   );
 }

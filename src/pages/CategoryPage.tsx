@@ -20,6 +20,7 @@ import { InventoryService } from "../service/InventoryService";
 import { toast } from "react-toastify";
 import TextInput from "../components/TextInput";
 import TextArea from "../components/TextArea";
+import { useTranslation } from "react-i18next";
 
 const PAGE_SIZE = 10;
 
@@ -113,6 +114,7 @@ const BADGE_COLORS = {
 };
 
 export default function CategoryPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [nextId, setNextId] = useState(initialCategories.length + 1);
   const [query, setQuery] = useState("");
@@ -169,7 +171,7 @@ export default function CategoryPage() {
       description: isModify ? selected?.description : "",
     },
     validationSchema: Yup.object({
-      name: Yup.string().required("Required"),
+      name: Yup.string().required(t("wording.required")),
     }),
     validateOnChange: false,
     enableReinitialize: true,
@@ -189,7 +191,7 @@ export default function CategoryPage() {
           setTimeout(() => {
             setCatModal(false);
           }, 200);
-          toast("Success modify category", { type: "success" });
+          toast(t("wording.successModifyCategory"), { type: "success" });
         }
       } else {
         const result: APIResponse<any> = await InventoryService.addItemcategory(
@@ -199,7 +201,7 @@ export default function CategoryPage() {
           setTimeout(() => {
             setCatModal(false);
           }, 200);
-          toast("Success adding category", { type: "success" });
+          toast(t("wording.successAddingCategory"), { type: "success" });
         }
       }
       setIsModify(false);
@@ -252,7 +254,7 @@ export default function CategoryPage() {
       setDeleteModal(false);
       setIsLoading(true);
       await InventoryService.deleteItemCategory(selected?.id);
-      toast("Success delete category", { type: "success" });
+      toast(t("wording.successDeleteCategory"), { type: "success" });
       refetchCategory();
       setSelecetd(null);
       setIsLoading(false);
@@ -275,10 +277,10 @@ export default function CategoryPage() {
         }}
       >
         <h1 className="page-title" style={{ margin: 0 }}>
-          Category
+          {t("wording.category")}
         </h1>
         <button className="btn-new" onClick={openNew}>
-          <IconPlus /> New Category
+          <IconPlus /> {t("wording.newCategory")}
         </button>
       </div>
 
@@ -288,19 +290,19 @@ export default function CategoryPage() {
       >
         {[
           {
-            label: "Total Categories",
+            label: t("wording.totalCategories"),
             value: categories?.length,
             color: "var(--brand)",
             bg: "var(--brand-bg)",
           },
           {
-            label: "Total Items",
+            label: t("wording.totalItems"),
             value: totalItems,
             color: "var(--green)",
             bg: "var(--green-bg)",
           },
           {
-            label: "Search Results",
+            label: t("wording.searchResults"),
             value: filtered?.length,
             color: "var(--purple)",
             bg: "var(--purple-bg)",
@@ -325,7 +327,7 @@ export default function CategoryPage() {
               <input
                 className="search-input"
                 type="text"
-                placeholder="Search category…"
+                placeholder={t("wording.searchCategory")}
                 value={query}
                 onChange={(e) => {
                   setQuery(e.target.value);
@@ -333,11 +335,11 @@ export default function CategoryPage() {
                 }}
               />
             </div>
-            <button className="btn-search">Search</button>
+            <button className="btn-search">{t("wording.search")}</button>
           </div>
           <div className="toolbar-right">
             <button className="btn-new" onClick={openNew}>
-              <IconPlus /> New
+              <IconPlus /> {t("wording.new")}
             </button>
           </div>
         </div>
@@ -347,15 +349,15 @@ export default function CategoryPage() {
             <thead>
               <tr>
                 <SortTh
-                  label="Name"
+                  label={t("wording.name")}
                   colIndex={0}
                   sortCol={sortCol}
                   sortAsc={sortAsc}
                   onSort={handleSort}
                 />
-                <th>Description</th>
+                <th>{t("wording.description")}</th>
                 <SortTh
-                  label="Items"
+                  label={t("wording.items")}
                   colIndex={2}
                   sortCol={sortCol}
                   sortAsc={sortAsc}
@@ -363,7 +365,7 @@ export default function CategoryPage() {
                   style={{ width: 80, textAlign: "right" }}
                 />
                 <SortTh
-                  label="Created At"
+                  label={t("wording.createdAt")}
                   colIndex={3}
                   sortCol={sortCol}
                   sortAsc={sortAsc}
@@ -371,14 +373,14 @@ export default function CategoryPage() {
                   style={{ width: 120 }}
                 />
                 <SortTh
-                  label="Updated At"
+                  label={t("wording.updatedAt")}
                   colIndex={4}
                   sortCol={sortCol}
                   sortAsc={sortAsc}
                   onSort={handleSort}
                   style={{ width: 120 }}
                 />
-                <th style={{ width: 100, textAlign: "center" }}>Action</th>
+                <th style={{ width: 100, textAlign: "center" }}>{t("wording.action")}</th>
               </tr>
             </thead>
             <tbody>
@@ -392,7 +394,7 @@ export default function CategoryPage() {
                       color: "var(--text-muted)",
                     }}
                   >
-                    No categories found.
+                    {t("wording.noCategoriesFound")}
                   </td>
                 </tr>
               ) : (
@@ -463,7 +465,7 @@ export default function CategoryPage() {
                         >
                           <button
                             className="btn-icon"
-                            title="View Detail"
+                            title={t("wording.viewDetail")}
                             style={{ color: "var(--brand)" }}
                             onClick={() =>
                               navigate(`/category-detail?id=${r.id}`)
@@ -484,7 +486,7 @@ export default function CategoryPage() {
                           </button>
                           <button
                             className="btn-icon edit"
-                            title="Edit"
+                            title={t("wording.edit")}
                             onClick={() => {
                               setIsModify(true);
                               setSelecetd(r);
@@ -495,7 +497,7 @@ export default function CategoryPage() {
                           </button>
                           <button
                             className="btn-icon delete"
-                            title="Delete"
+                            title={t("wording.delete")}
                             onClick={() => {
                               setSelecetd(r);
                               setDeleteModal(true);
@@ -517,13 +519,13 @@ export default function CategoryPage() {
           total={filtered?.length}
           pageSize={PAGE_SIZE}
           onPage={setPage}
-          label="categories"
+          label={t("wording.categories")}
         />
       </div>
 
       <Modal
         open={catModal}
-        title={editingId ? "Edit Category" : "New Category"}
+        title={editingId ? t("wording.editCategory") : t("wording.newCategory")}
         onClose={() => setCatModal(false)}
         footer={
           <>
@@ -531,14 +533,14 @@ export default function CategoryPage() {
               className="btn-cancel-modal"
               onClick={() => setCatModal(false)}
             >
-              <IconClose /> Cancel
+              <IconClose /> {t("wording.cancel")}
             </button>
             <button
               className="btn-save-modal"
               type="submit"
               onClick={() => formik.handleSubmit()}
             >
-              <IconCheck /> Save
+              <IconCheck /> {t("wording.save")}
             </button>
           </>
         }
@@ -547,21 +549,21 @@ export default function CategoryPage() {
           value={formik.values.name}
           onChange={(e) => formik.setFieldValue("name", e)}
           isRequired
-          label="Name"
-          placeholder="e.g. Floral"
+          label={t("wording.name")}
+          placeholder={t("wording.eGFloral")}
           errorText={formik.errors.name as string}
         />
         <TextArea
           value={formik.values.description}
           onChange={(e) => formik.setFieldValue("description", e)}
-          label="Description"
-          placeholder="Short description (optional)"
+          label={t("wording.description")}
+          placeholder={t("wording.shortDescriptionOptional")}
         />
       </Modal>
 
       <Modal
         open={deleteModal}
-        title="Delete Category"
+        title={t("wording.deleteCategory")}
         onClose={() => setDeleteModal(false)}
         footer={
           <>
@@ -569,18 +571,17 @@ export default function CategoryPage() {
               className="btn-cancel-modal"
               onClick={() => setDeleteModal(false)}
             >
-              Cancel
+              {t("wording.cancel")}
             </button>
             <button className="btn-del-ok" onClick={confirmDelete}>
-              Delete
+              {t("wording.delete")}
             </button>
           </>
         }
       >
         <p className="confirm-msg">
-          Are you sure you want to delete{" "}
-          <strong>&ldquo;{selected?.name}&rdquo;</strong>? This action cannot be
-          undone.
+          {t("wording.areYouSureYouWantToDelete")}{" "}
+          <strong>&ldquo;{selected?.name}&rdquo;</strong>{t("wording.thisActionCannotBeUndone")}
         </p>
       </Modal>
     </>

@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, type KeyboardEvent } from 'react'
 import type { ChatMessage } from '../../service/ChatService'
 import ChatMessageBubble from './ChatMessage'
 import { IconClose } from '../icons'
+import { useTranslation } from 'react-i18next'
 
 interface Props {
   messages: ChatMessage[]
@@ -37,6 +38,7 @@ const IconChat = () => (
 )
 
 export default function ChatWindow({ messages, isLoading, onSend, onClose }: Props) {
+  const { t } = useTranslation()
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -79,11 +81,11 @@ export default function ChatWindow({ messages, isLoading, onSend, onClose }: Pro
             <IconBot />
           </div>
           <div>
-            <div className="chatbot-header-title">EMI Assistant</div>
-            <div className="chatbot-header-subtitle">Ask about stock &amp; events</div>
+            <div className="chatbot-header-title">{t('chat.title')}</div>
+            <div className="chatbot-header-subtitle">{t('chat.subtitle')}</div>
           </div>
         </div>
-        <button className="chatbot-close-btn" onClick={onClose} title="Close">
+        <button className="chatbot-close-btn" onClick={onClose} title={t('chat.close')}>
           <IconClose />
         </button>
       </div>
@@ -95,12 +97,12 @@ export default function ChatWindow({ messages, isLoading, onSend, onClose }: Pro
             <div className="chatbot-empty-icon">
               <IconChat />
             </div>
-            <div className="chatbot-empty-title">Hello! I'm EMI Assistant</div>
+            <div className="chatbot-empty-title">{t('chat.greeting')}</div>
             <div className="chatbot-empty-text">
-              Ask me about item stock, event schedules, or warehouse information. Examples:
+              {t('chat.description')}
               <br /><br />
-              <em>"How many round tables are in stock?"</em><br />
-              <em>"What events are happening this week?"</em>
+              <em>&ldquo;{t('chat.stockExample')}&rdquo;</em><br />
+              <em>&ldquo;{t('chat.eventExample')}&rdquo;</em>
             </div>
           </div>
         ) : (
@@ -123,7 +125,7 @@ export default function ChatWindow({ messages, isLoading, onSend, onClose }: Pro
         <textarea
           ref={textareaRef}
           className="chatbot-input"
-          placeholder="Type a question... (Press Enter to send)"
+          placeholder={t('chat.placeholder')}
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -135,7 +137,7 @@ export default function ChatWindow({ messages, isLoading, onSend, onClose }: Pro
           className="chatbot-send-btn"
           onClick={handleSend}
           disabled={!input.trim() || isLoading}
-          title="Send"
+          title={t('chat.send')}
         >
           <IconSend />
         </button>

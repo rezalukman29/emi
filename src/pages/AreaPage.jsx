@@ -21,6 +21,7 @@ import * as Yup from "yup";
 import TextInput from "../components/TextInput";
 import TextArea from "../components/TextArea";
 import Loading from "../components/Loading";
+import { useTranslation } from "react-i18next";
 
 const PAGE_SIZE = 10;
 
@@ -46,6 +47,7 @@ function fmtDate(d) {
 }
 
 export default function AreaPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [areas, setAreas] = useState(initialAreas);
   const [nextId, setNextId] = useState(16);
@@ -72,7 +74,7 @@ export default function AreaPage() {
       description: isModify ? selected.description : "",
     },
     validationSchema: Yup.object({
-      name: Yup.string().required("Required"),
+      name: Yup.string().required(t("wording.required")),
     }),
     validateOnChange: false,
     enableReinitialize: true,
@@ -92,7 +94,7 @@ export default function AreaPage() {
           setTimeout(() => {
             setAreaModal(false);
           }, 200);
-          toast("Success modify area", { type: "success" });
+          toast(t("wording.successModifyArea"), { type: "success" });
         }
       } else {
         const result = await InventoryService.addArea(payload);
@@ -100,7 +102,7 @@ export default function AreaPage() {
           setTimeout(() => {
             setAreaModal(false);
           }, 200);
-          toast("Success adding area", { type: "success" });
+          toast(t("wording.successAddingArea"), { type: "success" });
         }
       }
       setIsModify(false);
@@ -190,7 +192,7 @@ export default function AreaPage() {
       setDeleteModal(false);
       setIsLoading(true);
       await InventoryService.deleteArea(selected.id);
-      toast("Success delete area", { type: "success" });
+      toast(t("wording.successDeleteArea"), { type: "success" });
       setSelecetd(null);
       getListArea();
       setIsLoading(false);
@@ -216,10 +218,10 @@ export default function AreaPage() {
         }}
       >
         <h1 className="page-title" style={{ margin: 0 }}>
-          Area
+          {t("wording.area")}
         </h1>
         <button className="btn-new" onClick={openNew}>
-          <IconPlus /> New Area
+          <IconPlus /> {t("wording.newArea")}
         </button>
       </div>
 
@@ -230,19 +232,19 @@ export default function AreaPage() {
       >
         {[
           {
-            label: "Total Areas",
+            label: t("wording.totalAreas"),
             value: areas.length,
             color: "var(--brand)",
             bg: "var(--brand-bg)",
           },
           {
-            label: "Total Sub Areas",
+            label: t("wording.totalSubAreas"),
             value: totalSubAreas,
             color: "var(--green)",
             bg: "var(--green-bg)",
           },
           {
-            label: "Search Results",
+            label: t("wording.searchResults"),
             value: filtered.length,
             color: "var(--purple)",
             bg: "var(--purple-bg)",
@@ -267,7 +269,7 @@ export default function AreaPage() {
               <input
                 className="search-input"
                 type="text"
-                placeholder="Search area…"
+                placeholder={t("wording.searchArea")}
                 value={query}
                 onChange={(e) => {
                   setQuery(e.target.value);
@@ -275,11 +277,11 @@ export default function AreaPage() {
                 }}
               />
             </div>
-            <button className="btn-search">Search</button>
+            <button className="btn-search">{t("wording.search")}</button>
           </div>
           <div className="toolbar-right">
             <button className="btn-new" onClick={openNew}>
-              <IconPlus /> New
+              <IconPlus /> {t("wording.new")}
             </button>
           </div>
         </div>
@@ -289,17 +291,17 @@ export default function AreaPage() {
             <thead>
               <tr>
                 <SortTh
-                  label="Name"
+                  label={t("wording.name")}
                   id="name"
                   colIndex={0}
                   sortCol={sort}
                   sortAsc={sortBy}
                   onSort={handleSort}
                 />
-                <th>Description</th>
-                <th style={{ width: 110, textAlign: "center" }}>Sub Areas</th>
+                <th>{t("wording.description")}</th>
+                <th style={{ width: 110, textAlign: "center" }}>{t("wording.subAreas")}</th>
                 <SortTh
-                  label="Created At"
+                  label={t("wording.createdAt")}
                   colIndex={3}
                   id="created_at"
                   sortCol={sort}
@@ -308,7 +310,7 @@ export default function AreaPage() {
                   style={{ width: 120 }}
                 />
                 <SortTh
-                  label="Updated At"
+                  label={t("wording.updatedAt")}
                   id="updated_at"
                   colIndex={4}
                   sortCol={sort}
@@ -316,7 +318,7 @@ export default function AreaPage() {
                   onSort={handleSort}
                   style={{ width: 120 }}
                 />
-                <th style={{ width: 110, textAlign: "center" }}>Action</th>
+                <th style={{ width: 110, textAlign: "center" }}>{t("wording.action")}</th>
               </tr>
             </thead>
             <tbody>
@@ -330,7 +332,7 @@ export default function AreaPage() {
                       color: "var(--text-muted)",
                     }}
                   >
-                    No areas found.
+                    {t("wording.noAreasFound")}
                   </td>
                 </tr>
               ) : (
@@ -356,13 +358,13 @@ export default function AreaPage() {
                               cursor: "pointer",
                               padding: 0,
                             }}
-                            title={`View ${subCount} sub areas`}
+                            title={t("dynamic.viewSubAreas", { count: subCount })}
                           >
                             <span
                               className="badge badge-blue"
                               style={{ cursor: "pointer" }}
                             >
-                              {subCount} sub area{subCount !== 1 ? "s" : ""}
+                              {subCount} {t("wording.subAreaInline")}{subCount !== 1 ? t("wording.s") : ""}
                             </span>
                           </button>
                         ) : (
@@ -399,7 +401,7 @@ export default function AreaPage() {
                         >
                           <button
                             className="btn-icon"
-                            title="View Detail"
+                            title={t("wording.viewDetail")}
                             style={{ color: "var(--brand)" }}
                             onClick={() => navigate(`/area-detail?id=${r.id}`)}
                           >
@@ -418,14 +420,14 @@ export default function AreaPage() {
                           </button>
                           <button
                             className="btn-icon"
-                            title="View sub areas"
+                            title={t("wording.viewSubAreas")}
                             onClick={() => getAreaDetail(r.id)}
                           >
                             <IconFolder />
                           </button>
                           <button
                             className="btn-icon edit"
-                            title="Edit"
+                            title={t("wording.edit")}
                             onClick={() => {
                               setAreaModal(true);
                               setIsModify(true);
@@ -436,7 +438,7 @@ export default function AreaPage() {
                           </button>
                           <button
                             className="btn-icon delete"
-                            title="Delete"
+                            title={t("wording.delete")}
                             onClick={() => {
                               setSelecetd(r);
                               setDeleteModal(true);
@@ -458,14 +460,14 @@ export default function AreaPage() {
           total={filtered.length}
           pageSize={PAGE_SIZE}
           onPage={setPage}
-          label="areas"
+          label={t("wording.areasInline")}
         />
       </div>
 
       {/* Add / Edit Modal */}
       <Modal
         open={areaModal}
-        title={isModify ? "Edit Area" : "New Area"}
+        title={isModify ? t("wording.editArea") : t("wording.newArea")}
         onClose={() => setAreaModal(false)}
         footer={
           <>
@@ -473,14 +475,14 @@ export default function AreaPage() {
               className="btn-cancel-modal"
               onClick={() => setAreaModal(false)}
             >
-              <IconClose /> Cancel
+              <IconClose /> {t("wording.cancel")}
             </button>
             <button
               className="btn-save-modal"
               type="submit"
               onClick={() => formik.handleSubmit()}
             >
-              <IconCheck /> Save
+              <IconCheck /> {t("wording.save")}
             </button>
           </>
         }
@@ -489,22 +491,22 @@ export default function AreaPage() {
           value={formik.values.name}
           onChange={(e) => formik.setFieldValue("name", e)}
           isRequired
-          label="Name"
-          placeholder="e.g. CEREMONY"
+          label={t("wording.name")}
+          placeholder={t("wording.eGCeremony")}
           errorText={formik.errors.name}
         />
         <TextArea
           value={formik.values.description}
           onChange={(e) => formik.setFieldValue("description", e)}
-          label="Description"
-          placeholder="Short description (optional)"
+          label={t("wording.description")}
+          placeholder={t("wording.shortDescriptionOptional")}
         />
       </Modal>
 
       {/* Delete Modal */}
       <Modal
         open={deleteModal}
-        title="Delete Area"
+        title={t("wording.deleteArea")}
         onClose={() => setDeleteModal(false)}
         footer={
           <>
@@ -512,25 +514,24 @@ export default function AreaPage() {
               className="btn-cancel-modal"
               onClick={() => setDeleteModal(false)}
             >
-              Cancel
+              {t("wording.cancel")}
             </button>
             <button className="btn-del-ok" onClick={onDelete}>
-              Delete
+              {t("wording.delete")}
             </button>
           </>
         }
       >
         <p className="confirm-msg">
-          Are you sure you want to delete{" "}
-          <strong>&ldquo;{selected?.name}&rdquo;</strong>? This action cannot be
-          undone.
+          {t("wording.areYouSureYouWantToDelete")}{" "}
+          <strong>&ldquo;{selected?.name}&rdquo;</strong>{t("wording.thisActionCannotBeUndone")}
         </p>
       </Modal>
 
       {/* Sub Areas Modal */}
       <Modal
         open={subAreaModal}
-        title={`Sub Areas — ${areaDetail?.name || ""}`}
+        title={t("dynamic.subAreasTitle", { area: areaDetail?.name || "" })}
         onClose={() => setSubAreaModal(false)}
         size="lg"
         footer={
@@ -538,7 +539,7 @@ export default function AreaPage() {
             className="btn-ghost btn"
             onClick={() => setSubAreaModal(false)}
           >
-            Close
+            {t("wording.close")}
           </button>
         }
       >
@@ -551,7 +552,7 @@ export default function AreaPage() {
               fontSize: 13,
             }}
           >
-            No sub areas defined.
+            {t("wording.noSubAreasDefined")}
           </p>
         ) : (
           <div
@@ -590,8 +591,8 @@ export default function AreaPage() {
             marginTop: 14,
           }}
         >
-          {areaDetail?.list_sub_area?.length} sub area
-          {areaDetail?.list_sub_area?.length !== 1 ? "s" : ""} in{" "}
+          {areaDetail?.list_sub_area?.length} {t("wording.subAreaInline")}
+          {areaDetail?.list_sub_area?.length !== 1 ? t("wording.s") : ""} {t("wording.in")}{" "}
           <strong>{subAreaRecord?.name}</strong>
         </p>
       </Modal>

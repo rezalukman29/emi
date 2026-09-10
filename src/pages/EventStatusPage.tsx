@@ -16,6 +16,9 @@ import useGetEventStatus, {
 import usePostEventStatus from "../hooks/api/usePostEventStatus";
 import usePutEventStatus from "../hooks/api/usePutEventStatus";
 import { InventoryService } from "../service/InventoryService";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
+
 
 const PAGE_SIZE = 20;
 const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -62,7 +65,7 @@ function ScanActionBadge({ action }: { action: string }) {
 
   return (
     <span className={`badge ${normalized === "SCAN_IN" ? "badge-green" : "badge-orange"}`}>
-      {normalized === "SCAN_IN" ? "Scan In" : "Scan Out"}
+      {normalized === "SCAN_IN" ? i18n.t("wording.scanIn") : i18n.t("wording.scanOut")}
     </span>
   );
 }
@@ -75,9 +78,9 @@ function fmtDate(date: string) {
 
 function ScanBadge({ scan }: { scan: ScanSetting }) {
   return scan === "Scan" ? (
-    <span className="badge badge-green">Yes</span>
+    <span className="badge badge-green">{i18n.t("wording.yes")}</span>
   ) : (
-    <span className="badge badge-orange">No</span>
+    <span className="badge badge-orange">{i18n.t("wording.no")}</span>
   );
 }
 
@@ -94,6 +97,7 @@ function mapEventStatuses(response: GetEventStatusResponse): EventStatusRow[] {
 }
 
 export default function EventStatusPage() {
+  const { t } = useTranslation();
   const [statuses, setStatuses] = useState<EventStatusRow[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -156,8 +160,8 @@ export default function EventStatusPage() {
   const formik = useFormik<EventStatusForm>({
     initialValues: emptyForm(),
     validationSchema: Yup.object({
-      name: Yup.string().trim().required("Required"),
-      order_data: Yup.number().integer("Must be an integer").min(0, "Minimum value is 0").required("Required"),
+      name: Yup.string().trim().required(t("wording.required")),
+      order_data: Yup.number().integer("Must be an integer").min(0, t("wording.minimumValueIs0")).required(t("wording.required")),
       action: Yup.string().oneOf(["", "SCAN_IN", "SCAN_OUT"]),
       showScan: Yup.boolean().required(),
     }),
@@ -174,7 +178,7 @@ export default function EventStatusPage() {
           ? await putEventStatus({ ...payload, id: editingId })
           : await postEventStatus(payload);
 
-        toast(result.message || (editingId ? "Event status updated successfully." : "Event status created successfully."), {
+        toast(result.message || (editingId ? t("wording.eventStatusUpdatedSuccessfully") : t("wording.eventStatusCreatedSuccessfully")), {
           type: "success",
         });
         setStatusModal(false);
@@ -186,8 +190,8 @@ export default function EventStatusPage() {
           error instanceof Error
             ? error.message
             : editingId
-              ? "Failed to update event status."
-              : "Failed to create event status.",
+              ? t("wording.failedToUpdateEventStatus")
+              : t("wording.failedToCreateEventStatus"),
           { type: "error" },
         );
       }
@@ -287,7 +291,7 @@ export default function EventStatusPage() {
           }),
         ),
       );
-      toast.success("Event status order updated successfully.");
+      toast.success(t("wording.eventStatusOrderUpdatedSuccessfully"));
       setReorderMode(false);
       setDraftStatuses([]);
       await refetchStatusLists();
@@ -295,7 +299,7 @@ export default function EventStatusPage() {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to save event status order.",
+          : t("wording.failedToSaveEventStatusOrder"),
       );
     } finally {
       setIsSavingOrder(false);
@@ -326,7 +330,7 @@ export default function EventStatusPage() {
         apiMessage ||
           (error instanceof Error
             ? error.message
-            : "Failed to delete event status."),
+            : t("wording.failedToDeleteEventStatus")),
       );
     }
   }
@@ -334,22 +338,19 @@ export default function EventStatusPage() {
   return (
     <>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22 }}>
-        <h1 className="page-title" style={{ margin: 0 }}>Event Status</h1>
-        <button className="btn-new" disabled={reorderMode} onClick={openNew}><IconPlus /> New Status</button>
+        <h1 className="page-title" style={{ margin: 0 }}>{t("wording.eventStatus")}</h1>
+        <button className="btn-new" disabled={reorderMode} onClick={openNew}><IconPlus /> {t("wording.newStatus")}</button>
       </div>
 
       <p style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: -14, marginBottom: 18 }}>
-        This list drives the stage stepper on every event detail page in the
-        order shown below. Adding, removing, reordering, or renaming a status
-        applies across events. A status set to Scan requires items to be scanned
-        while an event is at that stage.
+        {t("wording.thisListDrivesTheStageStepperOnEvery")}
       </p>
 
       <div className="stats-bar" style={{ gridTemplateColumns: "repeat(3,1fr)" }}>
         {[
-          { label: "Total Statuses", value: total, color: "var(--brand)", bg: "var(--brand-bg)" },
-          { label: "Scan Enabled on Page", value: scanEnabled, color: "var(--green)", bg: "var(--green-bg)" },
-          { label: "Events Running on Page", value: runningTotal, color: "var(--orange)", bg: "var(--orange-bg)" },
+          { label: t("wording.totalStatuses"), value: total, color: "var(--brand)", bg: "var(--brand-bg)" },
+          { label: t("wording.scanEnabledOnPage"), value: scanEnabled, color: "var(--green)", bg: "var(--green-bg)" },
+          { label: t("wording.eventsRunningOnPage"), value: runningTotal, color: "var(--orange)", bg: "var(--orange-bg)" },
         ].map((stat) => (
           <div key={stat.label} className="stat-card">
             <div className="stat-icon" style={{ background: stat.bg }}>
@@ -368,27 +369,27 @@ export default function EventStatusPage() {
               <input
                 className="search-input"
                 type="text"
-                placeholder="Search status…"
+                placeholder={t("wording.searchStatus")}
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
                 onKeyDown={(event) => { if (event.key === "Enter") applySearch(); }}
               />
             </div>
-            <button className="btn-search" onClick={applySearch}>Search</button>
+            <button className="btn-search" onClick={applySearch}>{t("wording.search")}</button>
           </div>
           <div className="toolbar-right">
             {reorderMode ? (
               <>
-                <button className="btn-cancel-modal" disabled={isSavingOrder} onClick={cancelReorder}><IconClose /> Cancel</button>
-                <button className="btn-save-modal" disabled={isSavingOrder} onClick={() => void saveReorder()}><IconCheck /> {isSavingOrder ? "Saving…" : "Save Order"}</button>
+                <button className="btn-cancel-modal" disabled={isSavingOrder} onClick={cancelReorder}><IconClose /> {t("wording.cancel")}</button>
+                <button className="btn-save-modal" disabled={isSavingOrder} onClick={() => void saveReorder()}><IconCheck /> {isSavingOrder ? t("wording.saving") : t("wording.saveOrder")}</button>
               </>
             ) : (
               <>
                 <button className="btn btn-ghost" disabled={!orderedResponse} onClick={startReorder}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}><polyline points="8 7 12 3 16 7" /><polyline points="16 17 12 21 8 17" /><line x1="12" y1="3" x2="12" y2="21" /></svg>
-                  Edit Order
+                  {t("wording.editOrder")}
                 </button>
-                <button className="btn-new" onClick={openNew}><IconPlus /> New</button>
+                <button className="btn-new" onClick={openNew}><IconPlus /> {t("wording.new")}</button>
               </>
             )}
           </div>
@@ -396,7 +397,7 @@ export default function EventStatusPage() {
 
         {reorderMode && (
           <p className="event-status-reorder-help">
-            Reordering — use the arrows below, then <strong>Save Order</strong> to apply or <strong>Cancel</strong> to discard.
+            {t("wording.reorderingUseTheArrowsBelowThen")} <strong>{t("wording.saveOrder")}</strong> {t("wording.toApplyOr")} <strong>{t("wording.cancel")}</strong> {t("wording.toDiscard")}
           </p>
         )}
 
@@ -404,23 +405,23 @@ export default function EventStatusPage() {
           <table>
             <thead>
               <tr>
-                <SortTh label="Order" id="order_data" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 70, textAlign: "center" }} />
-                <th style={{ width: 80, textAlign: "center" }}>Edit Order</th>
-                <SortTh label="Status" id="name" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} />
-                <th style={{ width: 100, textAlign: "center" }}>Show Scan</th>
-                <th style={{ width: 120, textAlign: "center" }}>Action</th>
-                <SortTh label="Event Running" id="active_event" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 120, textAlign: "right" }} />
-                <SortTh label="Created At" id="created_at" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 120 }} />
-                <th style={{ width: 100, textAlign: "center" }}>Actions</th>
+                <SortTh label={t("wording.order")} id="order_data" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 70, textAlign: "center" }} />
+                <th style={{ width: 80, textAlign: "center" }}>{t("wording.editOrder")}</th>
+                <SortTh label={t("wording.status")} id="name" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} />
+                <th style={{ width: 100, textAlign: "center" }}>{t("wording.showScan")}</th>
+                <th style={{ width: 120, textAlign: "center" }}>{t("wording.action")}</th>
+                <SortTh label={t("wording.eventRunning")} id="active_event" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 120, textAlign: "right" }} />
+                <SortTh label={t("wording.createdAt")} id="created_at" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 120 }} />
+                <th style={{ width: 100, textAlign: "center" }}>{t("wording.actions")}</th>
               </tr>
             </thead>
             <tbody>
               {isLoading && statuses.length === 0 ? (
-                <tr><td colSpan={8} style={{ textAlign: "center", padding: 40 }}>Loading event statuses…</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: "center", padding: 40 }}>{t("wording.loadingEventStatuses")}</td></tr>
               ) : isError ? (
-                <tr><td colSpan={8} style={{ textAlign: "center", padding: 40, color: "var(--red)" }}>Failed to load event statuses.</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: "center", padding: 40, color: "var(--red)" }}>{t("wording.failedToLoadEventStatuses")}</td></tr>
               ) : displayedStatuses.length === 0 ? (
-                <tr><td colSpan={8} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>No statuses found.</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>{t("wording.noStatusesFound")}</td></tr>
               ) : (
                 displayedStatuses.map((row) => {
                   const orderedIndex = displayedStatuses.findIndex((status) => status.id === row.id);
@@ -432,10 +433,10 @@ export default function EventStatusPage() {
                     <td style={{ textAlign: "center" }}>
                       {reorderMode ? (
                         <div style={{ display: "inline-flex", flexDirection: "column", gap: 2 }}>
-                          <button className="btn-icon" title="Move up" style={{ padding: "2px 5px", color: orderedIndex <= 0 ? "var(--border)" : "var(--text-muted)" }} disabled={orderedIndex <= 0 || isSavingOrder} onClick={() => moveOrder(row.id, -1)}>
+                          <button className="btn-icon" title={t("wording.moveUp")} style={{ padding: "2px 5px", color: orderedIndex <= 0 ? "var(--border)" : "var(--text-muted)" }} disabled={orderedIndex <= 0 || isSavingOrder} onClick={() => moveOrder(row.id, -1)}>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 12, height: 12 }}><polyline points="18 15 12 9 6 15" /></svg>
                           </button>
-                          <button className="btn-icon" title="Move down" style={{ padding: "2px 5px", color: orderedIndex === displayedStatuses.length - 1 ? "var(--border)" : "var(--text-muted)" }} disabled={orderedIndex === displayedStatuses.length - 1 || isSavingOrder} onClick={() => moveOrder(row.id, 1)}>
+                          <button className="btn-icon" title={t("wording.moveDown")} style={{ padding: "2px 5px", color: orderedIndex === displayedStatuses.length - 1 ? "var(--border)" : "var(--text-muted)" }} disabled={orderedIndex === displayedStatuses.length - 1 || isSavingOrder} onClick={() => moveOrder(row.id, 1)}>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 12, height: 12 }}><polyline points="6 9 12 15 18 9" /></svg>
                           </button>
                         </div>
@@ -454,8 +455,8 @@ export default function EventStatusPage() {
                     <td style={{ color: "var(--text-muted)", fontSize: 12.5 }}>{fmtDate(row.updatedAt)}</td>
                     <td>
                       <div className="action-btns" style={{ justifyContent: "center" }}>
-                        <button className="btn-icon edit" title="Edit" disabled={reorderMode} onClick={() => openEdit(row)}><IconEdit /></button>
-                        <button className="btn-icon delete" title="Delete" disabled={reorderMode} onClick={() => openDelete(row.id)}><IconDelete /></button>
+                        <button className="btn-icon edit" title={t("wording.edit")} disabled={reorderMode} onClick={() => openEdit(row)}><IconEdit /></button>
+                        <button className="btn-icon delete" title={t("wording.delete")} disabled={reorderMode} onClick={() => openDelete(row.id)}><IconDelete /></button>
                       </div>
                     </td>
                   </tr>
@@ -466,18 +467,18 @@ export default function EventStatusPage() {
           </table>
         </div>
         {!reorderMode && (
-          <Pagination currentPage={currentPage} total={total} pageSize={PAGE_SIZE} onPage={(nextPage: number) => setPage(nextPage)} label="statuses" />
+          <Pagination currentPage={currentPage} total={total} pageSize={PAGE_SIZE} onPage={(nextPage: number) => setPage(nextPage)} label={t("wording.statuses")} />
         )}
       </div>
 
       <Modal
         open={statusModal}
-        title={editingId ? "Edit Event Status" : "New Event Status"}
+        title={editingId ? t("wording.editEventStatus") : t("wording.newEventStatus")}
         onClose={closeStatusModal}
         footer={
           <>
-            <button className="btn-cancel-modal" disabled={isSaving} onClick={closeStatusModal}><IconClose /> Cancel</button>
-            <button className="btn-save-modal" type="submit" disabled={isSaving} onClick={() => formik.handleSubmit()}><IconCheck /> {isSaving ? "Saving…" : "Save"}</button>
+            <button className="btn-cancel-modal" disabled={isSaving} onClick={closeStatusModal}><IconClose /> {t("wording.cancel")}</button>
+            <button className="btn-save-modal" type="submit" disabled={isSaving} onClick={() => formik.handleSubmit()}><IconCheck /> {isSaving ? t("common.actions.saving") : t("common.actions.save")}</button>
           </>
         }
       >
@@ -486,34 +487,34 @@ export default function EventStatusPage() {
           onChange={(value) => formik.setFieldValue("order_data", value)}
           isRequired
           isNumeric
-          label="Order"
-          placeholder="e.g. 1"
+          label={t("wording.order")}
+          placeholder={t("wording.eG1")}
           errorText={formik.errors.order_data}
         />
         <TextInput
           value={formik.values.name}
           onChange={(value) => formik.setFieldValue("name", value)}
           isRequired
-          label="Status Name"
-          placeholder="e.g. Event running"
+          label={t("wording.statusName")}
+          placeholder={t("wording.eGEventRunning")}
           errorText={formik.errors.name}
         />
         <div className="form-group">
-          <label>Scan</label>
+          <label>{t("wording.scan")}</label>
           <SearchableSelect
             value={formik.values.action}
             onChange={(value) => formik.setFieldValue("action", value as ScanAction)}
             options={[
-              { value: "", label: "None" },
-              { value: "SCAN_IN", label: "Scan In" },
-              { value: "SCAN_OUT", label: "Scan Out" },
+              { value: "", label: t("wording.none") },
+              { value: "SCAN_IN", label: t("wording.scanIn") },
+              { value: "SCAN_OUT", label: t("wording.scanOut") },
             ]}
-            placeholder="None"
+            placeholder={t("wording.none")}
             errorText={formik.errors.action}
           />
         </div>
         <div className="form-group">
-          <label>Show Scan</label>
+          <label>{t("wording.showScan")}</label>
           <button
             type="button"
             role="switch"
@@ -528,17 +529,17 @@ export default function EventStatusPage() {
 
       <Modal
         open={deleteModal}
-        title="Delete Event Status"
+        title={t("wording.deleteEventStatus")}
         onClose={() => setDeleteModal(false)}
         footer={
           <>
-            <button className="btn-cancel-modal" onClick={() => setDeleteModal(false)}>Cancel</button>
-            <button className="btn-del-ok" onClick={confirmDelete}>Delete</button>
+            <button className="btn-cancel-modal" onClick={() => setDeleteModal(false)}>{t("wording.cancel")}</button>
+            <button className="btn-del-ok" onClick={confirmDelete}>{t("wording.delete")}</button>
           </>
         }
       >
         <p className="confirm-msg">
-          Are you sure you want to delete <strong>&ldquo;{deleteRecord?.status}&rdquo;</strong>? This action cannot be undone.
+          {t("wording.areYouSureYouWantToDelete")} <strong>&ldquo;{deleteRecord?.status}&rdquo;</strong>{t("wording.thisActionCannotBeUndone")}
         </p>
       </Modal>
     </>

@@ -1,19 +1,20 @@
 import { useNavigate } from 'react-router-dom';
 import { inventoryData } from '../data/inventory';
 import useGetDashboard from '../hooks/api/useGetDashboard';
-
-const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const MONTHS_LONG = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const DAYS_LONG = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+import { useTranslation } from "react-i18next";
+import { formatLocalDate, getDateLocale, translateApiValue } from "../utils/function";
 
 function fmtDate(d: string | null | undefined) {
-  if (!d || d === '-') return '—';
-  const [y, m, day] = d.split('-');
-  return `${parseInt(day)} ${MONTHS_SHORT[parseInt(m) - 1]} ${y}`;
+  return formatLocalDate(d);
 }
 
 function fmtToday(d: Date) {
-  return `${DAYS_LONG[d.getDay()]}, ${d.getDate()} ${MONTHS_LONG[d.getMonth()]} ${d.getFullYear()}`;
+  return new Intl.DateTimeFormat(getDateLocale(), {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(d);
 }
 
 function daysUntil(date: string) {
@@ -42,13 +43,14 @@ const MODULE_DOT: Record<string, string> = {
 };
 
 const QUICK_ACTIONS = [
-  { to: '/event', label: 'Create New Event', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="12" y1="14" x2="12" y2="18"/><line x1="10" y1="16" x2="14" y2="16"/></svg> },
-  { to: '/inventory', label: 'Add Inventory', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg> },
-  { to: '/item-loan', label: 'Loan Item', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
-  { to: '/stock-opname', label: 'Stock Opname', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="17"/><line x1="9.5" y1="14.5" x2="14.5" y2="14.5"/></svg> },
+  { to: '/event', labelKey: 'dashboardActions.createEvent', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="12" y1="14" x2="12" y2="18"/><line x1="10" y1="16" x2="14" y2="16"/></svg> },
+  { to: '/inventory', labelKey: 'dashboardActions.addInventory', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg> },
+  { to: '/item-loan', labelKey: 'dashboardActions.loanItem', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
+  { to: '/stock-opname', labelKey: 'dashboardActions.stockOpname', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="17"/><line x1="9.5" y1="14.5" x2="14.5" y2="14.5"/></svg> },
 ];
 
 export default function MainDashboardPage() {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { data: response, isLoading, isError } = useGetDashboard();
   const dashboard = response?.data;
@@ -72,11 +74,11 @@ export default function MainDashboardPage() {
     <>
       <div className="dash-hero">
         <div>
-          <div className="dash-hero-title">Welcome back</div>
+          <div className="dash-hero-title">{t("wording.welcomeBack")}</div>
           <div className="dash-hero-sub">
-            You have <strong>{summary?.upcoming_count ?? 0} upcoming events</strong>
-            {nextEvent && <> — the nearest is <strong>{nextEvent.name}</strong> in {daysUntil(nextEvent.event_start)} days</>}
-            {needsAttention.length > 0 && <> and <strong>{needsAttention.length} items</strong> need restocking.</>}
+            {t("wording.youHave")} <strong>{summary?.upcoming_count ?? 0} {t("wording.upcomingEventsInline")}</strong>
+            {nextEvent && <> {t("wording.theNearestIs")} <strong>{nextEvent.name}</strong> {t("wording.in")} {daysUntil(nextEvent.event_start)} {t("wording.days")}</>}
+            {needsAttention.length > 0 && <> {t("wording.and")} <strong>{needsAttention.length} {t("wording.itemsInline")}</strong> {t("wording.needRestocking")}</>}
           </div>
         </div>
         <div className="dash-hero-date">{fmtToday(new Date())}</div>
@@ -84,55 +86,55 @@ export default function MainDashboardPage() {
 
       <div className="kpi-grid" style={{ marginBottom: 18 }}>
         <div className="kpi-card brand-accent">
-          <div className="kpi-label">Total Events</div>
+          <div className="kpi-label">{t("wording.totalEvents")}</div>
           <div className="kpi-value">{isLoading ? '—' : (summary?.total_events ?? 0)}</div>
-          <div className="kpi-sub">{summary?.upcoming_count ?? 0} upcoming · {summary?.past_count ?? 0} past</div>
+          <div className="kpi-sub">{summary?.upcoming_count ?? 0} {t("wording.upcomingInline")} {summary?.past_count ?? 0} {t("wording.pastInline")}</div>
         </div>
         <div className="kpi-card green-accent">
-          <div className="kpi-label">Inventory SKU</div>
+          <div className="kpi-label">{t("wording.inventorySku")}</div>
           <div className="kpi-value">{isLoading ? '—' : (summary?.inventory_sku ?? 0)}</div>
-          <div className="kpi-sub">{(summary?.total_stock ?? 0).toLocaleString('en-US')} total units</div>
+          <div className="kpi-sub">{(summary?.total_stock ?? 0).toLocaleString('en-US')} {t("wording.totalUnitsInline")}</div>
         </div>
         <div className="kpi-card orange-accent">
-          <div className="kpi-label">Low Stock</div>
+          <div className="kpi-label">{t("wording.lowStock")}</div>
           <div className="kpi-value">{isLoading ? '—' : (summary?.low_stock ?? 0)}</div>
-          <div className="kpi-sub">{summary?.out_of_stock ?? 0} out of stock</div>
+          <div className="kpi-sub">{summary?.out_of_stock ?? 0} {t("wording.outOfStockInline")}</div>
         </div>
         <div className="kpi-card brand-accent">
-          <div className="kpi-label">Currently Loaned</div>
+          <div className="kpi-label">{t("wording.currentlyLoaned")}</div>
           <div className="kpi-value">{isLoading ? '—' : (summary?.loaned ?? 0)}</div>
-          <div className="kpi-sub">of {summary?.total_loans ?? 0} total loans</div>
+          <div className="kpi-sub">{t("wording.of")} {summary?.total_loans ?? 0} {t("wording.totalLoansInline")}</div>
         </div>
         <div className="kpi-card red-accent">
-          <div className="kpi-label">Overdue Loans</div>
+          <div className="kpi-label">{t("wording.overdueLoans")}</div>
           <div className="kpi-value">{isLoading ? '—' : (summary?.overdue ?? 0)}</div>
-          <div className="kpi-sub">need follow-up</div>
+          <div className="kpi-sub">{t("wording.needFollowUp")}</div>
         </div>
         <div className="kpi-card red-accent">
-          <div className="kpi-label">Warehouses</div>
+          <div className="kpi-label">{t("wording.warehouses")}</div>
           <div className="kpi-value">{isLoading ? '—' : (summary?.warehouse_count ?? 0)}</div>
-          <div className="kpi-sub">active warehouse locations</div>
+          <div className="kpi-sub">{t("wording.activeWarehouseLocations")}</div>
         </div>
       </div>
 
       <div className="dash-quick-actions">
         {QUICK_ACTIONS.map(a => (
           <button key={a.to} className="dash-quick-btn" onClick={() => navigate(a.to)}>
-            {a.icon} {a.label}
+            {a.icon} {t(a.labelKey)}
           </button>
         ))}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 18, marginBottom: 18 }}>
         <div className="card">
-          <div className="section-title">Upcoming Events</div>
+          <div className="section-title">{t("wording.upcomingEvents")}</div>
           <div className="viz-event-list">
             {isLoading ? (
-              <div className="no-data">Loading upcoming events…</div>
+              <div className="no-data">{t("wording.loadingUpcomingEvents")}</div>
             ) : isError ? (
-              <div className="no-data">Failed to load upcoming events.</div>
+              <div className="no-data">{t("wording.failedToLoadUpcomingEvents")}</div>
             ) : upcomingEvents.length === 0 ? (
-              <div className="no-data">No upcoming events.</div>
+              <div className="no-data">{t("wording.noUpcomingEvents")}</div>
             ) : upcomingEvents.map(ev => {
               const days = daysUntil(ev.event_start);
               return (
@@ -141,10 +143,10 @@ export default function MainDashboardPage() {
                     <div className="dash-mini-name">{ev.name}</div>
                     <div className="dash-mini-sub">{fmtDate(ev.event_start)} · {ev.location || '—'}</div>
                   </div>
-                  <div className="viz-bar-track" title={`${days} days remaining`}>
+                  <div className="viz-bar-track" title={t("dynamic.daysRemaining", { count: days })}>
                     <div className="viz-bar-fill" style={{ width: `${pct(days, maxDaysAway)}%` }} />
                   </div>
-                  <span className="badge badge-blue viz-event-days">{days}d</span>
+                  <span className="badge badge-blue viz-event-days">{days}{t("wording.d")}</span>
                 </div>
               );
             })}
@@ -152,37 +154,37 @@ export default function MainDashboardPage() {
         </div>
 
         <div className="card">
-          <div className="section-title">Stock Health</div>
+          <div className="section-title">{t("wording.stockHealth")}</div>
           <div className="viz-stacked-bar">
-            <div className="viz-stacked-segment" style={{ width: `${pct(availableCount, inventoryData.length)}%`, background: 'var(--green)' }} title={`Available: ${availableCount} SKU`} />
-            <div className="viz-stacked-segment" style={{ width: `${pct(lowStock.length, inventoryData.length)}%`, background: 'var(--orange)' }} title={`Low Stock: ${lowStock.length} SKU`} />
-            <div className="viz-stacked-segment" style={{ width: `${pct(outOfStock.length, inventoryData.length)}%`, background: 'var(--red)' }} title={`Out of Stock: ${outOfStock.length} SKU`} />
+            <div className="viz-stacked-segment" style={{ width: `${pct(availableCount, inventoryData.length)}%`, background: 'var(--green)' }} title={t("dynamic.availableSku", { count: availableCount })} />
+            <div className="viz-stacked-segment" style={{ width: `${pct(lowStock.length, inventoryData.length)}%`, background: 'var(--orange)' }} title={t("dynamic.lowStockSku", { count: lowStock.length })} />
+            <div className="viz-stacked-segment" style={{ width: `${pct(outOfStock.length, inventoryData.length)}%`, background: 'var(--red)' }} title={t("dynamic.outOfStockSku", { count: outOfStock.length })} />
           </div>
           <div className="viz-legend">
-            <span className="viz-legend-item"><i style={{ background: 'var(--green)' }} /> Available <strong>{availableCount}</strong></span>
-            <span className="viz-legend-item"><i style={{ background: 'var(--orange)' }} /> Low Stock <strong>{lowStock.length}</strong></span>
-            <span className="viz-legend-item"><i style={{ background: 'var(--red)' }} /> Out of Stock <strong>{outOfStock.length}</strong></span>
+            <span className="viz-legend-item"><i style={{ background: 'var(--green)' }} /> {t("wording.available")} <strong>{availableCount}</strong></span>
+            <span className="viz-legend-item"><i style={{ background: 'var(--orange)' }} /> {t("wording.lowStock")} <strong>{lowStock.length}</strong></span>
+            <span className="viz-legend-item"><i style={{ background: 'var(--red)' }} /> {t("wording.outOfStock")} <strong>{outOfStock.length}</strong></span>
           </div>
           <p className="summary-text" style={{ marginTop: 14, marginBottom: 0 }}>
-            <strong>{pct(availableCount, inventoryData.length).toFixed(0)}%</strong> of {inventoryData.length} SKUs have healthy stock levels.
+            <strong>{pct(availableCount, inventoryData.length).toFixed(0)}%</strong> {t("wording.of")} {inventoryData.length} {t("wording.skusHaveHealthyStockLevels")}
           </p>
         </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 18, marginBottom: 18 }}>
         <div className="card">
-          <div className="section-title">Stock Distribution by Warehouse</div>
+          <div className="section-title">{t("wording.stockDistributionByWarehouse")}</div>
           <div className="viz-bar-chart">
             {isLoading ? (
-              <div className="no-data">Loading warehouse stock…</div>
+              <div className="no-data">{t("wording.loadingWarehouseStock")}</div>
             ) : isError ? (
-              <div className="no-data">Failed to load warehouse stock.</div>
+              <div className="no-data">{t("wording.failedToLoadWarehouseStock")}</div>
             ) : warehouseBreakdown.length === 0 ? (
-              <div className="no-data">No warehouse stock data.</div>
+              <div className="no-data">{t("wording.noWarehouseStockData")}</div>
             ) : warehouseBreakdown.map(item => (
                 <div key={item.warehouse} className="viz-bar-row">
                   <div className="viz-bar-label">{item.warehouse || '—'}</div>
-                  <div className="viz-bar-track" title={`${item.warehouse}: ${item.total_stock.toLocaleString('en-US')} units`}>
+                  <div className="viz-bar-track" title={t("dynamic.warehouseUnits", { warehouse: item.warehouse, count: item.total_stock.toLocaleString(i18n.language === "id" ? t("wording.idId") : t("wording.enUs")) })}>
                     <div className="viz-bar-fill" style={{ width: `${pct(item.total_stock, maxWarehouseStock)}%` }} />
                   </div>
                   <div className="viz-bar-value">{item.total_stock.toLocaleString('en-US')}</div>
@@ -192,14 +194,14 @@ export default function MainDashboardPage() {
         </div>
 
         <div className="card">
-          <div className="section-title">Recent Activity</div>
+          <div className="section-title">{t("wording.recentActivity")}</div>
           <div className="dash-activity-list">
             {isLoading ? (
-              <div className="no-data">Loading recent activity…</div>
+              <div className="no-data">{t("wording.loadingRecentActivity")}</div>
             ) : isError ? (
-              <div className="no-data">Failed to load recent activity.</div>
+              <div className="no-data">{t("wording.failedToLoadRecentActivity")}</div>
             ) : recentActivity.length === 0 ? (
-              <div className="no-data">No recent activity.</div>
+              <div className="no-data">{t("wording.noRecentActivity")}</div>
             ) : recentActivity.map(log => (
                 <div key={log.id} className="dash-activity-row">
                   <span className="dash-activity-dot" style={{ background: MODULE_DOT[log.module] || 'var(--text-muted)' }} />
@@ -214,18 +216,18 @@ export default function MainDashboardPage() {
       </div>
 
       <div className="card" style={{ marginBottom: 18 }}>
-        <div className="section-title">Stock by Category</div>
+        <div className="section-title">{t("wording.stockByCategory")}</div>
         <div className="viz-bar-chart">
           {isLoading ? (
-            <div className="no-data">Loading category stock…</div>
+            <div className="no-data">{t("wording.loadingCategoryStock")}</div>
           ) : isError ? (
-            <div className="no-data">Failed to load category stock.</div>
+            <div className="no-data">{t("wording.failedToLoadCategoryStock")}</div>
           ) : categoryBreakdown.length === 0 ? (
-            <div className="no-data">No category stock data.</div>
+            <div className="no-data">{t("wording.noCategoryStockData")}</div>
           ) : categoryBreakdown.map(item => (
               <div key={item.category} className="viz-bar-row">
                 <div className="viz-bar-label">{item.category || '—'}</div>
-                <div className="viz-bar-track" title={`${item.category}: ${item.total_stock.toLocaleString('en-US')} units across ${item.sku_count} SKUs`}>
+                <div className="viz-bar-track" title={t("dynamic.categoryUnitsSkus", { category: item.category, count: item.total_stock.toLocaleString(i18n.language === "id" ? t("wording.idId") : t("wording.enUs")), skuCount: item.sku_count })}>
                   <div className="viz-bar-fill" style={{ width: `${pct(item.total_stock, maxCategoryStock)}%` }} />
                 </div>
                 <div className="viz-bar-value">{item.total_stock.toLocaleString('en-US')}</div>
@@ -235,32 +237,32 @@ export default function MainDashboardPage() {
       </div>
 
       <div className="card">
-        <div className="section-title">Needs Attention — Low &amp; Out of Stock</div>
+        <div className="section-title">{t("wording.needsAttentionLowOutOfStock")}</div>
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Item Name</th>
-                <th>Category</th>
-                <th>Warehouse</th>
-                <th style={{ width: 90, textAlign: 'right' }}>Stock</th>
-                <th style={{ width: 120 }}>Status</th>
+                <th>{t("wording.itemName")}</th>
+                <th>{t("wording.category")}</th>
+                <th>{t("wording.warehouse")}</th>
+                <th style={{ width: 90, textAlign: 'right' }}>{t("wording.stock")}</th>
+                <th style={{ width: 120 }}>{t("wording.status")}</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32 }}>Loading items…</td></tr>
+                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32 }}>{t("wording.loadingItems")}</td></tr>
               ) : isError ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: 'var(--red)' }}>Failed to load items requiring attention.</td></tr>
+                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: 'var(--red)' }}>{t("wording.failedToLoadItemsRequiringAttention")}</td></tr>
               ) : needsAttention.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>All stock levels are healthy.</td></tr>
+                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>{t("wording.allStockLevelsAreHealthy")}</td></tr>
               ) : needsAttention.map(i => (
                   <tr key={i.id}>
                     <td className="name-cell">{i.name}</td>
                     <td>{i.category}</td>
                     <td style={{ color: 'var(--text-muted)' }}>{i.warehouse}</td>
                     <td style={{ textAlign: 'right', fontWeight: 600 }}>{i.total_stock} {i.unit}</td>
-                    <td><span className={`badge ${stockBadgeClass(i.status)}`}>{i.status}</span></td>
+                    <td><span className={`badge ${stockBadgeClass(i.status)}`}>{translateApiValue(i.status)}</span></td>
                   </tr>
                 ))}
             </tbody>

@@ -21,6 +21,8 @@ import {
   STORAGE_TIERS,
 } from "../../data/pricingCatalog";
 import { formatIDR } from "../../lib/superAdminUtils";
+import { useTranslation } from "react-i18next";
+
 
 function readableStorage(bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
@@ -60,14 +62,23 @@ const MODULE_PRICE_FIELDS = [
   { key: "item-loan", field: "item_loan_price" },
 ] as const;
 
+const MODULE_LABEL_KEYS: Record<string, string> = {
+  event: "modules.event",
+  inventory: "modules.inventory",
+  warehouse: "modules.warehouse",
+  "qr-code": "modules.qrCode",
+  reports: "modules.reports",
+  "item-loan": "modules.itemLoan",
+};
+
 const PLAN_FEATURES = [
-  { field: "event_management_price", label: "Event Management" },
-  { field: "inventory_management_price", label: "Inventory Management" },
-  { field: "warehouse_management_price", label: "Warehouse Management" },
-  { field: "qr_scanning_price", label: "QR Code Scanning" },
-  { field: "reports_dashboard_price", label: "Report & Dashboard" },
-  { field: "item_loan_price", label: "Item Loan Management" },
-  { field: "ai_analyzer_price", label: "AI Feature" },
+  { field: "event_management_price", labelKey: "modules.event" },
+  { field: "inventory_management_price", labelKey: "modules.inventory" },
+  { field: "warehouse_management_price", labelKey: "modules.warehouse" },
+  { field: "qr_scanning_price", labelKey: "modules.qrCode" },
+  { field: "reports_dashboard_price", labelKey: "modules.reports" },
+  { field: "item_loan_price", labelKey: "modules.itemLoan" },
+  { field: "ai_analyzer_price", labelKey: "modules.ai" },
 ] as const;
 
 function selectedModulePrice(modules: string[], key: string) {
@@ -76,6 +87,7 @@ function selectedModulePrice(modules: string[], key: string) {
 }
 
 export default function PricingPage() {
+  const { t } = useTranslation();
   const [plans, setPlans] = useState<AdminPlan[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -108,14 +120,14 @@ export default function PricingPage() {
       customer_count: "0",
     },
     validationSchema: Yup.object({
-      name: Yup.string().trim().required("Required"),
-      billing_cycle: Yup.string().oneOf(["monthly", "yearly", "custom"]).required("Required"),
-      description: Yup.string().trim().required("Required"),
+      name: Yup.string().trim().required(t("wording.required")),
+      billing_cycle: Yup.string().oneOf(["monthly", "yearly", "custom"]).required(t("wording.required")),
+      description: Yup.string().trim().required(t("wording.required")),
       modules: Yup.array().of(Yup.string()),
       ai_feature: Yup.boolean(),
-      storage_gb: Yup.number().required("Required"),
-      storage_limit: Yup.number().typeError("Must be a number").integer("Must be a whole number").min(0, "Minimum value is 0").required("Required"),
-      customer_count: Yup.number().typeError("Must be a number").integer("Must be a whole number").min(0, "Minimum value is 0"),
+      storage_gb: Yup.number().required(t("wording.required")),
+      storage_limit: Yup.number().typeError("Must be a number").integer("Must be a whole number").min(0, t("wording.minimumValueIs0")).required(t("wording.required")),
+      customer_count: Yup.number().typeError("Must be a number").integer("Must be a whole number").min(0, t("wording.minimumValueIs0")),
     }),
     validateOnChange: false,
     onSubmit: async (values, { resetForm }) => {
@@ -249,26 +261,26 @@ export default function PricingPage() {
   return (
     <>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-        <h1 className="page-title" style={{ margin: 0 }}>Pricing Plans</h1>
-        <button className="btn-new" onClick={openNew}><IconPlus /> New Plan</button>
+        <h1 className="page-title" style={{ margin: 0 }}>{t("wording.pricingPlans")}</h1>
+        <button className="btn-new" onClick={openNew}><IconPlus /> {t("wording.newPlan")}</button>
       </div>
-      <p className="summary-text">Plan pricing is calculated automatically based on the selected modules, AI feature, and storage capacity.</p>
+      <p className="summary-text">{t("wording.planPricingIsCalculatedAutomaticallyBasedOnThe")}</p>
 
       {isPlansLoading ? (
-        <div className="card" style={{ color: "var(--text-muted)" }}>Loading pricing plans…</div>
+        <div className="card" style={{ color: "var(--text-muted)" }}>{t("wording.loadingPricingPlans")}</div>
       ) : isPlansError ? (
-        <div className="card" style={{ color: "var(--red)" }}>Unable to load pricing plans.</div>
+        <div className="card" style={{ color: "var(--red)" }}>{t("wording.unableToLoadPricingPlans")}</div>
       ) : !plans.length ? (
-        <div className="card" style={{ color: "var(--text-muted)" }}>No pricing plans found.</div>
+        <div className="card" style={{ color: "var(--text-muted)" }}>{t("wording.noPricingPlansFound")}</div>
       ) : (
         <div className="sa-plan-grid">
           {plans.map((plan) => (
             <div key={plan.id} className={`sa-plan-card${plan.is_default === 1 ? " highlighted" : ""}`}>
-              {plan.is_default === 1 && <div className="sa-plan-tag">Most Popular</div>}
+              {plan.is_default === 1 && <div className="sa-plan-tag">{t("wording.mostPopular")}</div>}
               <div className="sa-plan-name">{plan.name}</div>
               <div className="sa-plan-price">
                 {plan.billing_cycle === "custom" ? (
-                  "Custom"
+                  t("wording.custom")
                 ) : (
                   <>
                     {formatIDR((plan.price ?? 0) + (plan.base_platform_fee ?? 0))}{" "}
@@ -279,17 +291,17 @@ export default function PricingPage() {
               <p className="sa-plan-desc">{plan.description || "-"}</p>
               <ul className="sa-plan-features">
                 {PLAN_FEATURES.filter(({ field }) => Number(plan[field] ?? 0) > 0).map((feature) => (
-                  <li key={feature.field}><IconCheck /> {feature.label}</li>
+                  <li key={feature.field}><IconCheck /> {t(feature.labelKey)}</li>
                 ))}
-                <li><IconCheck /> {plan.storage_limit_readable || readableStorage(plan.storage_limit)} Storage</li>
+                <li><IconCheck /> {plan.storage_limit_readable || readableStorage(plan.storage_limit)} {t("wording.storage")}</li>
               </ul>
               <div className="sa-plan-footer">
                 <span className="sa-plan-customers">
-                  {plan.customers_using} {plan.customers_using === 1 ? "customer" : "customers"}
+                  {plan.customers_using} {plan.customers_using === 1 ? t("wording.customerInline") : t("wording.customersInline")}
                 </span>
                 <div className="action-btns">
-                  <button className="btn-icon edit" title="Edit" onClick={() => openEdit(plan)}><IconEdit /></button>
-                  <button className="btn-icon delete" title="Delete" onClick={() => openDelete(plan.id)}><IconDelete /></button>
+                  <button className="btn-icon edit" title={t("wording.edit")} onClick={() => openEdit(plan)}><IconEdit /></button>
+                  <button className="btn-icon delete" title={t("wording.delete")} onClick={() => openDelete(plan.id)}><IconDelete /></button>
                 </div>
               </div>
             </div>
@@ -299,13 +311,13 @@ export default function PricingPage() {
 
       <Modal
         open={modalOpen}
-        title={editingId ? "Edit Pricing Plan" : "Add Pricing Plan"}
+        title={editingId ? t("wording.editPricingPlan") : t("wording.addPricingPlan")}
         onClose={closePlanModal}
         size="lg"
         footer={(
           <>
-            <button className="btn-cancel-modal" disabled={isSaving} onClick={closePlanModal}><IconClose /> Cancel</button>
-            <button className="btn-save-modal" disabled={isSaving} onClick={() => formik.handleSubmit()}><IconCheck /> {isSaving ? "Saving…" : "Save"}</button>
+            <button className="btn-cancel-modal" disabled={isSaving} onClick={closePlanModal}><IconClose /> {t("wording.cancel")}</button>
+            <button className="btn-save-modal" disabled={isSaving} onClick={() => formik.handleSubmit()}><IconCheck /> {isSaving ? t("common.actions.saving") : t("common.actions.save")}</button>
           </>
         )}
       >
@@ -315,20 +327,20 @@ export default function PricingPage() {
             value={formik.values.name}
             onChange={(value) => formik.setFieldValue("name", value)}
             isRequired
-            label="Plan Name"
+            label={t("wording.planName")}
             errorText={formik.errors.name}
           />
           <div className="form-group">
-            <label>Billing Cycle <span style={{ color: "var(--red)" }}>*</span></label>
+            <label>{t("wording.billingCycleTitle")} <span style={{ color: "var(--red)" }}>*</span></label>
             <SearchableSelect
               value={formik.values.billing_cycle}
               onChange={(value) => formik.setFieldValue("billing_cycle", String(value))}
               options={[
-                { value: "monthly", label: "Monthly" },
-                { value: "yearly", label: "Yearly" },
-                { value: "custom", label: "Custom (price not shown)" },
+                { value: "monthly", label: t("wording.monthly") },
+                { value: "yearly", label: t("wording.yearly") },
+                { value: "custom", label: t("wording.customPriceNotShown") },
               ]}
-              placeholder="Select billing cycle…"
+              placeholder={t("wording.selectBillingCycle")}
               errorText={formik.errors.billing_cycle}
             />
           </div>
@@ -339,12 +351,12 @@ export default function PricingPage() {
           value={formik.values.description}
           onChange={(value) => formik.setFieldValue("description", value)}
           isRequired
-          label="Description"
+          label={t("wording.description")}
           errorText={formik.errors.description}
         />
 
         <div className="form-group">
-          <label>Modules</label>
+          <label>{t("wording.modules")}</label>
           <div className="sa-module-grid">
             {MODULE_CATALOG.map((module) => (
               <label key={module.key} className={`sa-module-item${formik.values.modules.includes(module.key) ? " checked" : ""}`}>
@@ -353,7 +365,9 @@ export default function PricingPage() {
                   checked={formik.values.modules.includes(module.key)}
                   onChange={() => toggleModule(module.key)}
                 />
-                <span className="sa-module-label">{module.label}</span>
+                <span className="sa-module-label">
+                  {t(MODULE_LABEL_KEYS[module.key] ?? module.label)}
+                </span>
                 <span className="sa-module-price">{formatIDR(module.price)}</span>
               </label>
             ))}
@@ -362,19 +376,19 @@ export default function PricingPage() {
 
         <div className="form-row">
           <div className="form-group">
-            <label>AI Feature</label>
+            <label>{t("wording.aiFeature")}</label>
             <label className={`sa-module-item${formik.values.ai_feature ? " checked" : ""}`} style={{ marginTop: 0 }}>
               <input
                 type="checkbox"
                 checked={formik.values.ai_feature}
                 onChange={(event) => formik.setFieldValue("ai_feature", event.target.checked)}
               />
-              <span className="sa-module-label">AI Analyzer Access</span>
+              <span className="sa-module-label">{t("wording.aiAnalyzerAccess")}</span>
               <span className="sa-module-price">{formatIDR(AI_FEATURE_FEE)}</span>
             </label>
           </div>
           <div className="form-group">
-            <label>Storage Capacity</label>
+            <label>{t("wording.storageCapacity")}</label>
             <SearchableSelect
               value={formik.values.storage_gb}
               onChange={(value) => {
@@ -384,9 +398,11 @@ export default function PricingPage() {
               }}
               options={STORAGE_TIERS.map((tier) => ({
                 value: tier.gb,
-                label: `${tier.gb} GB ${tier.price > 0 ? `(+${formatIDR(tier.price)})` : "(included)"}`,
+                label: tier.price > 0
+                  ? `${tier.gb} GB (+${formatIDR(tier.price)})`
+                  : t("dynamic.storageIncluded", { count: tier.gb }),
               }))}
-              placeholder="Select storage capacity…"
+              placeholder={t("wording.selectStorageCapacity")}
               errorText={formik.errors.storage_gb as string}
             />
           </div>
@@ -399,36 +415,36 @@ export default function PricingPage() {
             onChange={(value) => formik.setFieldValue("storage_limit", value)}
             isRequired
             isNumeric
-            label="Storage Limit (bytes)"
-            placeholder="e.g. 1073741824"
+            label={t("wording.storageLimitBytes")}
+            placeholder={t("wording.eG1073741824")}
             errorText={formik.errors.storage_limit}
           />
         </div>
 
         <div className="sa-price-summary">
           <div className="sa-price-summary-row">
-            <span>Base platform fee</span>
+            <span>{t("wording.basePlatformFee")}</span>
             <span>{formatIDR(BASE_PLATFORM_FEE)}</span>
           </div>
           <div className="sa-price-summary-row">
-            <span>Modules ({formik.values.modules.length})</span>
+            <span>{t("wording.modulesPrefix")}{formik.values.modules.length})</span>
             <span>{formatIDR(modulesTotal)}</span>
           </div>
           <div className="sa-price-summary-row">
-            <span>AI Feature</span>
+            <span>{t("wording.aiFeature")}</span>
             <span>{formatIDR(aiFeatureFee)}</span>
           </div>
           <div className="sa-price-summary-row">
-            <span>Storage ({formik.values.storage_gb} GB)</span>
+            <span>{t("wording.storagePrefix")}{formik.values.storage_gb} GB)</span>
             <span>{formatIDR(storageFee)}</span>
           </div>
           <div className="sa-price-summary-row">
-            <span>Storage Limit</span>
+            <span>{t("wording.storageLimit")}</span>
             <span>{readableStorage(Number(formik.values.storage_limit))}</span>
           </div>
           <div className="sa-price-summary-row sa-price-summary-total">
-            <span>Total per {summaryPeriod}</span>
-            <span>{formik.values.billing_cycle === "custom" ? "Custom" : formatIDR(formTotal)}</span>
+            <span>{t("wording.totalPer")} {summaryPeriod}</span>
+            <span>{formik.values.billing_cycle === "custom" ? t("wording.custom") : formatIDR(formTotal)}</span>
           </div>
         </div>
 
@@ -438,7 +454,7 @@ export default function PricingPage() {
             value={formik.values.customer_count}
             onChange={(value) => formik.setFieldValue("customer_count", value)}
             isNumeric
-            label="Customer Count"
+            label={t("wording.customerCount")}
             errorText={formik.errors.customer_count}
           />
         </div>
@@ -446,17 +462,17 @@ export default function PricingPage() {
 
       <Modal
         open={deleteOpen}
-        title="Delete Plan"
+        title={t("wording.deletePlan")}
         onClose={() => { if (!isDeleting) setDeleteOpen(false); }}
         footer={(
           <>
-            <button className="btn-cancel-modal" disabled={isDeleting} onClick={() => setDeleteOpen(false)}>Cancel</button>
-            <button className="btn-del-ok" disabled={isDeleting} onClick={confirmDelete}>{isDeleting ? "Deleting…" : "Delete"}</button>
+            <button className="btn-cancel-modal" disabled={isDeleting} onClick={() => setDeleteOpen(false)}>{t("wording.cancel")}</button>
+            <button className="btn-del-ok" disabled={isDeleting} onClick={confirmDelete}>{isDeleting ? t("common.actions.deleting") : t("common.actions.delete")}</button>
           </>
         )}
       >
         <p className="confirm-msg">
-          Are you sure you want to delete <strong>&ldquo;{deleteTarget?.name}&rdquo;</strong>? This action cannot be undone.
+          {t("wording.areYouSureYouWantToDelete")} <strong>&ldquo;{deleteTarget?.name}&rdquo;</strong>{t("wording.thisActionCannotBeUndone")}
         </p>
       </Modal>
     </>

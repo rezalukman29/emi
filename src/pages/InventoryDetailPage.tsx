@@ -9,6 +9,7 @@ import { BarangDetailI } from "../interfaces/InventoryInterface";
 import { STORAGE_BOOQABLE, isValidUrl } from "../utils/function";
 import { useUnitController } from "./lib/useUnitController";
 import { useCategoryController } from "./lib/useCategoryController";
+import { useTranslation } from "react-i18next";
 
 function statusBadge(s: string) {
   if (s === "Available") return <span className="badge badge-green">{s}</span>;
@@ -53,6 +54,7 @@ function getImageUrl(photo?: string) {
 }
 
 export default function InventoryDetailPage() {
+  const { t } = useTranslation();
   const { id: routeInventoryId } = useParams<{ id: string }>();
   const [params] = useSearchParams();
   const navigate = useNavigate();
@@ -76,7 +78,7 @@ export default function InventoryDetailPage() {
     return (
       <div style={{ padding: 40, textAlign: "center" }}>
         <p style={{ color: "var(--text-muted)", fontSize: 14 }}>
-          Loading item detail...
+          {t("wording.loadingItemDetail")}
         </p>
       </div>
     );
@@ -86,14 +88,14 @@ export default function InventoryDetailPage() {
     return (
       <div style={{ padding: 40, textAlign: "center" }}>
         <p style={{ color: "var(--text-muted)", fontSize: 14 }}>
-          Item not found.
+          {t("wording.itemNotFound")}
         </p>
         <button
           className="btn-new"
           style={{ marginTop: 12 }}
           onClick={() => navigate("/inventory")}
         >
-          Back to Inventory
+          {t("wording.backToInventory")}
         </button>
       </div>
     );
@@ -163,7 +165,7 @@ export default function InventoryDetailPage() {
           >
             <polyline points="15 18 9 12 15 6" />
           </svg>
-          Back
+          {t("wording.back")}
         </button>
         <h1 className="page-title" style={{ margin: 0, flex: 1 }}>
           {itemName}
@@ -230,18 +232,18 @@ export default function InventoryDetailPage() {
                 letterSpacing: ".07em",
               }}
             >
-              Item Info
+              {t("wording.itemInfo")}
             </span>
           </div>
           <div
             style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}
           >
-            <Field label="SKU" value={item.code} />
-            <Field label="Category" value={category} />
-            <Field label="Unit" value={unit} />
-            <Field label="Warehouse" value={warehouse} />
+            <Field label={t("wording.sku")} value={item.code} />
+            <Field label={t("wording.category")} value={category} />
+            <Field label={t("wording.unit")} value={unit} />
+            <Field label={t("wording.warehouse")} value={warehouse} />
             <Field
-              label="Updated At"
+              label={t("wording.updatedAt")}
               value={
                 updatedAt
                   ? moment(updatedAt).format("D MMM YYYY, HH:mm")
@@ -258,7 +260,7 @@ export default function InventoryDetailPage() {
                   letterSpacing: ".05em",
                 }}
               >
-                Status
+                {t("wording.status")}
               </span>
               {statusBadge(stockStatus)}
             </div>
@@ -274,7 +276,7 @@ export default function InventoryDetailPage() {
                   letterSpacing: ".05em",
                 }}
               >
-                Description
+                {t("wording.description")}
               </span>
               <p
                 style={{
@@ -317,15 +319,15 @@ export default function InventoryDetailPage() {
                   letterSpacing: ".07em",
                 }}
               >
-                Stock Summary
+                {t("wording.stockSummary")}
               </span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {[
-                { label: "Total Stock", value: totalStock, color: "var(--text)", big: true },
-                { label: "Available", value: availableStock, color: "var(--green)" },
-                { label: "Reserved", value: reservedStock, color: "var(--orange)" },
-                { label: "On Event", value: onEventStock, color: "var(--brand)" },
+                { label: t("wording.totalStock"), value: totalStock, color: "var(--text)", big: true },
+                { label: t("wording.available"), value: availableStock, color: "var(--green)" },
+                { label: t("wording.reserved"), value: reservedStock, color: "var(--orange)" },
+                { label: t("wording.onEvent"), value: onEventStock, color: "var(--brand)" },
               ].map((s) => (
                 <div
                   key={s.label}
@@ -387,7 +389,7 @@ export default function InventoryDetailPage() {
                   letterSpacing: ".07em",
                 }}
               >
-                Image
+                {t("wording.image")}
               </span>
             </div>
             {imageUrl ? (
@@ -433,7 +435,7 @@ export default function InventoryDetailPage() {
                     color: "var(--text-muted)",
                   }}
                 >
-                  No image uploaded
+                  {t("wording.noImageUploaded")}
                 </span>
               </div>
             )}
@@ -443,7 +445,7 @@ export default function InventoryDetailPage() {
 
       <Modal
         open={deleteOpen}
-        title="Delete Item"
+        title={t("wording.deleteItem")}
         onClose={() => setDeleteOpen(false)}
         footer={
           <>
@@ -451,7 +453,7 @@ export default function InventoryDetailPage() {
               className="btn-cancel-modal"
               onClick={() => setDeleteOpen(false)}
             >
-              Cancel
+              {t("wording.cancel")}
             </button>
             <button
               className="btn-del-ok"
@@ -460,14 +462,13 @@ export default function InventoryDetailPage() {
                 navigate("/inventory");
               }}
             >
-              Delete
+              {t("wording.delete")}
             </button>
           </>
         }
       >
         <p className="confirm-msg">
-          Are you sure you want to delete <strong>"{itemName}"</strong>? This
-          action cannot be undone.
+          {t("wording.areYouSureYouWantToDelete")} <strong>"{itemName}"</strong>{t("wording.thisActionCannotBeUndone")}
         </p>
       </Modal>
     </>

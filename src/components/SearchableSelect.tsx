@@ -8,6 +8,7 @@ import {
 import { createPortal } from "react-dom";
 
 import { IconChevronDown, IconSearch } from "./icons";
+import { useTranslation } from "react-i18next";
 
 export interface SearchableSelectOption {
   value: string | number;
@@ -42,14 +43,15 @@ export default function SearchableSelect({
   value,
   onChange,
   options,
-  placeholder = "Select…",
-  searchPlaceholder = "Search…",
-  emptyText = "No results found",
+  placeholder,
+  searchPlaceholder,
+  emptyText,
   errorText,
   disabled = false,
   inline = false,
   style,
 }: SearchableSelectProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [position, setPosition] = useState<MenuPosition | null>(null);
@@ -145,7 +147,9 @@ export default function SearchableSelect({
         onClick={() => !disabled && setOpen((current) => !current)}
         style={{ borderColor: errorText?.trim() ? "var(--red)" : undefined }}
       >
-        <span className="ss-trigger-label">{selected?.label ?? placeholder}</span>
+        <span className="ss-trigger-label">
+          {selected?.label ?? placeholder ?? t("select.placeholder")}
+        </span>
         <IconChevronDown />
       </button>
 
@@ -172,14 +176,14 @@ export default function SearchableSelect({
             <input
               autoFocus
               type="text"
-              placeholder={searchPlaceholder}
+              placeholder={searchPlaceholder ?? t("select.searchPlaceholder")}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
           </div>
           <div className="ss-list" style={{ maxHeight: position.maxHeight }}>
             {!filteredOptions.length ? (
-              <div className="ss-empty">{emptyText}</div>
+              <div className="ss-empty">{emptyText ?? t("select.empty")}</div>
             ) : filteredOptions.map((option) => (
               <div
                 key={String(option.value)}

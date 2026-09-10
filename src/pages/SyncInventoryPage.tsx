@@ -9,6 +9,10 @@ import useGetSyncInventory, {
   type SyncInventoryItem,
 } from "../hooks/api/useGetSyncInventory";
 import useUpdateSyncInventory from "../hooks/api/useUpdateSyncInventory";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
+
+
 
 const PAGE_SIZE = 20;
 
@@ -31,7 +35,7 @@ function DiffBadge({ diff }: { diff: number }) {
   if (diff === 0) {
     return (
       <span className="badge badge-green" style={{ fontSize: 11 }}>
-        Match
+        {i18n.t("wording.match")}
       </span>
     );
   }
@@ -52,6 +56,7 @@ function DiffBadge({ diff }: { diff: number }) {
 }
 
 export default function SyncInventoryPage() {
+  const { t } = useTranslation();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -130,7 +135,7 @@ export default function SyncInventoryPage() {
       await refetchSyncInventory();
     } catch (error) {
       toast(
-        error instanceof Error ? error.message : "Failed to sync inventory.",
+        error instanceof Error ? error.message : t("wording.failedToSyncInventory"),
         { type: "error" },
       );
     } finally {
@@ -151,7 +156,7 @@ export default function SyncInventoryPage() {
         }}
       >
         <h1 className="page-title" style={{ margin: 0 }}>
-          Sync Inventory
+          {t("wording.syncInventory")}
         </h1>
         <button
           className="btn-new"
@@ -171,16 +176,16 @@ export default function SyncInventoryPage() {
             <polyline points="23 20 23 14 17 14" />
             <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
           </svg>
-          {isSyncingAll ? "Syncing…" : "Sync All on This Page"}
+          {isSyncingAll ? t("wording.syncing") : t("wording.syncAllOnThisPage")}
         </button>
       </div>
 
       <div className="stats-bar" style={{ gridTemplateColumns: "repeat(4,1fr)" }}>
         {[
-          { label: "Total Items", value: total, color: "var(--brand)", bg: "var(--brand-bg)" },
-          { label: "Matched on This Page", value: matchCount, color: "var(--green)", bg: "var(--green-bg)" },
-          { label: "Discrepancies on This Page", value: discrepancyCount, color: "var(--red)", bg: "var(--red-bg)" },
-          { label: "Showing", value: rows.length, color: "var(--purple)", bg: "var(--purple-bg)" },
+          { label: t("wording.totalItems"), value: total, color: "var(--brand)", bg: "var(--brand-bg)" },
+          { label: t("wording.matchedOnThisPage"), value: matchCount, color: "var(--green)", bg: "var(--green-bg)" },
+          { label: t("wording.discrepanciesOnThisPage"), value: discrepancyCount, color: "var(--red)", bg: "var(--red-bg)" },
+          { label: t("wording.showing"), value: rows.length, color: "var(--purple)", bg: "var(--purple-bg)" },
         ].map((stat) => (
           <div key={stat.label} className="stat-card">
             <div className="stat-icon" style={{ background: stat.bg }}>
@@ -201,7 +206,7 @@ export default function SyncInventoryPage() {
               <input
                 className="search-input"
                 type="text"
-                placeholder="Search item name…"
+                placeholder={t("wording.searchItemName")}
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
                 onKeyDown={(event) => {
@@ -210,7 +215,7 @@ export default function SyncInventoryPage() {
               />
             </div>
             <button className="btn-search" onClick={applySearch}>
-              Search
+              {t("wording.search")}
             </button>
           </div>
         </div>
@@ -220,15 +225,15 @@ export default function SyncInventoryPage() {
             <thead>
               <tr>
                 <SortTh
-                  label="Name"
+                  label={t("wording.name")}
                   id="nama_barang"
                   sortCol={sortBy}
                   sortAsc={sort === "ASC"}
                   onSort={handleSort}
                 />
-                <th style={{ width: 90 }}>SKU</th>
+                <th style={{ width: 90 }}>{t("wording.sku")}</th>
                 <SortTh
-                  label="Stock"
+                  label={t("wording.stock")}
                   id="stok"
                   sortCol={sortBy}
                   sortAsc={sort === "ASC"}
@@ -236,18 +241,18 @@ export default function SyncInventoryPage() {
                   style={{ width: 75, textAlign: "right" }}
                 />
                 <th style={{ width: 130, textAlign: "right" }}>
-                  Warehouse Stock
+                  {t("wording.warehouseStock")}
                 </th>
-                <th style={{ minWidth: 130 }}>Warehouse</th>
-                <th style={{ width: 100 }}>Detail</th>
-                <th style={{ width: 95, textAlign: "center" }}>Sync</th>
+                <th style={{ minWidth: 130 }}>{t("wording.warehouse")}</th>
+                <th style={{ width: 100 }}>{t("wording.detail")}</th>
+                <th style={{ width: 95, textAlign: "center" }}>{t("wording.sync")}</th>
               </tr>
             </thead>
             <tbody>
               {isLoading && rows.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ textAlign: "center", padding: 32 }}>
-                    Loading inventory sync data…
+                    {t("wording.loadingInventorySyncData")}
                   </td>
                 </tr>
               ) : isError ? (
@@ -256,7 +261,7 @@ export default function SyncInventoryPage() {
                     colSpan={7}
                     style={{ textAlign: "center", color: "var(--red)", padding: 32 }}
                   >
-                    Failed to load inventory sync data.
+                    {t("wording.failedToLoadInventorySyncData")}
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
@@ -265,7 +270,7 @@ export default function SyncInventoryPage() {
                     colSpan={7}
                     style={{ textAlign: "center", color: "var(--text-muted)", padding: 32 }}
                   >
-                    No results found.
+                    {t("wording.noResultsFound")}
                   </td>
                 </tr>
               ) : (
@@ -339,7 +344,7 @@ export default function SyncInventoryPage() {
                               </>
                             )}
                           </svg>
-                          {isSyncing ? "Syncing…" : "Sync"}
+                          {isSyncing ? t("wording.syncing") : t("wording.sync")}
                         </button>
                       </td>
                     </tr>
@@ -355,7 +360,7 @@ export default function SyncInventoryPage() {
           total={total}
           pageSize={PAGE_SIZE}
           onPage={(nextPage: number) => setPage(nextPage)}
-          label="items"
+          label={t("wording.itemsInline")}
         />
       </div>
     </>

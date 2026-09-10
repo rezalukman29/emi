@@ -26,6 +26,9 @@ import useGetSuperAdminCustomers from "../../hooks/api/useGetSuperAdminCustomers
 import usePutBlockSuperAdminCustomer from "../../hooks/api/usePutBlockSuperAdminCustomer";
 import useUpdateSuperAdminCustomer from "../../hooks/api/useUpdateSuperAdminCustomer";
 import { customerStatusBadge, formatIDR } from "../../lib/superAdminUtils";
+import { useTranslation } from "react-i18next";
+import { translateApiValue } from "../../utils/function";
+
 
 const PAGE_SIZE = 10;
 const STATUSES = ["Active", "Trial", "Suspended", "Cancelled"];
@@ -103,6 +106,7 @@ function requestErrorMessage(error: unknown, fallback: string) {
 }
 
 export default function CustomersPage() {
+  const { t } = useTranslation();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -145,24 +149,24 @@ export default function CustomersPage() {
   const customerFormik = useFormik<CustomerForm>({
     initialValues: emptyForm(),
     validationSchema: Yup.object({
-      company: Yup.string().trim().required("Company is required."),
-      contact: Yup.string().trim().required("Contact name is required."),
+      company: Yup.string().trim().required(t("wording.companyIsRequired")),
+      contact: Yup.string().trim().required(t("wording.contactNameIsRequired")),
       email: Yup.string()
         .trim()
         .email("Enter a valid email address.")
-        .required("Email is required."),
-      planId: Yup.string().required("Plan is required."),
-      status: Yup.string().oneOf(STATUSES).required("Status is required."),
+        .required(t("wording.emailIsRequired")),
+      planId: Yup.string().required(t("wording.planIsRequired")),
+      status: Yup.string().oneOf(STATUSES).required(t("wording.statusIsRequired")),
       mrr: Yup.number()
         .typeError("MRR must be a number.")
         .integer("MRR must be a whole number.")
-        .min(0, "MRR cannot be negative.")
-        .required("MRR is required."),
+        .min(0, t("wording.mrrCannotBeNegative"))
+        .required(t("wording.mrrIsRequired")),
       users: Yup.number()
         .typeError("Users must be a number.")
         .integer("Users must be a whole number.")
-        .min(0, "Users cannot be negative.")
-        .required("Users is required."),
+        .min(0, t("wording.usersCannotBeNegative"))
+        .required(t("wording.usersIsRequired")),
     }),
     onSubmit: async (values, { resetForm }) => {
       const payload = {
@@ -188,7 +192,7 @@ export default function CustomersPage() {
         toast(
           requestErrorMessage(
             error,
-            editingId ? "Failed to update customer." : "Failed to create customer.",
+            editingId ? t("wording.failedToUpdateCustomer") : t("wording.failedToCreateCustomer"),
           ),
           { type: "error" },
         );
@@ -215,7 +219,7 @@ export default function CustomersPage() {
       email: item.email,
       planId: item.plan_id,
       plan: item.plan_name,
-      status: item.is_blocked === 1 ? "Suspended" : item.status,
+      status: item.is_blocked === 1 ? t("wording.suspended") : item.status,
       mrr: item.mrr,
       users: item.users,
       joinedAt: formatDate(item.created_at),
@@ -293,7 +297,7 @@ export default function CustomersPage() {
       toast(
         requestErrorMessage(
           error,
-          customer.isBlocked ? "Failed to unblock customer." : "Failed to block customer.",
+          customer.isBlocked ? t("wording.failedToUnblockCustomer") : t("wording.failedToBlockCustomer"),
         ),
         { type: "error" },
       );
@@ -382,16 +386,16 @@ export default function CustomersPage() {
   return (
     <>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22 }}>
-        <h1 className="page-title" style={{ margin: 0 }}>Customers</h1>
-        <button className="btn-new" onClick={openNew}><IconPlus /> New Customer</button>
+        <h1 className="page-title" style={{ margin: 0 }}>{t("wording.customers")}</h1>
+        <button className="btn-new" onClick={openNew}><IconPlus /> {t("wording.newCustomer")}</button>
       </div>
 
       <div className="stats-bar" style={{ gridTemplateColumns: "repeat(4,1fr)" }}>
         {[
-          { label: "Total Customers", value: stats?.total ?? 0, color: "var(--brand)", bg: "var(--brand-bg)" },
-          { label: "Active", value: stats?.active ?? 0, color: "var(--green)", bg: "var(--green-bg)" },
-          { label: "Trial", value: stats?.trial ?? 0, color: "var(--orange)", bg: "var(--orange-bg)" },
-          { label: "Active MRR", value: formatIDR(stats?.active_mrr ?? 0), color: "var(--purple)", bg: "var(--purple-bg)" },
+          { label: t("wording.totalCustomers"), value: stats?.total ?? 0, color: "var(--brand)", bg: "var(--brand-bg)" },
+          { label: t("wording.active"), value: stats?.active ?? 0, color: "var(--green)", bg: "var(--green-bg)" },
+          { label: t("wording.trial"), value: stats?.trial ?? 0, color: "var(--orange)", bg: "var(--orange-bg)" },
+          { label: t("wording.activeMrr"), value: formatIDR(stats?.active_mrr ?? 0), color: "var(--purple)", bg: "var(--purple-bg)" },
         ].map((stat) => (
           <div key={stat.label} className="stat-card">
             <div className="stat-icon" style={{ background: stat.bg }}>
@@ -407,17 +411,17 @@ export default function CustomersPage() {
           <div className="toolbar-left">
             <div className="search-wrap">
               <IconSearch />
-              <input className="search-input" type="text" placeholder="Search company, contact, email…" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} />
+              <input className="search-input" type="text" placeholder={t("wording.searchCompanyContactEmail")} value={searchInput} onChange={(event) => setSearchInput(event.target.value)} />
             </div>
             <div className="wi-select-wrap">
               <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-                <option value="">All Status</option>
-                {STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}
+                <option value="">{t("wording.allStatus")}</option>
+                {STATUSES.map((status) => <option key={status} value={status}>{translateApiValue(status)}</option>)}
               </select>
             </div>
           </div>
           <div className="toolbar-right">
-            <button className="btn-new" onClick={openNew}><IconPlus /> New</button>
+            <button className="btn-new" onClick={openNew}><IconPlus /> {t("wording.new")}</button>
           </div>
         </div>
 
@@ -425,48 +429,48 @@ export default function CustomersPage() {
           <table>
             <thead>
               <tr>
-                <SortTh label="Company" colIndex={0} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} />
-                <SortTh label="Contact" colIndex={1} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} />
-                <SortTh label="Plan" colIndex={2} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 100 }} />
-                <SortTh label="Status" colIndex={3} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 100 }} />
-                <SortTh label="MRR" colIndex={4} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 120 }} />
-                <SortTh label="Users" colIndex={5} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 70 }} />
-                <SortTh label="Joined" colIndex={6} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 110 }} />
-                <th style={{ width: 120, textAlign: "center" }}>Action</th>
+                <SortTh label={t("wording.company")} colIndex={0} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} />
+                <SortTh label={t("wording.contact")} colIndex={1} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} />
+                <SortTh label={t("wording.plan")} colIndex={2} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 100 }} />
+                <SortTh label={t("wording.status")} colIndex={3} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 100 }} />
+                <SortTh label={t("wording.mrr")} colIndex={4} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 120 }} />
+                <SortTh label={t("wording.users")} colIndex={5} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 70 }} />
+                <SortTh label={t("wording.joined")} colIndex={6} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 110 }} />
+                <th style={{ width: 120, textAlign: "center" }}>{t("wording.action")}</th>
               </tr>
             </thead>
             <tbody>
               {isCustomersLoading && !customerData ? (
-                <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--text-muted)", padding: 32 }}>Loading customers…</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--text-muted)", padding: 32 }}>{t("wording.loadingCustomers")}</td></tr>
               ) : isCustomersError ? (
-                <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--red)", padding: 32 }}>Unable to load customers.</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--red)", padding: 32 }}>{t("wording.unableToLoadCustomers")}</td></tr>
               ) : !pageData.length ? (
-                <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--text-muted)", padding: 32 }}>No customers found.</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--text-muted)", padding: 32 }}>{t("wording.noCustomersFound")}</td></tr>
               ) : pageData.map((customer) => {
                 return (
                   <tr key={customer.id}>
                     <td className="name-cell">{customer.company}</td>
                     <td>{customer.contact}<div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>{customer.email}</div></td>
                     <td>{customer.plan}</td>
-                    <td><span className={`badge badge-${customerStatusBadge(customer.status.toLowerCase())}`}>{customer.status}</span></td>
+                    <td><span className={`badge badge-${customerStatusBadge(customer.status.toLowerCase())}`}>{translateApiValue(customer.status)}</span></td>
                     <td>{formatIDR(customer.mrr)}</td>
                     <td>{customer.users}</td>
                     <td style={{ color: "var(--text-muted)", fontSize: 12.5 }}>{customer.joinedAt}</td>
                     <td>
                       <div className="action-btns" style={{ justifyContent: "center" }}>
-                        <button className="btn-icon" title="Manage Users" style={{ color: "var(--brand)" }} onClick={() => openUsers(customer.id)}><IconEye /></button>
-                        <button className="btn-icon edit" title="Edit" onClick={() => openEdit(customer)}><IconEdit /></button>
+                        <button className="btn-icon" title={t("wording.manageUsers")} style={{ color: "var(--brand)" }} onClick={() => openUsers(customer.id)}><IconEye /></button>
+                        <button className="btn-icon edit" title={t("wording.edit")} onClick={() => openEdit(customer)}><IconEdit /></button>
                         <button
                           className="btn-icon"
-                          title={customer.isBlocked ? "Unblock" : "Block"}
-                          aria-label={customer.isBlocked ? "Unblock customer" : "Block customer"}
+                          title={customer.isBlocked ? t("wording.unblock") : t("wording.block")}
+                          aria-label={customer.isBlocked ? t("wording.unblockCustomer") : t("wording.blockCustomer")}
                           disabled={blockingId === customer.id}
                           style={{ color: customer.isBlocked ? "var(--green)" : "var(--orange)" }}
                           onClick={() => toggleBlock(customer)}
                         >
                           <IconBan />
                         </button>
-                        <button className="btn-icon delete" title="Delete" onClick={() => openDelete(customer.id)}><IconDelete /></button>
+                        <button className="btn-icon delete" title={t("wording.delete")} onClick={() => openDelete(customer.id)}><IconDelete /></button>
                       </div>
                     </td>
                   </tr>
@@ -475,18 +479,18 @@ export default function CustomersPage() {
             </tbody>
           </table>
         </div>
-        <Pagination currentPage={safePage} total={total} pageSize={PAGE_SIZE} onPage={setPage} label="customers" />
+        <Pagination currentPage={safePage} total={total} pageSize={PAGE_SIZE} onPage={setPage} label={t("wording.customersInline")} />
       </div>
 
       <Modal
         open={modalOpen}
-        title={editingId ? "Edit Customer" : "Add Customer"}
+        title={editingId ? t("wording.editCustomer") : t("wording.addCustomer")}
         onClose={closeCustomerModal}
         size="lg"
         footer={(
           <>
-            <button className="btn-cancel-modal" disabled={isSaving} onClick={closeCustomerModal}><IconClose /> Cancel</button>
-            <button className="btn-save-modal" disabled={isSaving} onClick={() => customerFormik.handleSubmit()}><IconCheck /> {isSaving ? "Saving…" : "Save"}</button>
+            <button className="btn-cancel-modal" disabled={isSaving} onClick={closeCustomerModal}><IconClose /> {t("wording.cancel")}</button>
+            <button className="btn-save-modal" disabled={isSaving} onClick={() => customerFormik.handleSubmit()}><IconCheck /> {isSaving ? t("common.actions.saving") : t("common.actions.save")}</button>
           </>
         )}
       >
@@ -496,7 +500,7 @@ export default function CustomersPage() {
             value={customerFormik.values.company}
             onChange={(value) => customerFormik.setFieldValue("company", value)}
             isRequired
-            label="Company"
+            label={t("wording.company")}
             errorText={customerFormik.touched.company ? customerFormik.errors.company : undefined}
           />
           <TextInput
@@ -504,7 +508,7 @@ export default function CustomersPage() {
             value={customerFormik.values.contact}
             onChange={(value) => customerFormik.setFieldValue("contact", value)}
             isRequired
-            label="Contact Name"
+            label={t("wording.contactName")}
             errorText={customerFormik.touched.contact ? customerFormik.errors.contact : undefined}
           />
         </div>
@@ -514,29 +518,29 @@ export default function CustomersPage() {
           onChange={(value) => customerFormik.setFieldValue("email", value)}
           inputType="email"
           isRequired
-          label="Email"
+          label={t("wording.email")}
           errorText={customerFormik.touched.email ? customerFormik.errors.email : undefined}
         />
         <div className="form-row">
           <div className="form-group">
-            <label>Plan <span style={{ color: "var(--red)" }}>*</span></label>
+            <label>{t("wording.plan")} <span style={{ color: "var(--red)" }}>*</span></label>
             <SearchableSelect
               value={customerFormik.values.planId}
               onChange={(value) => customerFormik.setFieldValue("planId", String(value))}
               options={planOptions.map((plan) => ({ value: plan.id, label: plan.name }))}
-              placeholder="Select plan…"
-              searchPlaceholder="Search plans…"
+              placeholder={t("wording.selectPlan")}
+              searchPlaceholder={t("wording.searchPlans")}
               errorText={customerFormik.touched.planId ? customerFormik.errors.planId : undefined}
             />
           </div>
           <div className="form-group">
-            <label>Status <span style={{ color: "var(--red)" }}>*</span></label>
+            <label>{t("wording.status")} <span style={{ color: "var(--red)" }}>*</span></label>
             <SearchableSelect
               value={customerFormik.values.status}
               onChange={(value) => customerFormik.setFieldValue("status", String(value))}
-              options={STATUSES.map((status) => ({ value: status, label: status }))}
-              placeholder="Select status…"
-              searchPlaceholder="Search statuses…"
+              options={STATUSES.map((status) => ({ value: status, label: translateApiValue(status) }))}
+              placeholder={t("wording.selectStatus")}
+              searchPlaceholder={t("wording.searchStatuses")}
               errorText={customerFormik.touched.status ? customerFormik.errors.status : undefined}
             />
           </div>
@@ -548,7 +552,7 @@ export default function CustomersPage() {
             onChange={(value) => customerFormik.setFieldValue("mrr", value)}
             isNumeric
             isRequired
-            label="MRR (IDR)"
+            label={t("wording.mrrIdr")}
             errorText={customerFormik.touched.mrr ? customerFormik.errors.mrr : undefined}
           />
           <TextInput
@@ -557,7 +561,7 @@ export default function CustomersPage() {
             onChange={(value) => customerFormik.setFieldValue("users", value)}
             isNumeric
             isRequired
-            label="Users"
+            label={t("wording.users")}
             errorText={customerFormik.touched.users ? customerFormik.errors.users : undefined}
           />
         </div>
@@ -565,61 +569,61 @@ export default function CustomersPage() {
 
       <Modal
         open={deleteOpen}
-        title="Delete Customer"
+        title={t("wording.deleteCustomer")}
         onClose={() => { if (!isDeleting) setDeleteOpen(false); }}
         footer={(
           <>
-            <button className="btn-cancel-modal" disabled={isDeleting} onClick={() => setDeleteOpen(false)}>Cancel</button>
-            <button className="btn-del-ok" disabled={isDeleting} onClick={confirmDelete}>{isDeleting ? "Deleting…" : "Delete"}</button>
+            <button className="btn-cancel-modal" disabled={isDeleting} onClick={() => setDeleteOpen(false)}>{t("wording.cancel")}</button>
+            <button className="btn-del-ok" disabled={isDeleting} onClick={confirmDelete}>{isDeleting ? t("common.actions.deleting") : t("common.actions.delete")}</button>
           </>
         )}
       >
         <p className="confirm-msg">
-          Are you sure you want to delete <strong>&ldquo;{deleteTarget?.company}&rdquo;</strong>? This action cannot be undone.
+          {t("wording.areYouSureYouWantToDelete")} <strong>&ldquo;{deleteTarget?.company}&rdquo;</strong>{t("wording.thisActionCannotBeUndone")}
         </p>
       </Modal>
 
       <Modal
         open={!!usersModalId}
-        title={usersCustomer ? `Users — ${usersCustomer.company}` : "Users"}
+        title={usersCustomer ? t("dynamic.usersTitle", { company: usersCustomer.company }) : t("wording.users")}
         onClose={closeUsers}
         size="lg"
-        footer={<button className="btn-cancel-modal" onClick={closeUsers}><IconClose /> Close</button>}
+        footer={<button className="btn-cancel-modal" onClick={closeUsers}><IconClose /> {t("wording.close")}</button>}
       >
         <div className="form-row">
           <div className="form-group">
-            <label>Name</label>
+            <label>{t("wording.name")}</label>
             <input type="text" value={subForm.name} onChange={(event) => setSubForm((current) => ({ ...current, name: event.target.value }))} />
           </div>
           <div className="form-group">
-            <label>Email</label>
+            <label>{t("wording.email")}</label>
             <input type="email" value={subForm.email} onChange={(event) => setSubForm((current) => ({ ...current, email: event.target.value }))} />
           </div>
         </div>
         <div className="form-row">
           <div className="form-group">
-            <label>Role</label>
+            <label>{t("wording.role")}</label>
             <select value={subForm.role} onChange={(event) => setSubForm((current) => ({ ...current, role: event.target.value }))}>
               {SUB_ROLES.map((role) => <option key={role} value={role}>{role}</option>)}
             </select>
           </div>
           <div className="form-group">
-            <label>Status</label>
+            <label>{t("wording.status")}</label>
             <select value={subForm.status} onChange={(event) => setSubForm((current) => ({ ...current, status: event.target.value }))}>
-              {SUB_STATUSES.map((status) => <option key={status} value={status}>{status[0].toUpperCase() + status.slice(1)}</option>)}
+              {SUB_STATUSES.map((status) => <option key={status} value={status}>{translateApiValue(status)}</option>)}
             </select>
           </div>
         </div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: 18 }}>
           {editingSubId && (
-            <button className="btn-cancel-modal" onClick={() => { setEditingSubId(null); setSubForm(emptySubForm()); }}>Cancel Edit</button>
+            <button className="btn-cancel-modal" onClick={() => { setEditingSubId(null); setSubForm(emptySubForm()); }}>{t("wording.cancelEdit")}</button>
           )}
-          <button className="btn-save-modal" onClick={saveSubUser}><IconCheck /> {editingSubId ? "Update User" : "Add User"}</button>
+          <button className="btn-save-modal" onClick={saveSubUser}><IconCheck /> {editingSubId ? t("wording.updateUser") : t("wording.addUser")}</button>
         </div>
 
         <div className="sa-mini-list">
           {!subUsers.length ? (
-            <div style={{ textAlign: "center", color: "var(--text-muted)", padding: 24, fontSize: 13 }}>No sub users yet.</div>
+            <div style={{ textAlign: "center", color: "var(--text-muted)", padding: 24, fontSize: 13 }}>{t("wording.noSubUsersYet")}</div>
           ) : subUsers.map((user) => (
             <div className="sa-mini-item" key={user.id}>
               <div>
@@ -627,9 +631,9 @@ export default function CustomersPage() {
                 <div className="sa-mini-sub">{user.email} · {user.role}</div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span className={`badge badge-${user.status === "active" ? "green" : "gray"}`}>{user.status}</span>
-                <button className="btn-icon edit" title="Edit" onClick={() => editSubUser(user)}><IconEdit /></button>
-                <button className="btn-icon delete" title="Remove" onClick={() => removeSubUser(user.id)}><IconDelete /></button>
+                <span className={`badge badge-${user.status === "active" ? "green" : "gray"}`}>{translateApiValue(user.status)}</span>
+                <button className="btn-icon edit" title={t("wording.edit")} onClick={() => editSubUser(user)}><IconEdit /></button>
+                <button className="btn-icon delete" title={t("wording.remove")} onClick={() => removeSubUser(user.id)}><IconDelete /></button>
               </div>
             </div>
           ))}

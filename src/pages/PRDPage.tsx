@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 const sections = [
   ["overview", "Overview"],
@@ -34,15 +35,16 @@ function List({ children }: { children: ReactNode }) {
 }
 
 export default function PRDPage() {
+  const { t } = useTranslation();
   return (
     <>
-      <h1 className="page-title">Product Knowledge</h1>
+      <h1 className="page-title">{t("wording.productKnowledge")}</h1>
       <p className="page-subtitle">
-        A living reference for EMI Inventory behavior, decisions, and current integration boundaries.
+        {t("wording.aLivingReferenceForEmiInventoryBehaviorDecisions")}
       </p>
 
-      <nav className="card prd-navigation" aria-label="Product knowledge sections">
-        <div className="section-title">On this page</div>
+      <nav className="card prd-navigation" aria-label={t("wording.productKnowledgeSections")}>
+        <div className="section-title">{t("wording.onThisPage")}</div>
         <div className="prd-navigation-links">
           {sections.map(([id, label]) => (
             <a key={id} href={`#${id}`} className="badge badge-blue">
@@ -52,118 +54,87 @@ export default function PRDPage() {
         </div>
       </nav>
 
-      <Section id="overview" title="Overview">
+      <Section id="overview" title={t("wording.overview")}>
         <Paragraph>
-          EMI Inventory is an API-backed event and inventory management application. The tenant area
-          manages events, warehouses, inventory, loans, reports, and master data. The separate Owner
-          Panel under <code>/superadmin</code> manages SaaS customers, plans, and defaults.
+          {t("wording.emiInventoryIsAnApiBackedEventAnd")} <code>/superadmin</code> {t("wording.managesSaasCustomersPlansAndDefaults")}
         </Paragraph>
       </Section>
 
-      <Section id="lifecycle" title="Event Lifecycle">
+      <Section id="lifecycle" title={t("wording.eventLifecycle")}>
         <Paragraph>
-          Event Detail builds its lifecycle from the Event Status API, ordered by <code>order_data</code>.
-          Renaming or reordering the master records therefore changes the stepper without a separate
-          hard-coded stage list.
+          {t("wording.eventDetailBuildsItsLifecycleFromTheEvent")} <code>order_data</code>{t("wording.renamingOrReorderingTheMasterRecordsThereforeChanges")}
         </Paragraph>
         <List>
-          <li>Every event item retains the status in which it was added.</li>
-          <li>The item tabs expose Waiting Scan when relevant, Grouped packages, all items up through the current stage, and items added in the current status.</li>
-          <li>Event Settings is an Admin shortcut to the same Event Status master page.</li>
-          <li>Status reordering is an explicit edit flow: Edit Order, adjust the draft, then Save Order or Cancel.</li>
+          <li>{t("wording.everyEventItemRetainsTheStatusInWhich")}</li>
+          <li>{t("wording.theItemTabsExposeWaitingScanWhenRelevant")}</li>
+          <li>{t("wording.eventSettingsIsAnAdminShortcutToThe")}</li>
+          <li>{t("wording.statusReorderingIsAnExplicitEditFlowEdit")}</li>
         </List>
       </Section>
 
-      <Section id="scan" title="Scan Gate & Next">
+      <Section id="scan" title={t("wording.scanGateNext")}>
         <Paragraph>
-          A status with <code>is_show_scan_result = 1</code> is a scan stage. Item scan controls and the
-          guided Next action are only shown at those stages. Moving forward is blocked while required
-          items remain unscanned; moving backward stays available.
+          {t("wording.aStatusWith")} <code>is_show_scan_result = 1</code> {t("wording.isAScanStageItemScanControlsAnd")}
         </Paragraph>
       </Section>
 
-      <Section id="packaging" title="Packaging">
+      <Section id="packaging" title={t("wording.packaging")}>
         <Paragraph>
-          Packaging groups multiple event items into one physical box. A grouped view shows the box,
-          its members, and a single scan action so one box QR can represent every item inside. Existing
-          package information returned by the API remains the source of truth; newly assembled boxes
-          stay local to the current Event Detail session until a create-package contract is available.
+          {t("wording.packagingGroupsMultipleEventItemsIntoOnePhysical")}
         </Paragraph>
       </Section>
 
-      <Section id="summary" title="Event Summary">
+      <Section id="summary" title={t("wording.eventSummary")}>
         <Paragraph>
-          Event Detail provides a compact summary modal for total quantity, checked items, scan-in, and
-          scan-out progress. View Full Detail opens the API-backed summary page using the event ID; its
-          breadcrumb links back to the event list and the selected event.
+          {t("wording.eventDetailProvidesACompactSummaryModalFor")}
         </Paragraph>
       </Section>
 
-      <Section id="auth" title="Authentication & Roles">
+      <Section id="auth" title={t("wording.authenticationRoles")}>
         <Paragraph>
-          Tenant login and password recovery use the backend authentication flow and store the authenticated
-          profile in the <code>auth</code> local-storage entry. Tenant routes require that session. Admin and
-          Employee roles use the same operational application; Admin additionally sees the Event Settings shortcut.
+          {t("wording.tenantLoginAndPasswordRecoveryUseTheBackend")} <code>auth</code> {t("wording.localStorageEntryTenantRoutesRequireThatSession")}
         </Paragraph>
       </Section>
 
-      <Section id="opname" title="Stock Opname">
+      <Section id="opname" title={t("wording.stockOpname")}>
         <Paragraph>
-          Stock Opname is scoped to one warehouse and lives at <code>/stock-opname</code>. The operator enters
-          Period, Remark, actual stock, and the observed condition. Submission creates an API record for review;
-          applying an opname is performed from its history rather than silently replacing inventory data locally.
-          Good/Poor condition and notes are included in the create payload, while apply, rollback, and eligible
-          draft deletion use their dedicated backend actions.
+          {t("wording.stockOpnameIsScopedToOneWarehouseAnd")} <code>/stock-opname</code>{t("wording.theOperatorEntersPeriodRemarkActualStockAnd")}
         </Paragraph>
       </Section>
 
-      <Section id="warehouse" title="Warehouse Inventory">
+      <Section id="warehouse" title={t("wording.warehouseInventory")}>
         <Paragraph>
-          Warehouse Inventory uses backend pagination, searching, sorting, warehouse and stock-status filters.
-          Row actions expose API-backed detail, edit, and delete flows. Stock numbers displayed in the UI are never
-          replaced by the prototype&apos;s in-memory warehouse arrays.
+          {t("wording.warehouseInventoryUsesBackendPaginationSearchingSortingWarehouse")}
         </Paragraph>
       </Section>
 
-      <Section id="moving-order" title="Moving Order">
+      <Section id="moving-order" title={t("wording.movingOrder")}>
         <Paragraph>
-          The intended flow selects a source warehouse, one or more items and quantities, then a different
-          destination warehouse. The form remains separated from Stock Opname because transfers and physical
-          counts have different audit semantics. Creating an order and loading its history both use the Moving
-          Order API.
+          {t("wording.theIntendedFlowSelectsASourceWarehouseOne")}
         </Paragraph>
       </Section>
 
-      <Section id="dropdowns" title="Searchable Dropdowns">
+      <Section id="dropdowns" title={t("wording.searchableDropdowns")}>
         <Paragraph>
-          Tenant filters and long option lists use the shared searchable dropdown. Option values continue to use
-          backend IDs or enums, while labels and metadata provide readable context. The Owner Panel keeps its own
-          controls and styling.
+          {t("wording.tenantFiltersAndLongOptionListsUseThe")}
         </Paragraph>
       </Section>
 
-      <Section id="activity-log" title="Activity Log">
+      <Section id="activity-log" title={t("wording.activityLog")}>
         <Paragraph>
-          The Log page and Dashboard Recent Activity use backend responses. Source-only localStorage activity
-          logging is intentionally not used in this API-backed application, so refreshing or signing in never
-          replaces server audit records with dummy entries.
+          {t("wording.theLogPageAndDashboardRecentActivityUse")}
         </Paragraph>
       </Section>
 
-      <Section id="item-loan" title="Item Loan">
+      <Section id="item-loan" title={t("wording.itemLoan")}>
         <Paragraph>
-          Item Loan uses backend pagination, searching, status filters, create, and return actions. The listing
-          links to a dedicated detail page that keeps the selected API record readable and exposes its return
-          action. The prototype&apos;s multi-item vendor model is not submitted because the current backend create
-          contract accepts one <code>barang_gudang_id</code> per loan.
+          {t("wording.itemLoanUsesBackendPaginationSearchingStatusFilters")} <code>barang_gudang_id</code> {t("wording.perLoan")}
         </Paragraph>
       </Section>
 
-      <Section id="upgrade" title="Upgrade">
+      <Section id="upgrade" title={t("wording.upgrade")}>
         <Paragraph>
-          The Upgrade button in the tenant header opens a plan-comparison page. Current plan and storage usage
-          come from the active user-plan response in Redux. The available plan cards and request action remain
-          preview data until a tenant-facing pricing list and checkout endpoint are available.
+          {t("wording.theUpgradeButtonInTheTenantHeaderOpens")}
         </Paragraph>
       </Section>
     </>

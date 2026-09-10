@@ -1,4 +1,5 @@
 import { NavLink, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { version } from '../../package.json';
 import useUserPlanController, {
   type UserPlanFeatureFlags,
@@ -145,6 +146,39 @@ const EVENT_SETTINGS_ITEM = {
   icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15z"/></svg>,
 };
 
+const SECTION_TRANSLATION_KEYS: Record<string, string> = {
+  Home: 'navigation.sections.home',
+  Events: 'navigation.sections.events',
+  Inventory: 'navigation.sections.inventory',
+  'Master Data': 'navigation.sections.masterData',
+  Report: 'navigation.sections.report',
+  'AI Tools': 'navigation.sections.aiTools',
+  System: 'navigation.sections.system',
+};
+
+const ITEM_TRANSLATION_KEYS: Record<string, string> = {
+  Dashboard: 'navigation.items.dashboard',
+  Event: 'navigation.items.event',
+  'Event Settings': 'navigation.items.eventSettings',
+  Inventory: 'navigation.items.inventory',
+  Warehouse: 'navigation.items.warehouse',
+  'Warehouse Inventory': 'navigation.items.warehouseInventory',
+  'Event Inventory': 'navigation.items.eventInventory',
+  'Sync Inventory': 'navigation.items.syncInventory',
+  'Item Loan': 'navigation.items.itemLoan',
+  Area: 'navigation.items.area',
+  'Sub Area': 'navigation.items.subArea',
+  Category: 'navigation.items.category',
+  Unit: 'navigation.items.unit',
+  'QR Code': 'navigation.items.qrCode',
+  'Inventory Report': 'navigation.items.inventoryReport',
+  'Overview Report': 'navigation.items.overviewReport',
+  'Material Analyzer': 'navigation.items.materialAnalyzer',
+  Log: 'navigation.items.log',
+  Users: 'navigation.items.users',
+  'Product Knowledge': 'navigation.items.productKnowledge',
+};
+
 function isTenantAdmin() {
   try {
     const raw = window.localStorage.getItem('auth');
@@ -157,6 +191,7 @@ function isTenantAdmin() {
 }
 
 export default function Sidebar({ visible }: { visible: boolean }) {
+  const { t } = useTranslation();
   const enabledFeatures = useUserPlanController();
   const sections = SECTIONS.map((section) => {
     if (section.label !== 'Events' || !isTenantAdmin()) return section;
@@ -175,7 +210,9 @@ export default function Sidebar({ visible }: { visible: boolean }) {
     <nav className="sidebar" style={visible ? {} : { display: 'none' }}>
       {sections.map(section => (
         <div key={section.label} className="sidebar-section">
-          <div className="sidebar-section-label">{section.label}</div>
+          <div className="sidebar-section-label">
+            {t(SECTION_TRANSLATION_KEYS[section.label] ?? section.label)}
+          </div>
           {section.items.map(({ to, label, icon }) => (
             <NavLink
               key={to}
@@ -183,7 +220,7 @@ export default function Sidebar({ visible }: { visible: boolean }) {
               className={({ isActive }) => 'nav-item' + (isActive ? ' active' : '')}
             >
               {icon}
-              <span>{label}</span>
+              <span>{t(ITEM_TRANSLATION_KEYS[label] ?? label)}</span>
             </NavLink>
           ))}
         </div>
@@ -191,7 +228,7 @@ export default function Sidebar({ visible }: { visible: boolean }) {
       <div className="sidebar-footer">
         <Link to="/superadmin/login" className="sidebar-owner-link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          <span>Owner Panel</span>
+          <span>{t('navigation.sections.ownerPanel')}</span>
         </Link>
         <div className="sidebar-version">v{version}</div>
       </div>

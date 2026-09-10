@@ -22,6 +22,7 @@ import GlobalSearch from "./GlobalSearch";
 import LanguageSwitcher from "./LanguageSwitcher";
 import UpgradeCTA from "./UpgradeCTA";
 import useUserPlanController from "../hooks/useUserPlanController";
+import { useTranslation } from "react-i18next";
 
 type StoredAuth = {
   id?: number;
@@ -31,6 +32,7 @@ type StoredAuth = {
 };
 
 export default function Layout() {
+  const { t } = useTranslation();
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [currentUser, setCurrentUser] = useState<StoredAuth | null>(null);
   const dispatch = useDispatch();
@@ -127,23 +129,23 @@ export default function Layout() {
           <button
             className="header-btn"
             onClick={() => setSidebarVisible((v) => !v)}
-            title="Toggle menu"
+            title={t("header.toggleMenu")}
           >
             <IconMenu />
           </button>
-          <span className="header-title">EMI Inventory</span>
+          <span className="header-title">{t("header.appName")}</span>
         </div>
         <GlobalSearch />
         <div className="header-actions">
           <UpgradeCTA />
           {currentUser && (
             <span className="header-user">
-              {currentUser.fullname || currentUser.email || "User"}
-              <span> · {currentUser.user_type || "Employee"}</span>
+              {currentUser.fullname || currentUser.email || t("common.user")}
+              <span> · {currentUser.user_type || t("common.employee")}</span>
             </span>
           )}
           <LanguageSwitcher />
-          <button className="header-btn" title="Logout" onClick={onSignOut}>
+          <button className="header-btn" title={t("header.logout")} onClick={onSignOut}>
             <IconLogout />
           </button>
         </div>

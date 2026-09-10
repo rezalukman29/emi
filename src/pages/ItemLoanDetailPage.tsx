@@ -9,6 +9,8 @@ import useGetItemLoans, {
   type ItemLoanItem,
 } from "../hooks/api/useGetItemLoans";
 import usePutReturnItemLoan from "../hooks/api/usePutReturnItemLoan";
+import { useTranslation } from "react-i18next";
+import { translateApiValue } from "../utils/function";
 
 const MONTHS_SHORT = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -47,6 +49,7 @@ function errorMessage(error: unknown) {
 }
 
 export default function ItemLoanDetailPage() {
+  const { t } = useTranslation();
   const [params] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -95,18 +98,18 @@ export default function ItemLoanDetailPage() {
   }
 
   if (!loan && isLoading) {
-    return <div className="card no-data">Loading loan detail…</div>;
+    return <div className="card no-data">{t("wording.loadingLoanDetail")}</div>;
   }
 
   if (!loan) {
     return (
       <>
-        <h1 className="page-title">Item Loan</h1>
+        <h1 className="page-title">{t("wording.itemLoan")}</h1>
         <div className="card" style={{ textAlign: "center", padding: 48 }}>
           <p style={{ fontSize: 13.5, color: isError ? "var(--red)" : "var(--text-muted)", marginBottom: 16 }}>
-            {isError ? "Unable to load loan detail." : "Loan not found."}
+            {isError ? t("wording.unableToLoadLoanDetail") : t("wording.loanNotFound")}
           </p>
-          <button className="btn btn-ghost" onClick={() => navigate("/item-loan")}>Back to Item Loan</button>
+          <button className="btn btn-ghost" onClick={() => navigate("/item-loan")}>{t("wording.backToItemLoan")}</button>
         </div>
       </>
     );
@@ -122,7 +125,7 @@ export default function ItemLoanDetailPage() {
           className="detail-back-button"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-          Back to Item Loan
+          {t("wording.backToItemLoan")}
         </button>
       </div>
 
@@ -132,28 +135,28 @@ export default function ItemLoanDetailPage() {
             <div className="item-loan-detail-title">{loan.borrower_name}</div>
             <div className="item-loan-detail-subtitle">{loan.borrower_contact || "—"}</div>
           </div>
-          <span className={`badge ${statusBadgeClass(loan.status)}`}>{loan.status}</span>
+          <span className={`badge ${statusBadgeClass(loan.status)}`}>{translateApiValue(loan.status)}</span>
         </div>
         <div className="item-detail-grid">
-          <div className="item-detail-row"><span>Purpose</span><strong>{loan.purpose || "—"}</strong></div>
-          <div className="item-detail-row"><span>Loan Date</span><strong>{fmtDate(loan.loan_date)}</strong></div>
-          <div className="item-detail-row"><span>Due Date</span><strong>{fmtDate(loan.due_date)}</strong></div>
-          <div className="item-detail-row"><span>Warehouse</span><strong>{loan.warehouse_name || "—"}</strong></div>
+          <div className="item-detail-row"><span>{t("wording.purpose")}</span><strong>{loan.purpose || "—"}</strong></div>
+          <div className="item-detail-row"><span>{t("wording.loanDate")}</span><strong>{fmtDate(loan.loan_date)}</strong></div>
+          <div className="item-detail-row"><span>{t("wording.dueDate")}</span><strong>{fmtDate(loan.due_date)}</strong></div>
+          <div className="item-detail-row"><span>{t("wording.warehouse")}</span><strong>{loan.warehouse_name || "—"}</strong></div>
         </div>
       </div>
 
       <div className="card">
-        <div className="section-title">Items in This Loan</div>
+        <div className="section-title">{t("wording.itemsInThisLoan")}</div>
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Item</th>
-                <th>Source</th>
-                <th style={{ width: 100, textAlign: "right" }}>Qty</th>
-                <th style={{ width: 120 }}>Status</th>
-                <th style={{ width: 120 }}>Return Date</th>
-                <th style={{ width: 90, textAlign: "center" }}>Action</th>
+                <th>{t("wording.item")}</th>
+                <th>{t("wording.source")}</th>
+                <th style={{ width: 100, textAlign: "right" }}>{t("wording.qty")}</th>
+                <th style={{ width: 120 }}>{t("wording.status")}</th>
+                <th style={{ width: 120 }}>{t("wording.returnDate")}</th>
+                <th style={{ width: 90, textAlign: "center" }}>{t("wording.action")}</th>
               </tr>
             </thead>
             <tbody>
@@ -161,13 +164,13 @@ export default function ItemLoanDetailPage() {
                 <td className="name-cell">{loan.item_name}</td>
                 <td style={{ color: "var(--text-muted)" }}>{loan.warehouse_name || "—"}</td>
                 <td style={{ textAlign: "right" }}>{loan.qty} {loan.unit_name}</td>
-                <td><span className={`badge ${statusBadgeClass(loan.status)}`}>{loan.status}</span></td>
+                <td><span className={`badge ${statusBadgeClass(loan.status)}`}>{translateApiValue(loan.status)}</span></td>
                 <td style={{ color: "var(--text-muted)", fontSize: 12.5 }}>{fmtDate(loan.return_date)}</td>
                 <td style={{ textAlign: "center" }}>
                   {isReturned ? (
                     <span className="item-loan-returned-icon"><IconCheck /></span>
                   ) : (
-                    <button className="btn-icon" title="Return Item" style={{ color: "var(--green)" }} onClick={() => setReturnModalOpen(true)}><IconCheck /></button>
+                    <button className="btn-icon" title={t("wording.returnItem")} style={{ color: "var(--green)" }} onClick={() => setReturnModalOpen(true)}><IconCheck /></button>
                   )}
                 </td>
               </tr>
@@ -178,17 +181,17 @@ export default function ItemLoanDetailPage() {
 
       <Modal
         open={returnModalOpen}
-        title="Return Item"
+        title={t("wording.returnItem")}
         onClose={() => !isReturning && setReturnModalOpen(false)}
         footer={(
           <>
-            <button className="btn-cancel-modal" disabled={isReturning} onClick={() => setReturnModalOpen(false)}><IconClose /> Cancel</button>
-            <button className="btn-save-modal" disabled={isReturning} onClick={() => void confirmReturn()}><IconCheck /> {isReturning ? "Returning…" : "Confirm Return"}</button>
+            <button className="btn-cancel-modal" disabled={isReturning} onClick={() => setReturnModalOpen(false)}><IconClose /> {t("wording.cancel")}</button>
+            <button className="btn-save-modal" disabled={isReturning} onClick={() => void confirmReturn()}><IconCheck /> {isReturning ? t("common.actions.returning") : t("common.actions.confirmReturn")}</button>
           </>
         )}
       >
         <p className="confirm-msg">
-          Mark <strong>{loan.qty} {loan.unit_name}</strong> of <strong>&ldquo;{loan.item_name}&rdquo;</strong> as returned?
+          {t("wording.mark")} <strong>{loan.qty} {loan.unit_name}</strong> {t("wording.of")} <strong>&ldquo;{loan.item_name}&rdquo;</strong> {t("wording.asReturned")}
         </p>
       </Modal>
     </>

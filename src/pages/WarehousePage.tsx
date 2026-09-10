@@ -21,12 +21,16 @@ import { InventoryService } from "../service/InventoryService.js";
 import { toast } from "react-toastify";
 import TextInput from "../components/TextInput.js";
 import Loading from "../components/Loading.js";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
+
+
 
 function ImgCell({ src, name, onClick }: any) {
   return (
     <div
       onClick={onClick}
-      title="View image"
+      title={i18n.t("wording.viewImage")}
       style={{
         width: 42,
         height: 42,
@@ -154,7 +158,7 @@ function ImageViewerModal({ open, name, src, onClose }: any) {
                 <circle cx="8.5" cy="8.5" r="1.5" />
                 <polyline points="21 15 16 10 5 21" />
               </svg>
-              <p style={{ fontSize: 13, fontWeight: 500 }}>No image uploaded</p>
+              <p style={{ fontSize: 13, fontWeight: 500 }}>{i18n.t("wording.noImageUploaded")}</p>
             </div>
           )}
         </div>
@@ -188,6 +192,7 @@ function formatDate(d: any) {
 }
 
 export default function WarehousePage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [nextId, setNextId] = useState(11);
   const [query, setQuery] = useState("");
@@ -222,9 +227,9 @@ export default function WarehousePage() {
       pic: isModify ? gudang.pic : "",
     },
     validationSchema: Yup.object({
-      nama: Yup.string().required("Required"),
-      lokasi: Yup.string().required("Required"),
-      pic: Yup.string().required("Required"),
+      nama: Yup.string().required(t("wording.required")),
+      lokasi: Yup.string().required(t("wording.required")),
+      pic: Yup.string().required(t("wording.required")),
     }),
     validateOnChange: false,
     enableReinitialize: true,
@@ -242,14 +247,14 @@ export default function WarehousePage() {
           id: gudang.id,
         });
         if (result.success) {
-          toast("Success modify warehouse", { type: "success" });
+          toast(t("wording.successModifyWarehouse"), { type: "success" });
         }
       } else {
         const result: APIResponse<any> = await InventoryService.addGudang(
           payload
         );
         if (result.success) {
-          toast("Success adding warehouse", { type: "success" });
+          toast(t("wording.successAddingWarehouse"), { type: "success" });
         }
       }
       setIsModify(false);
@@ -312,7 +317,7 @@ export default function WarehousePage() {
       setDeleteOpen(false);
       setIsLoading(true);
       await InventoryService.deleteGudang(gudang.id);
-      toast("Success delete warehouse", { type: "success" });
+      toast(t("wording.successDeleteWarehouse"), { type: "success" });
       setGudang(null)
       refetchWarehouse();
       setIsLoading(false);
@@ -333,10 +338,10 @@ export default function WarehousePage() {
         }}
       >
         <h1 className="page-title" style={{ margin: 0 }}>
-          Warehouse
+          {t("wording.warehouse")}
         </h1>
         <button className="btn-new" onClick={openNew}>
-          <IconPlus /> New Warehouse
+          <IconPlus /> {t("wording.newWarehouse")}
         </button>
       </div>
 
@@ -347,19 +352,19 @@ export default function WarehousePage() {
       >
         {[
           {
-            label: "Total Warehouses",
+            label: t("wording.totalWarehouses"),
             value: warehouses.length,
             color: "var(--brand)",
             bg: "var(--brand-bg)",
           },
           {
-            label: "Locations",
+            label: t("wording.locations"),
             value: uniqueLocations,
             color: "var(--green)",
             bg: "var(--green-bg)",
           },
           {
-            label: "Search Results",
+            label: t("wording.searchResults"),
             value: filtered.length,
             color: "var(--purple)",
             bg: "var(--purple-bg)",
@@ -384,7 +389,7 @@ export default function WarehousePage() {
               <input
                 className="search-input"
                 type="text"
-                placeholder="Search warehouse…"
+                placeholder={t("wording.searchWarehouse")}
                 value={query}
                 onChange={(e) => {
                   setQuery(e.target.value);
@@ -392,11 +397,11 @@ export default function WarehousePage() {
                 }}
               />
             </div>
-            <button className="btn-search">Search</button>
+            <button className="btn-search">{t("wording.search")}</button>
           </div>
           <div className="toolbar-right">
             <button className="btn-new" onClick={openNew}>
-              <IconPlus /> New
+              <IconPlus /> {t("wording.new")}
             </button>
           </div>
         </div>
@@ -406,21 +411,21 @@ export default function WarehousePage() {
             <thead>
               <tr>
                 <SortTh
-                  label="Name"
+                  label={t("wording.name")}
                   colIndex={0}
                   sortCol={sortCol}
                   sortAsc={sortAsc}
                   onSort={handleSort}
                 />
                 <SortTh
-                  label="Location"
+                  label={t("wording.location")}
                   colIndex={1}
                   sortCol={sortCol}
                   sortAsc={sortAsc}
                   onSort={handleSort}
                 />
                 <SortTh
-                  label="PIC"
+                  label={t("wording.pic")}
                   colIndex={2}
                   sortCol={sortCol}
                   sortAsc={sortAsc}
@@ -429,7 +434,7 @@ export default function WarehousePage() {
                   id={undefined}
                 />
                 <SortTh
-                  label="Created At"
+                  label={t("wording.createdAt")}
                   colIndex={3}
                   sortCol={sortCol}
                   sortAsc={sortAsc}
@@ -437,15 +442,15 @@ export default function WarehousePage() {
                   style={{ width: 165 }}
                 />
                 <SortTh
-                  label="Updated At"
+                  label={t("wording.updatedAt")}
                   colIndex={4}
                   sortCol={sortCol}
                   sortAsc={sortAsc}
                   onSort={handleSort}
                   style={{ width: 165 }}
                 />
-                <th style={{ width: 60, textAlign: "center" }}>Image</th>
-                <th style={{ width: 90, textAlign: "center" }}>Action</th>
+                <th style={{ width: 60, textAlign: "center" }}>{t("wording.image")}</th>
+                <th style={{ width: 90, textAlign: "center" }}>{t("wording.action")}</th>
               </tr>
             </thead>
             <tbody>
@@ -459,7 +464,7 @@ export default function WarehousePage() {
                       padding: 32,
                     }}
                   >
-                    No warehouses found.
+                    {t("wording.noWarehousesFound")}
                   </td>
                 </tr>
               ) : (
@@ -510,7 +515,7 @@ export default function WarehousePage() {
                       >
                         <button
                           className="btn-icon"
-                          title="View Detail"
+                          title={t("wording.viewDetail")}
                           style={{ color: "var(--brand)" }}
                           onClick={() =>
                             navigate(`/warehouse-detail?id=${r.id}`)
@@ -531,7 +536,7 @@ export default function WarehousePage() {
                         </button>
                         <button
                           className="btn-icon edit"
-                          title="Edit"
+                          title={t("wording.edit")}
                           onClick={() => {
                             setModalOpen(true);
                             setIsModify(true);
@@ -542,7 +547,7 @@ export default function WarehousePage() {
                         </button>
                         <button
                           className="btn-icon delete"
-                          title="Delete"
+                          title={t("wording.delete")}
                           onClick={() => {
                             setDeleteOpen(true)
                             setGudang(r)
@@ -563,13 +568,13 @@ export default function WarehousePage() {
           total={filtered.length}
           pageSize={PAGE_SIZE}
           onPage={(p: any) => setPage(p)}
-          label="warehouses"
+          label={t("wording.warehousesInline")}
         />
       </div>
 
       <Modal
         open={modalOpen}
-        title={isModify ? "Edit Warehouse" : "New Warehouse"}
+        title={isModify ? t("wording.editWarehouse") : t("wording.newWarehouse")}
         onClose={() => {
           setModalOpen(false);
           formik.resetForm();
@@ -583,14 +588,14 @@ export default function WarehousePage() {
                 formik.resetForm();
               }}
             >
-              <IconClose /> Cancel
+              <IconClose /> {t("wording.cancel")}
             </button>
             <button
               className="btn-save-modal"
               type="submit"
               onClick={() => formik.handleSubmit()}
             >
-              <IconCheck /> Save
+              <IconCheck /> {t("wording.save")}
             </button>
           </>
         }
@@ -599,24 +604,24 @@ export default function WarehousePage() {
           value={formik.values.nama}
           onChange={(e) => formik.setFieldValue("nama", e)}
           isRequired
-          label="Name"
-          placeholder="e.g. Gudang Bali 66"
+          label={t("wording.name")}
+          placeholder={t("wording.eGGudangBali66")}
           errorText={formik.errors.nama as string}
         />
         <TextInput
           value={formik.values.lokasi}
           onChange={(e) => formik.setFieldValue("lokasi", e)}
           isRequired
-          label="Location"
-          placeholder="e.g. Bali, Jakarta"
+          label={t("wording.location")}
+          placeholder={t("wording.eGBaliJakarta")}
           errorText={formik.errors.lokasi as string}
         />
         <TextInput
           value={formik.values.pic}
           onChange={(e) => formik.setFieldValue("pic", e)}
           isRequired
-          label="PIC"
-          placeholder="Person in charge"
+          label={t("wording.pic")}
+          placeholder={t("wording.personInCharge")}
           errorText={formik.errors.pic as string}
         />
       </Modal>
@@ -630,7 +635,7 @@ export default function WarehousePage() {
 
       <Modal
         open={deleteOpen}
-        title="Delete Warehouse"
+        title={t("wording.deleteWarehouse")}
         onClose={() => setDeleteOpen(false)}
         footer={
           <>
@@ -638,18 +643,17 @@ export default function WarehousePage() {
               className="btn-cancel-modal"
               onClick={() => setDeleteOpen(false)}
             >
-              Cancel
+              {t("wording.cancel")}
             </button>
             <button className="btn-del-ok" onClick={onDelete}>
-              Delete
+              {t("wording.delete")}
             </button>
           </>
         }
       >
         <p className="confirm-msg">
-          Are you sure you want to delete{" "}
-          <strong>&ldquo;{gudang?.nama}&rdquo;</strong>? This action cannot
-          be undone.
+          {t("wording.areYouSureYouWantToDelete")}{" "}
+          <strong>&ldquo;{gudang?.nama}&rdquo;</strong>{t("wording.thisActionCannotBeUndone")}
         </p>
       </Modal>
     </>

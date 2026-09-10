@@ -8,6 +8,7 @@ import OtpInput from "react-otp-input";
 import { InventoryService } from "../service/InventoryService";
 import { useLocation, useNavigate } from "react-router-dom";
 import TextInput from "../components/TextInput";
+import { useTranslation } from "react-i18next";
 
 const styles: Record<string, React.CSSProperties> = {
   page: {
@@ -228,6 +229,7 @@ type AuthMenu = "LOGIN" | "FORGOT_INPUT_EMAIL" | "FORGOT_SEND_OTP";
 type LoginPageProps = { initialMenu?: Exclude<AuthMenu, "FORGOT_SEND_OTP"> };
 
 export default function LoginPage({ initialMenu = "LOGIN" }: LoginPageProps) {
+  const { t } = useTranslation();
   const dispatch = useDispatch();
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
@@ -263,10 +265,10 @@ export default function LoginPage({ initialMenu = "LOGIN" }: LoginPageProps) {
       password: "",
     },
     validationSchema: Yup.object({
-      email: Yup.string().required("Required"),
+      email: Yup.string().required(t("common.required")),
       password:
         activeMenu === "LOGIN" || activeMenu === "FORGOT_SEND_OTP"
-          ? Yup.string().required("Required")
+          ? Yup.string().required(t("common.required"))
           : Yup.string().optional(),
     }),
     validateOnChange: false,
@@ -296,7 +298,7 @@ export default function LoginPage({ initialMenu = "LOGIN" }: LoginPageProps) {
         localStorage.setItem("auth", JSON.stringify(data));
         dispatch(setProfile(data));
 
-        toast("Login success", { type: "success" });
+        toast(t("auth.loginSuccess"), { type: "success" });
         setTimeout(() => {
           setIsLoading(false);
           // if (!!scan) {
@@ -328,7 +330,7 @@ export default function LoginPage({ initialMenu = "LOGIN" }: LoginPageProps) {
       const response = await InventoryService.sendOtp(email);
       if (response.success) {
         setIsLoading(false);
-        toast("Please check your email", { type: "success" });
+        toast(t("auth.checkEmail"), { type: "success" });
         setActiveMenu("FORGOT_SEND_OTP");
       } else {
         setIsLoading(false);
@@ -349,7 +351,7 @@ export default function LoginPage({ initialMenu = "LOGIN" }: LoginPageProps) {
       });
       if (response.success) {
         setIsLoading(false);
-        toast("Reset password successfully", { type: "success" });
+        toast(t("auth.resetSuccess"), { type: "success" });
         setActiveMenu("LOGIN");
         formik.resetForm();
       } else {
@@ -430,14 +432,14 @@ export default function LoginPage({ initialMenu = "LOGIN" }: LoginPageProps) {
 
           <h1 style={styles.headerTitle}>
             {activeMenu === "LOGIN"
-              ? "Welcome Back"
+              ? t("auth.welcomeBack")
               : activeMenu === "FORGOT_INPUT_EMAIL" ||
                   activeMenu === "FORGOT_SEND_OTP"
-                ? "Forgot password"
+                ? t("auth.forgotPassword")
                 : ""}{" "}
           </h1>
           {activeMenu === "LOGIN" && (
-            <p style={styles.headerSubtitle}>Sign in to EMI Inventory</p>
+            <p style={styles.headerSubtitle}>{t("auth.signInSubtitle")}</p>
           )}
         </div>
 
@@ -447,7 +449,7 @@ export default function LoginPage({ initialMenu = "LOGIN" }: LoginPageProps) {
 
           {activeMenu === "FORGOT_SEND_OTP" ? (
             <div style={styles.fieldGroup}>
-              <label style={styles.label}>OTP</label>
+              <label style={styles.label}>{t("wording.otp")}</label>
               <OtpInput
                 value={token}
                 onChange={setTokens}
@@ -469,8 +471,8 @@ export default function LoginPage({ initialMenu = "LOGIN" }: LoginPageProps) {
               onChange={(value) => formik.setFieldValue("email", value)}
               isRequired
               inputType="email"
-              label="Email Address"
-              placeholder="Enter your email"
+              label={t("auth.emailAddress")}
+              placeholder={t("auth.enterEmail")}
               errorText={formik.errors.email as string}
               containerStyle={styles.fieldGroup}
               labelStyle={{ ...styles.label, textTransform: "none", letterSpacing: "normal" }}
@@ -510,11 +512,11 @@ export default function LoginPage({ initialMenu = "LOGIN" }: LoginPageProps) {
               onChange={(value) => formik.setFieldValue("password", value)}
               isRequired
               inputType={showPassword ? "text" : "password"}
-              label={activeMenu === "FORGOT_SEND_OTP" ? "New Password" : "Password"}
+              label={activeMenu === "FORGOT_SEND_OTP" ? t("auth.newPassword") : t("auth.password")}
               placeholder={
                 activeMenu === "FORGOT_SEND_OTP"
-                  ? "Enter your new password"
-                  : "Enter your password"
+                  ? t("auth.enterNewPassword")
+                  : t("auth.enterPassword")
               }
               errorText={formik.errors.password as string}
               containerStyle={styles.fieldGroup}
@@ -618,7 +620,7 @@ export default function LoginPage({ initialMenu = "LOGIN" }: LoginPageProps) {
                     </svg>
                   )}
                 </div>
-                <span style={styles.checkboxText}>Remember me</span>
+                <span style={styles.checkboxText}>{t("auth.rememberMe")}</span>
               </label>
               <button
                 type="button"
@@ -628,7 +630,7 @@ export default function LoginPage({ initialMenu = "LOGIN" }: LoginPageProps) {
                 }}
                 style={styles.forgotLink}
               >
-                Forgot password?
+                {t("auth.forgotPasswordAction")}
               </button>
             </div>
           )}
@@ -662,14 +664,14 @@ export default function LoginPage({ initialMenu = "LOGIN" }: LoginPageProps) {
                   />
                   <path fill="white" d="M4 12a8 8 0 018-8v8H4z" />
                 </svg>
-                Loading...
+                {t("common.loading")}
               </>
             ) : activeMenu === "LOGIN" ? (
-              "Sign In"
+              t("auth.signIn")
             ) : activeMenu === "FORGOT_INPUT_EMAIL" ? (
-              "Send OTP"
+              t("auth.sendOtp")
             ) : (
-              "Submit"
+              t("common.actions.submit")
             )}
           </button>
         </div>
@@ -680,8 +682,8 @@ export default function LoginPage({ initialMenu = "LOGIN" }: LoginPageProps) {
             {activeMenu === "LOGIN"
               ? ""
               : activeMenu === "FORGOT_SEND_OTP"
-                ? "Didn't receive email"
-                : "Already have an account?"}{" "}
+                ? t("auth.didNotReceiveEmail")
+                : t("auth.alreadyHaveAccount")}{" "}
             <button
               type="button"
               onClick={() => {
@@ -701,14 +703,14 @@ export default function LoginPage({ initialMenu = "LOGIN" }: LoginPageProps) {
               {activeMenu === "LOGIN"
                 ? ""
                 : activeMenu === "FORGOT_SEND_OTP"
-                  ? "Resent"
-                  : "Login"}
+                  ? t("auth.resend")
+                  : t("auth.login")}
             </button>
           </p>
         </div>
       </div>
 
-      <p style={styles.copyright}>© 2026 EMI Inventory. All rights reserved.</p>
+      <p style={styles.copyright}>{t("auth.copyright")}</p>
     </div>
   );
 }

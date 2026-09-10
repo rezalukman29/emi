@@ -5,6 +5,8 @@ import { IconEdit, IconDelete } from "../components/icons";
 import { initialWarehouses } from "../data/warehouses";
 import useGetWarehouseDetail from "../hooks/api/useGetWarehouseDetail";
 import useGetWarehouseItems from "../hooks/api/useGetWarehouseItems";
+import { useTranslation } from "react-i18next";
+
 
 
 
@@ -37,6 +39,7 @@ function Field({ label, value }: any) {
 }
 
 export default function WarehouseDetailPage() {
+  const { t } = useTranslation();
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const id = parseInt(params.get("id") as any);
@@ -69,14 +72,14 @@ export default function WarehouseDetailPage() {
     return (
       <div style={{ padding: 40, textAlign: "center" }}>
         <p style={{ color: "var(--text-muted)", fontSize: 14 }}>
-          Warehouse not found.
+          {t("wording.warehouseNotFound")}
         </p>
         <button
           className="btn-new"
           style={{ marginTop: 12 }}
           onClick={() => navigate("/warehouse")}
         >
-          Back to Warehouse
+          {t("wording.backToWarehouse")}
         </button>
       </div>
     );
@@ -126,7 +129,7 @@ export default function WarehouseDetailPage() {
           >
             <polyline points="15 18 9 12 15 6" />
           </svg>
-          Back
+          {t("wording.back")}
         </button>
         <h1 className="page-title" style={{ margin: 0, flex: 1 }}>
           {warehouse.nama}
@@ -144,7 +147,7 @@ export default function WarehouseDetailPage() {
             fontWeight: 500,
           }}
         >
-          <IconEdit /> Edit
+          <IconEdit /> {t("wording.edit")}
         </button>
         <button
           className="btn-icon delete"
@@ -160,7 +163,7 @@ export default function WarehouseDetailPage() {
             fontWeight: 500,
           }}
         >
-          <IconDelete /> Delete
+          <IconDelete /> {t("wording.delete")}
         </button>
       </div>
 
@@ -198,18 +201,18 @@ export default function WarehouseDetailPage() {
                 letterSpacing: ".07em",
               }}
             >
-              Warehouse Info
+              {t("wording.warehouseInfo")}
             </span>
           </div>
           <div
             style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}
           >
-            <Field label="Name" value={warehouse.nama} />
-            <Field label="Location" value={warehouse.lokasi} />
-            <Field label="PIC" value={warehouse.pic} />
-            <Field label="Created At" value={warehouse.created_at} />
+            <Field label={t("wording.name")} value={warehouse.nama} />
+            <Field label={t("wording.location")} value={warehouse.lokasi} />
+            <Field label={t("wording.pic")} value={warehouse.pic} />
+            <Field label={t("wording.createdAt")} value={warehouse.created_at} />
             <Field
-              label="Updated At"
+              label={t("wording.updatedAt")}
               value={warehouse.updated_at === "-" ? null : warehouse.updated_at}
             />
           </div>
@@ -228,19 +231,19 @@ export default function WarehouseDetailPage() {
         >
           {[
             {
-              label: "Total Items (qty)",
+              label: t("wording.totalItemsQty"),
               value: totalItems,
               color: "var(--brand)",
               bg: "var(--brand-bg)",
             },
             {
-              label: "SKU Count",
+              label: t("wording.skuCount"),
               value: items.length,
               color: "var(--green)",
               bg: "var(--green-bg)",
             },
             {
-              label: "Low Stock SKUs",
+              label: t("wording.lowStockSkus"),
               value: lowStockCount,
               color: "var(--orange)",
               bg: "var(--orange-bg)",
@@ -268,7 +271,7 @@ export default function WarehouseDetailPage() {
             fontSize: 14,
           }}
         >
-          Items in this Warehouse
+          {t("wording.itemsInThisWarehouse")}
         </div>
         {items.length === 0 ? (
           <div
@@ -279,17 +282,17 @@ export default function WarehouseDetailPage() {
               fontSize: 13,
             }}
           >
-            No items found.
+            {t("wording.noItemsFound")}
           </div>
         ) : (
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th style={{ width: 90 }}>SKU</th>
-                  <th style={{ width: 100, textAlign: "right" }}>Qty</th>
-                  <th style={{ width: 120 }}>Status</th>
+                  <th>{t("wording.name")}</th>
+                  <th style={{ width: 90 }}>{t("wording.sku")}</th>
+                  <th style={{ width: 100, textAlign: "right" }}>{t("wording.qty")}</th>
+                  <th style={{ width: 120 }}>{t("wording.status")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -317,7 +320,7 @@ export default function WarehouseDetailPage() {
 
       <Modal
         open={deleteOpen}
-        title="Delete Warehouse"
+        title={t("wording.deleteWarehouse")}
         onClose={() => setDeleteOpen(false)}
         footer={
           <>
@@ -325,7 +328,7 @@ export default function WarehouseDetailPage() {
               className="btn-cancel-modal"
               onClick={() => setDeleteOpen(false)}
             >
-              Cancel
+              {t("wording.cancel")}
             </button>
             <button
               className="btn-del-ok"
@@ -334,14 +337,13 @@ export default function WarehouseDetailPage() {
                 navigate("/warehouse");
               }}
             >
-              Delete
+              {t("wording.delete")}
             </button>
           </>
         }
       >
         <p className="confirm-msg">
-          Are you sure you want to delete <strong>"{warehouse.name}"</strong>?
-          This action cannot be undone.
+          {t("wording.areYouSureYouWantToDelete")} <strong>"{warehouse.name}"</strong>{t("wording.thisActionCannotBeUndone")}
         </p>
       </Modal>
     </>

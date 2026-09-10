@@ -31,6 +31,9 @@ import { useCategoryController } from "./lib/useCategoryController";
 import useGetEventDetail from "../hooks/api/useGetEventDetail";
 import useGetEventStatus from "../hooks/api/useGetEventStatus";
 import { InventoryService } from "../service/InventoryService";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
+
 
 const FALLBACK_STATUSES = ["Preparation", "During Event", "After Event"] as const;
 type DateEventStatus = (typeof FALLBACK_STATUSES)[number];
@@ -297,8 +300,8 @@ function ItemCard({
       <button
         type="button"
         className="item-card-delete"
-        title="Delete"
-        aria-label={`Delete ${item.name}`}
+        title={i18n.t("wording.delete")}
+        aria-label={i18n.t("dynamic.deleteItem", { name: item.name })}
         onClick={() => onDelete(item.id)}
       >
         <IconDelete />
@@ -314,14 +317,14 @@ function ItemCard({
           <span className="item-name">
             {item.name}
             {group && (
-              <span className="item-group-badge" title={`${group.itemIds.length} items scan together`}>
+              <span className="item-group-badge" title={i18n.t("dynamic.itemsScanTogether", { count: group.itemIds.length })}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /></svg>
                 {group.name}
               </span>
             )}
-            {isScanned && <span className="item-scanned-badge"><CheckIcon /> Scanned</span>}
+            {isScanned && <span className="item-scanned-badge"><CheckIcon /> {i18n.t("wording.scanned")}</span>}
           </span>
-          <span className="item-qty">Qty: {item.qty}</span>
+          <span className="item-qty">{i18n.t("wording.qtyPrefix")} {item.qty}</span>
         </div>
         <div className="item-pic">
           <svg
@@ -343,7 +346,7 @@ function ItemCard({
             <span className={`indicator-box${item.checking ? " checked" : ""}`}>
               {item.checking && <CheckIcon />}
             </span>
-            Checking
+            {i18n.t("wording.checking")}
           </div>
           <div className="indicator-row">
             <span
@@ -351,7 +354,7 @@ function ItemCard({
             >
               {item.warehouseItem && <CheckIcon />}
             </span>
-            Warehouse Item
+            {i18n.t("wording.warehouseItem")}
           </div>
         </div>
         <div className="scan-rows">
@@ -395,7 +398,7 @@ function ItemCard({
                 <rect x="3" y="14" width="7" height="7" />
                 <path d="M14 14h.01M14 17h3v3M17 14h3" />
               </svg>
-              {isScanned ? "Re-scan" : "Scan"}
+              {isScanned ? i18n.t("common.actions.rescan") : i18n.t("common.actions.scan")}
             </button>
           </div>
         )}
@@ -405,6 +408,7 @@ function ItemCard({
 }
 
 export default function EventDetailPage() {
+  const { t } = useTranslation();
   const { id: routeEventId } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -856,7 +860,7 @@ export default function EventDetailPage() {
       unscannedCount > 0
     ) {
       setStepperError(
-        `${unscannedCount} item${unscannedCount === 1 ? "" : "s"} still need to be scanned before moving forward.`,
+        `${unscannedCount} item${unscannedCount === 1 ? "" : t("wording.s")} still need to be scanned before moving forward.`,
       );
       return;
     }
@@ -1020,7 +1024,7 @@ export default function EventDetailPage() {
       currentScanAction !== "SCAN_OUT"
     ) {
       toast.error(
-        "Scan out is only available when the current status action is SCAN_OUT.",
+        t("wording.scanOutIsOnlyAvailableWhenTheCurrent"),
       );
       return;
     }
@@ -1205,7 +1209,7 @@ export default function EventDetailPage() {
       setCartOpen(false);
       setNewItemOpen(false);
       await refetchEventItems();
-      toast.success("Items saved to the event.");
+      toast.success(t("wording.itemsSavedToTheEvent"));
     } catch (error) {
       toast.error(getCheckoutErrorMessage(error));
     }
@@ -1422,7 +1426,7 @@ export default function EventDetailPage() {
 
   return (
     <>
-      <h1 className="page-title">Event Detail</h1>
+      <h1 className="page-title">{t("wording.eventDetail")}</h1>
       <div className="card">
         <div style={{ marginBottom: 14 }}>
           <button
@@ -1451,7 +1455,7 @@ export default function EventDetailPage() {
             >
               <polyline points="15 18 9 12 15 6" />
             </svg>
-            Back to Events
+            {t("wording.backToEvents")}
           </button>
         </div>
         <div className="event-header-row">
@@ -1460,7 +1464,7 @@ export default function EventDetailPage() {
           <div className="event-actions-bar">
             <button
               className="action-icon-btn btn-pkg"
-              title="Packaging — group items to scan together"
+              title={t("wording.packagingGroupItemsToScanTogether")}
               onClick={openPackagingModal}
             >
               <svg
@@ -1480,13 +1484,13 @@ export default function EventDetailPage() {
               <IconCart />
             </button>
             <button className="btn-new" onClick={openCart}>
-              <IconPlus /> Add Item
+              <IconPlus /> {t("wording.addItem")}
             </button>
             <div className="more-menu-wrap" ref={moreMenuRef}>
               <button
                 type="button"
                 className="action-icon-btn more-btn"
-                title="More menu"
+                title={t("wording.moreMenu")}
                 aria-expanded={moreMenuOpen}
                 onClick={() => setMoreMenuOpen((open) => !open)}
               >
@@ -1502,7 +1506,7 @@ export default function EventDetailPage() {
                       setMoreMenuOpen(false);
                     }}
                   >
-                    <IconBarChart /> Summary
+                    <IconBarChart /> {t("wording.summary")}
                   </button>
                   <button
                     type="button"
@@ -1512,7 +1516,7 @@ export default function EventDetailPage() {
                       setMoreMenuOpen(false);
                     }}
                   >
-                    <IconPrint /> Print
+                    <IconPrint /> {t("wording.print")}
                   </button>
                 </div>
               )}
@@ -1521,7 +1525,7 @@ export default function EventDetailPage() {
         </div>
 
         <div className="event-status-section">
-          <div className="event-status-section-label">Event Status</div>
+          <div className="event-status-section-label">{t("wording.eventStatus")}</div>
           <div className="event-status-stepper-wrap">
             <Stepper
               steps={stages}
@@ -1541,7 +1545,7 @@ export default function EventDetailPage() {
               }
               onClick={goToNextStage}
             >
-              {isChangingEventStatus ? "Saving…" : "Next"}
+              {isChangingEventStatus ? t("wording.saving") : t("wording.next")}
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
             </button>
           )}
@@ -1560,11 +1564,11 @@ export default function EventDetailPage() {
             <SearchableSelect
               value={selectedArea}
               onChange={(value) => setSelectedArea(String(value))}
-              placeholder="All Place"
-              searchPlaceholder="Search area…"
-              emptyText="No area found"
+              placeholder={t("wording.allPlace")}
+              searchPlaceholder={t("wording.searchArea")}
+              emptyText={t("wording.noAreaFound")}
               options={[
-                { value: "", label: "All Place", meta: String(items.length) },
+                { value: "", label: t("wording.allPlace"), meta: String(items.length) },
                 ...areas.map((area) => ({
                   value: area,
                   label: area,
@@ -1576,7 +1580,7 @@ export default function EventDetailPage() {
 
           <div className="filter-row-right">
             <button className="btn btn-check" onClick={() => {}}>
-              <IconSearch /> Check
+              <IconSearch /> {t("wording.check")}
             </button>
           </div>
         </div>
@@ -1587,7 +1591,7 @@ export default function EventDetailPage() {
             <input
               className="search-input"
               type="text"
-              placeholder="Keyword Search"
+              placeholder={t("wording.keywordSearch")}
               value={kwSearch}
               onChange={(event) => setKwSearch(event.target.value)}
             />
@@ -1596,18 +1600,18 @@ export default function EventDetailPage() {
 
         <div className="stage-tabs">
           {stageScanEnabled && (
-            <button className={`stage-tab${effectiveStageFilter === "waiting" ? " active" : ""}`} onClick={() => setStageFilter("waiting")}>Waiting Scan <span className="stage-tab-count">{waitingScanItems.length}</span></button>
+            <button className={`stage-tab${effectiveStageFilter === "waiting" ? " active" : ""}`} onClick={() => setStageFilter("waiting")}>{t("wording.waitingScan")} <span className="stage-tab-count">{waitingScanItems.length}</span></button>
           )}
-          <button className={`stage-tab${effectiveStageFilter === "grouped" ? " active" : ""}`} onClick={() => setStageFilter("grouped")}>Grouped <span className="stage-tab-count">{packages.length}</span></button>
-          <button className={`stage-tab${effectiveStageFilter === "all" ? " active" : ""}`} onClick={() => setStageFilter("all")}>All <span className="stage-tab-count">{scopedItems.length}</span></button>
-          <button className={`stage-tab${effectiveStageFilter === "added" ? " active" : ""}`} onClick={() => setStageFilter("added")}>Added New <span className="stage-tab-count">{currentStageItems.length}</span></button>
+          <button className={`stage-tab${effectiveStageFilter === "grouped" ? " active" : ""}`} onClick={() => setStageFilter("grouped")}>{t("wording.grouped")} <span className="stage-tab-count">{packages.length}</span></button>
+          <button className={`stage-tab${effectiveStageFilter === "all" ? " active" : ""}`} onClick={() => setStageFilter("all")}>{t("wording.all")} <span className="stage-tab-count">{scopedItems.length}</span></button>
+          <button className={`stage-tab${effectiveStageFilter === "added" ? " active" : ""}`} onClick={() => setStageFilter("added")}>{t("wording.addedNew")} <span className="stage-tab-count">{currentStageItems.length}</span></button>
         </div>
 
         {effectiveStageFilter === "grouped" ? (
           <>
-            <p className="summary-text"><strong>{packages.length}</strong> box{packages.length === 1 ? "" : "es"} packaged — each box scans as one QR code.</p>
+            <p className="summary-text"><strong>{packages.length}</strong> {t("wording.box")}{packages.length === 1 ? "" : t("wording.es")} {t("wording.packagedEachBoxScansAsOneQrCode")}</p>
             {packages.length === 0 ? (
-              <div className="no-data">No boxes yet. Use the box icon above to group items.</div>
+              <div className="no-data">{t("wording.noBoxesYetUseTheBoxIconAbove")}</div>
             ) : (
               <div className="package-list">
                 {packages.map((group) => {
@@ -1620,10 +1624,10 @@ export default function EventDetailPage() {
                       <div className="package-header">
                         <div className="package-header-info">
                           <span className="package-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /></svg></span>
-                          <div><div className="package-name">{group.name}</div><div className="package-meta">{members.length} item{members.length === 1 ? "" : "s"} in this box</div></div>
+                          <div><div className="package-name">{group.name}</div><div className="package-meta">{members.length} {t("wording.itemInline")}{members.length === 1 ? "" : t("wording.s")} {t("wording.inThisBox")}</div></div>
                         </div>
                         {stageScanEnabled && members.length > 0 && (
-                          <button className={`btn-ia-scan${allScanned ? " scanned" : ""}`} onClick={() => openScanPopup(members[0])}>{allScanned ? "Re-scan Box" : "Scan Box"}</button>
+                          <button className={`btn-ia-scan${allScanned ? " scanned" : ""}`} onClick={() => openScanPopup(members[0])}>{allScanned ? t("wording.reScanBox") : t("wording.scanBox")}</button>
                         )}
                       </div>
                       <div className="items-grid package-items-grid">
@@ -1646,18 +1650,18 @@ export default function EventDetailPage() {
             )}
           </>
         ) : isLoading ? (
-          <div className="no-data">Loading...</div>
+          <div className="no-data">{t("wording.loading")}</div>
         ) : isError ? (
-          <div className="no-data">Failed to load event items.</div>
+          <div className="no-data">{t("wording.failedToLoadEventItems")}</div>
         ) : displayedItems.length === 0 ? (
-          <div className="no-data">No Data</div>
+          <div className="no-data">{t("wording.noData")}</div>
         ) : (
           <>
             <p className="summary-text">
               {effectiveStageFilter === "waiting" ? (
-                <><strong>{displayedItems.length}</strong> item{displayedItems.length === 1 ? "" : "s"} still need{displayedItems.length === 1 ? "s" : ""} scanning at event status <strong>&ldquo;{eventStatus}&rdquo;</strong> in area <strong>&ldquo;{areaLabel}&rdquo;</strong></>
+                <><strong>{displayedItems.length}</strong> {t("wording.itemInline")}{displayedItems.length === 1 ? "" : t("wording.s")} {t("wording.stillNeed")}{displayedItems.length === 1 ? t("wording.s") : ""} {t("wording.scanningAtEventStatus")} <strong>&ldquo;{eventStatus}&rdquo;</strong> {t("wording.inArea")} <strong>&ldquo;{areaLabel}&rdquo;</strong></>
               ) : (
-                <><strong>{displayedItems.length}</strong> item(s) with status <strong>&ldquo;{eventStatus}&rdquo;</strong> in area <strong>&ldquo;{areaLabel}&rdquo;</strong></>
+                <><strong>{displayedItems.length}</strong> {t("wording.itemSWithStatus")} <strong>&ldquo;{eventStatus}&rdquo;</strong> {t("wording.inArea")} <strong>&ldquo;{areaLabel}&rdquo;</strong></>
               )}
             </p>
             <div className="items-grid">
@@ -1679,15 +1683,15 @@ export default function EventDetailPage() {
 
       <Modal
         open={atcOpen}
-        title="Add to Cart"
+        title={t("wording.addToCart")}
         onClose={() => setAtcOpen(false)}
         footer={
           <>
             <button className="btn-cancel-m" onClick={() => setAtcOpen(false)}>
-              <IconClose /> Cancel
+              <IconClose /> {t("wording.cancel")}
             </button>
             <button className="btn-add-cart" onClick={confirmAddToCart}>
-              <IconCart /> Add to Cart
+              <IconCart /> {t("wording.addToCart")}
             </button>
           </>
         }
@@ -1697,7 +1701,7 @@ export default function EventDetailPage() {
         </div>
         <div className="form-row">
           <div className="form-group">
-            <label>Status / State</label>
+            <label>{t("wording.statusState")}</label>
             <SearchableSelect
               value={atcForm.status}
               onChange={(value) =>
@@ -1707,7 +1711,7 @@ export default function EventDetailPage() {
             />
           </div>
           <div className="form-group">
-            <label>Area</label>
+            <label>{t("wording.area")}</label>
             <SearchableSelect
               value={atcForm.area}
               onChange={(value) =>
@@ -1719,7 +1723,7 @@ export default function EventDetailPage() {
         </div>
         <div className="form-row">
           <div className="form-group">
-            <label>Qty</label>
+            <label>{t("wording.qty")}</label>
             <input
               type="number"
               min={1}
@@ -1733,10 +1737,10 @@ export default function EventDetailPage() {
             />
           </div>
           <div className="form-group">
-            <label>Notes</label>
+            <label>{t("wording.notes")}</label>
             <input
               type="text"
-              placeholder="Optional"
+              placeholder={t("wording.optional")}
               value={atcForm.note}
               onChange={(event) =>
                 setAtcForm((form) => ({ ...form, note: event.target.value }))
@@ -1748,7 +1752,7 @@ export default function EventDetailPage() {
 
       <Modal
         open={cartOpen}
-        title="Event Cart"
+        title={t("wording.eventCart")}
         onClose={() => setCartOpen(false)}
         footer={
           <>
@@ -1757,20 +1761,20 @@ export default function EventDetailPage() {
               onClick={() => setCartOpen(false)}
               disabled={isSavingCart}
             >
-              Close
+              {t("wording.close")}
             </button>
             <button
               className="btn-checkout"
               onClick={checkout}
               disabled={isSavingCart || cart.length === 0}
             >
-              <IconCheck /> {isSavingCart ? "Saving..." : "Save to Event"}
+              <IconCheck /> {isSavingCart ? t("common.actions.saving") : t("common.actions.saveToEvent")}
             </button>
           </>
         }
       >
         {cart.length === 0 ? (
-          <div className="cart-empty">The cart is empty.</div>
+          <div className="cart-empty">{t("wording.theCartIsEmptyMessage")}</div>
         ) : (
           <div className="cart-list">
             {cart.map((cartItem, index) => (
@@ -1789,10 +1793,10 @@ export default function EventDetailPage() {
                 <div className="cart-item-info">
                   <div className="cart-item-name">{cartItem.name}</div>
                   <div className="cart-item-meta">
-                    <span>Qty: {cartItem.qty}</span>
-                    <span>Area: {cartItem.area}</span>
-                    <span>Sub Area: {cartItem.subArea || "-"}</span>
-                    <span>Status: {cartItem.status}</span>
+                    <span>{t("wording.qtyPrefix")} {cartItem.qty}</span>
+                    <span>{t("wording.areaPrefix")} {cartItem.area}</span>
+                    <span>{t("wording.subAreaPrefix")} {cartItem.subArea || "-"}</span>
+                    <span>{t("wording.statusPrefix")} {cartItem.status}</span>
                   </div>
                 </div>
                 <button
@@ -1809,7 +1813,7 @@ export default function EventDetailPage() {
 
       <Modal
         open={false}
-        title="Add New Item"
+        title={t("wording.addNewItem")}
         onClose={() => setNewItemOpen(false)}
         footer={
           <>
@@ -1817,7 +1821,7 @@ export default function EventDetailPage() {
               className="btn-cancel-m"
               onClick={() => setNewItemOpen(false)}
             >
-              Cancel
+              {t("wording.cancel")}
             </button>
             <button
               className="btn-add-cart"
@@ -1828,13 +1832,13 @@ export default function EventDetailPage() {
               onClick={saveNewItem}
               disabled={!canSaveNewItem}
             >
-              <IconCheck /> Save
+              <IconCheck /> {t("wording.save")}
             </button>
           </>
         }
       >
         <div className="form-group">
-          <label>Select Warehouse</label>
+          <label>{t("wording.selectWarehouse")}</label>
           <SearchableSelect
             value={selectedWarehouseId}
             onChange={(value) => {
@@ -1843,37 +1847,37 @@ export default function EventDetailPage() {
               setDebouncedBarangSearch("");
               setSelectedBarangGudang(null);
             }}
-            placeholder="Select a warehouse"
+            placeholder={t("wording.selectAWarehouse")}
             options={warehouseOptions}
           />
         </div>
 
         <div className="form-group">
-          <label>Search Items</label>
+          <label>{t("wording.searchItems")}</label>
           <input
             type="search"
             value={barangSearch}
             disabled={!selectedWarehouseId}
-            placeholder="Enter at least 3 characters"
+            placeholder={t("wording.enterAtLeast3Characters")}
             onChange={(event) => setBarangSearch(event.target.value)}
           />
         </div>
 
         <div className="form-group">
-          <label>Select Item</label>
+          <label>{t("wording.selectItem")}</label>
           <div className="event-master-item-list">
             {!selectedWarehouseId ? (
               <div className="event-master-item-empty">
-                Select a warehouse first.
+                {t("wording.selectAWarehouseFirst")}
               </div>
             ) : isBarangGudangLoading ? (
-              <div className="event-master-item-empty">Loading items...</div>
+              <div className="event-master-item-empty">{t("wording.loadingItemsPlaceholder")}</div>
             ) : isBarangGudangError ? (
               <div className="event-master-item-empty">
-                Failed to load items.
+                {t("wording.failedToLoadItems")}
               </div>
             ) : barangGudangItems.length === 0 ? (
-              <div className="event-master-item-empty">No items available.</div>
+              <div className="event-master-item-empty">{t("wording.noItemsAvailable")}</div>
             ) : (
               barangGudangItems.map((barang) => {
                 const isSelected =
@@ -1899,7 +1903,7 @@ export default function EventDetailPage() {
                         {barang.nama_barang}
                       </span>
                       <span className="event-master-item-stock">
-                        Stock: {barang.stok_barang}
+                        {t("wording.stockPrefix")} {barang.stok_barang}
                       </span>
                     </div>
                   </button>
@@ -1911,7 +1915,7 @@ export default function EventDetailPage() {
 
         <div className="form-row">
           <div className="form-group">
-            <label>Area</label>
+            <label>{t("wording.area")}</label>
             <SearchableSelect
               value={newItemForm.areaId}
               onChange={(value) =>
@@ -1922,12 +1926,12 @@ export default function EventDetailPage() {
                 }))
               }
               disabled={isAreaListLoading || isAreaListError}
-              placeholder={isAreaListLoading ? "Loading areas..." : isAreaListError ? "Failed to load areas" : "Select an area"}
+              placeholder={isAreaListLoading ? t("wording.loadingAreas") : isAreaListError ? t("wording.failedToLoadAreas") : t("wording.selectAnArea")}
               options={masterAreas.map((area) => ({ value: area.id, label: area.name }))}
             />
           </div>
           <div className="form-group">
-            <label>Sub Area</label>
+            <label>{t("wording.subArea")}</label>
             <SearchableSelect
               value={newItemForm.subAreaId}
               disabled={!newItemForm.areaId || isSubAreaLoading}
@@ -1937,15 +1941,15 @@ export default function EventDetailPage() {
                   subAreaId: String(value),
                 }))
               }
-              placeholder={!newItemForm.areaId ? "Select an area first" : isSubAreaLoading ? "Loading sub-areas..." : isSubAreaError ? "Failed to load sub-areas" : "Select a sub-area"}
-              emptyText="No sub-areas available"
+              placeholder={!newItemForm.areaId ? t("wording.selectAnAreaFirst") : isSubAreaLoading ? t("wording.loadingSubAreas") : isSubAreaError ? t("wording.failedToLoadSubAreas") : t("wording.selectASubArea")}
+              emptyText={t("wording.noSubAreasAvailable")}
               options={filteredSubAreas.map((subArea) => ({ value: subArea.id, label: subArea.sub_area_name }))}
             />
           </div>
         </div>
         <div className="form-row">
           <div className="form-group">
-            <label>Status</label>
+            <label>{t("wording.status")}</label>
             <SearchableSelect
               value={newItemForm.status}
               onChange={(value) =>
@@ -1958,7 +1962,7 @@ export default function EventDetailPage() {
             />
           </div>
           <div className="form-group">
-            <label>Qty</label>
+            <label>{t("wording.qty")}</label>
             <input
               type="number"
               min={1}
@@ -1974,7 +1978,7 @@ export default function EventDetailPage() {
         </div>
         <div className="form-row">
           <div className="form-group">
-            <label>Additional Code</label>
+            <label>{t("wording.additionalCode")}</label>
             <SearchableSelect
               value={newItemForm.additionalCode}
               onChange={(value) =>
@@ -1983,12 +1987,12 @@ export default function EventDetailPage() {
                   additionalCode: String(value),
                 }))
               }
-              placeholder="Select additional code"
+              placeholder={t("wording.selectAdditionalCode")}
               options={["IHC", "IHO", "O", "S", "B", "F", "Venue"].map((code) => ({ value: code, label: code }))}
             />
           </div>
           <div className="form-group">
-            <label>Memo</label>
+            <label>{t("wording.memo")}</label>
             <input
               type="text"
               value={newItemForm.memo}
@@ -2017,7 +2021,7 @@ export default function EventDetailPage() {
                   }))
                 }
               />
-              <span>Checked</span>
+              <span>{t("wording.checked")}</span>
             </label>
           </div>
           <div className="form-group form-checkbox-group">
@@ -2033,14 +2037,14 @@ export default function EventDetailPage() {
                   }))
                 }
               />
-              <span>Warehouse Item</span>
+              <span>{t("wording.warehouseItem")}</span>
             </label>
           </div>
         </div>
         {newItemForm.checked ? (
           <div className="form-row">
             <div className="form-group">
-              <label>Input By</label>
+              <label>{t("wording.inputBy")}</label>
               <input
                 type="text"
                 value={newItemForm.inputBy}
@@ -2053,7 +2057,7 @@ export default function EventDetailPage() {
               />
             </div>
             <div className="form-group">
-              <label>Image</label>
+              <label>{t("wording.image")}</label>
               <input
                 type="file"
                 accept="image/*"
@@ -2088,7 +2092,7 @@ export default function EventDetailPage() {
         )}
         {newItemForm.checked && newItemForm.image ? (
           <div className="form-group event-item-image-preview">
-            <label>Image Preview</label>
+            <label>{t("wording.imagePreview")}</label>
             <img src={newItemForm.image} alt="Uploaded item preview" />
           </div>
         ) : (
@@ -2099,7 +2103,7 @@ export default function EventDetailPage() {
       {/* Inventory Picker + Cart Modal — two panels, no popping in/out */}
       <Modal
         open={newItemOpen}
-        title="Add Items from Inventory"
+        title={t("wording.addItemsFromInventory")}
         onClose={() => setNewItemOpen(false)}
         size="4xl"
         className="inv-pick-modal"
@@ -2110,7 +2114,7 @@ export default function EventDetailPage() {
               className="btn-cancel-m"
               onClick={() => setNewItemOpen(false)}
             >
-              <IconClose /> Close
+              <IconClose /> {t("wording.close")}
             </button>
             <button
               className="btn-checkout"
@@ -2118,7 +2122,7 @@ export default function EventDetailPage() {
               disabled={cart.length === 0 || isSavingCart}
             >
               <IconCheck />{" "}
-              {hasMissingArea ? "Complete Locations" : "Save to Event"}
+              {hasMissingArea ? t("common.actions.completeLocations") : t("common.actions.saveToEvent")}
             </button>
           </>
         }
@@ -2132,7 +2136,7 @@ export default function EventDetailPage() {
                 <input
                   className="search-input"
                   type="text"
-                  placeholder="Search name or SKU…"
+                  placeholder={t("wording.searchNameOrSku")}
                   value={pickerQuery}
                   onChange={(e) => setPickerQuery(e.target.value)}
                 />
@@ -2143,7 +2147,7 @@ export default function EventDetailPage() {
                   value={pickerCategory}
                   onChange={(value) => setPickerCategory(String(value))}
                   options={[
-                    { value: "", label: "All Categories" },
+                    { value: "", label: t("wording.allCategories") },
                     ...categoryOptions,
                   ]}
                 />
@@ -2152,7 +2156,7 @@ export default function EventDetailPage() {
 
             <div className="inv-pick-list">
               {pickerFiltered.length === 0 ? (
-                <div className="no-data">No items found.</div>
+                <div className="no-data">{t("wording.noItemsFound")}</div>
               ) : (
                 pickerFiltered.map((inv) => {
                   const selectedWarehouse = getSelectedItemWarehouse(inv);
@@ -2174,10 +2178,10 @@ export default function EventDetailPage() {
                             className={`inv-stock-badge ${outOfStock ? "out" : warehouseStock < 10 ? "low" : "available"}`}
                           >
                             {outOfStock
-                              ? "Out of Stock"
+                              ? t("wording.outOfStock")
                               : warehouseStock < 10
-                                ? "Low Stock"
-                                : "Available"}
+                                ? t("wording.lowStock")
+                                : t("wording.available")}
                           </span>
                         </div>
                         <div className="inv-pick-meta">
@@ -2187,13 +2191,13 @@ export default function EventDetailPage() {
                           · {inv.nama_kategori} · {inv.nama_satuan}
                         </div>
                         <div className="inv-pick-stock">
-                          Available stock:{" "}
+                          {t("wording.availableStock")}{" "}
                           <strong>
                             {warehouseStock} {inv.nama_satuan}
                           </strong>
                         </div>
                         <div className="inv-pick-warehouse-row">
-                          <label>Take from warehouse</label>
+                          <label>{t("wording.takeFromWarehouse")}</label>
                           <div className="wi-select-wrap">
                             <SearchableSelect
                               inline
@@ -2212,7 +2216,7 @@ export default function EventDetailPage() {
                               options={inv.warehouses.map((warehouse) => ({
                                 value: warehouse.barang_gudang_id,
                                 label: warehouse.gudang_name,
-                                meta: `${warehouse.stok_gudang} in stock`,
+                                meta: t("dynamic.inStock", { count: warehouse.stok_gudang }),
                               }))}
                             />
                           </div>
@@ -2244,7 +2248,7 @@ export default function EventDetailPage() {
                           disabled={outOfStock}
                           onClick={() => addInventoryItem(inv)}
                         >
-                          <IconCart /> {outOfStock ? "Out of Stock" : "Add"}
+                          <IconCart /> {outOfStock ? t("wording.outOfStock") : t("wording.add")}
                         </button>
                       </div>
                     </div>
@@ -2257,12 +2261,12 @@ export default function EventDetailPage() {
           {/* Right panel — cart / keranjang, always visible alongside the list */}
           <div className="inv-pick-right">
             <div className="inv-cart-header">
-              <IconCart /> Cart{" "}
+              <IconCart /> {t("wording.cart")}{" "}
               <span className="inv-cart-count">{cart.length}</span>
             </div>
 
             {cart.length === 0 ? (
-              <div className="cart-empty">The cart is empty</div>
+              <div className="cart-empty">{t("wording.theCartIsEmpty")}</div>
             ) : (
               <>
                 <div
@@ -2293,7 +2297,7 @@ export default function EventDetailPage() {
                       }
                       onChange={toggleSelectAllCart}
                     />
-                    Select All ({selectedCartIds.length}/{cart.length})
+                    {t("wording.selectAll")}{selectedCartIds.length}/{cart.length})
                   </label>
                   <button
                     className="btn btn-ghost"
@@ -2305,7 +2309,7 @@ export default function EventDetailPage() {
                       alignSelf: "flex-start",
                     }}
                   >
-                    Assign Locations ({selectedCartIds.length})
+                    {t("wording.assignLocations")}{selectedCartIds.length})
                   </button>
                 </div>
 
@@ -2331,7 +2335,7 @@ export default function EventDetailPage() {
                           setBulkAreaId(String(value));
                           setBulkSubAreaId("");
                         }}
-                        placeholder="Select Area"
+                        placeholder={t("wording.selectArea")}
                         options={masterAreas.map((area) => ({ value: area.id, label: area.name }))}
                       />
                     </div>
@@ -2341,7 +2345,7 @@ export default function EventDetailPage() {
                         value={bulkSubAreaId}
                         onChange={(value) => setBulkSubAreaId(String(value))}
                         disabled={!bulkAreaId}
-                        placeholder={bulkSubAreas.length ? "Select Sub Area" : "(No Sub Areas)"}
+                        placeholder={bulkSubAreas.length ? t("wording.selectSubArea") : t("wording.noSubAreas")}
                         options={bulkSubAreas.map((subArea) => ({ value: subArea.id, label: subArea.sub_area_name }))}
                       />
                     </div>
@@ -2350,13 +2354,13 @@ export default function EventDetailPage() {
                       disabled={!bulkAreaId || !bulkSubAreaId}
                       onClick={applyBulkAssign}
                     >
-                      <IconCheck /> Apply to {selectedCartIds.length} items
+                      <IconCheck /> {t("wording.applyTo")} {selectedCartIds.length} {t("wording.itemsInline")}
                     </button>
                     <button
                       className="btn-cancel-m"
                       onClick={() => setBulkPanelOpen(false)}
                     >
-                      Cancel
+                      {t("wording.cancel")}
                     </button>
                   </div>
                 )}
@@ -2405,8 +2409,8 @@ export default function EventDetailPage() {
                       {c.areaId === null && (
                         <button
                           className="cart-item-remove"
-                          title="Assign location"
-                          aria-label={`Assign location for ${c.name}`}
+                          title={t("wording.assignLocation")}
+                          aria-label={t("dynamic.assignLocation", { name: c.name })}
                           onClick={() => {
                             setSelectedCartIds([c.cartId]);
                             setBulkPanelOpen(true);
@@ -2442,20 +2446,20 @@ export default function EventDetailPage() {
 
       <Modal
         open={summaryOpen}
-        title="Event Summary"
+        title={t("wording.eventSummary")}
         onClose={() => setSummaryOpen(false)}
         size="lg"
       >
         <div className="summary-popup-title">{eventName}</div>
-        <div className="summary-popup-status">Status: {eventStatus}</div>
+        <div className="summary-popup-status">{t("wording.statusPrefix")} {eventStatus}</div>
         <div className="summary-popup-kpis">
-          <div className="summary-popup-kpi"><div className="summary-popup-kpi-value">{summaryStats.total}</div><div className="summary-popup-kpi-label">Total Items</div></div>
-          <div className="summary-popup-kpi"><div className="summary-popup-kpi-value">{summaryStats.checked}</div><div className="summary-popup-kpi-label">Checked</div></div>
-          <div className="summary-popup-kpi"><div className="summary-popup-kpi-value">{summaryStats.scanIn}</div><div className="summary-popup-kpi-label">Scanned In</div></div>
+          <div className="summary-popup-kpi"><div className="summary-popup-kpi-value">{summaryStats.total}</div><div className="summary-popup-kpi-label">{t("wording.totalItems")}</div></div>
+          <div className="summary-popup-kpi"><div className="summary-popup-kpi-value">{summaryStats.checked}</div><div className="summary-popup-kpi-label">{t("wording.checked")}</div></div>
+          <div className="summary-popup-kpi"><div className="summary-popup-kpi-value">{summaryStats.scanIn}</div><div className="summary-popup-kpi-label">{t("wording.scannedIn")}</div></div>
         </div>
         <p className="summary-text">
-          Total quantity: <strong>{summaryStats.totalQty}</strong> · Scanned out:{" "}
-          <strong>{summaryStats.scanOut}</strong> of {summaryStats.total}
+          {t("wording.totalQuantity")} <strong>{summaryStats.totalQty}</strong> {t("wording.scannedOut")}{" "}
+          <strong>{summaryStats.scanOut}</strong> {t("wording.of")} {summaryStats.total}
         </p>
         <button
           type="button"
@@ -2465,17 +2469,17 @@ export default function EventDetailPage() {
             navigate(`/event-summary?id=${eventId}`);
           }}
         >
-          <IconBarChart /> View Full Detail
+          <IconBarChart /> {t("wording.viewFullDetail")}
         </button>
       </Modal>
 
-      <Modal open={Boolean(scanningItem)} title="Scan Item" onClose={closeScanPopup}>
+      <Modal open={Boolean(scanningItem)} title={t("wording.scanItem")} onClose={closeScanPopup}>
         {scanningItem && (
           <div className="scan-popup-content">
             {scanningItem.groupId ? (
               <>
-                <div className="scan-popup-title">Package: {packages.find((group) => group.id === scanningItem.groupId)?.name}</div>
-                <div className="scan-popup-subtitle">All items in this box will be scanned together.</div>
+                <div className="scan-popup-title">{t("wording.package")} {packages.find((group) => group.id === scanningItem.groupId)?.name}</div>
+                <div className="scan-popup-subtitle">{t("wording.allItemsInThisBoxWillBeScanned")}</div>
               </>
             ) : (
               <>
@@ -2486,14 +2490,14 @@ export default function EventDetailPage() {
             {scanPhase === "ready" && (
               <>
                 <div className="scan-target-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><path d="M14 14h7M14 21h7M14 17.5h3.5" /></svg></div>
-                <button type="button" className="btn-save-modal" onClick={startScan}>Start Scan</button>
+                <button type="button" className="btn-save-modal" onClick={startScan}>{t("wording.startScan")}</button>
               </>
             )}
             {scanPhase === "scanning" && (
-              <><div className="scan-target-box scanning"><div className="scan-spinner" /></div><p className="scan-popup-subtitle">Scanning…</p></>
+              <><div className="scan-target-box scanning"><div className="scan-spinner" /></div><p className="scan-popup-subtitle">{t("wording.scanning")}</p></>
             )}
             {scanPhase === "done" && (
-              <><div className="scan-target-box success"><CheckIcon /></div><p className="scan-popup-success">Scan completed</p><button type="button" className="btn-save-modal" onClick={finishScan}><IconCheck /> Done</button></>
+              <><div className="scan-target-box success"><CheckIcon /></div><p className="scan-popup-success">{t("wording.scanCompleted")}</p><button type="button" className="btn-save-modal" onClick={finishScan}><IconCheck /> {t("wording.done")}</button></>
             )}
           </div>
         )}
@@ -2501,27 +2505,27 @@ export default function EventDetailPage() {
 
       <Modal
         open={packagingOpen}
-        title="Group Items for Packaging"
+        title={t("wording.groupItemsForPackaging")}
         onClose={() => setPackagingOpen(false)}
         footer={
           <>
-            <button className="btn-cancel-m" onClick={() => setPackagingOpen(false)}><IconClose /> Cancel</button>
-            <button className="btn-save-modal" disabled={!packagingName.trim() || packagingSelection.length === 0} onClick={createPackage}><IconCheck /> Create Group ({packagingSelection.length})</button>
+            <button className="btn-cancel-m" onClick={() => setPackagingOpen(false)}><IconClose /> {t("wording.cancel")}</button>
+            <button className="btn-save-modal" disabled={!packagingName.trim() || packagingSelection.length === 0} onClick={createPackage}><IconCheck /> {t("wording.createGroup")}{packagingSelection.length})</button>
           </>
         }
       >
         <div className="form-group">
-          <label>Group Name <span className="required">*</span></label>
-          <input type="text" placeholder="e.g. Ceremony Decor Bundle" value={packagingName} onChange={(event) => setPackagingName(event.target.value)} />
+          <label>{t("wording.groupName")} <span className="required">*</span></label>
+          <input type="text" placeholder={t("wording.eGCeremonyDecorBundle")} value={packagingName} onChange={(event) => setPackagingName(event.target.value)} />
         </div>
-        <p className="package-pick-help">Any item not already in a box can be added, regardless of stage.</p>
+        <p className="package-pick-help">{t("wording.anyItemNotAlreadyInABoxCan")}</p>
         <div className="package-pick-list">
           {packableItems.length === 0 ? (
-            <div className="no-data">No eligible ungrouped items.</div>
+            <div className="no-data">{t("wording.noEligibleUngroupedItems")}</div>
           ) : packableItems.map((item) => (
             <label key={item.id} className={`package-pick-row${packagingSelection.includes(item.id) ? " selected" : ""}`}>
               <input type="checkbox" checked={packagingSelection.includes(item.id)} onChange={() => togglePackagingSelection(item.id)} />
-              <span><span className="package-pick-row-name">{item.name}</span><span className="package-pick-row-meta">{item.area} · Qty: {item.qty}</span></span>
+              <span><span className="package-pick-row-name">{item.name}</span><span className="package-pick-row-meta">{item.area} {t("wording.qtyPrefixOnEventDetailPage")} {item.qty}</span></span>
             </label>
           ))}
         </div>

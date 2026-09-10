@@ -10,6 +10,7 @@ import {
 } from "../../lib/superAdminAuth";
 import { useDispatch } from "react-redux";
 import { setProfile } from "../../store/profile";
+import { useTranslation } from "react-i18next";
 
 function loginErrorMessage(error: unknown) {
   const apiMessage = (error as { response?: { data?: { message?: string } } })
@@ -19,6 +20,7 @@ function loginErrorMessage(error: unknown) {
 }
 
 export default function SuperAdminLogin() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState("");
@@ -33,7 +35,7 @@ export default function SuperAdminLogin() {
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!email.trim() || !password) {
-      const message = "Please enter both email and password.";
+      const message = t("auth.bothRequired");
       setError(message);
       toast(message, { type: "error" });
       return;
@@ -70,21 +72,21 @@ export default function SuperAdminLogin() {
         <div className="sa-login-brand">
           <div className="sa-login-logo">EMI</div>
           <div>
-            <div className="sa-login-title">SaaS Owner Panel</div>
+            <div className="sa-login-title">{t("auth.ownerPanel")}</div>
             <div className="sa-login-sub">
-              Manage customers, payments &amp; pricing
+              {t("auth.ownerSubtitle")}
             </div>
           </div>
         </div>
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>Email</label>
+            <label>{t("wording.email")}</label>
             <div className="sa-input-wrap">
               <IconMail />
               <input
                 type="email"
-                placeholder="owner@yourcompany.com"
+                placeholder={t("wording.ownerYourcompanyCom")}
                 autoFocus
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -92,7 +94,7 @@ export default function SuperAdminLogin() {
             </div>
           </div>
           <div className="form-group">
-            <label>Password</label>
+            <label>{t("auth.password")}</label>
             <div className="sa-input-wrap">
               <IconLock />
               <input
@@ -111,7 +113,7 @@ export default function SuperAdminLogin() {
             className="btn-primary btn sa-login-submit"
             disabled={isLoading}
           >
-            {isLoading ? "Signing in…" : "Sign In"}
+            {isLoading ? t("auth.signingIn") : t("auth.signIn")}
           </button>
         </form>
       </div>

@@ -26,6 +26,9 @@ import useGetSuperAdminPayments, {
 } from "../../hooks/api/useGetSuperAdminPayments";
 import useUpdateSuperAdminPayment from "../../hooks/api/useUpdateSuperAdminPayment";
 import { formatIDR, paymentStatusBadge } from "../../lib/superAdminUtils";
+import { useTranslation } from "react-i18next";
+import { translateApiValue } from "../../utils/function";
+
 
 const PAGE_SIZE = 10;
 const STATUS_FILTERS = ["paid", "pending", "failed", "refunded"];
@@ -102,6 +105,7 @@ function paymentMethodLabel(value: string) {
 }
 
 export default function PaymentsPage() {
+  const { t } = useTranslation();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -172,16 +176,16 @@ export default function PaymentsPage() {
       amount: Yup.number()
         .typeError("Amount must be a number.")
         .moreThan(0, "Amount must be greater than zero.")
-        .required("Amount is required."),
-      companyId: Yup.string().required("Company is required."),
+        .required(t("wording.amountIsRequired")),
+      companyId: Yup.string().required(t("wording.companyIsRequired")),
       method: Yup.string()
         .oneOf(PAYMENT_METHODS)
-        .required("Payment method is required."),
-      paidAt: Yup.string().required("Paid date is required."),
-      planId: Yup.string().required("Plan is required."),
+        .required(t("wording.paymentMethodIsRequired")),
+      paidAt: Yup.string().required(t("wording.paidDateIsRequired")),
+      planId: Yup.string().required(t("wording.planIsRequired")),
       status: Yup.string()
         .oneOf(PAYMENT_STATUSES)
-        .required("Status is required."),
+        .required(t("wording.statusIsRequired")),
     }),
     onSubmit: async (values, { resetForm }) => {
       const payload = {
@@ -208,7 +212,7 @@ export default function PaymentsPage() {
         toast(
           requestErrorMessage(
             error,
-            editingId ? "Failed to update payment." : "Failed to create payment.",
+            editingId ? t("wording.failedToUpdatePayment") : t("wording.failedToCreatePayment"),
           ),
           { type: "error" },
         );
@@ -282,16 +286,16 @@ export default function PaymentsPage() {
   return (
     <>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-        <h1 className="page-title" style={{ margin: 0 }}>Payments</h1>
-        <button className="btn-new" onClick={openNew}><IconPlus /> Add Payment</button>
+        <h1 className="page-title" style={{ margin: 0 }}>{t("wording.payments")}</h1>
+        <button className="btn-new" onClick={openNew}><IconPlus /> {t("wording.addPayment")}</button>
       </div>
 
       <div className="stats-bar" style={{ gridTemplateColumns: "repeat(4,1fr)" }}>
         {[
-          { label: "Total Revenue", value: formatIDR(stats?.total_revenue ?? 0), color: "var(--green)", bg: "var(--green-bg)" },
-          { label: "Total Transactions", value: stats?.total_transactions ?? 0, color: "var(--brand)", bg: "var(--brand-bg)" },
-          { label: "Pending", value: stats?.pending ?? 0, color: "var(--orange)", bg: "var(--orange-bg)" },
-          { label: "Failed", value: stats?.failed ?? 0, color: "var(--red)", bg: "var(--red-bg)" },
+          { label: t("wording.totalRevenue"), value: formatIDR(stats?.total_revenue ?? 0), color: "var(--green)", bg: "var(--green-bg)" },
+          { label: t("wording.totalTransactions"), value: stats?.total_transactions ?? 0, color: "var(--brand)", bg: "var(--brand-bg)" },
+          { label: t("wording.pending"), value: stats?.pending ?? 0, color: "var(--orange)", bg: "var(--orange-bg)" },
+          { label: t("wording.failed"), value: stats?.failed ?? 0, color: "var(--red)", bg: "var(--red-bg)" },
         ].map((stat) => (
           <div key={stat.label} className="stat-card">
             <div className="stat-icon" style={{ background: stat.bg }}>
@@ -310,7 +314,7 @@ export default function PaymentsPage() {
               <input
                 className="search-input"
                 type="text"
-                placeholder="Search invoice, customer…"
+                placeholder={t("wording.searchInvoiceCustomer")}
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
               />
@@ -323,17 +327,17 @@ export default function PaymentsPage() {
                   setPage(1);
                 }}
               >
-                <option value="">All Status</option>
+                <option value="">{t("wording.allStatus")}</option>
                 {STATUS_FILTERS.map((status) => (
                   <option key={status} value={status}>
-                    {status[0].toUpperCase() + status.slice(1)}
+                    {translateApiValue(status)}
                   </option>
                 ))}
               </select>
             </div>
           </div>
           <div className="toolbar-right">
-            <button className="btn-new" onClick={openNew}><IconPlus /> Add Payment</button>
+            <button className="btn-new" onClick={openNew}><IconPlus /> {t("wording.addPayment")}</button>
           </div>
         </div>
 
@@ -341,23 +345,23 @@ export default function PaymentsPage() {
           <table>
             <thead>
               <tr>
-                <SortTh label="Invoice #" colIndex={0} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 140 }} />
-                <SortTh label="Customer" colIndex={1} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} />
-                <SortTh label="Plan" colIndex={2} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 100 }} />
-                <SortTh label="Amount" colIndex={3} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 130 }} />
-                <SortTh label="Method" colIndex={4} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 150 }} />
-                <SortTh label="Status" colIndex={5} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 100 }} />
-                <SortTh label="Date" colIndex={6} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 150 }} />
-                <th style={{ width: 120, textAlign: "center" }}>Action</th>
+                <SortTh label={t("wording.invoice")} colIndex={0} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 140 }} />
+                <SortTh label={t("wording.customer")} colIndex={1} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} />
+                <SortTh label={t("wording.plan")} colIndex={2} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 100 }} />
+                <SortTh label={t("wording.amount")} colIndex={3} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 130 }} />
+                <SortTh label={t("wording.method")} colIndex={4} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 150 }} />
+                <SortTh label={t("wording.status")} colIndex={5} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 100 }} />
+                <SortTh label={t("wording.date")} colIndex={6} sortCol={sortCol} sortAsc={sortAsc} onSort={handleSort} style={{ width: 150 }} />
+                <th style={{ width: 120, textAlign: "center" }}>{t("wording.action")}</th>
               </tr>
             </thead>
             <tbody>
               {isPaymentsLoading && !paymentData ? (
-                <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--text-muted)", padding: 40 }}>Loading payments…</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--text-muted)", padding: 40 }}>{t("wording.loadingPayments")}</td></tr>
               ) : isPaymentsError ? (
-                <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--red)", padding: 40 }}>Unable to load payments.</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--red)", padding: 40 }}>{t("wording.unableToLoadPayments")}</td></tr>
               ) : !payments.length ? (
-                <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--text-muted)", padding: 40 }}>No payments found.</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--text-muted)", padding: 40 }}>{t("wording.noPaymentsFound")}</td></tr>
               ) : payments.map((payment) => {
                 const normalizedStatus = payment.status.toLowerCase();
                 return (
@@ -367,13 +371,13 @@ export default function PaymentsPage() {
                     <td>{payment.plan_name || "-"}</td>
                     <td>{formatIDR(payment.amount)}</td>
                     <td>{paymentMethodLabel(payment.method)}</td>
-                    <td><span className={`badge badge-${paymentStatusBadge(normalizedStatus)}`}>{normalizedStatus[0]?.toUpperCase() + normalizedStatus.slice(1)}</span></td>
+                    <td><span className={`badge badge-${paymentStatusBadge(normalizedStatus)}`}>{translateApiValue(normalizedStatus)}</span></td>
                     <td style={{ color: "var(--text-muted)", fontSize: "12.5px" }}>{formatPaymentDate(payment.paid_at || payment.created_at)}</td>
                     <td>
                       <div className="action-btns" style={{ justifyContent: "center" }}>
-                        <button className="btn-icon" title="View Detail" onClick={() => setDetail(payment)}><IconEye /></button>
-                        <button className="btn-icon edit" title="Edit" onClick={() => openEdit(payment)}><IconEdit /></button>
-                        <button className="btn-icon delete" title="Delete" onClick={() => setDeleteTarget(payment)}><IconDelete /></button>
+                        <button className="btn-icon" title={t("wording.viewDetail")} onClick={() => setDetail(payment)}><IconEye /></button>
+                        <button className="btn-icon edit" title={t("wording.edit")} onClick={() => openEdit(payment)}><IconEdit /></button>
+                        <button className="btn-icon delete" title={t("wording.delete")} onClick={() => setDeleteTarget(payment)}><IconDelete /></button>
                       </div>
                     </td>
                   </tr>
@@ -382,44 +386,44 @@ export default function PaymentsPage() {
             </tbody>
           </table>
         </div>
-        <Pagination currentPage={safePage} total={total} pageSize={PAGE_SIZE} onPage={setPage} label="payments" />
+        <Pagination currentPage={safePage} total={total} pageSize={PAGE_SIZE} onPage={setPage} label={t("wording.paymentsInline")} />
       </div>
 
       <Modal
         open={formOpen}
-        title={editingId ? "Edit Payment" : "Add Payment"}
+        title={editingId ? t("wording.editPayment") : t("wording.addPayment")}
         onClose={closeForm}
         size="lg"
         footer={(
           <>
-            <button className="btn-cancel-modal" disabled={isSaving} onClick={closeForm}><IconClose /> Cancel</button>
+            <button className="btn-cancel-modal" disabled={isSaving} onClick={closeForm}><IconClose /> {t("wording.cancel")}</button>
             <button className="btn-save-modal" disabled={isSaving} onClick={() => formik.handleSubmit()}>
-              <IconCheck /> {isSaving ? "Saving…" : "Save"}
+              <IconCheck /> {isSaving ? t("common.actions.saving") : t("common.actions.save")}
             </button>
           </>
         )}
       >
         <div className="form-row">
           <div className="form-group">
-            <label>Company <span style={{ color: "var(--red)" }}>*</span></label>
+            <label>{t("wording.company")} <span style={{ color: "var(--red)" }}>*</span></label>
             <SearchableSelect
               value={formik.values.companyId}
               onChange={(value) => formik.setFieldValue("companyId", String(value))}
               options={customerOptions}
-              placeholder="Select company…"
-              searchPlaceholder="Search company…"
-              emptyText="No companies found"
+              placeholder={t("wording.selectCompany")}
+              searchPlaceholder={t("wording.searchCompany")}
+              emptyText={t("wording.noCompaniesFound")}
               errorText={formik.touched.companyId ? formik.errors.companyId : undefined}
             />
           </div>
           <div className="form-group">
-            <label>Plan <span style={{ color: "var(--red)" }}>*</span></label>
+            <label>{t("wording.plan")} <span style={{ color: "var(--red)" }}>*</span></label>
             <SearchableSelect
               value={formik.values.planId}
               onChange={(value) => formik.setFieldValue("planId", String(value))}
               options={planOptions.map((plan) => ({ value: plan.id, label: plan.name }))}
-              placeholder="Select plan…"
-              searchPlaceholder="Search plans…"
+              placeholder={t("wording.selectPlan")}
+              searchPlaceholder={t("wording.searchPlans")}
               errorText={formik.touched.planId ? formik.errors.planId : undefined}
             />
           </div>
@@ -429,18 +433,18 @@ export default function PaymentsPage() {
             onChange={(value) => formik.setFieldValue("amount", value)}
             isRequired
             isNumeric
-            label="Amount"
-            placeholder="Enter amount"
+            label={t("wording.amount")}
+            placeholder={t("wording.enterAmount")}
             errorText={formik.touched.amount ? formik.errors.amount : undefined}
           />
           <div className="form-group">
-            <label>Payment Method <span style={{ color: "var(--red)" }}>*</span></label>
+            <label>{t("wording.paymentMethod")} <span style={{ color: "var(--red)" }}>*</span></label>
             <SearchableSelect
               value={formik.values.method}
               onChange={(value) => formik.setFieldValue("method", String(value))}
               options={methodOptions}
-              placeholder="Select payment method…"
-              searchPlaceholder="Search payment method…"
+              placeholder={t("wording.selectPaymentMethod")}
+              searchPlaceholder={t("wording.searchPaymentMethod")}
               errorText={formik.touched.method ? formik.errors.method : undefined}
             />
           </div>
@@ -450,17 +454,17 @@ export default function PaymentsPage() {
             onChange={(value) => formik.setFieldValue("paidAt", value)}
             isRequired
             inputType="datetime-local"
-            label="Paid At"
+            label={t("wording.paidAt")}
             errorText={formik.touched.paidAt ? formik.errors.paidAt : undefined}
           />
           <div className="form-group">
-            <label>Status <span style={{ color: "var(--red)" }}>*</span></label>
+            <label>{t("wording.status")} <span style={{ color: "var(--red)" }}>*</span></label>
             <SearchableSelect
               value={formik.values.status}
               onChange={(value) => formik.setFieldValue("status", String(value))}
-              options={PAYMENT_STATUSES.map((status) => ({ value: status, label: status }))}
-              placeholder="Select status…"
-              searchPlaceholder="Search statuses…"
+              options={PAYMENT_STATUSES.map((status) => ({ value: status, label: translateApiValue(status) }))}
+              placeholder={t("wording.selectStatus")}
+              searchPlaceholder={t("wording.searchStatuses")}
               errorText={formik.touched.status ? formik.errors.status : undefined}
             />
           </div>
@@ -469,9 +473,9 @@ export default function PaymentsPage() {
 
       <Modal
         open={!!detail}
-        title="Payment Detail"
+        title={t("wording.paymentDetail")}
         onClose={() => setDetail(null)}
-        footer={<button className="btn-cancel-modal" onClick={() => setDetail(null)}><IconClose /> Close</button>}
+        footer={<button className="btn-cancel-modal" onClick={() => setDetail(null)}><IconClose /> {t("wording.close")}</button>}
       >
         {detail ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -495,19 +499,19 @@ export default function PaymentsPage() {
 
       <Modal
         open={!!deleteTarget}
-        title="Delete Payment"
+        title={t("wording.deletePayment")}
         onClose={() => { if (!isDeleting) setDeleteTarget(null); }}
         footer={(
           <>
-            <button className="btn-cancel-modal" disabled={isDeleting} onClick={() => setDeleteTarget(null)}>Cancel</button>
+            <button className="btn-cancel-modal" disabled={isDeleting} onClick={() => setDeleteTarget(null)}>{t("wording.cancel")}</button>
             <button className="btn-del-ok" disabled={isDeleting} onClick={confirmDelete}>
-              {isDeleting ? "Deleting…" : "Delete"}
+              {isDeleting ? t("common.actions.deleting") : t("common.actions.delete")}
             </button>
           </>
         )}
       >
         <p className="confirm-msg">
-          Are you sure you want to delete payment <strong>&ldquo;{deleteTarget?.invoice_no || `#${deleteTarget?.id}`}&rdquo;</strong>? This action cannot be undone.
+          {t("wording.areYouSureYouWantToDeletePayment")} <strong>&ldquo;{deleteTarget?.invoice_no || `#${deleteTarget?.id}`}&rdquo;</strong>{t("wording.thisActionCannotBeUndone")}
         </p>
       </Modal>
     </>
