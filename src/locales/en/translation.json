@@ -293,6 +293,31 @@
     "defaultCategories": "Default Categories",
     "defaultUnits": "Default Units"
   },
+  "upgrade": {
+    "subtitle": "Compare the available plans and choose the best fit for your team.",
+    "loadingCurrentPlan": "Loading current plan…",
+    "storageFeature": "{{storage}} Storage",
+    "perCycle": "/{{cycle}}",
+    "currentPlanButton": "Current Plan",
+    "upgrading": "Upgrading…",
+    "upgradeTo": "Upgrade to {{name}}",
+    "success": "Plan upgraded to {{name}} successfully.",
+    "failed": "Failed to upgrade plan.",
+    "faq": {
+      "change": {
+        "question": "Can I change plans later?",
+        "answer": "Yes. You can upgrade or downgrade at any time."
+      },
+      "downgrade": {
+        "question": "What happens to my data if I downgrade?",
+        "answer": "Your data stays safe. Review your storage and feature usage before moving to a lower plan."
+      },
+      "billing": {
+        "question": "Do you offer annual billing?",
+        "answer": "Available billing options depend on the selected plan."
+      }
+    }
+  },
   "wording": {
     "creating": "Creating…",
     "abbreviation": "Abbreviation",

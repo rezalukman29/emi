@@ -294,6 +294,7 @@ export default function LoginPage({ initialMenu = "LOGIN" }: LoginPageProps) {
           fullname: response?.data?.fullname,
           email: response?.data?.email,
           user_type: response?.data?.user_type,
+          token: response?.data?.token,
         };
         localStorage.setItem("auth", JSON.stringify(data));
         dispatch(setProfile(data));

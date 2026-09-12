@@ -293,6 +293,31 @@
     "defaultCategories": "Kategori Bawaan",
     "defaultUnits": "Satuan Bawaan"
   },
+  "upgrade": {
+    "subtitle": "Bandingkan paket yang tersedia dan pilih yang paling sesuai untuk tim Anda.",
+    "loadingCurrentPlan": "Memuat paket saat ini…",
+    "storageFeature": "Penyimpanan {{storage}}",
+    "perCycle": "/{{cycle}}",
+    "currentPlanButton": "Paket Saat Ini",
+    "upgrading": "Meningkatkan paket…",
+    "upgradeTo": "Tingkatkan ke {{name}}",
+    "success": "Paket berhasil ditingkatkan ke {{name}}.",
+    "failed": "Gagal meningkatkan paket.",
+    "faq": {
+      "change": {
+        "question": "Apakah saya dapat mengganti paket nanti?",
+        "answer": "Ya. Anda dapat meningkatkan atau menurunkan paket kapan saja."
+      },
+      "downgrade": {
+        "question": "Apa yang terjadi pada data saya jika paket diturunkan?",
+        "answer": "Data Anda tetap aman. Tinjau penggunaan penyimpanan dan fitur sebelum berpindah ke paket yang lebih rendah."
+      },
+      "billing": {
+        "question": "Apakah tersedia penagihan tahunan?",
+        "answer": "Pilihan penagihan yang tersedia bergantung pada paket yang dipilih."
+      }
+    }
+  },
   "wording": {
     "creating": "Membuat…",
     "abbreviation": "Singkatan",
