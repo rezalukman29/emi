@@ -858,6 +858,61 @@ td.id-cell   { color: var(--text-muted); font-size: 12px; }
 .area-stat-row    { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); margin-bottom: 7px; }
 .area-stat-pct    { font-size: 11.5px; font-weight: 700; color: var(--text-2); min-width: 34px; text-align: right; }
 
+/* Event summary PDF / print sheet */
+.event-summary-print-report { display: none; }
+
+@media print {
+  @page { size: A4 landscape; margin: 10mm; }
+
+  html, body { background: #fff !important; }
+  body * { visibility: hidden !important; }
+  .event-summary-print-report,
+  .event-summary-print-report * { visibility: visible !important; }
+  .event-summary-print-report {
+    display: block !important; position: absolute; inset: 0; width: 100%;
+    box-sizing: border-box; padding: 5mm;
+    color: #000; background: #fff; font-family: Arial, Helvetica, sans-serif;
+    print-color-adjust: exact; -webkit-print-color-adjust: exact;
+  }
+  .event-summary-print-header {
+    display: flex; align-items: flex-end; justify-content: space-between; gap: 12px;
+    margin-bottom: 5mm; color: #000;
+  }
+  .event-summary-print-header h1 { margin: 0 0 2px; font-size: 16px; line-height: 1.2; }
+  .event-summary-print-header p { margin: 0; font-size: 8px; }
+  .event-summary-print-code { font-size: 8px; white-space: nowrap; }
+  .event-summary-print-table {
+    width: 100%; border-collapse: collapse; table-layout: fixed; color: #000;
+    font-size: 7px; line-height: 1.15;
+  }
+  .event-summary-print-table th,
+  .event-summary-print-table td {
+    height: 17px; padding: 2px 4px; vertical-align: middle;
+    border: .5pt solid #000; overflow-wrap: anywhere;
+  }
+  .event-summary-print-table thead { display: table-header-group; }
+  .event-summary-print-table thead th {
+    background: #eee !important; font-size: 7px; font-weight: 700; text-align: center;
+    text-transform: uppercase;
+  }
+  .event-summary-print-table tr { break-inside: avoid; page-break-inside: avoid; }
+  .event-summary-print-area th {
+    height: 20px; padding-left: 10mm; background: #fff !important;
+    font-size: 10px; font-weight: 700; text-align: left;
+  }
+  .event-summary-print-spacer td { height: 10px; padding: 0; }
+  .event-summary-print-empty { padding: 18px !important; text-align: center; }
+  .print-cell-center { text-align: center; }
+  .print-col-number { width: 4%; }
+  .print-col-status { width: 8%; }
+  .print-col-pic { width: 8%; }
+  .print-col-code { width: 8%; }
+  .print-col-location { width: 20%; }
+  .print-col-item { width: 31%; }
+  .print-col-qty { width: 8%; }
+  .print-col-notes { width: 13%; }
+}
+
 /* =========================================================
    AI ANALYZER
    ========================================================= */
@@ -1422,16 +1477,16 @@ td.id-cell   { color: var(--text-muted); font-size: 12px; }
 .cart-item-location-button svg { width: 15px; height: 15px; }
 .inventory-cart-item-shell { background: var(--bg); border-radius: var(--r); }
 .inventory-cart-item-shell > .cart-item { background: transparent; }
-.cart-item-note-button {
+.cart-item-metadata-button {
   position: relative; display: inline-flex; align-items: center; justify-content: center;
   width: 28px; height: 28px; padding: 5px; flex-shrink: 0; cursor: pointer;
   color: var(--text-muted); background: transparent; border: 0; border-radius: 5px;
   transition: color .12s, background .12s;
 }
-.cart-item-note-button:hover,
-.cart-item-note-button[aria-expanded="true"] { color: var(--brand); background: var(--brand-bg); }
-.cart-item-note-button svg { width: 15px; height: 15px; }
-.cart-item-note-dot {
+.cart-item-metadata-button:hover,
+.cart-item-metadata-button[aria-expanded="true"] { color: var(--brand); background: var(--brand-bg); }
+.cart-item-metadata-button svg { width: 15px; height: 15px; }
+.cart-item-metadata-dot {
   position: absolute; top: 2px; right: 2px; width: 7px; height: 7px;
   border: 1.5px solid var(--white); border-radius: 50%; background: var(--red);
 }
@@ -1442,6 +1497,16 @@ td.id-cell   { color: var(--text-muted); font-size: 12px; }
 .cart-item-note-editor .form-group label { margin-bottom: 5px; font-size: 11px; }
 .cart-item-note-editor .form-group input { min-height: 36px; padding: 7px 10px; }
 .cart-item-note-submit { min-height: 36px; white-space: nowrap; }
+.cart-item-code-fieldset { flex: 1; min-width: 0; }
+.cart-item-editor-label { margin-bottom: 5px; color: var(--text-2); font-size: 11px; font-weight: 600; }
+.cart-item-code-options { display: flex; flex-wrap: wrap; gap: 7px; }
+.cart-item-code-option {
+  display: inline-flex; align-items: center; gap: 5px; min-height: 36px; padding: 7px 10px;
+  color: var(--text-2); background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--r); cursor: pointer; font-size: 12px;
+}
+.cart-item-code-option:has(input:checked) { color: var(--brand); border-color: var(--brand); background: var(--brand-bg); }
+.cart-item-code-option input { width: 14px; height: 14px; margin: 0; accent-color: var(--brand); }
 
 @media (max-width: 620px) {
   .cart-item-note-editor { align-items: stretch; flex-direction: column; padding-left: 12px; }

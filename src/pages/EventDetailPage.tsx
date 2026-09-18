@@ -17,6 +17,8 @@ import {
   IconBarChart,
   IconMoreVertical,
   IconNotes,
+  IconUser,
+  IconCode,
 } from "../components/icons";
 import useGetBarangGudangV2, {
   type BarangGudangItemV2,
@@ -115,6 +117,19 @@ function getCheckoutErrorMessage(error: unknown): string {
   return "Failed to save items to the event.";
 }
 
+function getLoggedInFullname(): string | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const auth = JSON.parse(window.localStorage.getItem("auth") || "null") as {
+      fullname?: string;
+    } | null;
+    return auth?.fullname?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 interface DisplayItem {
   id: number;
   photo: string;
@@ -165,7 +180,7 @@ interface CartItem {
   additionalCode: string | null;
   checked: boolean;
   warehouseItem: boolean;
-  input_by: string | null;
+  pic: string;
   image: string | null;
 }
 
@@ -498,8 +513,12 @@ export default function EventDetailPage() {
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
-  const [noteEditorCartId, setNoteEditorCartId] = useState<string | null>(null);
-  const [noteDraft, setNoteDraft] = useState("");
+  const [cartMetadataEditor, setCartMetadataEditor] = useState<{
+    cartId: string;
+    field: "notes" | "pic" | "additionalCode";
+  } | null>(null);
+  const [cartMetadataDraft, setCartMetadataDraft] = useState("");
+  const [additionalCodeDraft, setAdditionalCodeDraft] = useState<string[]>([]);
   const [atcOpen, setAtcOpen] = useState(false);
   const [atcTargetId, setAtcTargetId] = useState<number | null>(null);
   const [atcForm, setAtcForm] = useState({
@@ -1152,7 +1171,7 @@ export default function EventDetailPage() {
           additionalCode: null,
           checked: false,
           warehouseItem: false,
-          input_by: null,
+          pic: item.pic || "",
           image: null,
         },
       ];
@@ -1168,6 +1187,7 @@ export default function EventDetailPage() {
 
   async function checkout() {
     if (!eventId || cart.length === 0) return;
+    const inputBy = getLoggedInFullname();
 
     try {
       for (const item of cart) {
@@ -1193,7 +1213,8 @@ export default function EventDetailPage() {
           scan_in: 0,
           scan_out: 0,
           notes: item.note || item.memo || "",
-          input_by: item.input_by,
+          pic: item.pic,
+          input_by: inputBy,
           image: item.image,
           event_status_id:
             eventStatuses.find((status) => status.name === item.status)?.id ??
@@ -1212,8 +1233,9 @@ export default function EventDetailPage() {
 
       setCartOpen(false);
       setNewItemOpen(false);
-      setNoteEditorCartId(null);
-      setNoteDraft("");
+      setCartMetadataEditor(null);
+      setCartMetadataDraft("");
+      setAdditionalCodeDraft([]);
       await refetchEventItems();
       toast.success(t("wording.itemsSavedToTheEvent"));
     } catch (error) {
@@ -1270,7 +1292,7 @@ export default function EventDetailPage() {
         additionalCode: newItemForm.additionalCode,
         checked: newItemForm.checked,
         warehouseItem: newItemForm.warehouseItem,
-        input_by: newItemForm.checked ? newItemForm.inputBy : null,
+        pic: newItemForm.checked ? newItemForm.inputBy : "",
         image: newItemForm.checked ? newItemForm.image : null,
       },
     ]);
@@ -1329,7 +1351,7 @@ export default function EventDetailPage() {
           additionalCode: null,
           checked: false,
           warehouseItem: false,
-          input_by: null,
+          pic: "",
           image: null,
         },
       ];
@@ -1349,35 +1371,68 @@ export default function EventDetailPage() {
       currentCart.filter((item) => item.cartId !== cartId),
     );
     setSelectedCartIds((ids) => ids.filter((id) => id !== cartId));
-    if (noteEditorCartId === cartId) {
-      setNoteEditorCartId(null);
-      setNoteDraft("");
+    if (cartMetadataEditor?.cartId === cartId) {
+      setCartMetadataEditor(null);
+      setCartMetadataDraft("");
+      setAdditionalCodeDraft([]);
     }
   }
 
-  function toggleCartNoteEditor(item: CartItem) {
-    if (noteEditorCartId === item.cartId) {
-      setNoteEditorCartId(null);
-      setNoteDraft("");
+  function toggleCartMetadataEditor(
+    item: CartItem,
+    field: "notes" | "pic" | "additionalCode",
+  ) {
+    if (
+      cartMetadataEditor?.cartId === item.cartId &&
+      cartMetadataEditor.field === field
+    ) {
+      setCartMetadataEditor(null);
+      setCartMetadataDraft("");
+      setAdditionalCodeDraft([]);
       return;
     }
 
-    setNoteEditorCartId(item.cartId);
-    setNoteDraft(item.note || item.memo || "");
+    setCartMetadataEditor({ cartId: item.cartId, field });
+    setCartMetadataDraft(
+      field === "notes" ? item.note || item.memo || "" : item.pic,
+    );
+    setAdditionalCodeDraft(
+      field === "additionalCode"
+        ? (item.additionalCode || "")
+            .split(",")
+            .map((code) => code.trim())
+            .filter(Boolean)
+        : [],
+    );
   }
 
-  function saveCartItemNote(cartId: string) {
-    const notes = noteDraft.trim();
+  function toggleAdditionalCode(code: string) {
+    setAdditionalCodeDraft((current) =>
+      current.includes(code)
+        ? current.filter((item) => item !== code)
+        : [...current, code],
+    );
+  }
+
+  function saveCartItemMetadata(cartId: string) {
+    if (!cartMetadataEditor || cartMetadataEditor.cartId !== cartId) return;
+
+    const value = cartMetadataDraft.trim();
 
     setCart((currentCart) =>
       currentCart.map((item) =>
         item.cartId === cartId
-          ? { ...item, note: notes, memo: notes }
+          ? cartMetadataEditor.field === "notes"
+            ? { ...item, note: value, memo: value }
+            : cartMetadataEditor.field === "pic"
+              ? { ...item, pic: value }
+              : { ...item, additionalCode: additionalCodeDraft.join(",") }
           : item,
       ),
     );
-    setNoteEditorCartId(null);
-    setNoteDraft("");
+    setCartMetadataEditor(null);
+    setCartMetadataDraft("");
+    setAdditionalCodeDraft([]);
   }
 
   function toggleCartSelect(cartId: string) {
@@ -1441,8 +1496,9 @@ export default function EventDetailPage() {
     setPickerQty({});
     setPickerWarehouseIds({});
     setSelectedCartIds([]);
-    setNoteEditorCartId(null);
-    setNoteDraft("");
+    setCartMetadataEditor(null);
+    setCartMetadataDraft("");
+    setAdditionalCodeDraft([]);
     setBulkPanelOpen(false);
     setBulkAreaId("");
     setBulkSubAreaId("");
@@ -2405,6 +2461,12 @@ export default function EventDetailPage() {
                 <div className="cart-list">
                   {cart.map((c) => {
                     const hasNotes = Boolean((c.note || c.memo || "").trim());
+                    const hasPic = Boolean(c.pic.trim());
+                    const hasAdditionalCode = Boolean(c.additionalCode?.trim());
+                    const activeEditor =
+                      cartMetadataEditor?.cartId === c.cartId
+                        ? cartMetadataEditor.field
+                        : null;
 
                     return (
                     <div key={c.cartId} className="inventory-cart-item-shell">
@@ -2472,14 +2534,36 @@ export default function EventDetailPage() {
                       )}
                       <button
                         type="button"
-                        className={`cart-item-note-button${hasNotes ? " has-notes" : ""}`}
+                        className={`cart-item-metadata-button${hasNotes ? " has-value" : ""}`}
                         title={hasNotes ? t("wording.editNotes") : t("wording.addNotes")}
                         aria-label={hasNotes ? t("wording.editNotes") : t("wording.addNotes")}
-                        aria-expanded={noteEditorCartId === c.cartId}
-                        onClick={() => toggleCartNoteEditor(c)}
+                        aria-expanded={activeEditor === "notes"}
+                        onClick={() => toggleCartMetadataEditor(c, "notes")}
                       >
                         <IconNotes />
-                        {hasNotes && <span className="cart-item-note-dot" aria-hidden="true" />}
+                        {hasNotes && <span className="cart-item-metadata-dot" aria-hidden="true" />}
+                      </button>
+                      <button
+                        type="button"
+                        className={`cart-item-metadata-button${hasPic ? " has-value" : ""}`}
+                        title={hasPic ? t("wording.editPic") : t("wording.addPic")}
+                        aria-label={hasPic ? t("wording.editPic") : t("wording.addPic")}
+                        aria-expanded={activeEditor === "pic"}
+                        onClick={() => toggleCartMetadataEditor(c, "pic")}
+                      >
+                        <IconUser />
+                        {hasPic && <span className="cart-item-metadata-dot" aria-hidden="true" />}
+                      </button>
+                      <button
+                        type="button"
+                        className={`cart-item-metadata-button${hasAdditionalCode ? " has-value" : ""}`}
+                        title={hasAdditionalCode ? t("wording.editAdditionalCode") : t("wording.addAdditionalCode")}
+                        aria-label={hasAdditionalCode ? t("wording.editAdditionalCode") : t("wording.addAdditionalCode")}
+                        aria-expanded={activeEditor === "additionalCode"}
+                        onClick={() => toggleCartMetadataEditor(c, "additionalCode")}
+                      >
+                        <IconCode />
+                        {hasAdditionalCode && <span className="cart-item-metadata-dot" aria-hidden="true" />}
                       </button>
                       <button
                         type="button"
@@ -2490,21 +2574,41 @@ export default function EventDetailPage() {
                         <IconDelete />
                       </button>
                       </div>
-                      {noteEditorCartId === c.cartId && (
+                      {activeEditor && (
                         <div className="cart-item-note-editor">
-                          <TextInput
-                            label={t("wording.notes")}
-                            value={noteDraft}
-                            placeholder={t("wording.notesPlaceholder")}
-                            onChange={setNoteDraft}
-                            containerStyle={{ marginBottom: 0 }}
-                          />
+                          {activeEditor === "additionalCode" ? (
+                            <div className="cart-item-code-fieldset">
+                              <div className="cart-item-editor-label">
+                                {t("wording.additionalCode")}
+                              </div>
+                              <div className="cart-item-code-options">
+                                {["IHP", "IHC", "Outsource", "Buy", "Printing"].map((code) => (
+                                  <label key={code} className="cart-item-code-option">
+                                    <input
+                                      type="checkbox"
+                                      checked={additionalCodeDraft.includes(code)}
+                                      onChange={() => toggleAdditionalCode(code)}
+                                    />
+                                    <span>{code}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          ) : (
+                            <TextInput
+                              label={activeEditor === "pic" ? t("wording.pic") : t("wording.notes")}
+                              value={cartMetadataDraft}
+                              placeholder={activeEditor === "pic" ? t("wording.picPlaceholder") : t("wording.notesPlaceholder")}
+                              onChange={setCartMetadataDraft}
+                              containerStyle={{ marginBottom: 0 }}
+                            />
+                          )}
                           <button
                             type="button"
                             className="btn-save-modal cart-item-note-submit"
-                            onClick={() => saveCartItemNote(c.cartId)}
+                            onClick={() => saveCartItemMetadata(c.cartId)}
                           >
-                            <IconCheck /> {t("wording.saveNotes")}
+                            <IconCheck /> {t("common.actions.save")}
                           </button>
                         </div>
                       )}

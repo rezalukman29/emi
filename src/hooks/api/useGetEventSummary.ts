@@ -42,6 +42,12 @@ export interface EventSummaryItemDetail {
   is_scan_out: boolean;
   scan_out_by: string[];
   input_by: string;
+  pic?: string;
+  additional_code?: string;
+  notes?: string;
+  sub_area?: string;
+  unit_name?: string;
+  satuan?: string;
 }
 
 export interface EventSummaryData {

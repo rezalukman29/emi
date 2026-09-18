@@ -1,4 +1,4 @@
-import { useState, useMemo, type CSSProperties } from 'react';
+import { Fragment, useState, useMemo, type CSSProperties } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import Pagination from '../components/Pagination';
 import SearchableSelect from '../components/SearchableSelect';
@@ -24,6 +24,10 @@ interface SummaryItem {
   scanIn: boolean | string | null;
   scanOut: boolean | string | null;
   pic: string;
+  additionalCode: string;
+  notes: string;
+  subArea: string;
+  unit: string;
 }
 
 interface AreaStat {
@@ -74,7 +78,19 @@ function hasScanValue(value: unknown) {
   return Boolean(value && value !== '0001-01-01 00:00:00');
 }
 
-function mapSummaryItem(item: EventSummaryItemDetail, index: number): SummaryItem {
+function formatAdditionalCode(value?: string | null): string {
+  return (value ?? '')
+    .split(',')
+    .map(code => code.trim().toUpperCase())
+    .filter(Boolean)
+    .map(code => code === 'IHP' || code === 'IHC' ? code : code.charAt(0))
+    .join(', ') || '—';
+}
+
+function mapSummaryItem(
+  item: EventSummaryItemDetail,
+  index: number,
+): SummaryItem {
   return {
     id: item.fix_list_item_id ?? index,
     name: item.item_name || '—',
@@ -85,7 +101,11 @@ function mapSummaryItem(item: EventSummaryItemDetail, index: number): SummaryIte
     warehouseItem: false,
     scanIn: hasScanValue(item.is_scan_in),
     scanOut: hasScanValue(item.is_scan_out),
-    pic: item.input_by || '—',
+    pic: item.pic?.trim() || '—',
+    additionalCode: formatAdditionalCode(item.additional_code),
+    notes: item.notes?.trim() || '—',
+    subArea: item.sub_area?.trim() || '—',
+    unit: item.satuan?.trim() || '',
   };
 }
 
@@ -138,7 +158,7 @@ export default function EventSummaryPage() {
   const eventDetail = eventDetailResponse?.data;
   const items = useMemo(
     () => (summary?.item_details ?? []).map(mapSummaryItem),
-    [summary?.item_details]
+    [summary?.item_details],
   );
 
   const total = totalSummary?.total_items ?? 0;
@@ -195,6 +215,17 @@ export default function EventSummaryPage() {
   const tableTotalPages = Math.max(1, Math.ceil(tableFiltered.length / TABLE_PAGE_SIZE));
   const safePage = Math.min(tablePage, tableTotalPages);
   const pageData = tableFiltered.slice((safePage - 1) * TABLE_PAGE_SIZE, safePage * TABLE_PAGE_SIZE);
+  const printableAreaGroups = useMemo(() => {
+    const groups = new Map<string, SummaryItem[]>();
+
+    tableFiltered.forEach(item => {
+      const currentItems = groups.get(item.area) ?? [];
+      currentItems.push(item);
+      groups.set(item.area, currentItems);
+    });
+
+    return [...groups.entries()];
+  }, [tableFiltered]);
 
   const eventStatus = eventDetail?.is_complete === 1
     ? t("wording.completed")
@@ -219,7 +250,7 @@ export default function EventSummaryPage() {
   ];
 
   return (
-    <>
+    <div className="event-summary-page">
       <div className="breadcrumb">
         <Link to="/event">{t("wording.event")}</Link>
         <span className="breadcrumb-sep">/</span>
@@ -382,27 +413,35 @@ export default function EventSummaryPage() {
               <tr>
                 <th>{t("wording.itemName")}</th>
                 <th>{t("wording.area")}</th>
+                <th>{t("wording.subArea")}</th>
                 <th style={{ width:80, textAlign:'center' }}>{t("wording.qty")}</th>
                 <th style={{ width:100, textAlign:'center' }}>{t("wording.status")}</th>
                 <th style={{ width:90, textAlign:'center' }}>{t("wording.checking")}</th>
                 <th style={{ width:90, textAlign:'center' }}>{t("wording.scanIn")}</th>
                 <th style={{ width:90, textAlign:'center' }}>{t("wording.scanOut")}</th>
                 <th>{t("wording.pic")}</th>
+                <th>{t("wording.code")}</th>
+                <th>{t("wording.notes")}</th>
               </tr>
             </thead>
             <tbody>
               {pageData.length === 0
-                ? <tr><td colSpan={8} style={{ textAlign:'center', padding:40, color:'var(--text-muted)' }}>{t("wording.noItemsFound")}</td></tr>
+                ? <tr><td colSpan={11} style={{ textAlign:'center', padding:40, color:'var(--text-muted)' }}>{t("wording.noItemsFound")}</td></tr>
                 : pageData.map(it => (
                   <tr key={it.id}>
                     <td style={{ fontWeight:500 }}>{it.name}</td>
                     <td><span className="badge badge-gray" style={{ fontSize:'10.5px', textTransform:'uppercase' }}>{it.area}</span></td>
-                    <td style={{ textAlign:'center' }}>{it.qty}</td>
+                    <td>{it.subArea}</td>
+                    <td style={{ textAlign:'center' }}>
+                      {it.qty}{it.unit ? ` ${it.unit}` : ''}
+                    </td>
                     <td style={{ textAlign:'center' }}><span className={`badge ${STATUS_BADGE[it.status] || 'badge-gray'}`}>{translateApiValue(it.status)}</span></td>
                     <td style={{ textAlign:'center' }}>{it.checking ? <DotOk /> : <DotNo />}</td>
                     <td style={{ textAlign:'center' }}>{it.scanIn   ? <DotOk /> : <DotNo />}</td>
                     <td style={{ textAlign:'center' }}>{it.scanOut  ? <DotOk /> : <DotNo />}</td>
                     <td style={{ color:'var(--text-muted)', fontSize:'12.5px' }}>{it.pic || '—'}</td>
+                    <td style={{ whiteSpace:'nowrap' }}>{it.additionalCode}</td>
+                    <td style={{ minWidth:160, whiteSpace:'pre-wrap', overflowWrap:'anywhere' }}>{it.notes}</td>
                   </tr>
                 ))
               }
@@ -411,6 +450,80 @@ export default function EventSummaryPage() {
         </div>
         <Pagination currentPage={safePage} total={tableFiltered.length} pageSize={TABLE_PAGE_SIZE} onPage={(p: number) => setTablePage(p)} label={t("wording.itemsInline")} />
       </div>
-    </>
+
+      <section className="event-summary-print-report" aria-hidden="true">
+        <div className="event-summary-print-header">
+          <div>
+            <h1>{eventDetail?.name || t("wording.eventSummary")}</h1>
+            <p>
+              {fmtDate(eventDetail?.event_start)} - {fmtDate(eventDetail?.event_end)}
+              {eventDetail?.address ? ` · ${eventDetail.address}` : ''}
+            </p>
+          </div>
+          <div className="event-summary-print-code">
+            {t("wording.codePrefix")} <strong>{eventDetail?.event_code || '—'}</strong>
+          </div>
+        </div>
+
+        <table className="event-summary-print-table">
+          <colgroup>
+            <col className="print-col-number" />
+            <col className="print-col-status" />
+            <col className="print-col-pic" />
+            <col className="print-col-code" />
+            <col className="print-col-location" />
+            <col className="print-col-item" />
+            <col className="print-col-qty" />
+            <col className="print-col-notes" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>{t("wording.rowNumber")}</th>
+              <th>{t("wording.status")}</th>
+              <th>{t("wording.pic")}</th>
+              <th>{t("wording.code")}</th>
+              <th>{t("wording.subArea")}</th>
+              <th>{t("wording.itemDetail")}</th>
+              <th>{t("wording.qty")}</th>
+              <th>{t("wording.notes")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {printableAreaGroups.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="event-summary-print-empty">
+                  {t("wording.noItemsFound")}
+                </td>
+              </tr>
+            ) : printableAreaGroups.map(([area, areaItems]) => (
+              <Fragment key={area}>
+                <tr className="event-summary-print-area">
+                  <th colSpan={8}>{area.toUpperCase()}</th>
+                </tr>
+                {areaItems.map((item, index) => (
+                  <tr key={`${area}-${item.id}`}>
+                    <td className="print-cell-center">{index + 1}</td>
+                    <td className="print-cell-center">{translateApiValue(item.status)}</td>
+                    <td className="print-cell-center">
+                      {index === 0 || areaItems[index - 1].pic !== item.pic ? item.pic : ''}
+                    </td>
+                    <td className="print-cell-center">{item.additionalCode}</td>
+                    <td>{item.subArea !== '—' ? item.subArea : item.area}</td>
+                    <td>{item.name}</td>
+                    <td className="print-cell-center">
+                      {item.qty}{item.unit ? ` ${item.unit}` : ''}
+                    </td>
+                    <td>{item.notes}</td>
+                  </tr>
+                ))}
+                <tr className="event-summary-print-spacer">
+                  <td colSpan={8} />
+                </tr>
+              </Fragment>
+            ))}
+          </tbody>
+        </table>
+      </section>
+    </div>
   );
 }

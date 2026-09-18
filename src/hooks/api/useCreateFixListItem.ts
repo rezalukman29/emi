@@ -10,6 +10,7 @@ export interface CreateFixListItemPayload {
   scan_in: number;
   scan_out: number;
   notes: string;
+  pic: string;
   input_by: string | null;
   image: string | null;
   event_status_id: number;
