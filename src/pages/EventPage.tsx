@@ -28,6 +28,7 @@ import { utils } from "react-modern-calendar-datepicker";
 import { InventoryService } from "../service/InventoryService";
 import { useTranslation } from "react-i18next";
 import { getDateLocale } from "../utils/function";
+import { useEventLifecycle, resolveLifecycle, LIFECYCLE_STATUSES, LIFECYCLE_BADGES, type LifecycleStatus } from '../lib/eventLifecycle';
 
 const PAGE_SIZE = 8;
 const monthLabel = (month: number, style: "short" | "long" = "short") =>
@@ -148,6 +149,7 @@ export default function EventPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("upcoming");
+  const lifecycleStore = useEventLifecycle();
   const [isModify, setIsModify] = useState(false);
   const [event, setEvent] = useState<EventRecord | null>(null);
   const [pastQuery, setPastQuery] = useState("");
@@ -192,7 +194,6 @@ export default function EventPage() {
       event_end: Yup.string().required(t("wording.required")),
       date_event: Yup.string().required(t("wording.required")),
       PIC: Yup.string().required(t("wording.required")),
-      status: Yup.number().required(t("wording.required")),
       address: Yup.string().required(t("wording.required")),
       notes: Yup.string().required(t("wording.required")),
       scan_type: Yup.string().required(t("wording.required")),
@@ -207,8 +208,8 @@ export default function EventPage() {
         event_end: values.event_end,
         PIC: values.PIC,
         event_code: values.event_code,
-        is_complete: 0,
-        status: values.status,
+        is_complete: isModify ? event?.is_complete ?? 0 : 0,
+        status: isModify ? values.status : firstEventStatus?.id,
         files: values.files,
         address: values.address,
         type: "",
@@ -220,6 +221,7 @@ export default function EventPage() {
         date_event: values.date_event,
       };
       try {
+        if (!isModify && !firstEventStatus) throw new Error(t('lifecycle.noStages'));
         const images = base64
           ? base64.split(",")[1]
           : isModify
@@ -275,6 +277,7 @@ export default function EventPage() {
   const imgInputRef = useRef<HTMLInputElement>(null);
 
   const { data: upcomings, refetch: refetchUpcomings } = useGetUpcomingEvents({
+    allDates: true,
     options: {
       enabled: true,
     },
@@ -289,13 +292,25 @@ export default function EventPage() {
   });
 
   const { data: eventStatus } = useGetEventStatus({
+    params: { page: 1, limit: 9999, sort: 'ASC', sortBy: 'order_data' },
     options: {
       enabled: true,
     },
   });
 
+  const orderedEventStatuses = [...(eventStatus?.data?.data ?? [])].sort((a, b) => a.order_data - b.order_data);
+  const firstEventStatus = orderedEventStatuses[0];
+  const lastEventStatus = orderedEventStatuses[orderedEventStatuses.length - 1];
+  const allEvents = useMemo(() => [...new Map([
+    ...(pasts?.data?.data ?? []), ...(upcomings?.data?.data ?? []),
+  ].map((event: EventRecord) => [event.id, event])).values()], [upcomings, pasts]);
+  function lifecycleOf(record: EventRecord): LifecycleStatus {
+    return resolveLifecycle(record, lifecycleStore.events[record.id], lastEventStatus?.id);
+  }
+  const lifecycleCounts = Object.fromEntries(LIFECYCLE_STATUSES.map(flag => [flag, allEvents.filter(event => lifecycleOf(event) === flag).length]));
+
   const upcomingEvents = useMemo(() => {
-    const data = [...(upcomings?.data?.data ?? [])] as EventRecord[];
+    const data = allEvents.filter(record => lifecycleOf(record) === activeTab);
     const query = upQuery.trim().toLowerCase();
     if (!query) return data;
     return data.filter((candidate) =>
@@ -310,10 +325,10 @@ export default function EventPage() {
           .includes(query),
       ),
     );
-  }, [upQuery, upcomings?.data?.data]);
+  }, [upQuery, allEvents, lifecycleStore, activeTab, lastEventStatus?.id]);
 
   const pastEvents = useMemo(() => {
-    let data = [...(pasts?.data?.data ?? [])] as EventRecord[];
+    let data = allEvents.filter(record => lifecycleOf(record) === 'returned-completed');
     if (pastQuery) {
       const q = pastQuery.toLowerCase();
       data = data.filter(
@@ -327,7 +342,7 @@ export default function EventPage() {
     return data.sort((a: EventRecord, b: EventRecord) =>
       (b.event_start || "").localeCompare(a.event_start || ""),
     );
-  }, [pasts?.data?.data, pastQuery]);
+  }, [allEvents, lifecycleStore, lastEventStatus?.id, pastQuery]);
 
   const groupedPast = useMemo(() => {
     if (pastQuery) return null;
@@ -444,6 +459,7 @@ export default function EventPage() {
               {r.event_code}
             </span>
             <CountdownChip days={days} />
+            <span className={`badge ${LIFECYCLE_BADGES[lifecycleOf(r)]}`}>{t(`lifecycle.${lifecycleOf(r)}`)}</span>
           </div>
 
           <div
@@ -749,7 +765,7 @@ export default function EventPage() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(3,1fr)",
+          gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))",
           gap: 12,
           marginBottom: 22,
         }}
@@ -757,24 +773,23 @@ export default function EventPage() {
         {[
           {
             label: t("wording.totalEvents"),
-            value:
-              (upcomings?.data?.total_records ?? 0) +
-              (pasts?.data?.total_records ?? 0),
+            value: allEvents.length,
             color: "var(--brand)",
             bg: "var(--brand-bg)",
           },
           {
-            label: t("wording.upcoming"),
-            value: upcomings?.data?.total_records ?? 0,
+            label: t("wording.active"),
+            value: lifecycleCounts.upcoming + lifecycleCounts['on-going'] + lifecycleCounts['ready-to-close'],
             color: "var(--green)",
             bg: "var(--green-bg)",
           },
           {
-            label: t("wording.pastEvents"),
-            value: pasts?.data?.total_records,
+            label: t("lifecycle.checking-inventory"),
+            value: lifecycleCounts['checking-inventory'],
             color: "var(--text-muted)",
             bg: "var(--bg)",
           },
+          { label: t('wording.completed'), value: lifecycleCounts['returned-completed'] + lifecycleCounts.transferred, color: 'var(--green)', bg: 'var(--green-bg)' },
         ].map((s) => (
           <div
             key={s.label}
@@ -829,26 +844,18 @@ export default function EventPage() {
         style={{
           display: "flex",
           borderBottom: "2px solid var(--border)",
+          overflowX: 'auto',
           marginBottom: 20,
           gap: 0,
         }}
       >
         {[
-          {
-            id: "upcoming",
-            label: t("wording.upcoming"),
-            count: upcomings?.data?.total_records,
-          },
-          {
-            id: "past",
-            label: t("wording.pastEvents"),
-            count: pasts?.data?.total_records,
-          },
+          ...LIFECYCLE_STATUSES.map(id => ({ id, label: t(`lifecycle.${id}`), count: lifecycleCounts[id] })),
           { id: "invite", label: t("wording.inviteUser"), count: null },
         ].map((t) => (
           <button
             key={t.id}
-            onClick={() => setActiveTab(t.id)}
+            onClick={() => { setActiveTab(t.id); setPastPage(1); setUpQuery(''); setPastQuery(''); }}
             style={{
               border: "none",
               background: "none",
@@ -889,7 +896,7 @@ export default function EventPage() {
       </div>
 
       {/* ── UPCOMING ── */}
-      {activeTab === "upcoming" && (
+      {activeTab !== 'invite' && activeTab !== 'returned-completed' && (
         <div>
           <div
             style={{
@@ -906,7 +913,7 @@ export default function EventPage() {
                 type="text"
                 placeholder={t("wording.searchEvents")}
                 value={upQuery}
-                onChange={(e) => setUpQuery(e.target.value)}
+                onChange={(e) => { setUpQuery(e.target.value); setPastPage(1); }}
               />
             </div>
             <button className="btn-print" onClick={() => window.print()}>
@@ -922,19 +929,19 @@ export default function EventPage() {
               <p style={{ fontSize: 14, color: "var(--text-muted)" }}>
                 {upQuery
                   ? t("wording.noEventsMatchYourSearch")
-                  : t("wording.noUpcomingEvents")}
+                  : t("wording.noData")}
               </p>
             </div>
           ) : (
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(270px,1fr))",
+                gridTemplateColumns: ['checking-inventory', 'transferred'].includes(activeTab) ? '1fr' : "repeat(auto-fill, minmax(270px,1fr))",
                 gap: 14,
               }}
             >
-              {upcomingEvents.map((r: EventRecord) => (
-                <EventCard
+              {upcomingEvents.slice((pastPage - 1) * PAGE_SIZE, pastPage * PAGE_SIZE).map((r: EventRecord) => (
+                ['checking-inventory', 'transferred'].includes(activeTab) ? <PastEventRow key={r.id} r={r} onEdit={openEdit} onDelete={openDelete} navigate={navigate} /> : <EventCard
                   key={r.id}
                   r={r}
                   onEdit={openEdit}
@@ -944,11 +951,12 @@ export default function EventPage() {
               ))}
             </div>
           )}
+          <Pagination currentPage={pastPage} total={upcomingEvents.length} pageSize={PAGE_SIZE} onPage={setPastPage} label={t('wording.event')} />
         </div>
       )}
 
       {/* ── PAST ── */}
-      {activeTab === "past" && (
+      {activeTab === "returned-completed" && (
         <div>
           <div
             style={{
@@ -1219,40 +1227,6 @@ export default function EventPage() {
           />
           <div className="form-group">
             <label>
-              {t("wording.status")} <span style={{ color: "var(--red)" }}>*</span>
-            </label>
-            <SearchableSelect
-              value={formik.values.status}
-              onChange={(value) =>
-                formik.setFieldValue(
-                  "status",
-                  value === "" ? "" : Number(value),
-                )
-              }
-              options={[
-                { value: "", label: t("wording.selectStatusOption") },
-                ...(eventStatus?.data?.data ?? []).map((status) => ({
-                  value: status.id,
-                  label: status.name,
-                })),
-              ]}
-              placeholder={t("wording.selectStatusOption")}
-              searchPlaceholder={t("wording.searchStatuses")}
-              errorText={formik.errors.status as string}
-            />
-          </div>
-        </div>
-        <div className="form-row">
-          <TextInput
-            value={formik.values.address}
-            onChange={(value) => formik.setFieldValue("address", value)}
-            isRequired
-            label={t("wording.address")}
-            placeholder={t("wording.eventLocationAddress")}
-            errorText={formik.errors.address as string}
-          />
-          <div className="form-group">
-            <label>
               {t("wording.qrType")} <span style={{ color: "var(--red)" }}>*</span>
             </label>
             <SearchableSelect
@@ -1269,6 +1243,16 @@ export default function EventPage() {
               errorText={formik.errors.scan_type as string}
             />
           </div>
+        </div>
+        <div className="form-row">
+          <TextInput
+            value={formik.values.address}
+            onChange={(value) => formik.setFieldValue("address", value)}
+            isRequired
+            label={t("wording.address")}
+            placeholder={t("wording.eventLocationAddress")}
+            errorText={formik.errors.address as string}
+          />
         </div>
 
         {/* ADDITIONAL */}

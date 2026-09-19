@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 const sections = [
   ["overview", "Overview"],
   ["lifecycle", "Event Lifecycle"],
+  ["closing", "Event closing & ownership"],
   ["scan", "Scan Gate & Next"],
   ["packaging", "Packaging"],
   ["summary", "Event Summary"],
@@ -78,7 +79,12 @@ export default function PRDPage() {
         </Paragraph>
       </Section>
 
+      <Section id="closing" title={t('lifecycle.prdTitle')}>
+        <p>{t('lifecycle.prdBody')}</p>
+        <p>{t('lifecycle.preview')}</p>
+      </Section>
       <Section id="packaging" title={t("wording.packaging")}>
+        <p>{t('lifecycle.groupItems')}</p>
         <Paragraph>
           {t("wording.packagingGroupsMultipleEventItemsIntoOnePhysical")}
         </Paragraph>

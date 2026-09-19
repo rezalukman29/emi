@@ -9,8 +9,10 @@ import moment from "moment";
 
 export const getUpcomingEvents = async ({
   search,
+  allDates = false,
 }: {
   search: string;
+  allDates?: boolean;
 }): Promise<APIResponse<BaseResponsePagination<any>>> => {
   const response = await ax.get(`/v1/event-filter`, {
     params: {
@@ -19,7 +21,7 @@ export const getUpcomingEvents = async ({
       limit: 9999,
       sort: "DESC",
       sort_by: "date_event",
-      event_start: moment().format("YYYY-MM-DD"),
+      ...(!allDates && { event_start: moment().format("YYYY-MM-DD") }),
     },
   });
   return response.data;
@@ -28,13 +30,15 @@ export const getUpcomingEvents = async ({
 const useGetUpcomingEvents = ({
   options,
   search,
+  allDates = false,
 }: {
   options?: UseQueryOptions<APIResponse<BaseResponsePagination<any>>>;
   search: string;
+  allDates?: boolean;
 }) => {
   return useQuery<APIResponse<BaseResponsePagination<any>>>(
-    ["useGetUpcomingEvents"],
-    () => getUpcomingEvents({ search }),
+    ["useGetUpcomingEvents", search, allDates],
+    () => getUpcomingEvents({ search, allDates }),
     options
   );
 };

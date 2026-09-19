@@ -3,6 +3,8 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
 import Modal from "../components/Modal";
+import EventLifecycleModal, { type LifecycleModalMode } from '../components/EventLifecycleModal';
+import { useEventLifecycle, updateEventLifecycle, resolveLifecycle, LIFECYCLE_BADGES, OWNERSHIPS, ownershipClass, type Ownership } from '../lib/eventLifecycle';
 import Stepper from "../components/Stepper";
 import SearchableSelect from "../components/SearchableSelect";
 import TextInput from "../components/TextInput";
@@ -131,6 +133,8 @@ function getLoggedInFullname(): string | null {
 }
 
 interface DisplayItem {
+  ownership?: Ownership;
+  resolution?: 'returned' | 'transferred';
   id: number;
   photo: string;
   name: string;
@@ -185,6 +189,7 @@ interface CartItem {
 }
 
 interface ItemCardProps {
+  onCycleOwnership: (id: number) => void;
   item: DisplayItem;
   group?: PackageGroup;
   showScanButton: boolean;
@@ -311,6 +316,7 @@ function ItemCard({
   isScanned,
   onScan,
   onDelete,
+  onCycleOwnership,
 }: ItemCardProps) {
   return (
     <div className="item-card">
@@ -325,11 +331,14 @@ function ItemCard({
       </button>
       <ImagePlaceholder src={item.photo} alt={item.name} />
       <div className="item-body">
-        <span
+        <div className="item-badge-row"><span
           className={`area-badge ${AREA_BADGE_CLASS[item.area] || "ceremony"}`}
         >
           {item.area}
         </span>
+        <button className={`badge ownership-badge-btn ${ownershipClass(item.ownership || 'IHC')}`} onClick={() => onCycleOwnership(item.id)} title={i18n.t('lifecycle.cycleOwnership')}>{item.ownership || 'IHC'}</button>
+        {item.resolution === 'returned' && <span className="badge badge-green">{i18n.t('lifecycle.returned')}</span>}
+        </div>
         <div className="item-name-row">
           <span className="item-name">
             {item.name}
@@ -364,14 +373,6 @@ function ItemCard({
               {item.checking && <CheckIcon />}
             </span>
             {i18n.t("wording.checking")}
-          </div>
-          <div className="indicator-row">
-            <span
-              className={`indicator-box${item.warehouseItem ? " checked" : ""}`}
-            >
-              {item.warehouseItem && <CheckIcon />}
-            </span>
-            {i18n.t("wording.warehouseItem")}
           </div>
         </div>
         <div className="scan-rows">
@@ -430,6 +431,10 @@ export default function EventDetailPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const eventId = Number(routeEventId ?? searchParams.get("id"));
+  const lifecycleStore = useEventLifecycle();
+  const lifecycle = lifecycleStore.events[eventId];
+  const [lifecycleMode, setLifecycleMode] = useState<LifecycleModalMode>(null);
+  const [ownershipFilter, setOwnershipFilter] = useState('');
   const fallbackEventName =
     searchParams.get("name") || "03/06/2023 | GUNTUR + CLARISSA";
 
@@ -696,8 +701,9 @@ export default function EventDetailPage() {
     },
   });
 
+  const lifecycleItems = useMemo(() => [...(eventItemResponse?.data ?? []), ...(lifecycle?.incoming ?? [])].filter(item => !hiddenItemIds.includes(item.id)), [eventItemResponse?.data, lifecycle?.incoming, hiddenItemIds]);
   const items = useMemo(() => {
-    const apiItems = eventItemResponse?.data ?? [];
+    const apiItems = lifecycleItems;
     const visibleApiItems = apiItems
       .map((item) => mapEventItem(item, statusNames))
       .filter((item) => !hiddenItemIds.includes(item.id))
@@ -706,11 +712,13 @@ export default function EventDetailPage() {
         const localGroup = localPackages.find((group) => group.id === assignedGroupId);
         return {
           ...item,
+          ownership: lifecycle?.items?.[item.id]?.ownership || 'IHC' as Ownership,
+          resolution: lifecycle?.items?.[item.id]?.resolution,
           ...scanOverrides[item.id],
           groupId: assignedGroupId,
           groupName: localGroup?.name ?? item.groupName,
         };
-      });
+      }).filter(item => item.resolution !== 'transferred');
 
     return [...visibleApiItems, ...createdItems];
   }, [
@@ -721,6 +729,8 @@ export default function EventDetailPage() {
     packageAssignments,
     scanOverrides,
     statusNames,
+    lifecycleItems,
+    lifecycle?.items,
   ]);
 
   const areas = useMemo(
@@ -745,6 +755,19 @@ export default function EventDetailPage() {
   );
   const currentStatus = eventStatuses[currentStageIndex];
   const eventStatus = currentStatus?.name ?? stages[currentStageIndex] ?? stages[0];
+  const closingFlag = resolveLifecycle({ id: eventId, status: currentStatus?.id, is_complete: eventDetail?.is_complete, total_items: lifecycleItems.length }, { ...lifecycle, stageId: currentStatus?.id, itemCount: lifecycleItems.length }, eventStatuses[eventStatuses.length - 1]?.id);
+  const isClosing = ['checking-inventory', 'returned-completed', 'transferred'].includes(closingFlag);
+  useEffect(() => {
+    if (!eventItemResponse || !currentStatus?.id) return;
+    if (lifecycle?.stageId === currentStatus.id && lifecycle?.itemCount === lifecycleItems.length) return;
+    try { updateEventLifecycle(eventId, { stageId: currentStatus.id, itemCount: lifecycleItems.length }); } catch { /* API data remains usable without local storage. */ }
+  }, [eventId, eventItemResponse, currentStatus?.id, lifecycleItems.length, lifecycle?.stageId, lifecycle?.itemCount]);
+  function cycleOwnership(id: number) {
+    const current = lifecycle?.items?.[id]?.ownership || 'IHC';
+    const ownership = OWNERSHIPS[(OWNERSHIPS.indexOf(current) + 1) % OWNERSHIPS.length];
+    try { updateEventLifecycle(eventId, { items: { ...lifecycle?.items, [id]: { ...lifecycle?.items?.[id], ownership } } }, `${eventName}: Ownership ${id} → ${ownership}`); }
+    catch { toast.error(t('lifecycle.saveFailed')); }
+  }
   const stageScanEnabled = currentStatus?.is_show_scan_result === 1;
   const currentScanAction = currentStatus?.action
     ?.trim()
@@ -818,6 +841,7 @@ export default function EventDetailPage() {
   const baseFiltered = useMemo(
     () =>
       items.filter((item) => {
+        if (ownershipFilter && item.ownership !== ownershipFilter) return false;
         if (selectedArea && item.area !== selectedArea) return false;
         if (
           kwSearch &&
@@ -828,7 +852,7 @@ export default function EventDetailPage() {
         }
         return true;
       }),
-    [items, kwSearch, selectedArea],
+    [items, kwSearch, selectedArea, ownershipFilter],
   );
   const scopedItems = useMemo(
     () =>
@@ -876,7 +900,7 @@ export default function EventDetailPage() {
   );
 
   async function changeEventStatus(_step: string, targetIndex: number) {
-    if (isChangingEventStatus) return;
+    if (isChangingEventStatus || isClosing) return;
     if (
       stageScanEnabled &&
       targetIndex > currentStageIndex &&
@@ -1098,6 +1122,10 @@ export default function EventDetailPage() {
   async function deleteItem(id: number) {
     if (!window.confirm("Delete this item from the event?")) return;
     if (id <= 0) {
+      if (lifecycle?.incoming?.some(item => item.id === id)) {
+        try { updateEventLifecycle(eventId, { incoming: lifecycle.incoming.filter(item => item.id !== id) }); }
+        catch { toast.error(t('lifecycle.saveFailed')); }
+      }
       setCreatedItems((currentItems) =>
         currentItems.filter((item) => item.id !== id),
       );
@@ -1555,24 +1583,6 @@ export default function EventDetailPage() {
           <div className="event-heading">{eventName}</div>
 
           <div className="event-actions-bar">
-            <button
-              className="action-icon-btn btn-pkg"
-              title={t("wording.packagingGroupItemsToScanTogether")}
-              onClick={openPackagingModal}
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                <line x1="12" y1="22.08" x2="12" y2="12" />
-              </svg>
-            </button>
             <button className="action-icon-btn btn-cart" onClick={openCart}>
               <IconCart />
             </button>
@@ -1591,6 +1601,9 @@ export default function EventDetailPage() {
               </button>
               {moreMenuOpen && (
                 <div className="more-menu-dropdown">
+                  <button className="more-menu-item" onClick={() => { openPackagingModal(); setMoreMenuOpen(false); }}>{t('lifecycle.groupItems')}</button>
+                  <button className="more-menu-item" onClick={() => { setLifecycleMode('ownership'); setMoreMenuOpen(false); }}>{t('lifecycle.bulkOwnership')}</button>
+                  {closingFlag === 'checking-inventory' && <button className="more-menu-item" onClick={() => { setLifecycleMode('check'); setMoreMenuOpen(false); }}>{t('lifecycle.crossCheck')}</button>}
                   <button
                     type="button"
                     className="more-menu-item"
@@ -1623,10 +1636,18 @@ export default function EventDetailPage() {
             <Stepper
               steps={stages}
               currentIndex={currentStageIndex}
-              onStepClick={eventStatuses.length ? changeEventStatus : undefined}
+              onStepClick={eventStatuses.length && !isClosing ? changeEventStatus : undefined}
             />
           </div>
-          {stageScanEnabled && hasNextStage && (
+          <span className={`badge ${LIFECYCLE_BADGES[closingFlag]}`}>{t(`lifecycle.${closingFlag}`)}</span>
+          {closingFlag === 'ready-to-close' && <button className="btn-next-stage" disabled={isLoading || isError || isChangingEventStatus} onClick={() => {
+            if (window.confirm(t('lifecycle.confirmClose'))) {
+              try { updateEventLifecycle(eventId, { closing: 'checking-inventory' }, `${eventName}: Checking inventory`); }
+              catch { toast.error(t('lifecycle.saveFailed')); }
+            }
+          }}>{t('lifecycle.closeStart')}</button>}
+          {closingFlag === 'checking-inventory' && <button className="btn-next-stage" onClick={() => setLifecycleMode('return')}>{t('lifecycle.readyReturn')}</button>}
+          {!isClosing && stageScanEnabled && hasNextStage && (
             <button
               type="button"
               className="btn-next-stage"
@@ -1672,6 +1693,7 @@ export default function EventDetailPage() {
           </div>
 
           <div className="filter-row-right">
+            <SearchableSelect value={ownershipFilter} onChange={value => setOwnershipFilter(String(value))} options={[{ value: '', label: t('lifecycle.allOwnership') }, ...OWNERSHIPS.map(value => ({ value, label: `${value} (${items.filter(item => item.ownership === value).length})` }))]} />
             <button className="btn btn-check" onClick={() => {}}>
               <IconSearch /> {t("wording.check")}
             </button>
@@ -1733,6 +1755,7 @@ export default function EventDetailPage() {
                             isScanned={isItemScannedForCurrentStatus(item)}
                             onScan={openScanPopup}
                             onDelete={deleteItem}
+                            onCycleOwnership={cycleOwnership}
                           />
                         ))}
                       </div>
@@ -1763,10 +1786,11 @@ export default function EventDetailPage() {
                 key={item.id}
                 item={item}
                 group={item.groupId ? packages.find((group) => group.id === item.groupId) : undefined}
-                showScanButton={stageScanEnabled}
+                showScanButton={stageScanEnabled && item.id > 0}
                 isScanned={isItemScannedForCurrentStatus(item)}
                 onScan={openScanPopup}
                 onDelete={deleteItem}
+                onCycleOwnership={cycleOwnership}
               />
             ))}
             </div>
@@ -1774,6 +1798,7 @@ export default function EventDetailPage() {
         )}
       </div>
 
+      <EventLifecycleModal key={`${eventId}-${lifecycleMode}`} eventId={eventId} eventName={eventName} items={lifecycleItems} stages={eventStatuses} mode={lifecycleMode} onClose={() => setLifecycleMode(null)} />
       <Modal
         open={atcOpen}
         title={t("wording.addToCart")}

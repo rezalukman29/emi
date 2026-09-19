@@ -2,13 +2,12 @@ import { useState, useMemo } from 'react';
 import Pagination from '../components/Pagination';
 import { IconSearch } from '../components/icons';
 import { initialActivityLogs } from '../data/activityLogs';
-import { TODAY } from '../data/events';
 import SearchableSelect from '../components/SearchableSelect';
 import { useTranslation } from "react-i18next";
+import { useEventLifecycle } from '../lib/eventLifecycle';
 
 const PAGE_SIZE = 10;
 const ACTIONS = ['Login', 'Logout', 'Create', 'Update', 'Delete'];
-const MODULES = [...new Set(initialActivityLogs.map(l => l.module))].sort();
 
 function actionBadgeClass(action: string) {
   if (action === 'Create') return 'badge-green';
@@ -18,11 +17,10 @@ function actionBadgeClass(action: string) {
   return 'badge-gray';
 }
 
-function todayIso() {
-  return TODAY.toISOString().slice(0, 10);
-}
-
 export default function LogPage() {
+  const lifecycle = useEventLifecycle();
+  const activityLogs = useMemo(() => [...lifecycle.logs.map(log => ({ ...log, userName: log.user })), ...initialActivityLogs], [lifecycle.logs]);
+  const modules = useMemo(() => [...new Set(activityLogs.map(log => log.module))].sort(), [activityLogs]);
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [moduleFilter, setModuleFilter] = useState('');
@@ -31,19 +29,19 @@ export default function LogPage() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return initialActivityLogs.filter(l =>
+    return activityLogs.filter(l =>
       (!q || l.description.toLowerCase().includes(q) || l.userName.toLowerCase().includes(q)) &&
       (!moduleFilter || l.module === moduleFilter) &&
       (!actionFilter || l.action === actionFilter)
     );
-  }, [query, moduleFilter, actionFilter]);
+  }, [query, moduleFilter, actionFilter, activityLogs]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const pageData = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  const todayCount = initialActivityLogs.filter(l => l.timestamp.startsWith(todayIso())).length;
-  const activeUserCount = new Set(initialActivityLogs.map(l => l.userName)).size;
+  const todayCount = activityLogs.filter(l => l.timestamp.startsWith(new Date().toISOString().slice(0, 10))).length;
+  const activeUserCount = new Set(activityLogs.map(l => l.userName)).size;
 
   return (
     <>
@@ -51,7 +49,7 @@ export default function LogPage() {
 
       <div className="stats-bar" style={{ gridTemplateColumns: 'repeat(3,1fr)' }}>
         {[
-          { label: t("wording.totalLogs"),      value: initialActivityLogs.length, color: 'var(--brand)',  bg: 'var(--brand-bg)' },
+          { label: t("wording.totalLogs"),      value: activityLogs.length, color: 'var(--brand)',  bg: 'var(--brand-bg)' },
           { label: t("wording.todaysActivity"), value: todayCount,               color: 'var(--green)',  bg: 'var(--green-bg)' },
           { label: t("wording.activeUsers"),      value: activeUserCount,            color: 'var(--purple)', bg: 'var(--purple-bg)' },
         ].map(s => (
@@ -80,7 +78,7 @@ export default function LogPage() {
               onChange={value => { setModuleFilter(String(value)); setPage(1); }}
               options={[
                 { value: '', label: t("wording.allModules") },
-                ...MODULES.map(module => ({ value: module, label: module })),
+                ...modules.map(module => ({ value: module, label: module })),
               ]}
               placeholder={t("wording.allModules")}
               searchPlaceholder={t("wording.searchModules")}

@@ -18,6 +18,7 @@ import usePutEventStatus from "../hooks/api/usePutEventStatus";
 import { InventoryService } from "../service/InventoryService";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
+import { useEventLifecycle, updateLifecycle } from '../lib/eventLifecycle';
 
 
 const PAGE_SIZE = 20;
@@ -27,6 +28,7 @@ type ScanAction = "" | "SCAN_IN" | "SCAN_OUT";
 type ScanSetting = "None" | "Scan";
 
 interface EventStatusRow {
+  code: string;
   id: number;
   order: number;
   status: string;
@@ -37,6 +39,7 @@ interface EventStatusRow {
 }
 
 interface EventStatusForm {
+  code: string;
   name: string;
   order_data: string;
   action: ScanAction;
@@ -45,6 +48,7 @@ interface EventStatusForm {
 
 function emptyForm(order = 1): EventStatusForm {
   return {
+    code: '',
     name: "",
     order_data: String(order),
     action: "",
@@ -87,6 +91,7 @@ function ScanBadge({ scan }: { scan: ScanSetting }) {
 function mapEventStatuses(response: GetEventStatusResponse): EventStatusRow[] {
   return (response.data?.data ?? []).map((status) => ({
     id: status.id,
+    code: status.code || '',
     order: status.order_data,
     status: status.name,
     scan: status.is_show_scan_result === 1 ? "Scan" : "None",
@@ -97,6 +102,7 @@ function mapEventStatuses(response: GetEventStatusResponse): EventStatusRow[] {
 }
 
 export default function EventStatusPage() {
+  const lifecycleStore = useEventLifecycle();
   const { t } = useTranslation();
   const [statuses, setStatuses] = useState<EventStatusRow[]>([]);
   const [searchInput, setSearchInput] = useState("");
@@ -148,10 +154,10 @@ export default function EventStatusPage() {
   const orderedStatuses = orderedResponse
     ? mapEventStatuses(orderedResponse).sort((left, right) => left.order - right.order)
     : [...statuses].sort((left, right) => left.order - right.order);
-  const displayedStatuses = reorderMode ? draftStatuses : statuses;
+  const displayedStatuses = (reorderMode ? draftStatuses : statuses).map(row => ({ ...row, code: lifecycleStore.codes[row.id] ?? row.code }));
 
   async function refetchStatusLists() {
-    await Promise.all([
+    return Promise.all([
       refetchEventStatuses(),
       refetchOrderedEventStatuses(),
     ]);
@@ -184,7 +190,9 @@ export default function EventStatusPage() {
         setStatusModal(false);
         setEditingId(null);
         resetForm();
-        await refetchStatusLists();
+        const refreshed = await refetchStatusLists();
+        const saved = editingId ?? refreshed[1].data?.data?.data?.find(row => row.name === values.name.trim() && row.order_data === Number(values.order_data))?.id;
+        if (saved) updateLifecycle(data => { data.codes[saved] = values.code.trim().toUpperCase(); });
       } catch (error) {
         toast(
           error instanceof Error
@@ -225,6 +233,7 @@ export default function EventStatusPage() {
     setEditingId(row.id);
     formik.resetForm({
       values: {
+        code: row.code,
         name: row.status,
         order_data: String(row.order),
         action: normalizeScanAction(row.action),
@@ -409,6 +418,7 @@ export default function EventStatusPage() {
                 <th style={{ width: 80, textAlign: "center" }}>{t("wording.editOrder")}</th>
                 <SortTh label={t("wording.status")} id="name" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} />
                 <th style={{ width: 100, textAlign: "center" }}>{t("wording.showScan")}</th>
+                <th>{t('wording.code')}</th>
                 <th style={{ width: 120, textAlign: "center" }}>{t("wording.action")}</th>
                 <SortTh label={t("wording.eventRunning")} id="active_event" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 120, textAlign: "right" }} />
                 <SortTh label={t("wording.createdAt")} id="created_at" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 120 }} />
@@ -417,11 +427,11 @@ export default function EventStatusPage() {
             </thead>
             <tbody>
               {isLoading && statuses.length === 0 ? (
-                <tr><td colSpan={8} style={{ textAlign: "center", padding: 40 }}>{t("wording.loadingEventStatuses")}</td></tr>
+                <tr><td colSpan={9} style={{ textAlign: "center", padding: 40 }}>{t("wording.loadingEventStatuses")}</td></tr>
               ) : isError ? (
-                <tr><td colSpan={8} style={{ textAlign: "center", padding: 40, color: "var(--red)" }}>{t("wording.failedToLoadEventStatuses")}</td></tr>
+                <tr><td colSpan={9} style={{ textAlign: "center", padding: 40, color: "var(--red)" }}>{t("wording.failedToLoadEventStatuses")}</td></tr>
               ) : displayedStatuses.length === 0 ? (
-                <tr><td colSpan={8} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>{t("wording.noStatusesFound")}</td></tr>
+                <tr><td colSpan={9} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>{t("wording.noStatusesFound")}</td></tr>
               ) : (
                 displayedStatuses.map((row) => {
                   const orderedIndex = displayedStatuses.findIndex((status) => status.id === row.id);
@@ -446,6 +456,7 @@ export default function EventStatusPage() {
                     </td>
                     <td className="name-cell">{row.status}</td>
                     <td style={{ textAlign: "center" }}><ScanBadge scan={row.scan} /></td>
+                    <td><span className="badge badge-gray">{row.code || '—'}</span></td>
                     <td style={{ textAlign: "center", fontWeight: 600 }}>
                       <ScanActionBadge action={row.action} />
                     </td>
@@ -499,6 +510,8 @@ export default function EventStatusPage() {
           placeholder={t("wording.eGEventRunning")}
           errorText={formik.errors.name}
         />
+        <TextInput label={t('wording.code')} value={formik.values.code} onChange={value => formik.setFieldValue('code', value.toUpperCase())} />
+        <p className="summary-text">{t('lifecycle.codePreview')}</p>
         <div className="form-group">
           <label>{t("wording.scan")}</label>
           <SearchableSelect

@@ -6,6 +6,7 @@ import type {
 import ax from "../../service/axios";
 
 export interface EventStatusItem {
+  code?: string;
   id: number;
   name: string;
   user_emi_id: number;
