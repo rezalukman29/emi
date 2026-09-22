@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate, type NavigateFunction } from "react-router-dom";
 import { toast } from "react-toastify";
 import Modal from "../components/Modal";
@@ -19,8 +19,8 @@ import {
   IconClose,
   IconCheck,
 } from "../components/icons";
-import useGetUpcomingEvents from "../hooks/api/useGetUpcomingEvents";
-import useGetPastEvents from "../hooks/api/useGetPastEvents";
+import useGetEvents, { useGetEventLifecycleCounts } from "../hooks/api/useGetEvents";
+import { useQueryClient } from "react-query";
 import useGetEventStatus from "../hooks/api/useGetEventStatus";
 import { useFormik } from "formik";
 import * as Yup from "yup";
@@ -28,7 +28,7 @@ import { utils } from "react-modern-calendar-datepicker";
 import { InventoryService } from "../service/InventoryService";
 import { useTranslation } from "react-i18next";
 import { getDateLocale } from "../utils/function";
-import { useEventLifecycle, resolveLifecycle, LIFECYCLE_STATUSES, LIFECYCLE_BADGES, type LifecycleStatus } from '../lib/eventLifecycle';
+import { LIFECYCLE_STATUSES, LIFECYCLE_BADGES, type LifecycleStatus } from '../lib/eventLifecycle';
 
 const PAGE_SIZE = 8;
 const monthLabel = (month: number, style: "short" | "long" = "short") =>
@@ -149,7 +149,7 @@ export default function EventPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("upcoming");
-  const lifecycleStore = useEventLifecycle();
+  const queryClient = useQueryClient();
   const [isModify, setIsModify] = useState(false);
   const [event, setEvent] = useState<EventRecord | null>(null);
   const [pastQuery, setPastQuery] = useState("");
@@ -257,7 +257,7 @@ export default function EventPage() {
         setEditingId(null);
         setIsModify(false);
         setEvent(null);
-        await Promise.all([refetchPasts(), refetchUpcomings()]);
+        await queryClient.invalidateQueries(["events-v2"]);
       } catch (error) {
         const apiMessage = (
           error as { response?: { data?: { message?: string } } }
@@ -276,20 +276,28 @@ export default function EventPage() {
 
   const imgInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: upcomings, refetch: refetchUpcomings } = useGetUpcomingEvents({
-    allDates: true,
-    options: {
-      enabled: true,
-    },
-    search: "",
-  });
-
-  const { data: pasts, refetch: refetchPasts } = useGetPastEvents({
-    options: {
-      enabled: true,
-    },
-    search: "",
-  });
+  const search = (activeTab === 'returned-completed' ? pastQuery : upQuery).trim();
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search), 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+  const { data: eventsResponse, isFetching, isError, error } = useGetEvents({
+    status: activeTab === 'invite' ? undefined : activeTab as LifecycleStatus,
+    search: debouncedSearch || undefined,
+    page: pastPage, limit: PAGE_SIZE, sort_by: 'date_event', sort: 'DESC',
+  }, activeTab !== 'invite' && search === debouncedSearch);
+  const countQueries = useGetEventLifecycleCounts();
+  const lifecycleCounts = Object.fromEntries(LIFECYCLE_STATUSES.map((flag, index) => [
+    flag, countQueries[index].data?.data.total_records ?? 0,
+  ]));
+  const events = eventsResponse?.data.data ?? [];
+  const totalRecords = eventsResponse?.data.total_records ?? 0;
+  const listLoading = isFetching || search !== debouncedSearch;
+  useEffect(() => {
+    const pages = Math.max(1, eventsResponse?.data.total_pages ?? 1);
+    if (eventsResponse && pastPage > pages) setPastPage(pages);
+  }, [eventsResponse, pastPage]);
 
   const { data: eventStatus } = useGetEventStatus({
     params: { page: 1, limit: 9999, sort: 'ASC', sortBy: 'order_data' },
@@ -300,49 +308,12 @@ export default function EventPage() {
 
   const orderedEventStatuses = [...(eventStatus?.data?.data ?? [])].sort((a, b) => a.order_data - b.order_data);
   const firstEventStatus = orderedEventStatuses[0];
-  const lastEventStatus = orderedEventStatuses[orderedEventStatuses.length - 1];
-  const allEvents = useMemo(() => [...new Map([
-    ...(pasts?.data?.data ?? []), ...(upcomings?.data?.data ?? []),
-  ].map((event: EventRecord) => [event.id, event])).values()], [upcomings, pasts]);
   function lifecycleOf(record: EventRecord): LifecycleStatus {
-    return resolveLifecycle(record, lifecycleStore.events[record.id], lastEventStatus?.id);
+    return LIFECYCLE_STATUSES.includes(record.lifecycle_status)
+      ? record.lifecycle_status : activeTab as LifecycleStatus;
   }
-  const lifecycleCounts = Object.fromEntries(LIFECYCLE_STATUSES.map(flag => [flag, allEvents.filter(event => lifecycleOf(event) === flag).length]));
-
-  const upcomingEvents = useMemo(() => {
-    const data = allEvents.filter(record => lifecycleOf(record) === activeTab);
-    const query = upQuery.trim().toLowerCase();
-    if (!query) return data;
-    return data.filter((candidate) =>
-      [
-        candidate.name,
-        candidate.event_code,
-        candidate.address,
-        candidate.description,
-      ].some((value) =>
-        String(value ?? "")
-          .toLowerCase()
-          .includes(query),
-      ),
-    );
-  }, [upQuery, allEvents, lifecycleStore, activeTab, lastEventStatus?.id]);
-
-  const pastEvents = useMemo(() => {
-    let data = allEvents.filter(record => lifecycleOf(record) === 'returned-completed');
-    if (pastQuery) {
-      const q = pastQuery.toLowerCase();
-      data = data.filter(
-        (e: EventRecord) =>
-          e.name.toLowerCase().includes(q) ||
-          e.event_code.toLowerCase().includes(q) ||
-          e.address.toLowerCase().includes(q) ||
-          e.description.toLowerCase().includes(q),
-      );
-    }
-    return data.sort((a: EventRecord, b: EventRecord) =>
-      (b.event_start || "").localeCompare(a.event_start || ""),
-    );
-  }, [allEvents, lifecycleStore, lastEventStatus?.id, pastQuery]);
+  const upcomingEvents = events;
+  const pastEvents = events;
 
   const groupedPast = useMemo(() => {
     if (pastQuery) return null;
@@ -357,10 +328,7 @@ export default function EventPage() {
     return Object.values(map);
   }, [pastEvents, pastQuery, i18n.resolvedLanguage]);
 
-  const pastFlat = useMemo(
-    () => pastEvents?.slice((pastPage - 1) * PAGE_SIZE, pastPage * PAGE_SIZE),
-    [pastEvents, pastPage],
-  );
+  const pastFlat = pastEvents;
 
   function openNew() {
     setEditingId(null);
@@ -370,10 +338,7 @@ export default function EventPage() {
     setModalOpen(true);
   }
   function openEdit(id: number) {
-    const r = [
-      ...(upcomings?.data?.data ?? []),
-      ...(pasts?.data?.data ?? []),
-    ].find((candidate: EventRecord) => candidate.id === id);
+    const r = events.find((candidate: EventRecord) => candidate.id === id);
     if (!r) return;
     setEditingId(id);
     setIsModify(true);
@@ -398,7 +363,7 @@ export default function EventPage() {
       toast.success(result?.message || "Event deleted successfully.");
       setDeleteOpen(false);
       setDeletingId(null);
-      await Promise.all([refetchPasts(), refetchUpcomings()]);
+      await queryClient.invalidateQueries(["events-v2"]);
     } catch (error) {
       const apiMessage = (
         error as { response?: { data?: { message?: string } } }
@@ -412,10 +377,7 @@ export default function EventPage() {
     }
   }
 
-  const delTarget = [
-    ...(upcomings?.data?.data ?? []),
-    ...(pasts?.data?.data ?? []),
-  ].find((candidate: EventRecord) => candidate.id === deletingId);
+  const delTarget = events.find((candidate: EventRecord) => candidate.id === deletingId);
 
   function EventCard({ r, onDelete, navigate }: EventRowProps) {
     const days = daysUntil(r.event_start);
@@ -773,7 +735,7 @@ export default function EventPage() {
         {[
           {
             label: t("wording.totalEvents"),
-            value: allEvents.length,
+            value: Object.values(lifecycleCounts).reduce((sum, count) => sum + count, 0),
             color: "var(--brand)",
             bg: "var(--brand-bg)",
           },
@@ -896,6 +858,7 @@ export default function EventPage() {
       </div>
 
       {/* ── UPCOMING ── */}
+      {activeTab !== 'invite' && (listLoading || isError) && <div className="card" role="status" style={{ padding: 20 }}>{listLoading ? t('wording.loading') : (error instanceof Error ? error.message : t('wording.failedToLoadData'))}</div>}
       {activeTab !== 'invite' && activeTab !== 'returned-completed' && (
         <div>
           <div
@@ -921,7 +884,7 @@ export default function EventPage() {
             </button>
           </div>
 
-          {upcomingEvents.length === 0 ? (
+          {listLoading || isError ? null : upcomingEvents.length === 0 ? (
             <div
               className="card"
               style={{ padding: "56px 32px", textAlign: "center" }}
@@ -940,7 +903,7 @@ export default function EventPage() {
                 gap: 14,
               }}
             >
-              {upcomingEvents.slice((pastPage - 1) * PAGE_SIZE, pastPage * PAGE_SIZE).map((r: EventRecord) => (
+              {upcomingEvents.map((r: EventRecord) => (
                 ['checking-inventory', 'transferred'].includes(activeTab) ? <PastEventRow key={r.id} r={r} onEdit={openEdit} onDelete={openDelete} navigate={navigate} /> : <EventCard
                   key={r.id}
                   r={r}
@@ -951,7 +914,7 @@ export default function EventPage() {
               ))}
             </div>
           )}
-          <Pagination currentPage={pastPage} total={upcomingEvents.length} pageSize={PAGE_SIZE} onPage={setPastPage} label={t('wording.event')} />
+          <Pagination currentPage={pastPage} total={totalRecords} pageSize={PAGE_SIZE} onPage={setPastPage} label={t('wording.event')} />
         </div>
       )}
 
@@ -984,7 +947,7 @@ export default function EventPage() {
             </button>
           </div>
 
-          {pastEvents.length === 0 ? (
+          {listLoading || isError ? null : pastEvents.length === 0 ? (
             <div
               className="card"
               style={{ padding: "56px 32px", textAlign: "center" }}
@@ -1006,13 +969,7 @@ export default function EventPage() {
                   />
                 ))}
               </div>
-              <Pagination
-                currentPage={pastPage}
-                total={pastEvents.length}
-                pageSize={PAGE_SIZE}
-                onPage={setPastPage}
-                label={t("wording.events")}
-              />
+
             </>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
@@ -1074,6 +1031,7 @@ export default function EventPage() {
               ))}
             </div>
           )}
+          <Pagination currentPage={pastPage} total={totalRecords} pageSize={PAGE_SIZE} onPage={setPastPage} label={t("wording.events")} />
         </div>
       )}
 

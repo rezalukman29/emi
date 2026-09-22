@@ -634,6 +634,7 @@
     "failedToDeleteEvent": "Failed to delete event.",
     "failedToDeleteEventStatus": "Failed to delete event status.",
     "failedToDeleteUser": "Failed to delete user.",
+    "failedToLoadData": "Failed to load data.",
     "failedToLoadAreas": "Failed to load areas",
     "failedToLoadCategoryStock": "Failed to load category stock.",
     "failedToLoadEventInventory": "Failed to load event inventory.",

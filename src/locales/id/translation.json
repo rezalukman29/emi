@@ -634,6 +634,7 @@
     "failedToDeleteEvent": "Gagal menghapus acara.",
     "failedToDeleteEventStatus": "Gagal menghapus status acara.",
     "failedToDeleteUser": "Gagal menghapus pengguna.",
+    "failedToLoadData": "Gagal memuat data.",
     "failedToLoadAreas": "Gagal memuat area",
     "failedToLoadCategoryStock": "Gagal memuat category stock.",
     "failedToLoadEventInventory": "Gagal memuat event inventory.",
