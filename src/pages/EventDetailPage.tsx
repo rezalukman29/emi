@@ -20,7 +20,7 @@ import {
   IconMoreVertical,
   IconNotes,
   IconUser,
-  IconCode,
+  IconTag,
 } from "../components/icons";
 import useGetBarangGudangV2, {
   type BarangGudangItemV2,
@@ -133,7 +133,7 @@ function getLoggedInFullname(): string | null {
 }
 
 interface DisplayItem {
-  ownership?: Ownership;
+  ownerships: Ownership[];
   resolution?: 'returned' | 'transferred';
   id: number;
   photo: string;
@@ -181,15 +181,32 @@ interface CartItem {
   qty: number;
   note: string;
   memo?: string;
-  additionalCode: string | null;
+  ownerships: OwnershipPayload;
   checked: boolean;
   warehouseItem: boolean;
   pic: string;
   image: string | null;
 }
 
+interface OwnershipPayload {
+  ihc: boolean;
+  ihp: boolean;
+  outsource: boolean;
+}
+
+const EMPTY_OWNERSHIPS: OwnershipPayload = {
+  ihc: false,
+  ihp: false,
+  outsource: false,
+};
+
+const OWNERSHIP_OPTIONS = ["IHP", "IHC", "Outsource"] as const;
+
+function ownershipKey(value: (typeof OWNERSHIP_OPTIONS)[number]): keyof OwnershipPayload {
+  return value.toLowerCase() as keyof OwnershipPayload;
+}
+
 interface ItemCardProps {
-  onCycleOwnership: (id: number) => void;
   item: DisplayItem;
   group?: PackageGroup;
   showScanButton: boolean;
@@ -237,6 +254,10 @@ function mapEventItem(
   const scanIn = formatApiDate(item.scan_in_date);
   const scanOut = formatApiDate(item.scan_out_date);
   const groupName = item.group_detail?.trim() || null;
+  const ownerships: Ownership[] = [];
+  if (item.ownerships?.ihp) ownerships.push("IHP");
+  if (item.ownerships?.ihc) ownerships.push("IHC");
+  if (item.ownerships?.outsource) ownerships.push("Outsource");
   return {
     id: item.id,
     photo: getPhotoUrl(item.photo),
@@ -260,6 +281,7 @@ function mapEventItem(
     scanned: Boolean(scanIn || scanOut),
     groupId: groupName ? `api:${groupName}` : null,
     groupName,
+    ownerships,
   };
 }
 
@@ -316,7 +338,6 @@ function ItemCard({
   isScanned,
   onScan,
   onDelete,
-  onCycleOwnership,
 }: ItemCardProps) {
   return (
     <div className="item-card">
@@ -336,7 +357,11 @@ function ItemCard({
         >
           {item.area}
         </span>
-        <button className={`badge ownership-badge-btn ${ownershipClass(item.ownership || 'IHC')}`} onClick={() => onCycleOwnership(item.id)} title={i18n.t('lifecycle.cycleOwnership')}>{item.ownership || 'IHC'}</button>
+        {item.ownerships.map((ownership) => (
+          <span key={ownership} className={`badge ownership-badge-btn ${ownershipClass(ownership)}`}>
+            {ownership}
+          </span>
+        ))}
         {item.resolution === 'returned' && <span className="badge badge-green">{i18n.t('lifecycle.returned')}</span>}
         </div>
         <div className="item-name-row">
@@ -435,6 +460,7 @@ export default function EventDetailPage() {
   const lifecycle = lifecycleStore.events[eventId];
   const [lifecycleMode, setLifecycleMode] = useState<LifecycleModalMode>(null);
   const [ownershipFilter, setOwnershipFilter] = useState('');
+  const [appliedOwnershipFilter, setAppliedOwnershipFilter] = useState('');
   const fallbackEventName =
     searchParams.get("name") || "03/06/2023 | GUNTUR + CLARISSA";
 
@@ -444,7 +470,13 @@ export default function EventDetailPage() {
     isError,
     refetch: refetchEventItems,
   } = useGetEventItem({
-    params: { event_id: eventId, order: "asc" },
+    params: {
+      event_id: eventId,
+      order: "asc",
+      ...(appliedOwnershipFilter && {
+        ownership: appliedOwnershipFilter.toLowerCase(),
+      }),
+    },
     options: {
       enabled: !!eventId,
     },
@@ -520,10 +552,10 @@ export default function EventDetailPage() {
   const [cartOpen, setCartOpen] = useState(false);
   const [cartMetadataEditor, setCartMetadataEditor] = useState<{
     cartId: string;
-    field: "notes" | "pic" | "additionalCode";
+    field: "notes" | "pic" | "ownerships";
   } | null>(null);
   const [cartMetadataDraft, setCartMetadataDraft] = useState("");
-  const [additionalCodeDraft, setAdditionalCodeDraft] = useState<string[]>([]);
+  const [ownershipsDraft, setOwnershipsDraft] = useState<OwnershipPayload>({ ...EMPTY_OWNERSHIPS });
   const [atcOpen, setAtcOpen] = useState(false);
   const [atcTargetId, setAtcTargetId] = useState<number | null>(null);
   const [atcForm, setAtcForm] = useState({
@@ -555,7 +587,7 @@ export default function EventDetailPage() {
     subAreaId: "",
     status: "Preparation",
     qty: 1,
-    additionalCode: "",
+    ownerships: [] as Array<(typeof OWNERSHIP_OPTIONS)[number]>,
     memo: "",
     checked: false,
     warehouseItem: false,
@@ -712,7 +744,6 @@ export default function EventDetailPage() {
         const localGroup = localPackages.find((group) => group.id === assignedGroupId);
         return {
           ...item,
-          ownership: lifecycle?.items?.[item.id]?.ownership || 'IHC' as Ownership,
           resolution: lifecycle?.items?.[item.id]?.resolution,
           ...scanOverrides[item.id],
           groupId: assignedGroupId,
@@ -762,12 +793,6 @@ export default function EventDetailPage() {
     if (lifecycle?.stageId === currentStatus.id && lifecycle?.itemCount === lifecycleItems.length) return;
     try { updateEventLifecycle(eventId, { stageId: currentStatus.id, itemCount: lifecycleItems.length }); } catch { /* API data remains usable without local storage. */ }
   }, [eventId, eventItemResponse, currentStatus?.id, lifecycleItems.length, lifecycle?.stageId, lifecycle?.itemCount]);
-  function cycleOwnership(id: number) {
-    const current = lifecycle?.items?.[id]?.ownership || 'IHC';
-    const ownership = OWNERSHIPS[(OWNERSHIPS.indexOf(current) + 1) % OWNERSHIPS.length];
-    try { updateEventLifecycle(eventId, { items: { ...lifecycle?.items, [id]: { ...lifecycle?.items?.[id], ownership } } }, `${eventName}: Ownership ${id} → ${ownership}`); }
-    catch { toast.error(t('lifecycle.saveFailed')); }
-  }
   const stageScanEnabled = currentStatus?.is_show_scan_result === 1;
   const currentScanAction = currentStatus?.action
     ?.trim()
@@ -841,7 +866,6 @@ export default function EventDetailPage() {
   const baseFiltered = useMemo(
     () =>
       items.filter((item) => {
-        if (ownershipFilter && item.ownership !== ownershipFilter) return false;
         if (selectedArea && item.area !== selectedArea) return false;
         if (
           kwSearch &&
@@ -852,7 +876,7 @@ export default function EventDetailPage() {
         }
         return true;
       }),
-    [items, kwSearch, selectedArea, ownershipFilter],
+    [items, kwSearch, selectedArea],
   );
   const scopedItems = useMemo(
     () =>
@@ -1196,7 +1220,7 @@ export default function EventDetailPage() {
           qty: atcForm.qty,
           note: atcForm.note,
           memo: atcForm.note,
-          additionalCode: null,
+          ownerships: { ...EMPTY_OWNERSHIPS },
           checked: false,
           warehouseItem: false,
           pic: item.pic || "",
@@ -1249,7 +1273,8 @@ export default function EventDetailPage() {
             currentStatus?.id ??
             eventStatuses[0]?.id ??
             1,
-          additional_code: item.additionalCode ?? "",
+          additional_code: "",
+          ownerships: item.ownerships,
           is_checking: item.checked ? 1 : 0,
           is_ware_house_item: item.warehouseItem ? 1 : 0,
         });
@@ -1263,7 +1288,7 @@ export default function EventDetailPage() {
       setNewItemOpen(false);
       setCartMetadataEditor(null);
       setCartMetadataDraft("");
-      setAdditionalCodeDraft([]);
+      setOwnershipsDraft({ ...EMPTY_OWNERSHIPS });
       await refetchEventItems();
       toast.success(t("wording.itemsSavedToTheEvent"));
     } catch (error) {
@@ -1317,7 +1342,11 @@ export default function EventDetailPage() {
         qty: newItemForm.qty,
         note: newItemForm.memo,
         memo: newItemForm.memo,
-        additionalCode: newItemForm.additionalCode,
+        ownerships: {
+          ihc: newItemForm.ownerships.includes("IHC"),
+          ihp: newItemForm.ownerships.includes("IHP"),
+          outsource: newItemForm.ownerships.includes("Outsource"),
+        },
         checked: newItemForm.checked,
         warehouseItem: newItemForm.warehouseItem,
         pic: newItemForm.checked ? newItemForm.inputBy : "",
@@ -1330,7 +1359,7 @@ export default function EventDetailPage() {
       subAreaId: "",
       status: eventStatus,
       qty: 1,
-      additionalCode: "",
+      ownerships: [],
       memo: "",
       checked: false,
       warehouseItem: false,
@@ -1376,7 +1405,7 @@ export default function EventDetailPage() {
           qty,
           note: "",
           memo: "",
-          additionalCode: null,
+          ownerships: { ...EMPTY_OWNERSHIPS },
           checked: false,
           warehouseItem: false,
           pic: "",
@@ -1402,13 +1431,13 @@ export default function EventDetailPage() {
     if (cartMetadataEditor?.cartId === cartId) {
       setCartMetadataEditor(null);
       setCartMetadataDraft("");
-      setAdditionalCodeDraft([]);
+      setOwnershipsDraft({ ...EMPTY_OWNERSHIPS });
     }
   }
 
   function toggleCartMetadataEditor(
     item: CartItem,
-    field: "notes" | "pic" | "additionalCode",
+    field: "notes" | "pic" | "ownerships",
   ) {
     if (
       cartMetadataEditor?.cartId === item.cartId &&
@@ -1416,7 +1445,7 @@ export default function EventDetailPage() {
     ) {
       setCartMetadataEditor(null);
       setCartMetadataDraft("");
-      setAdditionalCodeDraft([]);
+      setOwnershipsDraft({ ...EMPTY_OWNERSHIPS });
       return;
     }
 
@@ -1424,22 +1453,14 @@ export default function EventDetailPage() {
     setCartMetadataDraft(
       field === "notes" ? item.note || item.memo || "" : item.pic,
     );
-    setAdditionalCodeDraft(
-      field === "additionalCode"
-        ? (item.additionalCode || "")
-            .split(",")
-            .map((code) => code.trim())
-            .filter(Boolean)
-        : [],
+    setOwnershipsDraft(
+      field === "ownerships" ? { ...item.ownerships } : { ...EMPTY_OWNERSHIPS },
     );
   }
 
-  function toggleAdditionalCode(code: string) {
-    setAdditionalCodeDraft((current) =>
-      current.includes(code)
-        ? current.filter((item) => item !== code)
-        : [...current, code],
-    );
+  function toggleOwnership(value: (typeof OWNERSHIP_OPTIONS)[number]) {
+    const key = ownershipKey(value);
+    setOwnershipsDraft((current) => ({ ...current, [key]: !current[key] }));
   }
 
   function saveCartItemMetadata(cartId: string) {
@@ -1454,13 +1475,13 @@ export default function EventDetailPage() {
             ? { ...item, note: value, memo: value }
             : cartMetadataEditor.field === "pic"
               ? { ...item, pic: value }
-              : { ...item, additionalCode: additionalCodeDraft.join(",") }
+              : { ...item, ownerships: { ...ownershipsDraft } }
           : item,
       ),
     );
     setCartMetadataEditor(null);
     setCartMetadataDraft("");
-    setAdditionalCodeDraft([]);
+    setOwnershipsDraft({ ...EMPTY_OWNERSHIPS });
   }
 
   function toggleCartSelect(cartId: string) {
@@ -1526,7 +1547,7 @@ export default function EventDetailPage() {
     setSelectedCartIds([]);
     setCartMetadataEditor(null);
     setCartMetadataDraft("");
-    setAdditionalCodeDraft([]);
+    setOwnershipsDraft({ ...EMPTY_OWNERSHIPS });
     setBulkPanelOpen(false);
     setBulkAreaId("");
     setBulkSubAreaId("");
@@ -1535,7 +1556,7 @@ export default function EventDetailPage() {
       subAreaId: "",
       status: eventStatus,
       qty: 1,
-      additionalCode: "",
+      ownerships: [],
       memo: "",
       checked: false,
       warehouseItem: false,
@@ -1693,8 +1714,17 @@ export default function EventDetailPage() {
           </div>
 
           <div className="filter-row-right">
-            <SearchableSelect value={ownershipFilter} onChange={value => setOwnershipFilter(String(value))} options={[{ value: '', label: t('lifecycle.allOwnership') }, ...OWNERSHIPS.map(value => ({ value, label: `${value} (${items.filter(item => item.ownership === value).length})` }))]} />
-            <button className="btn btn-check" onClick={() => {}}>
+            <SearchableSelect value={ownershipFilter} onChange={value => setOwnershipFilter(String(value))} options={[{ value: '', label: t('lifecycle.allOwnership') }, ...OWNERSHIP_OPTIONS.map(value => ({ value, label: `${value} (${items.filter(item => item.ownerships.includes(value)).length})` }))]} />
+            <button
+              className="btn btn-check"
+              onClick={() => {
+                if (ownershipFilter === appliedOwnershipFilter) {
+                  void refetchEventItems();
+                  return;
+                }
+                setAppliedOwnershipFilter(ownershipFilter);
+              }}
+            >
               <IconSearch /> {t("wording.check")}
             </button>
           </div>
@@ -1755,7 +1785,6 @@ export default function EventDetailPage() {
                             isScanned={isItemScannedForCurrentStatus(item)}
                             onScan={openScanPopup}
                             onDelete={deleteItem}
-                            onCycleOwnership={cycleOwnership}
                           />
                         ))}
                       </div>
@@ -1790,7 +1819,6 @@ export default function EventDetailPage() {
                 isScanned={isItemScannedForCurrentStatus(item)}
                 onScan={openScanPopup}
                 onDelete={deleteItem}
-                onCycleOwnership={cycleOwnership}
               />
             ))}
             </div>
@@ -2096,18 +2124,24 @@ export default function EventDetailPage() {
         </div>
         <div className="form-row">
           <div className="form-group">
-            <label>{t("wording.additionalCode")}</label>
-            <SearchableSelect
-              value={newItemForm.additionalCode}
-              onChange={(value) =>
-                setNewItemForm((form) => ({
-                  ...form,
-                  additionalCode: String(value),
-                }))
-              }
-              placeholder={t("wording.selectAdditionalCode")}
-              options={["IHC", "IHO", "O", "S", "B", "F", "Venue"].map((code) => ({ value: code, label: code }))}
-            />
+            <label>{t("wording.ownerships")}</label>
+            <div className="cart-item-code-options">
+              {OWNERSHIP_OPTIONS.map((ownership) => (
+                <label key={ownership} className="cart-item-code-option">
+                  <input
+                    type="checkbox"
+                    checked={newItemForm.ownerships.includes(ownership)}
+                    onChange={() => setNewItemForm((form) => ({
+                      ...form,
+                      ownerships: form.ownerships.includes(ownership)
+                        ? form.ownerships.filter((value) => value !== ownership)
+                        : [...form.ownerships, ownership],
+                    }))}
+                  />
+                  <span>{ownership}</span>
+                </label>
+              ))}
+            </div>
           </div>
           <div className="form-group">
             <label>{t("wording.memo")}</label>
@@ -2487,7 +2521,7 @@ export default function EventDetailPage() {
                   {cart.map((c) => {
                     const hasNotes = Boolean((c.note || c.memo || "").trim());
                     const hasPic = Boolean(c.pic.trim());
-                    const hasAdditionalCode = Boolean(c.additionalCode?.trim());
+                    const hasOwnerships = Object.values(c.ownerships).some(Boolean);
                     const activeEditor =
                       cartMetadataEditor?.cartId === c.cartId
                         ? cartMetadataEditor.field
@@ -2581,14 +2615,14 @@ export default function EventDetailPage() {
                       </button>
                       <button
                         type="button"
-                        className={`cart-item-metadata-button${hasAdditionalCode ? " has-value" : ""}`}
-                        title={hasAdditionalCode ? t("wording.editAdditionalCode") : t("wording.addAdditionalCode")}
-                        aria-label={hasAdditionalCode ? t("wording.editAdditionalCode") : t("wording.addAdditionalCode")}
-                        aria-expanded={activeEditor === "additionalCode"}
-                        onClick={() => toggleCartMetadataEditor(c, "additionalCode")}
+                        className={`cart-item-metadata-button${hasOwnerships ? " has-value" : ""}`}
+                        title={hasOwnerships ? t("wording.editOwnerships") : t("wording.addOwnerships")}
+                        aria-label={hasOwnerships ? t("wording.editOwnerships") : t("wording.addOwnerships")}
+                        aria-expanded={activeEditor === "ownerships"}
+                        onClick={() => toggleCartMetadataEditor(c, "ownerships")}
                       >
-                        <IconCode />
-                        {hasAdditionalCode && <span className="cart-item-metadata-dot" aria-hidden="true" />}
+                        <IconTag />
+                        {hasOwnerships && <span className="cart-item-metadata-dot" aria-hidden="true" />}
                       </button>
                       <button
                         type="button"
@@ -2601,20 +2635,20 @@ export default function EventDetailPage() {
                       </div>
                       {activeEditor && (
                         <div className="cart-item-note-editor">
-                          {activeEditor === "additionalCode" ? (
+                          {activeEditor === "ownerships" ? (
                             <div className="cart-item-code-fieldset">
                               <div className="cart-item-editor-label">
-                                {t("wording.additionalCode")}
+                                {t("wording.ownerships")}
                               </div>
                               <div className="cart-item-code-options">
-                                {["IHP", "IHC", "Outsource", "Buy", "Printing"].map((code) => (
-                                  <label key={code} className="cart-item-code-option">
+                                {OWNERSHIP_OPTIONS.map((ownership) => (
+                                  <label key={ownership} className="cart-item-code-option">
                                     <input
                                       type="checkbox"
-                                      checked={additionalCodeDraft.includes(code)}
-                                      onChange={() => toggleAdditionalCode(code)}
+                                      checked={ownershipsDraft[ownershipKey(ownership)]}
+                                      onChange={() => toggleOwnership(ownership)}
                                     />
-                                    <span>{code}</span>
+                                    <span>{ownership}</span>
                                   </label>
                                 ))}
                               </div>

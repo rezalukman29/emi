@@ -24,7 +24,7 @@ interface SummaryItem {
   scanIn: boolean | string | null;
   scanOut: boolean | string | null;
   pic: string;
-  additionalCode: string;
+  ownerships: string;
   notes: string;
   subArea: string;
   unit: string;
@@ -78,13 +78,19 @@ function hasScanValue(value: unknown) {
   return Boolean(value && value !== '0001-01-01 00:00:00');
 }
 
-function formatAdditionalCode(value?: string | null): string {
-  return (value ?? '')
+function formatOwnerships(value?: EventSummaryItemDetail['ownerships']): string {
+  const ownerships: string[] = [];
+  if (value?.ihp) ownerships.push('IHP');
+  if (value?.ihc) ownerships.push('IHC');
+  if (value?.outsource) ownerships.push('Outsource');
+  return ownerships.join(', ') || '—';
+}
+
+function formatPrintOwnerships(value: string): string {
+  return value
     .split(',')
-    .map(code => code.trim().toUpperCase())
-    .filter(Boolean)
-    .map(code => code === 'IHP' || code === 'IHC' ? code : code.charAt(0))
-    .join(', ') || '—';
+    .map(ownership => ownership.trim() === 'Outsource' ? 'O' : ownership.trim())
+    .join(', ');
 }
 
 function mapSummaryItem(
@@ -102,7 +108,7 @@ function mapSummaryItem(
     scanIn: hasScanValue(item.is_scan_in),
     scanOut: hasScanValue(item.is_scan_out),
     pic: item.pic?.trim() || '—',
-    additionalCode: formatAdditionalCode(item.additional_code),
+    ownerships: formatOwnerships(item.ownerships),
     notes: item.notes?.trim() || '—',
     subArea: item.sub_area?.trim() || '—',
     unit: item.satuan?.trim() || '',
@@ -420,7 +426,7 @@ export default function EventSummaryPage() {
                 <th style={{ width:90, textAlign:'center' }}>{t("wording.scanIn")}</th>
                 <th style={{ width:90, textAlign:'center' }}>{t("wording.scanOut")}</th>
                 <th>{t("wording.pic")}</th>
-                <th>{t("wording.code")}</th>
+                <th>{t("wording.ownerships")}</th>
                 <th>{t("wording.notes")}</th>
               </tr>
             </thead>
@@ -440,7 +446,7 @@ export default function EventSummaryPage() {
                     <td style={{ textAlign:'center' }}>{it.scanIn   ? <DotOk /> : <DotNo />}</td>
                     <td style={{ textAlign:'center' }}>{it.scanOut  ? <DotOk /> : <DotNo />}</td>
                     <td style={{ color:'var(--text-muted)', fontSize:'12.5px' }}>{it.pic || '—'}</td>
-                    <td style={{ whiteSpace:'nowrap' }}>{it.additionalCode}</td>
+                    <td style={{ whiteSpace:'nowrap' }}>{it.ownerships}</td>
                     <td style={{ minWidth:160, whiteSpace:'pre-wrap', overflowWrap:'anywhere' }}>{it.notes}</td>
                   </tr>
                 ))
@@ -481,7 +487,7 @@ export default function EventSummaryPage() {
               <th>{t("wording.rowNumber")}</th>
               <th>{t("wording.status")}</th>
               <th>{t("wording.pic")}</th>
-              <th>{t("wording.code")}</th>
+              <th>{t("wording.ownerships")}</th>
               <th>{t("wording.subArea")}</th>
               <th>{t("wording.itemDetail")}</th>
               <th>{t("wording.qty")}</th>
@@ -507,7 +513,7 @@ export default function EventSummaryPage() {
                     <td className="print-cell-center">
                       {index === 0 || areaItems[index - 1].pic !== item.pic ? item.pic : ''}
                     </td>
-                    <td className="print-cell-center">{item.additionalCode}</td>
+                    <td className="print-cell-center">{formatPrintOwnerships(item.ownerships)}</td>
                     <td>{item.subArea !== '—' ? item.subArea : item.area}</td>
                     <td>{item.name}</td>
                     <td className="print-cell-center">

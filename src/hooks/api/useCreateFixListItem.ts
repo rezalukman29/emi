@@ -15,6 +15,11 @@ export interface CreateFixListItemPayload {
   image: string | null;
   event_status_id: number;
   additional_code: string;
+  ownerships: {
+    ihc: boolean;
+    ihp: boolean;
+    outsource: boolean;
+  };
   is_checking: number;
   is_ware_house_item: number;
 }

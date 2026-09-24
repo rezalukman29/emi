@@ -25,6 +25,12 @@ export interface EventItemWarehouse {
   updated_at: string;
 }
 
+export interface EventItemOwnerships {
+  ihc: boolean;
+  ihp: boolean;
+  outsource: boolean;
+}
+
 export interface EventItem {
   id: number;
   scan_out: number;
@@ -61,12 +67,15 @@ export interface EventItem {
   scan_in_counter: number;
   scan_out_counter: number;
   input_by: string;
+  ownerships?: EventItemOwnerships;
 }
 
 export interface ParamsGetEventItemInterface {
   event_id: number;
   list_id?: number;
   status_event_id?: number;
+  search?: string;
+  ownership?: string;
   order: string;
 }
 
@@ -80,6 +89,8 @@ export const getEventItem = async ({
       event_id: params.event_id,
       ...(params.list_id && {list_id: params.list_id}),
       ...(params.status_event_id && {status_event_id: params.status_event_id}),
+      ...(params.search && { search: params.search }),
+      ...(params.ownership && { ownership: params.ownership }),
       order: params.order
     }
   });

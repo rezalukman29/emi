@@ -16,6 +16,11 @@ export interface EventTotalSummary {
   scan_out_by: string[];
   missing: number;
   damaged: number;
+  ownerships?: {
+    total_ihp: number;
+    total_ihc: number;
+    total_outsource: number;
+  };
 }
 
 export interface EventAreaSummary {
@@ -44,6 +49,11 @@ export interface EventSummaryItemDetail {
   input_by: string;
   pic?: string;
   additional_code?: string;
+  ownerships?: {
+    ihp: boolean;
+    ihc: boolean;
+    outsource: boolean;
+  };
   notes?: string;
   sub_area?: string;
   unit_name?: string;

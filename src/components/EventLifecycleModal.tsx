@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
+import { useQueryClient } from 'react-query';
 import Modal from './Modal';
 import TextInput from './TextInput';
 import SearchableSelect from './SearchableSelect';
-import type { EventItem } from '../hooks/api/useGetEventItem';
+import useGetEventItem, { type EventItem } from '../hooks/api/useGetEventItem';
+import useBulkAssignOwnership, { type BulkOwnership } from '../hooks/api/useBulkAssignOwnership';
 import type { EventStatusItem } from '../hooks/api/useGetEventStatus';
 import useGetUpcomingEvents from '../hooks/api/useGetUpcomingEvents';
 import useGetPastEvents from '../hooks/api/useGetPastEvents';
@@ -16,21 +18,48 @@ export default function EventLifecycleModal({ eventId, eventName, items, stages,
   mode: LifecycleModalMode; onClose: () => void;
 }) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const { mutateAsync: assignOwnership, isLoading: isAssigningOwnership } = useBulkAssignOwnership();
   const store = useEventLifecycle();
   const local = store.events[eventId];
   const [target, setTarget] = useState<Ownership>('IHC');
-  const [query, setQuery] = useState('');
-  const [from, setFrom] = useState('');
+  const [bulkSearch, setBulkSearch] = useState('');
+  const [debouncedBulkSearch, setDebouncedBulkSearch] = useState('');
+  const [bulkOwnership, setBulkOwnership] = useState('');
   const [selected, setSelected] = useState<number[]>([]);
   const [transferId, setTransferId] = useState<number | null>(null);
   const [targetEvent, setTargetEvent] = useState('');
   const [targetStage, setTargetStage] = useState('');
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedBulkSearch(bulkSearch.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [bulkSearch]);
+  const {
+    data: bulkItemsResponse,
+    isFetching: isFetchingBulkItems,
+    isError: isBulkItemsError,
+  } = useGetEventItem({
+    params: {
+      event_id: eventId,
+      order: 'asc',
+      ...(debouncedBulkSearch && { search: debouncedBulkSearch }),
+      ...(bulkOwnership && { ownership: bulkOwnership.toLowerCase() }),
+    },
+    options: { enabled: mode === 'ownership' },
+  });
   const { data: upcoming } = useGetUpcomingEvents({ search: '', allDates: true, options: { enabled: mode === 'return' } });
   const { data: past } = useGetPastEvents({ search: '', options: { enabled: mode === 'return' } });
   const candidates = [...new Map([...(upcoming?.data?.data || []), ...(past?.data?.data || [])].map(e => [e.id, e])).values()]
     .filter(e => e.id !== eventId && ['upcoming', 'on-going', 'ready-to-close'].includes(resolveLifecycle(e, store.events[e.id], stages[stages.length - 1]?.id)));
-  const ownership = (id: number) => local?.items?.[id]?.ownership || 'IHC';
-  const shown = items.filter(item => (!query || `${item.nama_barang} ${item.area_name}`.toLowerCase().includes(query.toLowerCase())) && (!from || ownership(item.id) === from));
+  const ownershipsOf = (item: EventItem): Ownership[] => {
+    const values: Ownership[] = [];
+    if (item.ownerships?.ihp) values.push('IHP');
+    if (item.ownerships?.ihc) values.push('IHC');
+    if (item.ownerships?.outsource) values.push('Outsource');
+    return values;
+  };
+  const ownership = (item: EventItem) => ownershipsOf(item)[0] || 'IHC';
+  const shown = mode === 'ownership' ? (bulkItemsResponse?.data ?? []) : items;
   const unresolved = items.filter(item => !local?.items?.[item.id]?.resolution);
   const checked = items.filter(item => local?.items?.[item.id]?.checked).length;
   function run(update: Parameters<typeof updateLifecycle>[0], description?: string) {
@@ -44,13 +73,21 @@ export default function EventLifecycleModal({ eventId, eventName, items, stages,
       event.items[id] = { ...event.items[id], ...patch };
     }, `${eventName}: ${patch.resolution || 'Cross check'} ${id}`);
   }
-  function applyOwnership() {
-    const ids = items.filter(item => selected.includes(item.id) && ownership(item.id) !== target).map(item => item.id);
-    if (!ids.length) { onClose(); return; }
-    if (run(data => {
-      const event = data.events[eventId] ||= {}; event.items ||= {};
-      ids.forEach(id => { event.items![id] = { ...event.items![id], ownership: target }; });
-    }, `${eventName}: Bulk ownership ${target} (${ids.length})`)) onClose();
+  async function applyOwnership() {
+    const ids = selected;
+    if (!ids.length) return;
+    try {
+      const response = await assignOwnership({
+        id: ids,
+        ownership: target.toLowerCase() as BulkOwnership,
+      });
+      await queryClient.invalidateQueries(['useGetEventItem']);
+      toast.success(response.message || t('lifecycle.ownershipUpdated'));
+      onClose();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t('lifecycle.ownershipUpdateFailed');
+      toast.error(message);
+    }
   }
   function transfer(item: EventItem) {
     if (!candidates.some(e => e.id === Number(targetEvent)) || !stages.some(s => s.id === Number(targetStage))) return;
@@ -66,7 +103,7 @@ export default function EventLifecycleModal({ eventId, eventName, items, stages,
         scan_in_date: { Valid: false, Time: '' }, scan_out_date: { Valid: false, Time: '' },
       }];
       destination.itemCount = (destination.itemCount || 0) + 1;
-      destination.items ||= {}; destination.items[newId] = { ownership: ownership(item.id) };
+      destination.items ||= {}; destination.items[newId] = { ownership: ownership(item) };
     }, `${eventName}: Transfer ${item.nama_barang} → ${targetEvent}`)) {
       setTransferId(null); setTargetEvent(''); setTargetStage('');
     }
@@ -81,28 +118,30 @@ export default function EventLifecycleModal({ eventId, eventName, items, stages,
   const title = mode === 'ownership' ? t('lifecycle.bulkOwnership') : mode === 'check' ? t('lifecycle.crossCheck') : t('lifecycle.returnTransfer');
   return <Modal open={Boolean(mode)} title={title} onClose={onClose} size="xl" footer={<>
     <button className="btn-cancel-m" onClick={onClose}>{t('common.actions.close')}</button>
-    {mode === 'ownership' && <button className="btn-save-modal" disabled={!selected.length} onClick={applyOwnership}>{t('lifecycle.assign', { ownership: target, count: selected.length })}</button>}
+    {mode === 'ownership' && <button className="btn-save-modal" disabled={!selected.length || isAssigningOwnership} onClick={() => void applyOwnership()}>{isAssigningOwnership ? t('wording.saving') : t('lifecycle.assign', { ownership: target, count: selected.length })}</button>}
     {mode === 'return' && <button className="btn-save-modal" disabled={unresolved.length > 0} onClick={finalize}>{t('lifecycle.finalize')}</button>}
   </>}>
-    <p className="stepper-error-banner">{t('lifecycle.preview')}</p>
+    {mode !== 'ownership' && <p className="stepper-error-banner">{t('lifecycle.preview')}</p>}
     {mode === 'ownership' && <>
       <div className="bulk-own-target">{OWNERSHIPS.map(value => <button key={value} className={`bulk-own-segment${target === value ? ' active' : ''}`} onClick={() => setTarget(value)}>{value}</button>)}</div>
       <div className="bulk-own-filters">
-        <TextInput label={t('common.actions.search')} value={query} onChange={setQuery} />
-        <SearchableSelect value={from} onChange={v => setFrom(String(v))} options={[{ value: '', label: t('lifecycle.allOwnership') }, ...OWNERSHIPS.map(value => ({ value, label: value }))]} />
+        <TextInput label={t('common.actions.search')} value={bulkSearch} onChange={setBulkSearch} />
+        <SearchableSelect value={bulkOwnership} onChange={v => setBulkOwnership(String(v))} options={[{ value: '', label: t('lifecycle.allOwnership') }, ...OWNERSHIPS.map(value => ({ value, label: value }))]} />
       </div>
       <label className="lifecycle-check-row"><input type="checkbox" checked={shown.length > 0 && shown.every(item => selected.includes(item.id))} onChange={() => setSelected(ids => shown.every(item => ids.includes(item.id)) ? ids.filter(id => !shown.some(item => item.id === id)) : [...new Set([...ids, ...shown.map(item => item.id)])])} />{t('lifecycle.selectShown')}</label>
     </>}
     {mode === 'return' && <p>{t('lifecycle.logistics', { checked, total: items.length, missing: items.length - checked })}</p>}
     <div className="lifecycle-item-list">
+      {mode === 'ownership' && isFetchingBulkItems && <p className="no-data">{t('wording.loading')}</p>}
+      {mode === 'ownership' && isBulkItemsError && <p className="no-data">{t('wording.failedToLoadEventItems')}</p>}
       {(mode === 'ownership' ? shown : items).map(item => {
         const state = local?.items?.[item.id];
         return <div className="lifecycle-item" key={item.id}>
           <div className="lifecycle-item-row">
             {mode !== 'return' && <input type="checkbox" aria-label={item.nama_barang} checked={mode === 'ownership' ? selected.includes(item.id) : Boolean(state?.checked)} onChange={() => mode === 'ownership' ? setSelected(ids => ids.includes(item.id) ? ids.filter(id => id !== item.id) : [...ids, item.id]) : patchItem(item.id, { checked: !state?.checked })} />}
             <div className="lifecycle-item-info"><strong>{item.nama_barang}</strong><div>{item.area_name} · {item.qty} {item.satuan}</div></div>
-            <span className={`badge ${ownershipClass(ownership(item.id))}`}>{ownership(item.id)}</span>
-            {mode === 'ownership' && selected.includes(item.id) && ownership(item.id) !== target && <span>→ {target}</span>}
+            {ownershipsOf(item).map(value => <span key={value} className={`badge ${ownershipClass(value)}`}>{value}</span>)}
+            {mode === 'ownership' && selected.includes(item.id) && !ownershipsOf(item).includes(target) && <span>→ {target}</span>}
             {mode === 'return' && (state?.resolution ? <span className="badge badge-green">{t(`lifecycle.${state.resolution}`)}</span> : <>
               <button className="btn-save-modal" onClick={() => patchItem(item.id, { resolution: 'returned' })}>{t('lifecycle.return')}</button>
               <button className="btn-ia-move" onClick={() => { setTransferId(item.id); setTargetEvent(''); setTargetStage(''); }}>{t('lifecycle.transfer')}</button>
@@ -115,7 +154,7 @@ export default function EventLifecycleModal({ eventId, eventName, items, stages,
           </div>}
         </div>;
       })}
-      {(mode === 'ownership' ? shown : items).length === 0 && <p className="no-data">{t('wording.noItemsFound')}</p>}
+      {!isFetchingBulkItems && !isBulkItemsError && (mode === 'ownership' ? shown : items).length === 0 && <p className="no-data">{t('wording.noItemsFound')}</p>}
     </div>
   </Modal>;
 }
