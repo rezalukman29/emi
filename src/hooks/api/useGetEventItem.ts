@@ -46,10 +46,10 @@ export interface EventItem {
   code: string;
   photo: string;
   satuan: string;
-  kategori: string;
+  kategori: string | null;
   area_name: string;
   barang_qty: number;
-  gudang: EventItemWarehouse[];
+  gudang: EventItemWarehouse[] | null;
   event_list_id: number;
   group_detail: string;
   cb_ambil: number;

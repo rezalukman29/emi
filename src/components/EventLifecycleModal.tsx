@@ -81,7 +81,10 @@ export default function EventLifecycleModal({ eventId, eventName, items, stages,
         id: ids,
         ownership: target.toLowerCase() as BulkOwnership,
       });
-      await queryClient.invalidateQueries(['useGetEventItem']);
+      await Promise.all([
+        queryClient.invalidateQueries(['useGetEventItem']),
+        queryClient.invalidateQueries(['useGetEventPackages']),
+      ]);
       toast.success(response.message || t('lifecycle.ownershipUpdated'));
       onClose();
     } catch (error) {

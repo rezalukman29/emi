@@ -29,6 +29,8 @@ import useGetBarangGudangV2, {
 import useGetAreaList from "../hooks/api/useGetAreaList";
 import useCreateFixEventList from "../hooks/api/useCreateFixEventList";
 import useCreateFixListItem from "../hooks/api/useCreateFixListItem";
+import useCreatePackage from "../hooks/api/useCreatePackage";
+import useGetEventPackages from "../hooks/api/useGetEventPackages";
 import useGetEventItem, { type EventItem } from "../hooks/api/useGetEventItem";
 import useGetSubArea from "../hooks/api/useGetSubArea";
 import { STORAGE_BOOQABLE, isValidUrl, noImage } from "../utils/function";
@@ -162,6 +164,7 @@ interface PackageGroup {
   id: string;
   name: string;
   itemIds: number[];
+  items?: DisplayItem[];
 }
 
 interface CartItem {
@@ -502,6 +505,15 @@ export default function EventDetailPage() {
       ),
     [eventStatusResponse?.data?.data],
   );
+  const {
+    data: eventPackagesResponse,
+    isLoading: isEventPackagesLoading,
+    isError: isEventPackagesError,
+    refetch: refetchEventPackages,
+  } = useGetEventPackages({
+    eventId,
+    options: { enabled: Boolean(eventId) },
+  });
   const statusNames = useMemo(
     () => new Map(eventStatuses.map((status) => [status.id, status.name])),
     [eventStatuses],
@@ -543,6 +555,7 @@ export default function EventDetailPage() {
   const [packagingOpen, setPackagingOpen] = useState(false);
   const [packagingSelection, setPackagingSelection] = useState<number[]>([]);
   const [packagingName, setPackagingName] = useState("");
+  const { mutateAsync: createPackageRequest, isLoading: isCreatingPackage } = useCreatePackage();
 
   const [selectedArea, setSelectedArea] = useState("");
   const [stageFilter, setStageFilter] = useState<"all" | "waiting" | "added" | "grouped">("all");
@@ -810,18 +823,22 @@ export default function EventDetailPage() {
   );
   const getItemStageIndex = (item: DisplayItem) =>
     statusIndexById.get(item.eventStatusId) ?? stages.indexOf(item.stage);
-  const apiPackages = useMemo<PackageGroup[]>(() => {
-    const byName = new Map<string, number[]>();
-    items.forEach((item) => {
-      if (!item.groupId?.startsWith("api:") || !item.groupName) return;
-      byName.set(item.groupName, [...(byName.get(item.groupName) ?? []), item.id]);
-    });
-    return [...byName.entries()].map(([name, itemIds]) => ({
-      id: `api:${name}`,
-      name,
-      itemIds,
-    }));
-  }, [items]);
+  const apiPackages = useMemo<PackageGroup[]>(() =>
+    (eventPackagesResponse?.data ?? []).map((eventPackage) => {
+      const groupId = `api:${eventPackage.id}`;
+      return {
+        id: groupId,
+        name: eventPackage.name,
+        itemIds: eventPackage.items.map((item) => item.id),
+        items: eventPackage.items.map((item) => ({
+          ...mapEventItem(item, statusNames),
+          ...scanOverrides[item.id],
+          groupId,
+          groupName: eventPackage.name,
+          resolution: lifecycle?.items?.[item.id]?.resolution,
+        })).filter((item) => item.resolution !== 'transferred'),
+      };
+    }), [eventPackagesResponse?.data, lifecycle?.items, scanOverrides, statusNames]);
   const packages = useMemo(
     () => [...apiPackages, ...localPackages],
     [apiPackages, localPackages],
@@ -911,7 +928,13 @@ export default function EventDetailPage() {
     (item) => !isItemScannedForCurrentStatus(item),
   ).length;
   const hasNextStage = currentStageIndex < stages.length - 1;
-  const packableItems = items.filter((item) => !item.groupId);
+  const packagedItemIds = useMemo(
+    () => new Set(packages.flatMap((group) => group.itemIds)),
+    [packages],
+  );
+  const packableItems = items.filter(
+    (item) => item.id > 0 && !item.groupId && !packagedItemIds.has(item.id),
+  );
   const summaryStats = useMemo(
     () => ({
       total: items.length,
@@ -998,19 +1021,25 @@ export default function EventDetailPage() {
     );
   }
 
-  function createPackage() {
+  async function createPackage() {
     const name = packagingName.trim();
     if (!name || packagingSelection.length === 0) return;
-    const id = `local:${crypto.randomUUID()}`;
-    setLocalPackages((current) => [
-      ...current,
-      { id, name, itemIds: [...packagingSelection] },
-    ]);
-    setPackageAssignments((current) => ({
-      ...current,
-      ...Object.fromEntries(packagingSelection.map((itemId) => [itemId, id])),
-    }));
-    setPackagingOpen(false);
+    try {
+      const response = await createPackageRequest({
+        eventId,
+        items: packagingSelection,
+        name,
+        note: "",
+        qr_type: "",
+      });
+      await Promise.all([refetchEventItems(), refetchEventPackages()]);
+      setPackagingSelection([]);
+      setPackagingName("");
+      setPackagingOpen(false);
+      toast.success(response.message || t("wording.groupCreatedSuccessfully"));
+    } catch (error) {
+      toast.error(getCheckoutErrorMessage(error));
+    }
   }
 
   function getNowLabel() {
@@ -1084,7 +1113,11 @@ export default function EventDetailPage() {
       : undefined;
     const targetIds = group?.itemIds ?? [scanningItem.id];
     const resolvedTargets = targetIds
-      .map((id) => items.find((item) => item.id === id))
+      .map(
+        (id) =>
+          items.find((item) => item.id === id) ??
+          group?.items?.find((item) => item.id === id),
+      )
       .filter((item): item is DisplayItem => Boolean(item));
     const targets = resolvedTargets.length > 0
       ? resolvedTargets
@@ -1128,7 +1161,7 @@ export default function EventDetailPage() {
           apiTargets.forEach((item) => delete nextOverrides[item.id]);
           return nextOverrides;
         });
-        await refetchEventItems();
+        await Promise.all([refetchEventItems(), refetchEventPackages()]);
       }
 
       toast.success(responses[0]?.message || "Item scanned successfully.");
@@ -1162,7 +1195,7 @@ export default function EventDetailPage() {
         throw new Error(response.message || "Failed to delete event item.");
       }
       setHiddenItemIds((currentIds) => [...currentIds, id]);
-      await refetchEventItems();
+      await Promise.all([refetchEventItems(), refetchEventPackages()]);
       toast.success(response.message || "Event item deleted.");
     } catch (error) {
       toast.error(getCheckoutErrorMessage(error));
@@ -1754,44 +1787,50 @@ export default function EventDetailPage() {
 
         {effectiveStageFilter === "grouped" ? (
           <>
-            <p className="summary-text"><strong>{packages.length}</strong> {t("wording.box")}{packages.length === 1 ? "" : t("wording.es")} {t("wording.packagedEachBoxScansAsOneQrCode")}</p>
-            {packages.length === 0 ? (
+            {isEventPackagesLoading ? (
+              <div className="no-data">{t("wording.loading")}</div>
+            ) : isEventPackagesError ? (
+              <div className="no-data">{t("wording.failedToLoadData")}</div>
+            ) : packages.length === 0 ? (
               <div className="no-data">{t("wording.noBoxesYetUseTheBoxIconAbove")}</div>
             ) : (
-              <div className="package-list">
-                {packages.map((group) => {
-                  const members = items.filter((item) => group.itemIds.includes(item.id));
-                  const allScanned =
-                    members.length > 0 &&
-                    members.every(isItemScannedForCurrentStatus);
-                  return (
-                    <div key={group.id} className="package-card">
-                      <div className="package-header">
-                        <div className="package-header-info">
-                          <span className="package-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /></svg></span>
-                          <div><div className="package-name">{group.name}</div><div className="package-meta">{members.length} {t("wording.itemInline")}{members.length === 1 ? "" : t("wording.s")} {t("wording.inThisBox")}</div></div>
+              <>
+                <p className="summary-text"><strong>{packages.length}</strong> {t("wording.box")}{packages.length === 1 ? "" : t("wording.es")} {t("wording.packagedEachBoxScansAsOneQrCode")}</p>
+                <div className="package-list">
+                  {packages.map((group) => {
+                    const members = group.items ?? items.filter((item) => group.itemIds.includes(item.id));
+                    const allScanned =
+                      members.length > 0 &&
+                      members.every(isItemScannedForCurrentStatus);
+                    return (
+                      <div key={group.id} className="package-card">
+                        <div className="package-header">
+                          <div className="package-header-info">
+                            <span className="package-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /></svg></span>
+                            <div><div className="package-name">{group.name}</div><div className="package-meta">{members.length} {t("wording.itemInline")}{members.length === 1 ? "" : t("wording.s")} {t("wording.inThisBox")}</div></div>
+                          </div>
+                          {stageScanEnabled && members.length > 0 && (
+                            <button className={`btn-ia-scan${allScanned ? " scanned" : ""}`} onClick={() => openScanPopup(members[0])}>{allScanned ? t("wording.reScanBox") : t("wording.scanBox")}</button>
+                          )}
                         </div>
-                        {stageScanEnabled && members.length > 0 && (
-                          <button className={`btn-ia-scan${allScanned ? " scanned" : ""}`} onClick={() => openScanPopup(members[0])}>{allScanned ? t("wording.reScanBox") : t("wording.scanBox")}</button>
-                        )}
+                        <div className="items-grid package-items-grid">
+                          {members.map((item) => (
+                            <ItemCard
+                              key={item.id}
+                              item={item}
+                              group={group}
+                              showScanButton={false}
+                              isScanned={isItemScannedForCurrentStatus(item)}
+                              onScan={openScanPopup}
+                              onDelete={deleteItem}
+                            />
+                          ))}
+                        </div>
                       </div>
-                      <div className="items-grid package-items-grid">
-                        {members.map((item) => (
-                          <ItemCard
-                            key={item.id}
-                            item={item}
-                            group={group}
-                            showScanButton={false}
-                            isScanned={isItemScannedForCurrentStatus(item)}
-                            onScan={openScanPopup}
-                            onDelete={deleteItem}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              </>
             )}
           </>
         ) : isLoading ? (
@@ -2747,7 +2786,7 @@ export default function EventDetailPage() {
         footer={
           <>
             <button className="btn-cancel-m" onClick={() => setPackagingOpen(false)}><IconClose /> {t("wording.cancel")}</button>
-            <button className="btn-save-modal" disabled={!packagingName.trim() || packagingSelection.length === 0} onClick={createPackage}><IconCheck /> {t("wording.createGroup")}{packagingSelection.length})</button>
+            <button className="btn-save-modal" disabled={!packagingName.trim() || packagingSelection.length === 0 || isCreatingPackage} onClick={() => void createPackage()}><IconCheck /> {isCreatingPackage ? t("wording.saving") : `${t("wording.createGroup")} (${packagingSelection.length})`}</button>
           </>
         }
       >
