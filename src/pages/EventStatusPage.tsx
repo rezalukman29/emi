@@ -43,7 +43,6 @@ interface EventStatusForm {
   name: string;
   order_data: string;
   action: ScanAction;
-  showScan: boolean;
 }
 
 function emptyForm(order = 1): EventStatusForm {
@@ -52,7 +51,6 @@ function emptyForm(order = 1): EventStatusForm {
     name: "",
     order_data: String(order),
     action: "",
-    showScan: false,
   };
 }
 
@@ -81,10 +79,10 @@ function fmtDate(date: string) {
 }
 
 function ScanBadge({ scan }: { scan: ScanSetting }) {
-  return scan === "Scan" ? (
-    <span className="badge badge-green">{i18n.t("wording.yes")}</span>
-  ) : (
-    <span className="badge badge-orange">{i18n.t("wording.no")}</span>
+  return (
+    <span className={`event-status-scan-badge ${scan === "Scan" ? "scan" : "none"}`}>
+      {scan === "Scan" ? i18n.t("wording.scan") : i18n.t("wording.none")}
+    </span>
   );
 }
 
@@ -169,14 +167,14 @@ export default function EventStatusPage() {
       name: Yup.string().trim().required(t("wording.required")),
       order_data: Yup.number().integer("Must be an integer").min(0, t("wording.minimumValueIs0")).required(t("wording.required")),
       action: Yup.string().oneOf(["", "SCAN_IN", "SCAN_OUT"]),
-      showScan: Yup.boolean().required(),
     }),
     validateOnChange: false,
     onSubmit: async (values, { resetForm }) => {
       try {
         const payload = {
           name: values.name.trim(),
-          is_show_scan_result: values.showScan ? 1 : 0,
+          code: values.code.trim().toUpperCase(),
+          is_show_scan_result: values.action ? 1 : 0,
           order_data: Number(values.order_data),
           action: values.action,
         };
@@ -237,7 +235,6 @@ export default function EventStatusPage() {
         name: row.status,
         order_data: String(row.order),
         action: normalizeScanAction(row.action),
-        showScan: row.scan === "Scan",
       },
     });
     setStatusModal(true);
@@ -294,6 +291,7 @@ export default function EventStatusPage() {
           putEventStatus({
             id: status.id,
             name: status.status,
+            code: status.code,
             is_show_scan_result: status.scan === "Scan" ? 1 : 0,
             order_data: status.order,
             action: normalizeScanAction(status.action),
@@ -511,7 +509,6 @@ export default function EventStatusPage() {
           errorText={formik.errors.name}
         />
         <TextInput label={t('wording.code')} value={formik.values.code} onChange={value => formik.setFieldValue('code', value.toUpperCase())} />
-        <p className="summary-text">{t('lifecycle.codePreview')}</p>
         <div className="form-group">
           <label>{t("wording.scan")}</label>
           <SearchableSelect
@@ -525,18 +522,6 @@ export default function EventStatusPage() {
             placeholder={t("wording.none")}
             errorText={formik.errors.action}
           />
-        </div>
-        <div className="form-group">
-          <label>{t("wording.showScan")}</label>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={formik.values.showScan}
-            className={`event-status-toggle${formik.values.showScan ? " active" : ""}`}
-            onClick={() => formik.setFieldValue("showScan", !formik.values.showScan)}
-          >
-            <span className="event-status-toggle-knob" />
-          </button>
         </div>
       </Modal>
 

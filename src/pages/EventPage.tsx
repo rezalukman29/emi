@@ -177,7 +177,7 @@ export default function EventPage() {
       address: isModify ? event?.address : "",
       files: "",
       is_complete: 0,
-      status: isModify ? event?.status : 1,
+      status: isModify ? event?.status : null,
       notes: isModify ? event?.notes : "",
       type: "",
       latitude: "",

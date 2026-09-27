@@ -5,6 +5,7 @@ import ax from "../../service/axios";
 
 export interface EventStatusPayload {
   name: string;
+  code: string;
   is_show_scan_result: number;
   order_data: number;
   action: string;

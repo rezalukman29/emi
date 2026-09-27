@@ -231,7 +231,12 @@ interface AreaItem {
 function formatApiDate(value: EventItem["scan_in_date"]): string | null {
   if (!value.Valid || value.Time.startsWith("0001-01-01")) return null;
 
-  return new Date(value.Time).toLocaleString("en-US", {
+  const utcTime = /(?:Z|[+-]\d{2}:?\d{2})$/.test(value.Time)
+    ? value.Time.replace(/(?:Z|[+-]\d{2}:?\d{2})$/, "Z")
+    : `${value.Time}Z`;
+
+  return new Date(utcTime).toLocaleString("en-US", {
+    timeZone: "Asia/Jakarta",
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -1044,6 +1049,7 @@ export default function EventDetailPage() {
 
   function getNowLabel() {
     return new Date().toLocaleString("en-US", {
+      timeZone: "Asia/Jakarta",
       month: "short",
       day: "numeric",
       year: "numeric",
@@ -1054,6 +1060,8 @@ export default function EventDetailPage() {
   }
 
   function getNextScanType(item: DisplayItem): "IN" | "OUT" {
+    if (currentScanAction === "SCAN_IN") return "IN";
+    if (currentScanAction === "SCAN_OUT") return "OUT";
     return Number(item.scanInValue ?? 0) === 0 ? "IN" : "OUT";
   }
 
