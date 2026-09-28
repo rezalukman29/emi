@@ -342,7 +342,7 @@ export default function StockOpnamePage() {
           </div>
         </div>
 
-        <p
+        {/* <p
           style={{
             background: "var(--brand-bg)",
             borderRadius: "var(--r-lg)",
@@ -353,7 +353,7 @@ export default function StockOpnamePage() {
           }}
         >
           {t("wording.conditionAndConditionNotesAreRetainedForReview")}
-        </p>
+        </p> */}
 
         <div className="table-wrap">
           <table>
