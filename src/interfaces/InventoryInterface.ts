@@ -159,6 +159,7 @@ export interface PayloadAddEventI {
   PIC: string | number;
   event_code: string;
   is_complete: number;
+  is_finished?: number;
   status: number;
   images?: string;
   files: string;

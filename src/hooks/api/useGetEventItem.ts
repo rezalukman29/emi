@@ -68,6 +68,9 @@ export interface EventItem {
   scan_out_counter: number;
   input_by: string;
   ownerships?: EventItemOwnerships;
+  is_returned?: number;
+  is_transfer_to_other_event?: number;
+  is_transfer_from_other_event?: number;
 }
 
 export interface ParamsGetEventItemInterface {

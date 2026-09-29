@@ -233,12 +233,14 @@ export default function EventSummaryPage() {
     return [...groups.entries()];
   }, [tableFiltered]);
 
-  const eventStatus = eventDetail?.is_complete === 1
-    ? t("wording.completed")
-    : (eventStatusResponse?.data?.data ?? []).find(
+  const eventStatus = eventDetail?.is_complete === 1 && eventDetail?.is_finished === 1
+    ? t("lifecycle.returned-completed")
+    : eventDetail?.is_complete === 1 && eventDetail?.is_finished === 0
+      ? t("lifecycle.checking-inventory")
+      : (eventStatusResponse?.data?.data ?? []).find(
         status => status.id === Number(eventDetail?.status),
       )?.name ?? (eventDetail?.status ? `Status ${eventDetail.status}` : '—');
-  const statusBadge = eventDetail?.is_complete === 1 ? "badge-green" : "badge-blue";
+  const statusBadge = eventDetail?.is_complete === 1 && eventDetail?.is_finished === 1 ? "badge-green" : "badge-blue";
 
   const kpis: KpiItem[] = [
     { label:t("wording.totalItems"),  value:total,    sub:t("dynamic.totalQtyUnits", { count: totalQty }), accent:'brand',  style:{} },

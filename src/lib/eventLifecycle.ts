@@ -9,7 +9,8 @@ export const LIFECYCLE_BADGES: Record<LifecycleStatus, string> = {
   upcoming: 'badge-gray', 'on-going': 'badge-green', 'ready-to-close': 'badge-orange',
   'checking-inventory': 'badge-blue', 'returned-completed': 'badge-green', transferred: 'badge-purple',
 };
-export interface ItemLifecycle { ownership?: Ownership; checked?: boolean; resolution?: 'returned' | 'transferred' }
+export interface TransferDestination { eventId: number; status: number; areaId: number; subAreaId: number }
+export interface ItemLifecycle { ownership?: Ownership; checked?: boolean; resolution?: 'returned' | 'transferred'; transfer?: TransferDestination }
 export interface EventLifecycle {
   closing?: LifecycleStatus;
   stageId?: number;
@@ -53,7 +54,10 @@ export function updateLifecycle(update: (data: LifecycleStore) => void, descript
 export function updateEventLifecycle(id: number, patch: Partial<EventLifecycle>, description?: string) {
   updateLifecycle(data => { data.events[id] = { ...data.events[id], ...patch }; }, description);
 }
-export function resolveLifecycle(event: { id: number; status?: unknown; is_complete?: number; item_count?: number; total_items?: number; itemCount?: number; closing_status?: string }, local: EventLifecycle | undefined, lastStageId?: number): LifecycleStatus {
+export function resolveLifecycle(event: { id: number; status?: unknown; is_complete?: number; is_finished?: number; item_count?: number; total_items?: number; itemCount?: number; closing_status?: string }, local: EventLifecycle | undefined, lastStageId?: number): LifecycleStatus {
+  if (event.is_complete === 1 && event.is_finished === 1) return 'returned-completed';
+  if (event.is_complete === 1 && event.is_finished === 0) return 'checking-inventory';
+  if (event.is_complete === 0 && event.is_finished === 0 && lastStageId && Number(event.status ?? local?.stageId) === lastStageId) return 'ready-to-close';
   const closing = event.closing_status ?? local?.closing;
   if (closing && LIFECYCLE_STATUSES.includes(closing as LifecycleStatus) && closing !== 'on-going' && closing !== 'upcoming') return closing as LifecycleStatus;
   if (event.is_complete === 1) return 'returned-completed';

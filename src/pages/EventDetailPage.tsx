@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
+import { useQueryClient } from "react-query";
 import Modal from "../components/Modal";
 import EventLifecycleModal, { type LifecycleModalMode } from '../components/EventLifecycleModal';
 import { useEventLifecycle, updateEventLifecycle, resolveLifecycle, LIFECYCLE_BADGES, OWNERSHIPS, ownershipClass, type Ownership } from '../lib/eventLifecycle';
@@ -137,6 +138,9 @@ function getLoggedInFullname(): string | null {
 interface DisplayItem {
   ownerships: Ownership[];
   resolution?: 'returned' | 'transferred';
+  isReturned?: boolean;
+  isTransferredToOtherEvent?: boolean;
+  isTransferredFromOtherEvent?: boolean;
   id: number;
   photo: string;
   name: string;
@@ -290,6 +294,9 @@ function mapEventItem(
     groupId: groupName ? `api:${groupName}` : null,
     groupName,
     ownerships,
+    isReturned: item.is_returned === 1,
+    isTransferredToOtherEvent: item.is_transfer_to_other_event === 1,
+    isTransferredFromOtherEvent: item.is_transfer_from_other_event === 1,
   };
 }
 
@@ -320,6 +327,24 @@ function XIcon() {
     >
       <line x1="9" y1="3" x2="3" y2="9" />
       <line x1="3" y1="3" x2="9" y2="9" />
+    </svg>
+  );
+}
+
+function ArrowUpIcon() {
+  return (
+    <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 10V2" />
+      <path d="m2.5 5.5 3.5-3.5 3.5 3.5" />
+    </svg>
+  );
+}
+
+function ArrowDownIcon() {
+  return (
+    <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 2v8" />
+      <path d="m2.5 6.5 3.5 3.5 3.5-3.5" />
     </svg>
   );
 }
@@ -453,6 +478,13 @@ function ItemCard({
             </button>
           </div>
         )}
+        {(item.isReturned || item.isTransferredFromOtherEvent || item.isTransferredToOtherEvent) && (
+          <div className="item-flow-flags">
+            {item.isReturned && <span className="item-flow-chip returned"><CheckIcon /> {i18n.t('lifecycle.returned')}</span>}
+            {item.isTransferredFromOtherEvent && <span className="item-flow-chip transferred"><ArrowDownIcon /> {i18n.t('lifecycle.transferred')}</span>}
+            {item.isTransferredToOtherEvent && <span className="item-flow-chip transferred"><ArrowUpIcon /> {i18n.t('lifecycle.transferred')}</span>}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -463,14 +495,13 @@ export default function EventDetailPage() {
   const { id: routeEventId } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const eventId = Number(routeEventId ?? searchParams.get("id"));
   const lifecycleStore = useEventLifecycle();
   const lifecycle = lifecycleStore.events[eventId];
   const [lifecycleMode, setLifecycleMode] = useState<LifecycleModalMode>(null);
   const [ownershipFilter, setOwnershipFilter] = useState('');
   const [appliedOwnershipFilter, setAppliedOwnershipFilter] = useState('');
-  const fallbackEventName =
-    searchParams.get("name") || "03/06/2023 | GUNTUR + CLARISSA";
 
   const {
     data: eventItemResponse,
@@ -524,12 +555,11 @@ export default function EventDetailPage() {
     [eventStatuses],
   );
   const eventDate = formatEventDate(
-    eventDetail?.date_event ?? eventDetail?.date_start,
+    eventDetail?.date_event?.trim() || eventDetail?.event_start,
   );
-  const eventName =
-    eventDetail?.name && eventDate
-      ? `${eventDate} | ${eventDetail.name}`
-      : fallbackEventName;
+  const eventName = [eventDate, eventDetail?.name?.trim()]
+    .filter(Boolean)
+    .join(" | ") || t("wording.loading");
 
   const { warehouseOptions } = useWarehouseController();
   const { categoryOptions } = useCategoryController();
@@ -804,7 +834,7 @@ export default function EventDetailPage() {
   );
   const currentStatus = eventStatuses[currentStageIndex];
   const eventStatus = currentStatus?.name ?? stages[currentStageIndex] ?? stages[0];
-  const closingFlag = resolveLifecycle({ id: eventId, status: currentStatus?.id, is_complete: eventDetail?.is_complete, total_items: lifecycleItems.length }, { ...lifecycle, stageId: currentStatus?.id, itemCount: lifecycleItems.length }, eventStatuses[eventStatuses.length - 1]?.id);
+  const closingFlag = resolveLifecycle({ id: eventId, status: currentStatus?.id, is_complete: eventDetail?.is_complete, is_finished: eventDetail?.is_finished, total_items: lifecycleItems.length }, { ...lifecycle, stageId: currentStatus?.id, itemCount: lifecycleItems.length }, eventStatuses[eventStatuses.length - 1]?.id);
   const isClosing = ['checking-inventory', 'returned-completed', 'transferred'].includes(closingFlag);
   useEffect(() => {
     if (!eventItemResponse || !currentStatus?.id) return;
@@ -978,6 +1008,7 @@ export default function EventDetailPage() {
         PIC: eventDetail.PIC ?? "",
         event_code: eventDetail.event_code ?? "",
         is_complete: eventDetail.is_complete ?? 0,
+        is_finished: eventDetail.is_finished ?? 0,
         status: targetStatus.id,
         // images: eventDetail.images ?? "",
         files: eventDetail.files ?? "",
@@ -1010,6 +1041,66 @@ export default function EventDetailPage() {
       stages[currentStageIndex + 1],
       currentStageIndex + 1,
     );
+  }
+
+  async function startCheckingInventory() {
+    if (!eventDetail || isChangingEventStatus) return;
+    if (!window.confirm(t('lifecycle.confirmClose'))) return;
+
+    try {
+      setIsChangingEventStatus(true);
+      const response = await InventoryService.editEvent({
+        id: eventDetail.id,
+        description: eventDetail.description ?? "",
+        name: eventDetail.name ?? "",
+        event_start: eventDetail.event_start,
+        event_end: eventDetail.event_end,
+        PIC: eventDetail.PIC ?? "",
+        event_code: eventDetail.event_code ?? "",
+        is_complete: 1,
+        is_finished: 0,
+        status: currentStatus?.id ?? eventDetail.status,
+        files: eventDetail.files ?? "",
+        address: eventDetail.address ?? "",
+        type: eventDetail.type ?? "",
+        latitude: eventDetail.latitude ?? "",
+        longitude: eventDetail.longitude ?? "",
+        event_running: eventDetail.event_running ?? "",
+        notes: eventDetail.notes ?? "",
+        scan_type: eventDetail.scan_type ?? "",
+        date_event: eventDetail.date_event,
+      });
+      if (response.success === false) {
+        throw new Error(response.message || "Failed to start inventory checking.");
+      }
+      try {
+        updateEventLifecycle(
+          eventId,
+          { closing: 'checking-inventory' },
+          `${eventName}: Checking inventory`,
+        );
+      } catch {
+        toast.error(t('lifecycle.saveFailed'));
+      }
+      await Promise.all([
+        refetchEventDetail(),
+        queryClient.invalidateQueries(['events-v2']),
+      ]);
+      toast.success(response.message || t('lifecycle.checking-inventory'));
+    } catch (error) {
+      toast.error(getCheckoutErrorMessage(error));
+    } finally {
+      setIsChangingEventStatus(false);
+    }
+  }
+
+  async function refreshAfterFinalize(): Promise<void> {
+    await Promise.all([
+      refetchEventDetail(),
+      refetchEventItems(),
+      refetchEventPackages(),
+      queryClient.invalidateQueries(['events-v2']),
+    ]);
   }
 
   function openPackagingModal() {
@@ -1702,12 +1793,7 @@ export default function EventDetailPage() {
             />
           </div>
           <span className={`badge ${LIFECYCLE_BADGES[closingFlag]}`}>{t(`lifecycle.${closingFlag}`)}</span>
-          {closingFlag === 'ready-to-close' && <button className="btn-next-stage" disabled={isLoading || isError || isChangingEventStatus} onClick={() => {
-            if (window.confirm(t('lifecycle.confirmClose'))) {
-              try { updateEventLifecycle(eventId, { closing: 'checking-inventory' }, `${eventName}: Checking inventory`); }
-              catch { toast.error(t('lifecycle.saveFailed')); }
-            }
-          }}>{t('lifecycle.closeStart')}</button>}
+          {closingFlag === 'ready-to-close' && <button className="btn-next-stage" disabled={isLoading || isError || isChangingEventStatus} onClick={() => void startCheckingInventory()}>{isChangingEventStatus ? t("wording.saving") : t('lifecycle.closeStart')}</button>}
           {closingFlag === 'checking-inventory' && <button className="btn-next-stage" onClick={() => setLifecycleMode('return')}>{t('lifecycle.readyReturn')}</button>}
           {!isClosing && stageScanEnabled && hasNextStage && (
             <button
@@ -1873,7 +1959,7 @@ export default function EventDetailPage() {
         )}
       </div>
 
-      <EventLifecycleModal key={`${eventId}-${lifecycleMode}`} eventId={eventId} eventName={eventName} items={lifecycleItems} stages={eventStatuses} mode={lifecycleMode} onClose={() => setLifecycleMode(null)} />
+      <EventLifecycleModal key={`${eventId}-${lifecycleMode}`} eventId={eventId} eventName={eventName} items={lifecycleItems} stages={eventStatuses} mode={lifecycleMode} onFinalized={refreshAfterFinalize} onClose={() => setLifecycleMode(null)} />
       <Modal
         open={atcOpen}
         title={t("wording.addToCart")}
