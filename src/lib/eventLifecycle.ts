@@ -11,7 +11,12 @@ export const LIFECYCLE_BADGES: Record<LifecycleStatus, string> = {
 };
 export interface TransferDestination { eventId: number; status: number; areaId: number; subAreaId: number }
 export interface ItemLifecycle { ownership?: Ownership; checked?: boolean; resolution?: 'returned' | 'transferred'; transfer?: TransferDestination }
+export interface StatusFeatures { cuttingStock: boolean; stockReturn: boolean; productionItem: boolean }
+export interface ProductionRequest { id: number; name: string; qty: number; area: string; areaId: number; subArea: string; subAreaId?: number; neededBy: string; note: string; stageId: number; status: 'Requested' | 'In Production' | 'Done' }
 export interface EventLifecycle {
+  furthestStageId?: number;
+  stockReturnReached?: boolean;
+  productionRequests?: ProductionRequest[];
   closing?: LifecycleStatus;
   stageId?: number;
   itemCount?: number;
@@ -21,6 +26,7 @@ export interface EventLifecycle {
 export interface LifecycleStore {
   events: Record<number, EventLifecycle>;
   codes: Record<number, string>;
+  statusFeatures?: Record<number, StatusFeatures>;
   logs: { id: number; user: string; action: string; module: string; description: string; timestamp: string }[];
 }
 const CHANGE = 'emi-event-lifecycle-change';
@@ -30,7 +36,7 @@ function key() {
 }
 function snapshot() { try { return localStorage.getItem(key()) || ''; } catch { return ''; } }
 function parse(raw: string): LifecycleStore {
-  try { const data = JSON.parse(raw); return { events: data.events || {}, codes: data.codes || {}, logs: data.logs || [] }; }
+  try { const data = JSON.parse(raw); return { events: data.events || {}, codes: data.codes || {}, statusFeatures: data.statusFeatures || {}, logs: data.logs || [] }; }
   catch { return { events: {}, codes: {}, logs: [] }; }
 }
 function subscribe(callback: () => void) {

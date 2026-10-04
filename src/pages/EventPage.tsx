@@ -533,6 +533,7 @@ export default function EventPage() {
   }
 
   function PastEventRow({ r, onEdit, onDelete, navigate }: EventRowProps) {
+    const readOnly = ['returned-completed', 'transferred'].includes(activeTab);
     const day =
       r.event_start && r.event_start !== "-"
         ? parseInt(r.event_start.split("-")[2])
@@ -684,7 +685,7 @@ export default function EventPage() {
           >
             <IconBarChart />
           </button>
-          <button
+          {!readOnly && <><button
             className="btn-icon edit"
             title={t("wording.edit")}
             onClick={() => onEdit(r.id)}
@@ -700,7 +701,7 @@ export default function EventPage() {
           </button>
           <button className="btn-icon history" title={t("wording.history")}>
             <IconHistory />
-          </button>
+          </button></>}
         </div>
       </div>
     );

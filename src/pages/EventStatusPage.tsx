@@ -19,11 +19,14 @@ import { InventoryService } from "../service/InventoryService";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
 import { useEventLifecycle, updateLifecycle } from '../lib/eventLifecycle';
+import { hasExclusiveFlagConflict } from '../lib/eventStageRules';
+import "../eventUpgrade.css";
 
 
 const PAGE_SIZE = 20;
 const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+const EMPTY_FEATURES = { cuttingStock: false, stockReturn: false, productionItem: false };
 type ScanAction = "" | "SCAN_IN" | "SCAN_OUT";
 type ScanSetting = "None" | "Scan";
 
@@ -43,10 +46,14 @@ interface EventStatusForm {
   name: string;
   order_data: string;
   action: ScanAction;
+  cuttingStock: boolean;
+  stockReturn: boolean;
+  productionItem: boolean;
 }
 
 function emptyForm(order = 1): EventStatusForm {
   return {
+    ...EMPTY_FEATURES,
     code: '',
     name: "",
     order_data: String(order),
@@ -171,6 +178,10 @@ export default function EventStatusPage() {
     validateOnChange: false,
     onSubmit: async (values, { resetForm }) => {
       try {
+        const featureRows = orderedStatuses.filter(row => row.id !== editingId);
+        if (!orderedResponse || hasExclusiveFlagConflict(values, featureRows.map(row => lifecycleStore.statusFeatures?.[row.id] ?? EMPTY_FEATURES))) {
+          toast.error(t('eventUpgrade.exclusiveError')); return;
+        }
         const payload = {
           name: values.name.trim(),
           code: values.code.trim().toUpperCase(),
@@ -190,7 +201,11 @@ export default function EventStatusPage() {
         resetForm();
         const refreshed = await refetchStatusLists();
         const saved = editingId ?? refreshed[1].data?.data?.data?.find(row => row.name === values.name.trim() && row.order_data === Number(values.order_data))?.id;
-        if (saved) updateLifecycle(data => { data.codes[saved] = values.code.trim().toUpperCase(); });
+        if (saved) updateLifecycle(data => {
+          data.codes[saved] = values.code.trim().toUpperCase();
+          data.statusFeatures ||= {};
+          data.statusFeatures[saved] = { cuttingStock: values.cuttingStock, stockReturn: values.stockReturn, productionItem: values.productionItem };
+        });
       } catch (error) {
         toast(
           error instanceof Error
@@ -231,6 +246,7 @@ export default function EventStatusPage() {
     setEditingId(row.id);
     formik.resetForm({
       values: {
+        ...(lifecycleStore.statusFeatures?.[row.id] ?? EMPTY_FEATURES),
         code: row.code,
         name: row.status,
         order_data: String(row.order),
@@ -368,6 +384,10 @@ export default function EventStatusPage() {
         ))}
       </div>
 
+      <p className="ed-lock-note">{t('eventUpgrade.preview')}</p>
+      <div className="stats-bar">
+        {(['cuttingStock', 'stockReturn', 'productionItem'] as const).map(flag => <div className="stat-card" key={flag}><strong className="stat-value">{orderedStatuses.filter(row => lifecycleStore.statusFeatures?.[row.id]?.[flag]).length}</strong><span>{t('eventUpgrade.' + flag)}</span></div>)}
+      </div>
       <div className="card">
         <div className="toolbar">
           <div className="toolbar-left">
@@ -417,6 +437,7 @@ export default function EventStatusPage() {
                 <SortTh label={t("wording.status")} id="name" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} />
                 <th style={{ width: 100, textAlign: "center" }}>{t("wording.showScan")}</th>
                 <th>{t('wording.code')}</th>
+                {(['cuttingStock', 'stockReturn', 'productionItem'] as const).map(flag => <th key={flag}>{t('eventUpgrade.' + flag)}</th>)}
                 <th style={{ width: 120, textAlign: "center" }}>{t("wording.action")}</th>
                 <SortTh label={t("wording.eventRunning")} id="active_event" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 120, textAlign: "right" }} />
                 <SortTh label={t("wording.createdAt")} id="created_at" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 120 }} />
@@ -425,11 +446,11 @@ export default function EventStatusPage() {
             </thead>
             <tbody>
               {isLoading && statuses.length === 0 ? (
-                <tr><td colSpan={9} style={{ textAlign: "center", padding: 40 }}>{t("wording.loadingEventStatuses")}</td></tr>
+                <tr><td colSpan={12} style={{ textAlign: "center", padding: 40 }}>{t("wording.loadingEventStatuses")}</td></tr>
               ) : isError ? (
-                <tr><td colSpan={9} style={{ textAlign: "center", padding: 40, color: "var(--red)" }}>{t("wording.failedToLoadEventStatuses")}</td></tr>
+                <tr><td colSpan={12} style={{ textAlign: "center", padding: 40, color: "var(--red)" }}>{t("wording.failedToLoadEventStatuses")}</td></tr>
               ) : displayedStatuses.length === 0 ? (
-                <tr><td colSpan={9} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>{t("wording.noStatusesFound")}</td></tr>
+                <tr><td colSpan={12} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>{t("wording.noStatusesFound")}</td></tr>
               ) : (
                 displayedStatuses.map((row) => {
                   const orderedIndex = displayedStatuses.findIndex((status) => status.id === row.id);
@@ -455,6 +476,7 @@ export default function EventStatusPage() {
                     <td className="name-cell">{row.status}</td>
                     <td style={{ textAlign: "center" }}><ScanBadge scan={row.scan} /></td>
                     <td><span className="badge badge-gray">{row.code || '—'}</span></td>
+                    {(['cuttingStock', 'stockReturn', 'productionItem'] as const).map(flag => <td key={flag}><span className={lifecycleStore.statusFeatures?.[row.id]?.[flag] ? 'badge badge-green' : 'badge badge-gray'}>{t('eventUpgrade.' + (lifecycleStore.statusFeatures?.[row.id]?.[flag] ? 'true' : 'false'))}</span></td>)}
                     <td style={{ textAlign: "center", fontWeight: 600 }}>
                       <ScanActionBadge action={row.action} />
                     </td>
@@ -487,7 +509,7 @@ export default function EventStatusPage() {
         footer={
           <>
             <button className="btn-cancel-modal" disabled={isSaving} onClick={closeStatusModal}><IconClose /> {t("wording.cancel")}</button>
-            <button className="btn-save-modal" type="submit" disabled={isSaving} onClick={() => formik.handleSubmit()}><IconCheck /> {isSaving ? t("common.actions.saving") : t("common.actions.save")}</button>
+            <button className="btn-save-modal" type="submit" disabled={isSaving || !orderedResponse} onClick={() => formik.handleSubmit()}><IconCheck /> {isSaving ? t("common.actions.saving") : t("common.actions.save")}</button>
           </>
         }
       >
@@ -508,6 +530,14 @@ export default function EventStatusPage() {
           placeholder={t("wording.eGEventRunning")}
           errorText={formik.errors.name}
         />
+        {(['cuttingStock', 'stockReturn', 'productionItem'] as const).map(flag => {
+          const owner = flag === 'productionItem' ? undefined : orderedStatuses.find(row => row.id !== editingId && lifecycleStore.statusFeatures?.[row.id]?.[flag]);
+          const conflict = flag === 'cuttingStock' ? formik.values.stockReturn : flag === 'stockReturn' ? formik.values.cuttingStock : false;
+          return <div className="form-group" key={flag}><label>{t('eventUpgrade.' + flag)}</label><SearchableSelect value={String(formik.values[flag])} onChange={v => formik.setFieldValue(flag, v === 'true')} options={[
+            { value: 'false', label: t('eventUpgrade.false') },
+            { value: 'true', label: owner ? t('eventUpgrade.exclusive', { name: owner.status }) : t('eventUpgrade.true'), disabled: Boolean(owner || conflict) },
+          ]} /></div>;
+        })}
         <TextInput label={t('wording.code')} value={formik.values.code} onChange={value => formik.setFieldValue('code', value.toUpperCase())} />
         <div className="form-group">
           <label>{t("wording.scan")}</label>
