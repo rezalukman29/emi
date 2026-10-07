@@ -7,6 +7,10 @@ import ax from "../../service/axios";
 
 export interface EventStatusItem {
   code?: string;
+  cutting_stock?: boolean;
+  stock_return?: boolean;
+  production_item?: boolean;
+  updated_at?: string;
   id: number;
   name: string;
   user_emi_id: number;

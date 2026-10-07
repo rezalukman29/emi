@@ -1,4 +1,17 @@
 {
+  "conversion": {
+    "newProduction": "Produksi Baru", "convert": "Konversi", "pending": "Menunggu", "converted": "Dikonversi (preview)", "convertedQty": "Dikonversi: {{count}}",
+    "completeInfo": "Setelah barang selesai dibuat, lengkapi informasinya (SKU, kategori, satuan, dll.) di menu Inventory.",
+    "warning": "Konversi tetap berstatus pending sampai event berpindah ke tahap berikutnya. Setelah selesai, stok barang lama dikurangi, stok barang baru ditambahkan, dan perubahannya dicatat di Warehouse Inventory → Riwayat Stok.",
+    "applied": "Konversi diterapkan pada preview lokal. Lihat Warehouse Inventory → Riwayat Stok. Stok backend tidak berubah.",
+    "oldItem": "Barang Lama — cari barang event", "oldQty": "Jumlah Barang Lama", "newItem": "Barang Baru — cari inventory", "newQty": "Jumlah Barang Baru",
+    "available": "Tersedia untuk dikonversi: {{count}}", "submit": "Ajukan Konversi", "created": "Konversi barang berhasil diajukan.", "retry": "Coba Lagi",
+    "affectsStock": "Stok akan diperbarui saat konversi pending ini selesai.", "requestedBy": "Diajukan oleh {{name}}", "appliedAt": "Diterapkan",
+    "insufficient": "Konversi tidak dapat dilanjutkan: barang lama tidak tersedia atau stok tidak cukup. Batalkan atau buat ulang pengajuan yang menunggu.",
+    "stockHistory": "Riwayat Stok", "historyNotice": "Hanya riwayat preview konversi lokal. Saldo ini mencakup pengurangan lokal, bukan mutasi stok gudang aktual. Data dibatasi pada browser/akun ini.",
+    "emptyHistory": "Belum ada perubahan stok preview.",
+    "columns": { "date": "Tanggal", "item": "Barang", "warehouse": "Gudang", "change": "Perubahan", "stock": "Stok Preview", "reason": "Alasan", "event": "Event / Tahap", "by": "Oleh" }
+  },
   "eventUpgrade": {
     "confirm": "Konfirmasi",
     "confirmCut": "Konfirmasi & Potong Stok (pratinjau)",
@@ -12,7 +25,7 @@
     "true": "Ya",
     "false": "Tidak",
     "exclusive": "Sudah digunakan oleh {{name}}",
-    "exclusiveError": "Pemotongan dan Pengembalian Stok masing-masing hanya boleh di satu status dan tidak boleh pada status yang sama.",
+    "exclusiveError": "Pemotongan Stok hanya boleh di satu status. Tunggu hingga daftar status selesai dimuat.",
     "preview": "Pratinjau: pengaturan baru, indikator stok, perubahan barang dan permintaan produksi hanya disimpan di browser ini. Integrasi backend belum tersedia.",
     "confirmStage": "Konfirmasi perubahan tahap",
     "cutWarning": "Tahap ini menandai {{count}} barang ({{qty}} unit) sebagai stok dipotong pada pratinjau.",
@@ -34,9 +47,11 @@
     "submit": "Kirim permintaan",
     "advance": "Pindah ke {{status}}",
     "previewItem": "Barang produksi (pratinjau)",
-    "noRequests": "Belum ada permintaan produksi.",
+    "noRequests": "Belum ada pengajuan. Gunakan Request Production untuk produksi baru atau konversi.",
     "invalid": "Lengkapi isian wajib dengan jumlah yang valid.",
     "previewSaved": "Pratinjau tersimpan di browser ini.",
+    "itemUpdated": "Barang event berhasil diperbarui.",
+    "productionCreated": "Permintaan produksi berhasil dibuat.",
     "confirmCancel": "Batalkan permintaan produksi ini?",
     "confirmDelete": "Hapus barang ini dari event?",
     "lockStage": "Gunakan Next untuk mencapai tahap ini."

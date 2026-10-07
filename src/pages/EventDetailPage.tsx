@@ -30,6 +30,10 @@ import useGetBarangGudangV2, {
 import useGetAreaList from "../hooks/api/useGetAreaList";
 import useCreateFixEventList from "../hooks/api/useCreateFixEventList";
 import useCreateFixListItem from "../hooks/api/useCreateFixListItem";
+import usePutEventItem from '../hooks/api/usePutEventItem';
+import useCreateProductionRequest from '../hooks/api/useCreateProductionRequest';
+import useConvertEventItem from '../hooks/api/useConvertEventItem';
+import useGetProductionRequests from '../hooks/api/useGetProductionRequests';
 import useCreatePackage from "../hooks/api/useCreatePackage";
 import useGetEventPackages from "../hooks/api/useGetEventPackages";
 import useGetEventItem, { type EventItem } from "../hooks/api/useGetEventItem";
@@ -46,7 +50,11 @@ import "../eventUpgrade.css";
 import Drawer from "../components/Drawer";
 import EventItemEditor, { type EventItemDraft } from "../components/EventItemEditor";
 import { IconEdit } from "../components/icons";
-import { type ProductionRequest } from "../lib/eventLifecycle";
+import { type ProductionRequest, type ConvertRequest, updateLifecycle } from "../lib/eventLifecycle";
+import type { ConversionDraft } from '../components/ConversionForm';
+import { loadConversionStock } from '../lib/conversionInventory';
+import { planConversions } from '../lib/conversionPreview';
+import { eventStatusFeatures, hasReachedProductionStatus } from '../lib/eventStatusFeatures';
 import { canChangeStage } from "../lib/eventStageRules";
 
 
@@ -147,6 +155,11 @@ interface DisplayItem {
   stockCut?: boolean;
   stockReturned?: boolean;
   fromProduction?: boolean;
+  isNewProductionItem?: boolean;
+  fromConvert?: boolean;
+  isConverted?: boolean;
+  convertedQty?: number;
+  packageId?: number | null;
   subArea?: string;
   unit?: string;
   isReturned?: boolean;
@@ -168,6 +181,7 @@ interface DisplayItem {
   note: string;
   areaId?: number;
   subAreaId?: number;
+  barangId?: number;
   barangGudangId?: number;
   eventStatusId: number;
   scanned: boolean;
@@ -291,7 +305,7 @@ function mapEventItem(
     status: stage,
     stage,
     qty: item.qty,
-    pic: item.input_by,
+    pic: item.pic?.trim() || "",
     unit: item.satuan,
     subArea: item.sub_list_name,
     checking: item.is_checking.Valid && item.is_checking.Int64 === 1,
@@ -303,6 +317,7 @@ function mapEventItem(
     note: item.notes,
     areaId: item.list_id,
     subAreaId: item.sub_list_id.Valid ? item.sub_list_id.Int64 : undefined,
+    barangId: item.barang_id,
     barangGudangId: item.barang_gudang_id,
     eventStatusId: item.event_status_id,
     scanned: Boolean(scanIn || scanOut),
@@ -312,7 +327,15 @@ function mapEventItem(
     isReturned: item.is_returned === 1,
     isTransferredToOtherEvent: item.is_transfer_to_other_event === 1,
     isTransferredFromOtherEvent: item.is_transfer_from_other_event === 1,
+    isNewProductionItem: item.is_new_production_item,
+    isConverted: item.is_converted,
+    convertedQty: Number(item.converted_qty ?? 0),
+    packageId: item.package?.id ?? null,
   };
+}
+
+function isPackableEventItem(item: DisplayItem): boolean {
+  return item.id > 0 && item.packageId === null;
 }
 
 function CheckIcon() {
@@ -417,6 +440,9 @@ function ItemCard({
         ))}
         <StockBadge item={item} />
         {item.fromProduction && <span className="badge badge-purple">{i18n.t('eventUpgrade.previewItem')}</span>}
+        {item.isNewProductionItem && <span className="badge badge-purple">{i18n.t('eventUpgrade.productionItem')}</span>}
+        {item.fromConvert && <span className="badge badge-blue">{i18n.t('conversion.converted')}</span>}
+        {item.isConverted && <span className="badge badge-blue">{i18n.t('conversion.convertedQty', { count: item.convertedQty })}</span>}
         {item.resolution === 'returned' && <span className="badge badge-green">{i18n.t('lifecycle.returned')}</span>}
         </div>
         <div className="item-name-row">
@@ -529,6 +555,9 @@ function ItemTable({ items, onOpen, onModify, onDelete, onScan, showScanButton, 
     <td><strong>{item.name}</strong><div className="item-table-flags">
       {item.groupName && <span className="badge badge-purple">{item.groupName}</span>}<StockBadge item={item} />
       {item.fromProduction && <span className="badge badge-purple">{t('eventUpgrade.previewItem')}</span>}
+      {item.isNewProductionItem && <span className="badge badge-purple">{t('eventUpgrade.productionItem')}</span>}
+      {item.fromConvert && <span className="badge badge-blue">{t('conversion.converted')}</span>}
+      {item.isConverted && <span className="badge badge-blue">{t('conversion.convertedQty', { count: item.convertedQty })}</span>}
       {item.isReturned && <span className="badge badge-green">✓ {t('lifecycle.returned')}</span>}
       {item.isTransferredFromOtherEvent && <span className="badge badge-orange">↓ {t('lifecycle.transferred')}</span>}
       {item.isTransferredToOtherEvent && <span className="badge badge-orange">↑ {t('lifecycle.transferred')}</span>}
@@ -604,6 +633,15 @@ export default function EventDetailPage() {
     eventId,
     options: { enabled: Boolean(eventId) },
   });
+  const {
+    data: productionRequestsResponse,
+    isLoading: isProductionRequestsLoading,
+    isError: isProductionRequestsError,
+    refetch: refetchProductionRequests,
+  } = useGetProductionRequests({
+    eventId,
+    options: { enabled: Boolean(eventId) },
+  });
   const statusNames = useMemo(
     () => new Map(eventStatuses.map((status) => [status.id, status.name])),
     [eventStatuses],
@@ -621,6 +659,9 @@ export default function EventDetailPage() {
     useCreateFixEventList();
   const { mutateAsync: createFixListItem, isLoading: isCreatingFixListItem } =
     useCreateFixListItem();
+  const { mutateAsync: putEventItem } = usePutEventItem();
+  const { mutateAsync: createProductionRequest } = useCreateProductionRequest();
+  const { mutateAsync: convertEventItem } = useConvertEventItem();
 
   const [detailId, setDetailId] = useState<number | null>(null);
   const [modifyItem, setModifyItem] = useState<DisplayItem | null>(null);
@@ -657,6 +698,22 @@ export default function EventDetailPage() {
   const [selectedArea, setSelectedArea] = useState("");
   const [stageFilter, setStageFilter] = useState<"all" | "waiting" | "added" | "grouped" | "production">("all");
   const [kwSearch, setKwSearch] = useState("");
+
+  const {
+    data: productionItemResponse,
+    isLoading: isProductionItemsLoading,
+    isError: isProductionItemsError,
+    refetch: refetchProductionItems,
+  } = useGetEventItem({
+    params: {
+      event_id: eventId,
+      order: "asc",
+      is_new_production_item: 1,
+    },
+    options: {
+      enabled: Boolean(eventId) && stageFilter === "production",
+    },
+  });
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
@@ -863,13 +920,20 @@ export default function EventDetailPage() {
         };
       }).filter(item => item.resolution !== 'transferred');
 
-    const productionItems: DisplayItem[] = (lifecycle?.productionRequests ?? []).filter(r => r.status === 'Done').map<DisplayItem>(r => ({
+    const productionItems: DisplayItem[] = (lifecycle?.productionRequests ?? []).filter((r): r is ProductionRequest => r.type !== 'convert' && r.status === 'Done').map<DisplayItem>(r => ({
       id: -r.id, name: r.name, qty: r.qty, area: r.area, subArea: r.subArea, areaId: r.areaId, subAreaId: r.subAreaId,
       photo: noImage, ownerships: ['IHP'], pic: '', note: r.note, unit: 'pcs', status: statusNames.get(r.stageId) ?? '', stage: statusNames.get(r.stageId) ?? '',
       eventStatusId: r.stageId, checking: false, warehouseItem: false, scanInValue: 0, scanIn: null, scanOut: null, scanned: false, groupId: null, groupName: null, fromProduction: true,
       ...itemEdits[-r.id],
     })).filter(item => !hiddenItemIds.includes(item.id));
-    return [...visibleApiItems, ...createdItems, ...productionItems];
+    const convertedItems = (lifecycle?.productionRequests ?? []).filter((r): r is ConvertRequest => r.type === 'convert' && r.status === 'Converted').map<DisplayItem>(r => ({
+      id: -r.id, name: r.toName, qty: r.toQty, area: 'UNASSIGNED', subArea: '',
+      photo: r.toPhoto || noImage, ownerships: ['IHC'], pic: '', note: `${r.fromQty} × ${r.fromName} → ${r.toQty} × ${r.toName}`, unit: r.toUnit,
+      status: statusNames.get(r.stageId) ?? '', stage: statusNames.get(r.stageId) ?? '', eventStatusId: r.stageId,
+      checking: false, warehouseItem: true, scanInValue: 0, scanIn: null, scanOut: null, scanned: false,
+      groupId: null, groupName: null, fromConvert: true, ...itemEdits[-r.id],
+    })).filter(item => !hiddenItemIds.includes(item.id));
+    return [...visibleApiItems, ...createdItems, ...productionItems, ...convertedItems];
   }, [
     createdItems,
     itemEdits,
@@ -883,6 +947,46 @@ export default function EventDetailPage() {
     lifecycle?.items,
     lifecycle?.productionRequests,
   ]);
+
+  const backendProductionItems = useMemo(
+    () =>
+      (productionItemResponse?.data ?? [])
+        .map((item) => ({
+          ...mapEventItem(item, statusNames),
+          ...itemEdits[item.id],
+          ...scanOverrides[item.id],
+          resolution: lifecycle?.items?.[item.id]?.resolution,
+        }))
+        .filter(
+          (item) =>
+            !hiddenItemIds.includes(item.id) &&
+            item.resolution !== "transferred",
+        ),
+    [
+      hiddenItemIds,
+      itemEdits,
+      lifecycle?.items,
+      productionItemResponse?.data,
+      scanOverrides,
+      statusNames,
+    ],
+  );
+
+  const visibleProductionItems = useMemo(
+    () =>
+      backendProductionItems.filter((item) => {
+        if (selectedArea && item.area !== selectedArea) return false;
+        if (
+          kwSearch &&
+          !item.name.toLowerCase().includes(kwSearch.toLowerCase()) &&
+          !item.area.toLowerCase().includes(kwSearch.toLowerCase())
+        ) {
+          return false;
+        }
+        return true;
+      }),
+    [backendProductionItems, kwSearch, selectedArea],
+  );
 
   const areas = useMemo(
     () => [...new Set(items.map((item) => item.area).filter(Boolean))].sort(),
@@ -908,7 +1012,7 @@ export default function EventDetailPage() {
   const eventStatus = currentStatus?.name ?? stages[currentStageIndex] ?? stages[0];
   const closingFlag = resolveLifecycle({ id: eventId, status: currentStatus?.id, is_complete: eventDetail?.is_complete, is_finished: eventDetail?.is_finished, total_items: lifecycleItems.length }, { ...lifecycle, stageId: currentStatus?.id, itemCount: lifecycleItems.length }, eventStatuses[eventStatuses.length - 1]?.id);
   const isClosing = ['checking-inventory', 'returned-completed', 'transferred'].includes(closingFlag);
-  const features = lifecycleStore.statusFeatures ?? {};
+  const features = Object.fromEntries(eventStatuses.map(status => [status.id, eventStatusFeatures(status)]));
   const maxReachedIndex = Math.max(currentStageIndex, eventStatuses.findIndex(s => s.id === lifecycle?.furthestStageId));
   const returnIndex = eventStatuses.findIndex(s => features[s.id]?.stockReturn);
   useEffect(() => {
@@ -917,8 +1021,19 @@ export default function EventDetailPage() {
     try { updateEventLifecycle(eventId, { stageId: currentStatus.id, itemCount: lifecycleItems.length, furthestStageId: eventStatuses[maxReachedIndex]?.id, stockReturnReached: lifecycle?.stockReturnReached || (returnIndex >= 0 && maxReachedIndex >= returnIndex) }); } catch { /* API data remains usable without local storage. */ }
   }, [eventId, eventDetail, eventItemResponse, currentStatus?.id, lifecycleItems.length, lifecycle?.stageId, lifecycle?.itemCount, lifecycle?.furthestStageId, lifecycle?.stockReturnReached, maxReachedIndex, returnIndex, eventStatuses]);
   const addLocked = Boolean(lifecycle?.stockReturnReached) || (returnIndex >= 0 && maxReachedIndex >= returnIndex) || ['returned-completed', 'transferred'].includes(closingFlag);
-  const productionEnabled = Boolean(currentStatus && features[currentStatus.id]?.productionItem) && !addLocked && !isClosing;
+  const productionEnabled = currentStatus?.production_item === true;
+  const productionTabVisible = hasReachedProductionStatus(
+    currentStatus,
+    eventStatuses,
+  );
+  useEffect(() => {
+    if (!productionTabVisible && stageFilter === "production") {
+      setStageFilter("all");
+    }
+  }, [productionTabVisible, stageFilter]);
   const requests = lifecycle?.productionRequests ?? [];
+  const apiProductionRequests = productionRequestsResponse?.data ?? [];
+  const pendingConverts = requests.filter((r): r is ConvertRequest => r.type === 'convert' && r.status === 'Pending');
   const stageScanEnabled = currentStatus?.is_show_scan_result === 1;
   const currentScanAction = currentStatus?.action
     ?.trim()
@@ -957,7 +1072,9 @@ export default function EventDetailPage() {
     () => [...apiPackages, ...localPackages],
     [apiPackages, localPackages],
   );
-  const detailItem = items.find(item => item.id === detailId) ?? packages.flatMap(p => p.items ?? []).find(item => item.id === detailId);
+  const detailItem = items.find(item => item.id === detailId)
+    ?? backendProductionItems.find(item => item.id === detailId)
+    ?? packages.flatMap(p => p.items ?? []).find(item => item.id === detailId);
   const barangGudangItems = useMemo(
     () => barangGudangResponse?.data ?? [],
     [barangGudangResponse?.data],
@@ -1030,7 +1147,11 @@ export default function EventDetailPage() {
     [currentScanAction, scopedItems],
   );
   const effectiveStageFilter =
-    stageFilter === "waiting" && !stageScanEnabled ? "all" : stageFilter;
+    stageFilter === "production" && !productionTabVisible
+      ? "all"
+      : stageFilter === "waiting" && !stageScanEnabled
+        ? "all"
+        : stageFilter;
   const displayedItems =
     effectiveStageFilter === "waiting"
       ? waitingScanItems
@@ -1048,7 +1169,7 @@ export default function EventDetailPage() {
     [packages],
   );
   const packableItems = items.filter(
-    (item) => item.id > 0 && !item.groupId && !packagedItemIds.has(item.id),
+    (item) => isPackableEventItem(item) && !item.groupId && !packagedItemIds.has(item.id),
   );
   const summaryStats = useMemo(
     () => ({
@@ -1086,6 +1207,10 @@ export default function EventDetailPage() {
 
     try {
       setIsChangingEventStatus(true);
+      // Read fresh stock before the real stage update. No stock mutation is sent to BE.
+      const conversionPlan = targetIndex > currentStageIndex && pendingConverts.length
+        ? planConversions(lifecycleStore, eventId, await loadConversionStock(), targetStatus.id, eventName, targetStatus.name, getLoggedInFullname() ?? '', new Date().toISOString())
+        : null;
       const response = await InventoryService.editEvent({
         id: eventDetail.id,
         description: eventDetail.description ?? "",
@@ -1112,6 +1237,14 @@ export default function EventDetailPage() {
         throw new Error(response.message || "Failed to update event status.");
       }
       setCurrentStatusId(targetStatus.id);
+      if (conversionPlan) {
+        try { updateLifecycle(data => {
+          const applied = new Set((data.stockMovements ?? []).map(m => m.id));
+          data.stockMovements = [...conversionPlan.movements.filter(m => !applied.has(m.id)), ...(data.stockMovements ?? [])];
+          data.events[eventId] = { ...data.events[eventId], productionRequests: conversionPlan.requests };
+        }, `${eventName}: Convert preview at ${targetStatus.name}`); }
+        catch { toast.error(t('lifecycle.saveFailed')); }
+      }
       try { updateEventLifecycle(eventId, { furthestStageId: eventStatuses[Math.max(maxReachedIndex, targetIndex)]?.id, stockReturnReached: lifecycle?.stockReturnReached || willReturn }, `${eventName}: Stage → ${targetStatus.name}${willCut ? '; stock cut preview' : ''}${willReturn ? '; stock return preview' : ''}`); } catch { toast.error(t('lifecycle.saveFailed')); }
       if (willCut || willReturn) setItemEdits(old => {
         const next = { ...old };
@@ -1123,7 +1256,7 @@ export default function EventDetailPage() {
       setStepperError("");
       await refetchEventDetail();
     } catch (error) {
-      toast.error(getCheckoutErrorMessage(error));
+      toast.error(error instanceof Error && error.message === 'conversionStockUnavailable' ? t('conversion.insufficient') : getCheckoutErrorMessage(error));
     } finally {
       setIsChangingEventStatus(false);
     }
@@ -1763,27 +1896,74 @@ export default function EventDetailPage() {
     !!selectedBarangGudang && !!newItemForm.areaId && !!newItemForm.subAreaId;
 
 
-  function saveRequests(value: ProductionRequest[]) {
-    try { updateEventLifecycle(eventId, { productionRequests: value }, `${eventName}: Update production requests (preview)`); return true; }
-    catch { toast.error(t('lifecycle.saveFailed')); return false; }
-  }
-  function productionLabel(status: ProductionRequest['status']) {
-    return t('eventUpgrade.' + (status === 'Requested' ? 'requested' : status === 'In Production' ? 'inProduction' : 'done'));
-  }
-  function advanceRequest(request: ProductionRequest) {
-    if (isClosing || addLocked || request.status === 'Done') return;
-    saveRequests(requests.map(r => r.id === request.id ? { ...r, status: r.status === 'Requested' ? 'In Production' : 'Done' } : r));
-  }
-  function submitProduction(value: EventItemDraft) {
-    if (!productionEnabled || !value.areaId || !currentStatus) return;
-    if (saveRequests([...requests, { id: Date.now(), name: value.name.trim(), qty: value.qty, area: value.area, areaId: value.areaId, subArea: value.subArea ?? '', subAreaId: value.subAreaId, note: value.note, neededBy: value.neededBy, stageId: currentStatus.id, status: 'Requested' }])) {
-      setProductionOpen(false); setStageFilter('production');
+  async function submitProduction(value: EventItemDraft) {
+    if (!productionEnabled || !value.areaId) return;
+    try {
+      const response = await createProductionRequest({
+        event_id: eventId,
+        item_name: value.name.trim(),
+        qty: value.qty,
+        area_id: value.areaId,
+        ...(value.subAreaId ? { sub_area_id: value.subAreaId } : {}),
+        notes: value.note.trim(),
+      });
+      setStageFilter("production");
+      await Promise.all([
+        refetchEventItems(),
+        refetchProductionItems(),
+        refetchProductionRequests(),
+      ]);
+      setProductionOpen(false);
+      toast.success(response.message || t("eventUpgrade.productionCreated"));
+    } catch (error) {
+      toast.error(getCheckoutErrorMessage(error));
     }
   }
-  function saveItemPreview(value: EventItemDraft) {
+  async function submitConversion(value: ConversionDraft) {
+    if (!productionEnabled) return;
+    try {
+      const response = await convertEventItem({
+        id_fix_list_item_event: value.fromEventItemId,
+        old_qty: value.fromQty,
+        barang_id: value.toItemId,
+        new_qty: value.toQty,
+      });
+      await Promise.all([refetchEventItems(), refetchProductionRequests()]);
+      setProductionOpen(false);
+      setStageFilter("all");
+      toast.success(response.message || t("conversion.created"));
+    } catch (error) {
+      toast.error(getCheckoutErrorMessage(error));
+    }
+  }
+  async function saveItemPreview(value: EventItemDraft) {
     if (!modifyItem || isClosing) return;
-    setItemEdits(old => ({ ...old, [modifyItem.id]: { ...old[modifyItem.id], qty: value.qty, pic: value.pic, area: value.area, areaId: value.areaId, subArea: value.subArea, subAreaId: value.subAreaId, note: value.note, ownerships: value.ownerships } }));
-    setModifyItem(null); toast.success(t('eventUpgrade.previewSaved'));
+    if (modifyItem.id <= 0) {
+      setItemEdits(old => ({ ...old, [modifyItem.id]: { ...old[modifyItem.id], qty: value.qty, pic: value.pic, area: value.area, areaId: value.areaId, subArea: value.subArea, subAreaId: value.subAreaId, note: value.note, ownerships: value.ownerships } }));
+      setModifyItem(null); toast.success(t('eventUpgrade.previewSaved')); return;
+    }
+    if (!value.areaId || !value.subAreaId) return;
+    try {
+      const response = await putEventItem({
+        id: modifyItem.id,
+        list_id: value.areaId,
+        sub_list_id: value.subAreaId,
+        qty: value.qty,
+        pic: value.pic.trim(),
+        notes: value.note.trim(),
+        ownerships: {
+          ihc: value.ownerships.includes('IHC'),
+          ihp: value.ownerships.includes('IHP'),
+          outsource: value.ownerships.includes('Outsource'),
+        },
+      });
+      setItemEdits(old => { const next = { ...old }; delete next[modifyItem.id]; return next; });
+      await refetchEventItems();
+      setModifyItem(null);
+      toast.success(response.message || t('eventUpgrade.itemUpdated'));
+    } catch (error) {
+      toast.error(getCheckoutErrorMessage(error));
+    }
   }
 
   const openCart = () => {
@@ -1981,20 +2161,95 @@ export default function EventDetailPage() {
         </div>
 
         <div className="stage-tabs-row"><div className="stage-tabs">
-          {(['all', 'added', ...(stageScanEnabled ? ['waiting'] : []), 'grouped', ...(productionEnabled || requests.length ? ['production'] : [])] as const).map(tab => {
+          {(['all', 'added', ...(stageScanEnabled ? ['waiting'] : []), 'grouped', ...(productionTabVisible ? ['production'] : [])] as const).map(tab => {
             const labels: Record<string, string> = { all: 'wording.all', added: 'wording.addedNew', waiting: 'wording.waitingScan', grouped: 'wording.grouped', production: 'eventUpgrade.production' };
-            const counts: Record<string, number> = { all: scopedItems.length, added: currentStageItems.length, waiting: waitingScanItems.length, grouped: packages.length, production: requests.length };
+            const counts: Record<string, number> = { all: scopedItems.length, added: currentStageItems.length, waiting: waitingScanItems.length, grouped: packages.length, production: productionRequestsResponse ? apiProductionRequests.length : (productionItemResponse ? backendProductionItems.length : items.filter(item => item.isNewProductionItem).length) + requests.length };
             return <button key={tab} className={'stage-tab' + (effectiveStageFilter === tab ? ' active' : '')} onClick={() => setStageFilter(tab as typeof stageFilter)}>{t(labels[tab])} <span className="stage-tab-count">{counts[tab]}</span></button>;
           })}
         </div><div className="view-toggle">{(['cards', 'list'] as const).map(mode => <button key={mode} title={t('eventUpgrade.' + mode)} aria-label={t('eventUpgrade.' + mode)} aria-pressed={viewMode === mode} className={viewMode === mode ? 'active' : ''} onClick={() => { setViewMode(mode); try { localStorage.setItem('emi_event_detail_view', mode); } catch { /* Preference is optional. */ } }}>{mode === 'cards' ? '▦' : '☰'}</button>)}</div></div>
         {effectiveStageFilter === "production" ? <div className="production-list">
-          <p className="ed-lock-note">{t('eventUpgrade.preview')}</p>
-          {!requests.length && <p className="no-data">{t('eventUpgrade.noRequests')}</p>}
-          {requests.map(request => <div className="production-card" key={request.id}><div><strong>{request.name}</strong> <span className="badge badge-purple">{productionLabel(request.status)}</span><p>{request.qty} · {request.area} · {request.subArea} · {request.neededBy}</p><p>{request.note}</p></div>
-          {!isClosing && !addLocked && request.status !== 'Done' && <div className="production-card-actions">
-            <button className="btn-save-modal" onClick={() => advanceRequest(request)}>{t('eventUpgrade.advance', { status: productionLabel(request.status === 'Requested' ? 'In Production' : 'Done') })}</button>
-            {request.status === 'Requested' && <button className="btn-cancel-modal" onClick={() => { if (window.confirm(t('eventUpgrade.confirmCancel'))) saveRequests(requests.filter(r => r.id !== request.id)); }}>{t('wording.cancel')}</button>}
-          </div>}</div>)}
+          {isProductionRequestsLoading ? (
+            <p className="no-data">{t("wording.loading")}</p>
+          ) : !isProductionRequestsError ? (
+            apiProductionRequests.length > 0 ? apiProductionRequests.map((request) => {
+              const isConvertRequest = (request.type || "").toUpperCase() === "CONVERT";
+              const normalizedStatus = (request.status || "").toUpperCase();
+              const statusClass = normalizedStatus === "COMPLETED"
+                ? "badge-green"
+                : normalizedStatus === "CANCELLED"
+                  ? "badge-red"
+                  : "badge-orange";
+              return <div className="production-card production-request-card" key={request.id}>
+                <div className="production-card-main">
+                  <div className="production-request-header">
+                    <div className="production-request-heading">
+                      <span className={`badge ${isConvertRequest ? "badge-blue" : "badge-purple"}`}>
+                        {t(isConvertRequest ? "conversion.convert" : "conversion.newProduction")}
+                      </span>
+                      <strong className="production-request-title">{isConvertRequest
+                        ? `${request.old_item?.qty ?? 0} × ${request.old_item?.nama || "—"} → ${request.new_item?.qty ?? 0} × ${request.new_item?.nama || "—"}`
+                        : request.item_name}</strong>
+                    </div>
+                    <span className={`badge production-request-status ${statusClass}`}>{normalizedStatus || "—"}</span>
+                  </div>
+                  <div className="production-request-details">
+                    {isConvertRequest ? <>
+                      <div className="production-request-route">
+                        <span>{request.old_item?.warehouse_name || "—"}</span>
+                        <span className="production-request-route-arrow">→</span>
+                        <span>{request.new_item?.warehouse_name || "—"}</span>
+                        <span className="production-request-sku">{request.new_item?.sku || "—"}</span>
+                      </div>
+                      {request.affects_stock && <p className="production-request-warning">{t("conversion.affectsStock")}</p>}
+                    </> : <>
+                      <div className="production-request-route">
+                        <span>{request.area_name || "—"}</span>
+                        {request.sub_area_name && <><span className="production-request-route-arrow">/</span><span>{request.sub_area_name}</span></>}
+                      </div>
+                      {request.notes && <p className="production-request-note">{request.notes}</p>}
+                    </>}
+                  </div>
+                  <div className="production-request-footer">
+                    <span>{t("conversion.requestedBy", { name: request.requested_by || "—" })}</span>
+                    {request.created_at && <span>{request.created_at}</span>}
+                    {request.applied_at && <span>{t("conversion.appliedAt")}: {request.applied_at}</span>}
+                  </div>
+                </div>
+              </div>;
+            }) : <p className="no-data">{t('eventUpgrade.noRequests')}</p>
+          ) : isProductionItemsLoading ? (
+            <p className="no-data">{t("wording.loading")}</p>
+          ) : isProductionItemsError ? (
+            <p className="no-data">{t("wording.failedToLoadEventItems")}</p>
+          ) : visibleProductionItems.length > 0 ? (
+            viewMode === "list" ? (
+              <ItemTable
+                items={visibleProductionItems}
+                onOpen={(item) => setDetailId(item.id)}
+                onModify={isClosing ? undefined : setModifyItem}
+                onDelete={isClosing ? undefined : deleteItem}
+                onScan={openScanPopup}
+                showScanButton={stageScanEnabled}
+                isScanned={isItemScannedForCurrentStatus}
+              />
+            ) : (
+              <div className="items-grid">
+                {visibleProductionItems.map((item) => (
+                  <ItemCard
+                    key={item.id}
+                    item={item}
+                    group={item.groupId ? packages.find((group) => group.id === item.groupId) : undefined}
+                    showScanButton={stageScanEnabled && item.id > 0}
+                    isScanned={isItemScannedForCurrentStatus(item)}
+                    onScan={openScanPopup}
+                    onDelete={isClosing ? undefined : deleteItem}
+                    onOpen={(selectedItem) => setDetailId(selectedItem.id)}
+                    onModify={isClosing ? undefined : setModifyItem}
+                  />
+                ))}
+              </div>
+            )
+          ) : <p className="no-data">{t('eventUpgrade.noRequests')}</p>}
         </div> : effectiveStageFilter === "grouped" ? (
           <>
             {isEventPackagesLoading ? (
@@ -2085,6 +2340,7 @@ export default function EventDetailPage() {
         {(willCut || willReturn) && <p className="ed-lock-note">{t('eventUpgrade.preview')}</p>}
         {willCut && <p className="stage-confirm-cut">{t('eventUpgrade.cutWarning', { count: items.filter(i => !i.stockCut).length, qty: items.filter(i => !i.stockCut).reduce((sum, i) => sum + i.qty, 0) })}</p>}
         {willReturn && <p className="stage-confirm-cut stage-confirm-return">{t('eventUpgrade.returnWarning')}</p>}
+        {pendingStage !== null && pendingStage > currentStageIndex && pendingConverts.length > 0 && <div className="prod-notice prod-notice-warn"><div><p>{t('conversion.warning')}</p><ul>{pendingConverts.map(r => <li key={r.id}>{r.fromQty} × {r.fromName} → {r.toQty} × {r.toName} ({r.fromWarehouse})</li>)}</ul></div></div>}
       </Modal>
       <Drawer open={Boolean(detailItem)} title={t('eventUpgrade.detail')} onClose={() => setDetailId(null)} footer={detailItem && <>
         {isClosing ? <span className="drawer-lock-note">{t('eventUpgrade.readOnly')}</span> : <>
@@ -2096,6 +2352,9 @@ export default function EventDetailPage() {
         {detailItem && <>
           <div className="drawer-img"><ImagePlaceholder src={detailItem.photo} alt={detailItem.name} /></div>
           <h3>{detailItem.name}</h3><StockBadge item={detailItem} />
+          {detailItem.isNewProductionItem && <span className="badge badge-purple">{t('eventUpgrade.productionItem')}</span>}
+          {detailItem.fromConvert && <span className="badge badge-blue">{t('conversion.converted')}</span>}
+          {detailItem.isConverted && <span className="badge badge-blue">{t('conversion.convertedQty', { count: detailItem.convertedQty })}</span>}
           <dl className="drawer-dl">{[
             [t('wording.qty'), `${detailItem.qty} ${detailItem.unit ?? ''}`], [t('wording.area'), detailItem.area], [t('wording.subArea'), detailItem.subArea],
             ['PIC', detailItem.pic], [t('wording.ownerships'), detailItem.ownerships.join(', ')], [t('wording.status'), detailItem.stage],
@@ -2109,8 +2368,24 @@ export default function EventDetailPage() {
           </div>
         </>}
       </Drawer>
-      {modifyItem && <EventItemEditor key={modifyItem.id} initial={{ ...modifyItem, neededBy: '' }} production={false} onSave={saveItemPreview} onClose={() => setModifyItem(null)} />}
-      {productionOpen && <EventItemEditor initial={{ name: '', qty: 1, area: '', pic: '', note: '', neededBy: '', ownerships: ['IHP'] }} production onSave={submitProduction} onClose={() => setProductionOpen(false)} />}
+      {modifyItem && <EventItemEditor key={modifyItem.id} initial={modifyItem} production={false} onSave={saveItemPreview} onClose={() => setModifyItem(null)} />}
+      {productionOpen && <EventItemEditor
+        initial={{ name: '', qty: 1, area: '', pic: '', note: '', ownerships: ['IHP'] }}
+        production
+        onSave={submitProduction}
+        onConvert={submitConversion}
+        conversionItems={items
+          .filter((item) => item.id > 0 && item.qty > 0 && Boolean(item.barangId))
+          .map((item) => ({
+            id: item.id,
+            itemId: item.barangId as number,
+            stockRowId: item.barangGudangId || item.id,
+            name: item.name,
+            location: item.area,
+            qty: Math.max(0, item.qty - (item.convertedQty ?? 0)),
+          }))}
+        onClose={() => setProductionOpen(false)}
+      />}
       <EventLifecycleModal key={`${eventId}-${lifecycleMode}`} eventId={eventId} eventName={eventName} items={lifecycleItems} stages={eventStatuses} mode={lifecycleMode} onFinalized={refreshAfterFinalize} onClose={() => setLifecycleMode(null)} />
       <Modal
         open={atcOpen}

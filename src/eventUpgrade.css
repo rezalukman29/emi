@@ -207,3 +207,116 @@
 .item-table-actions svg { width: 16px; height: 16px; }
 .package-card:has(.item-table) { width: 100%; }
 .item-card-action:disabled { opacity: .4; }
+.prod-notice { display: flex; gap: 10px; align-items: flex-start; padding: 10px 14px; margin-bottom: 16px; border-radius: var(--r-lg); font-size: 12.5px; line-height: 1.5; }
+.prod-notice-info { background: var(--brand-bg); color: var(--brand-dark); }
+.prod-notice-warn { background: var(--orange-bg); color: var(--orange); }
+.production-card-note.warn { color: var(--orange); font-weight: 600; }
+.production-card-note.info { color: var(--brand); font-size: 12px; }
+.production-request-card {
+  align-items: stretch;
+  padding: 18px 20px;
+}
+.production-request-card .production-card-main {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+}
+.production-request-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+.production-request-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  min-width: 0;
+}
+.production-request-title {
+  min-width: 0;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.production-request-status {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+.production-request-details {
+  display: grid;
+  gap: 9px;
+}
+.production-request-route {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px 8px;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.production-request-route-arrow {
+  color: var(--text-muted);
+  font-weight: 700;
+}
+.production-request-sku {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.production-request-warning,
+.production-request-note {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.production-request-warning {
+  width: fit-content;
+  max-width: 100%;
+  padding: 7px 10px;
+  border-radius: var(--r);
+  background: var(--orange-bg);
+  color: var(--orange);
+  font-weight: 600;
+}
+.production-request-note {
+  color: var(--text-2);
+}
+.production-request-footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-2);
+  color: var(--text-muted);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+.production-request-footer span {
+  display: inline-flex;
+  align-items: center;
+}
+@media (max-width: 640px) {
+  .production-request-card { padding: 15px; }
+  .production-request-header { align-items: flex-start; }
+  .production-request-status { margin-left: auto; }
+  .production-request-title { flex-basis: 100%; }
+}
+.ownership-fieldset { border: 0; padding: 0; margin: 0 0 14px; min-width: 0; }
+.ownership-fieldset legend { margin-bottom: 8px; }
+.ownership-choice-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.ownership-fieldset .ownership-choice { position: relative; display: inline-flex; align-items: center; gap: 9px; min-height: 42px; margin: 0; padding: 8px 14px; border: 1.5px solid var(--border); border-radius: var(--r); background: var(--white); color: var(--text-2); cursor: pointer; font-size: 13px; font-weight: 600; letter-spacing: normal; line-height: 1.2; text-transform: none; }
+.ownership-choice:has(input:checked) { border-color: var(--brand); background: var(--brand-bg); color: var(--brand); }
+.ownership-choice input[type="checkbox"] { position: absolute; opacity: 0; pointer-events: none; }
+.ownership-choice::before { content: ''; display: block; width: 17px; height: 17px; flex: 0 0 17px; border: 1.5px solid var(--text-muted); border-radius: 4px; background: var(--white); box-sizing: border-box; }
+.ownership-choice:has(input:checked)::before { content: '✓'; display: grid; place-items: center; border-color: var(--brand); background: var(--brand); color: var(--white); font-size: 13px; font-weight: 800; line-height: 1; }
+.ownership-choice:has(input:focus-visible) { outline: 2px solid var(--brand); outline-offset: 2px; }
+.ownership-choice span { position: static; display: block; font-weight: 600; line-height: 1.2; }

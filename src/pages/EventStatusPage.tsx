@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQueryClient } from 'react-query';
 import { useFormik } from "formik";
 import { toast } from "react-toastify";
 import * as Yup from "yup";
@@ -14,11 +15,12 @@ import useGetEventStatus, {
   type GetEventStatusResponse,
 } from "../hooks/api/useGetEventStatus";
 import usePostEventStatus from "../hooks/api/usePostEventStatus";
+import type { EventStatusPayload } from '../hooks/api/usePostEventStatus';
 import usePutEventStatus from "../hooks/api/usePutEventStatus";
 import { InventoryService } from "../service/InventoryService";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
-import { useEventLifecycle, updateLifecycle } from '../lib/eventLifecycle';
+import { eventStatusFeatures } from '../lib/eventStatusFeatures';
 import { hasExclusiveFlagConflict } from '../lib/eventStageRules';
 import "../eventUpgrade.css";
 
@@ -31,6 +33,9 @@ type ScanAction = "" | "SCAN_IN" | "SCAN_OUT";
 type ScanSetting = "None" | "Scan";
 
 interface EventStatusRow {
+  stockReturn: boolean;
+  productionItem: boolean;
+  cuttingStock: boolean;
   code: string;
   id: number;
   order: number;
@@ -95,6 +100,7 @@ function ScanBadge({ scan }: { scan: ScanSetting }) {
 
 function mapEventStatuses(response: GetEventStatusResponse): EventStatusRow[] {
   return (response.data?.data ?? []).map((status) => ({
+    ...eventStatusFeatures(status),
     id: status.id,
     code: status.code || '',
     order: status.order_data,
@@ -102,12 +108,12 @@ function mapEventStatuses(response: GetEventStatusResponse): EventStatusRow[] {
     scan: status.is_show_scan_result === 1 ? "Scan" : "None",
     action: status.action,
     eventRunning: status.active_event,
-    updatedAt: status.created_at,
+    updatedAt: status.updated_at ?? status.created_at,
   }));
 }
 
 export default function EventStatusPage() {
-  const lifecycleStore = useEventLifecycle();
+  const queryClient = useQueryClient();
   const { t } = useTranslation();
   const [statuses, setStatuses] = useState<EventStatusRow[]>([]);
   const [searchInput, setSearchInput] = useState("");
@@ -159,9 +165,10 @@ export default function EventStatusPage() {
   const orderedStatuses = orderedResponse
     ? mapEventStatuses(orderedResponse).sort((left, right) => left.order - right.order)
     : [...statuses].sort((left, right) => left.order - right.order);
-  const displayedStatuses = (reorderMode ? draftStatuses : statuses).map(row => ({ ...row, code: lifecycleStore.codes[row.id] ?? row.code }));
+  const displayedStatuses = (reorderMode ? draftStatuses : statuses);
 
   async function refetchStatusLists() {
+    await queryClient.invalidateQueries(['useGetEventStatus'], { refetchActive: false });
     return Promise.all([
       refetchEventStatuses(),
       refetchOrderedEventStatuses(),
@@ -179,12 +186,14 @@ export default function EventStatusPage() {
     onSubmit: async (values, { resetForm }) => {
       try {
         const featureRows = orderedStatuses.filter(row => row.id !== editingId);
-        if (!orderedResponse || hasExclusiveFlagConflict(values, featureRows.map(row => lifecycleStore.statusFeatures?.[row.id] ?? EMPTY_FEATURES))) {
+        if (!orderedResponse || hasExclusiveFlagConflict(values, featureRows)) {
           toast.error(t('eventUpgrade.exclusiveError')); return;
         }
-        const payload = {
+        const payload: EventStatusPayload = {
           name: values.name.trim(),
           code: values.code.trim().toUpperCase(),
+          cutting_stock: values.cuttingStock,
+          production_item: values.productionItem,
           is_show_scan_result: values.action ? 1 : 0,
           order_data: Number(values.order_data),
           action: values.action,
@@ -199,13 +208,7 @@ export default function EventStatusPage() {
         setStatusModal(false);
         setEditingId(null);
         resetForm();
-        const refreshed = await refetchStatusLists();
-        const saved = editingId ?? refreshed[1].data?.data?.data?.find(row => row.name === values.name.trim() && row.order_data === Number(values.order_data))?.id;
-        if (saved) updateLifecycle(data => {
-          data.codes[saved] = values.code.trim().toUpperCase();
-          data.statusFeatures ||= {};
-          data.statusFeatures[saved] = { cuttingStock: values.cuttingStock, stockReturn: values.stockReturn, productionItem: values.productionItem };
-        });
+        await refetchStatusLists();
       } catch (error) {
         toast(
           error instanceof Error
@@ -246,7 +249,9 @@ export default function EventStatusPage() {
     setEditingId(row.id);
     formik.resetForm({
       values: {
-        ...(lifecycleStore.statusFeatures?.[row.id] ?? EMPTY_FEATURES),
+        cuttingStock: row.cuttingStock,
+        stockReturn: row.stockReturn,
+        productionItem: row.productionItem,
         code: row.code,
         name: row.status,
         order_data: String(row.order),
@@ -308,6 +313,8 @@ export default function EventStatusPage() {
             id: status.id,
             name: status.status,
             code: status.code,
+            cutting_stock: status.cuttingStock,
+            production_item: status.productionItem,
             is_show_scan_result: status.scan === "Scan" ? 1 : 0,
             order_data: status.order,
             action: normalizeScanAction(status.action),
@@ -384,9 +391,8 @@ export default function EventStatusPage() {
         ))}
       </div>
 
-      <p className="ed-lock-note">{t('eventUpgrade.preview')}</p>
       <div className="stats-bar">
-        {(['cuttingStock', 'stockReturn', 'productionItem'] as const).map(flag => <div className="stat-card" key={flag}><strong className="stat-value">{orderedStatuses.filter(row => lifecycleStore.statusFeatures?.[row.id]?.[flag]).length}</strong><span>{t('eventUpgrade.' + flag)}</span></div>)}
+        {(['cuttingStock', 'productionItem'] as const).map(flag => <div className="stat-card" key={flag}><strong className="stat-value">{orderedStatuses.filter(row => row[flag]).length}</strong><span>{t('eventUpgrade.' + flag)}</span></div>)}
       </div>
       <div className="card">
         <div className="toolbar">
@@ -437,7 +443,7 @@ export default function EventStatusPage() {
                 <SortTh label={t("wording.status")} id="name" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} />
                 <th style={{ width: 100, textAlign: "center" }}>{t("wording.showScan")}</th>
                 <th>{t('wording.code')}</th>
-                {(['cuttingStock', 'stockReturn', 'productionItem'] as const).map(flag => <th key={flag}>{t('eventUpgrade.' + flag)}</th>)}
+                {(['cuttingStock', 'productionItem'] as const).map(flag => <th key={flag}>{t('eventUpgrade.' + flag)}</th>)}
                 <th style={{ width: 120, textAlign: "center" }}>{t("wording.action")}</th>
                 <SortTh label={t("wording.eventRunning")} id="active_event" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 120, textAlign: "right" }} />
                 <SortTh label={t("wording.createdAt")} id="created_at" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 120 }} />
@@ -446,11 +452,11 @@ export default function EventStatusPage() {
             </thead>
             <tbody>
               {isLoading && statuses.length === 0 ? (
-                <tr><td colSpan={12} style={{ textAlign: "center", padding: 40 }}>{t("wording.loadingEventStatuses")}</td></tr>
+                <tr><td colSpan={11} style={{ textAlign: "center", padding: 40 }}>{t("wording.loadingEventStatuses")}</td></tr>
               ) : isError ? (
-                <tr><td colSpan={12} style={{ textAlign: "center", padding: 40, color: "var(--red)" }}>{t("wording.failedToLoadEventStatuses")}</td></tr>
+                <tr><td colSpan={11} style={{ textAlign: "center", padding: 40, color: "var(--red)" }}>{t("wording.failedToLoadEventStatuses")}</td></tr>
               ) : displayedStatuses.length === 0 ? (
-                <tr><td colSpan={12} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>{t("wording.noStatusesFound")}</td></tr>
+                <tr><td colSpan={11} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>{t("wording.noStatusesFound")}</td></tr>
               ) : (
                 displayedStatuses.map((row) => {
                   const orderedIndex = displayedStatuses.findIndex((status) => status.id === row.id);
@@ -476,7 +482,7 @@ export default function EventStatusPage() {
                     <td className="name-cell">{row.status}</td>
                     <td style={{ textAlign: "center" }}><ScanBadge scan={row.scan} /></td>
                     <td><span className="badge badge-gray">{row.code || '—'}</span></td>
-                    {(['cuttingStock', 'stockReturn', 'productionItem'] as const).map(flag => <td key={flag}><span className={lifecycleStore.statusFeatures?.[row.id]?.[flag] ? 'badge badge-green' : 'badge badge-gray'}>{t('eventUpgrade.' + (lifecycleStore.statusFeatures?.[row.id]?.[flag] ? 'true' : 'false'))}</span></td>)}
+                    {(['cuttingStock', 'productionItem'] as const).map(flag => <td key={flag}><span className={row[flag] ? 'badge badge-green' : 'badge badge-gray'}>{t('eventUpgrade.' + (row[flag] ? 'true' : 'false'))}</span></td>)}
                     <td style={{ textAlign: "center", fontWeight: 600 }}>
                       <ScanActionBadge action={row.action} />
                     </td>
@@ -530,12 +536,11 @@ export default function EventStatusPage() {
           placeholder={t("wording.eGEventRunning")}
           errorText={formik.errors.name}
         />
-        {(['cuttingStock', 'stockReturn', 'productionItem'] as const).map(flag => {
-          const owner = flag === 'productionItem' ? undefined : orderedStatuses.find(row => row.id !== editingId && lifecycleStore.statusFeatures?.[row.id]?.[flag]);
-          const conflict = flag === 'cuttingStock' ? formik.values.stockReturn : flag === 'stockReturn' ? formik.values.cuttingStock : false;
+        {(['cuttingStock', 'productionItem'] as const).map(flag => {
+          const owner = flag === 'productionItem' ? undefined : orderedStatuses.find(row => row.id !== editingId && row[flag]);
           return <div className="form-group" key={flag}><label>{t('eventUpgrade.' + flag)}</label><SearchableSelect value={String(formik.values[flag])} onChange={v => formik.setFieldValue(flag, v === 'true')} options={[
             { value: 'false', label: t('eventUpgrade.false') },
-            { value: 'true', label: owner ? t('eventUpgrade.exclusive', { name: owner.status }) : t('eventUpgrade.true'), disabled: Boolean(owner || conflict) },
+            { value: 'true', label: owner ? t('eventUpgrade.exclusive', { name: owner.status }) : t('eventUpgrade.true'), disabled: Boolean(owner) },
           ]} /></div>;
         })}
         <TextInput label={t('wording.code')} value={formik.values.code} onChange={value => formik.setFieldValue('code', value.toUpperCase())} />

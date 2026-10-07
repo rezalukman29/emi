@@ -12,11 +12,14 @@ export const LIFECYCLE_BADGES: Record<LifecycleStatus, string> = {
 export interface TransferDestination { eventId: number; status: number; areaId: number; subAreaId: number }
 export interface ItemLifecycle { ownership?: Ownership; checked?: boolean; resolution?: 'returned' | 'transferred'; transfer?: TransferDestination }
 export interface StatusFeatures { cuttingStock: boolean; stockReturn: boolean; productionItem: boolean }
-export interface ProductionRequest { id: number; name: string; qty: number; area: string; areaId: number; subArea: string; subAreaId?: number; neededBy: string; note: string; stageId: number; status: 'Requested' | 'In Production' | 'Done' }
+export interface ProductionRequest { id: number; type?: 'production'; name: string; qty: number; area: string; areaId: number; subArea: string; subAreaId?: number; note: string; stageId: number; status: 'Requested' | 'In Production' | 'Done' }
+export interface ConvertRequest { id: number; type: 'convert'; status: 'Pending' | 'Converted'; stageId: number; fromRowId: number; fromItemId: number; fromName: string; fromWarehouse: string; fromQty: number; toItemId: number; toName: string; toQty: number; toSku: string; toPhoto: string; toUnit: string; convertedAt?: string }
+export type ItemRequest = ProductionRequest | ConvertRequest;
+export interface StockMovement { id: string; at: string; rowId: number; itemName: string; warehouse: string; change: number; before: number; after: number; eventId: number; eventName: string; stage: string; note: string; by: string }
 export interface EventLifecycle {
   furthestStageId?: number;
   stockReturnReached?: boolean;
-  productionRequests?: ProductionRequest[];
+  productionRequests?: ItemRequest[];
   closing?: LifecycleStatus;
   stageId?: number;
   itemCount?: number;
@@ -24,6 +27,7 @@ export interface EventLifecycle {
   incoming?: EventItem[];
 }
 export interface LifecycleStore {
+  stockMovements?: StockMovement[];
   events: Record<number, EventLifecycle>;
   codes: Record<number, string>;
   statusFeatures?: Record<number, StatusFeatures>;
@@ -36,7 +40,7 @@ function key() {
 }
 function snapshot() { try { return localStorage.getItem(key()) || ''; } catch { return ''; } }
 function parse(raw: string): LifecycleStore {
-  try { const data = JSON.parse(raw); return { events: data.events || {}, codes: data.codes || {}, statusFeatures: data.statusFeatures || {}, logs: data.logs || [] }; }
+  try { const data = JSON.parse(raw); return { events: data.events || {}, codes: data.codes || {}, statusFeatures: data.statusFeatures || {}, stockMovements: data.stockMovements || [], logs: data.logs || [] }; }
   catch { return { events: {}, codes: {}, logs: [] }; }
 }
 function subscribe(callback: () => void) {

@@ -1,4 +1,17 @@
 {
+  "conversion": {
+    "newProduction": "New Production", "convert": "Convert", "pending": "Pending", "converted": "Converted (preview)", "convertedQty": "Converted: {{count}}",
+    "completeInfo": "After the item is made, complete its information (SKU, category, unit, etc.) in Inventory.",
+    "warning": "The conversion remains pending until the event moves to the next stage. When completed, old-item stock is reduced, new-item stock is added, and the change is recorded in Warehouse Inventory → Stock History.",
+    "applied": "Conversion applied to the local preview. See Warehouse Inventory → Stock History. Backend stock is unchanged.",
+    "oldItem": "Old Item — search event item", "oldQty": "Old Item Quantity", "newItem": "New Item — search inventory", "newQty": "New Item Quantity",
+    "available": "Available to convert: {{count}}", "submit": "Submit Convert", "created": "Item conversion submitted successfully.", "retry": "Retry",
+    "affectsStock": "Stock will be updated when this pending conversion is completed.", "requestedBy": "Requested by {{name}}", "appliedAt": "Applied",
+    "insufficient": "Conversion cannot proceed: the old item is unavailable or has insufficient stock. Cancel or recreate the pending request.",
+    "stockHistory": "Stock History", "historyNotice": "Local conversion preview history only. These balances include local deductions, not actual warehouse stock movements. Data is scoped to this browser/account.",
+    "emptyHistory": "No preview stock changes recorded yet.",
+    "columns": { "date": "Date", "item": "Item", "warehouse": "Warehouse", "change": "Change", "stock": "Preview Stock", "reason": "Reason", "event": "Event / Stage", "by": "By" }
+  },
   "eventUpgrade": {
     "confirm": "Confirm",
     "confirmCut": "Confirm & Cut Stock (preview)",
@@ -12,7 +25,7 @@
     "true": "True",
     "false": "False",
     "exclusive": "Already used by {{name}}",
-    "exclusiveError": "Cutting Stock and Stock Return must each belong to only one status and cannot share a status.",
+    "exclusiveError": "Cutting Stock can belong to only one status. Wait until the status list has loaded.",
     "preview": "Preview: these new settings, stock indicators, item edits and production requests are saved only in this browser. Backend integration is pending.",
     "confirmStage": "Confirm stage change",
     "cutWarning": "This stage marks {{count}} items ({{qty}} units) as stock cut in the preview.",
@@ -34,9 +47,11 @@
     "submit": "Submit request",
     "advance": "Move to {{status}}",
     "previewItem": "Production item (preview)",
-    "noRequests": "No production requests yet.",
+    "noRequests": "No requests yet. Use Request Production for new production or conversion.",
     "invalid": "Complete the required fields with a valid quantity.",
     "previewSaved": "Preview saved in this browser.",
+    "itemUpdated": "Event item updated successfully.",
+    "productionCreated": "Production request created successfully.",
     "confirmCancel": "Cancel this production request?",
     "confirmDelete": "Delete this item from the event?",
     "lockStage": "Use Next to reach this stage."

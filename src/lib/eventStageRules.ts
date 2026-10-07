@@ -10,6 +10,5 @@ export function canChangeStage({ current, target, furthest, stageCount, viaNext,
 }
 
 export function hasExclusiveFlagConflict(value: StatusFeatures, others: StatusFeatures[]) {
-  return (value.cuttingStock && (value.stockReturn || others.some(row => row.cuttingStock))) ||
-    (value.stockReturn && others.some(row => row.stockReturn));
+  return value.cuttingStock && others.some(row => row.cuttingStock);
 }

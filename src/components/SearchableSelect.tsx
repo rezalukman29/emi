@@ -20,6 +20,7 @@ export interface SearchableSelectOption {
 interface SearchableSelectProps {
   value: string | number | null | undefined;
   onChange: (value: string | number) => void;
+  onSearchChange?: (value: string) => void;
   options: SearchableSelectOption[];
   placeholder?: string;
   searchPlaceholder?: string;
@@ -42,6 +43,7 @@ interface MenuPosition {
 export default function SearchableSelect({
   value,
   onChange,
+  onSearchChange,
   options,
   placeholder,
   searchPlaceholder,
@@ -178,7 +180,10 @@ export default function SearchableSelect({
               type="text"
               placeholder={searchPlaceholder ?? t("select.searchPlaceholder")}
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                onSearchChange?.(event.target.value);
+              }}
             />
           </div>
           <div className="ss-list" style={{ maxHeight: position.maxHeight }}>

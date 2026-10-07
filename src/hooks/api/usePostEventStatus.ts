@@ -6,6 +6,8 @@ import ax from "../../service/axios";
 export interface EventStatusPayload {
   name: string;
   code: string;
+  cutting_stock: boolean;
+  production_item: boolean;
   is_show_scan_result: number;
   order_data: number;
   action: string;

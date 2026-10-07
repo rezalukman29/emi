@@ -1,5 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQueryClient } from "react-query";
+import ConversionStockHistory from '../components/ConversionStockHistory';
+import '../eventUpgrade.css';
 import { useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Pagination from "../components/Pagination";
@@ -360,7 +362,7 @@ export default function WarehouseInventoryPage() {
   const profile = useSelector((state: RootState) => state.profile);
   const isAdmin = profile.user_type?.toUpperCase() === "ADMIN";
   const [tab, setTab] = useState(
-    searchParams.get("tab") === "opnamehistory" ? "opnamehistory" : "inventory",
+    ['opnamehistory', 'stockhistory'].includes(searchParams.get('tab') ?? '') ? searchParams.get('tab')! : 'inventory',
   );
   const [query, setQuery] = useState("");
   const [warehouseFilter, setWarehouseFilter] = useState("");
@@ -986,6 +988,7 @@ export default function WarehouseInventoryPage() {
           { id: "inventory", label: t("wording.inventory") },
           { id: "movingorder", label: t("wording.movingOrder") },
           { id: "opnamehistory", label: t("wording.opnameHistory") },
+          { id: "stockhistory", label: t("conversion.stockHistory") },
         ].map((t) => (
           <button
             key={t.id}
@@ -997,6 +1000,7 @@ export default function WarehouseInventoryPage() {
         ))}
       </div>
 
+      {tab === 'stockhistory' && <ConversionStockHistory />}
       {tab === "inventory" && (
         <div className="card">
           <div className="toolbar">

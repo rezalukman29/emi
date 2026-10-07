@@ -1,40 +1,17 @@
 import { useQuery, UseQueryOptions } from "react-query";
 
 import { APIResponse } from "../../interfaces/BaseApiResponse";
-import ax from "../../service/axios";
-
-export interface ParamsGetEventItemInterface {
-  event_id: number;
-  list_id?: number;
-  status_event_id?: number;
-  order: string;
-}
-
-export const getEventItem = async ({
-  params,
-}: {
-  params: ParamsGetEventItemInterface;
-}): Promise<APIResponse<any[]>> => {
-  const response = await ax.get(`/v3/fix-list-item-event`, {
-    params: {
-      event_id: params.event_id,
-      ...(params.list_id && {list_id: params.list_id}),
-      ...(params.status_event_id && {status_event_id: params.status_event_id}),
-      order: params.order
-    }
-  });
-  return response.data;
-};
+import { getEventItem, type EventItem, type ParamsGetEventItemInterface } from './useGetEventItem';
 
 const useGetEventItemPrint = ({
   options,
   params,
 }: {
-  options?: UseQueryOptions<APIResponse<any[]>>;
+  options?: UseQueryOptions<APIResponse<EventItem[]>>;
   params: ParamsGetEventItemInterface;
 }) => {
-  return useQuery<APIResponse<any[]>>(
-    ["useGetEventItemPrint"],
+  return useQuery<APIResponse<EventItem[]>>(
+    ["useGetEventItemPrint", params],
     () => getEventItem({ params }),
     options
   );
