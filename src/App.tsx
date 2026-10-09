@@ -3,6 +3,7 @@ import { Provider } from "react-redux";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { ToastContainer } from "react-toastify";
 import Layout from "./components/Layout";
+import VendorPage from "./pages/VendorPage";
 import RequireAuth from "./components/RequireAuth.jsx";
 import RequireTenantAuth from "./components/RequireTenantAuth";
 import AreaDetailPage from "./pages/AreaDetailPage.jsx";
@@ -119,6 +120,7 @@ export default function App() {
               <Route path="item-loan" element={<ItemLoanPage />} />
               <Route path="item-loan-detail" element={<ItemLoanDetailPage />} />
               <Route path="area" element={<AreaPage />} />
+              <Route path="vendor" element={<VendorPage />} />
               <Route path="area-detail" element={<AreaDetailPage />} />
               <Route path="sub-area" element={<SubAreaPage />} />
               <Route path="event-status" element={<EventStatusPage />} />

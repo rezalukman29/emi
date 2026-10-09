@@ -167,10 +167,7 @@ export default function WarehouseDetailPage() {
         </button>
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
+      <div className="grid-2col" style={{
           gap: 16,
           marginBottom: 16,
         }}
@@ -204,8 +201,7 @@ export default function WarehouseDetailPage() {
               {t("wording.warehouseInfo")}
             </span>
           </div>
-          <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}
+          <div className="grid-2col" style={{ gap: 18 }}
           >
             <Field label={t("wording.name")} value={warehouse.nama} />
             <Field label={t("wording.location")} value={warehouse.lokasi} />

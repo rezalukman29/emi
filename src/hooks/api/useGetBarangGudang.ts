@@ -9,6 +9,9 @@ export interface BarangGudangWarehouse {
 }
 
 export interface BarangGudangItem {
+  // Optional proposed backend setup flag; missing means no highlight.
+  needs_setup?: boolean;
+  needsSetup?: boolean;
   barang_gudang_id: number;
   gudang_id: number;
   barang_id: number;

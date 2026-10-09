@@ -9,6 +9,7 @@ export default function UpgradeCTA() {
     <button
       type="button"
       className="upgrade-cta"
+      aria-label={t("header.upgrade")}
       onClick={() => navigate("/upgrade")}
     >
       <svg
@@ -21,7 +22,7 @@ export default function UpgradeCTA() {
       >
         <path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z" />
       </svg>
-      {t("header.upgrade")}
+      <span className="upgrade-cta-label">{t("header.upgrade")}</span>
     </button>
   );
 }

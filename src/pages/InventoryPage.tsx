@@ -1,3 +1,4 @@
+import { needsInventorySetup } from '../lib/inventorySetup';
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Pagination from "../components/Pagination";
@@ -469,6 +470,9 @@ export default function InventoryPage() {
   const [isLoadingPrint, setIsLoadingPrint] = useState<boolean>(false);
   const [isModify, setIsModify] = useState<boolean>(false);
   const [listBarang, setListBarang] = useState<any[]>([]);
+  const [setupOnly, setSetupOnly] = useState(false);
+  const setupCount = listBarang.filter(needsInventorySetup).length;
+  const setupRows = setupOnly ? listBarang.filter(needsInventorySetup) : listBarang;
   const [sort, setSort] = useState<SortType>("ASC");
   const [sortBy, setSortBy] = useState<string>("name");
   const [searchValue, setSearchValue] = useState<string>("");
@@ -920,6 +924,7 @@ export default function InventoryPage() {
           </div>
         </div>
 
+        {(setupCount > 0 || setupOnly) && <div className="setup-banner"><div><strong>{setupCount} · {t('sourceUpgrade.needsSetup')}</strong><p>{t('sourceUpgrade.setupInfo')}</p></div><label className="ownership-choice"><input type="checkbox" checked={setupOnly} onChange={e => setSetupOnly(e.target.checked)} /><span>{t('sourceUpgrade.setupOnly')}</span></label></div>}
         <div className="table-wrap">
           <table>
             <thead>
@@ -999,7 +1004,7 @@ export default function InventoryPage() {
               </tr>
             </thead>
             <tbody>
-              {listBarang.length === 0 ? (
+              {setupRows.length === 0 ? (
                 <tr>
                   <td
                     colSpan={10}
@@ -1013,9 +1018,9 @@ export default function InventoryPage() {
                   </td>
                 </tr>
               ) : (
-                listBarang.map((r: any) => (
-                  <tr key={r.id}>
-                    <td className="name-cell">{r.nama}</td>
+                setupRows.map((r: any) => (
+                  <tr key={r.id} className={needsInventorySetup(r) ? "row-needs-setup" : undefined}>
+                    <td className="name-cell">{r.nama}{needsInventorySetup(r) && <span className="badge badge-orange needs-setup-chip">{t("sourceUpgrade.needsSetup")}</span>}</td>
                     <td className="id-cell">{r.code}</td>
                     <td>
                       <span

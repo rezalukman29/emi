@@ -1,5 +1,6 @@
+import useSidebar from '../../components/useSidebar';
 // TypeScript page component.
-import { useState } from 'react';
+
 import { Outlet, useNavigate } from 'react-router-dom';
 import SuperAdminSidebar from '../../components/SuperAdminSidebar';
 import { IconMenu, IconLogout } from '../../components/icons';
@@ -9,7 +10,7 @@ import LanguageSwitcher from '../../components/LanguageSwitcher';
 
 export default function SuperAdminLayout() {
   const { t } = useTranslation();
-  const [sidebarVisible, setSidebarVisible] = useState(true);
+  const { isMobile, visible: sidebarVisible, toggle, close } = useSidebar();
   const navigate = useNavigate();
 
   function handleLogout() {
@@ -21,7 +22,7 @@ export default function SuperAdminLayout() {
     <div className="sa-theme">
       <header className="header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button className="header-btn" onClick={() => setSidebarVisible(v => !v)} title={t('header.toggleMenu')}>
+          <button className="header-btn" onClick={toggle} aria-expanded={sidebarVisible} aria-label={t("header.toggleMenu")} title={t('header.toggleMenu')}>
             <IconMenu />
           </button>
           <span className="header-title">{t('auth.ownerPanel')}</span>
@@ -34,7 +35,8 @@ export default function SuperAdminLayout() {
         </div>
       </header>
       <div className="layout">
-        <SuperAdminSidebar visible={sidebarVisible} />
+        <SuperAdminSidebar visible={sidebarVisible} mobile={isMobile} />
+        {isMobile && sidebarVisible && <button type="button" className="sidebar-backdrop" aria-label={t("wording.close")} onClick={close} />}
         <main className="main">
           <Outlet />
         </main>

@@ -125,7 +125,7 @@ export default function MainDashboardPage() {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 18, marginBottom: 18 }}>
+      <div className="grid-2col-wide" style={{ gap: 18, marginBottom: 18 }}>
         <div className="card">
           <div className="section-title">{t("wording.upcomingEvents")}</div>
           <div className="viz-event-list">
@@ -171,7 +171,7 @@ export default function MainDashboardPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 18, marginBottom: 18 }}>
+      <div className="grid-2col-wide" style={{ gap: 18, marginBottom: 18 }}>
         <div className="card">
           <div className="section-title">{t("wording.stockDistributionByWarehouse")}</div>
           <div className="viz-bar-chart">

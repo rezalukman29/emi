@@ -1,3 +1,4 @@
+import { useSourcePreview, updateSourcePreview } from '../lib/sourcePreview';
 import { useState } from "react";
 import { useQueryClient } from 'react-query';
 import { useFormik } from "formik";
@@ -114,6 +115,8 @@ function mapEventStatuses(response: GetEventStatusResponse): EventStatusRow[] {
 
 export default function EventStatusPage() {
   const queryClient = useQueryClient();
+  const preview = useSourcePreview();
+  const [checkOwnership, setCheckOwnership] = useState(false);
   const { t } = useTranslation();
   const [statuses, setStatuses] = useState<EventStatusRow[]>([]);
   const [searchInput, setSearchInput] = useState("");
@@ -208,7 +211,13 @@ export default function EventStatusPage() {
         setStatusModal(false);
         setEditingId(null);
         resetForm();
-        await refetchStatusLists();
+        const refreshed = await refetchStatusLists();
+        const matches = refreshed[1].data?.data?.data?.filter(row => row.name === values.name.trim() && row.order_data === Number(values.order_data)) ?? [];
+        const statusId = editingId ?? (matches.length === 1 ? matches[0].id : undefined);
+        if (statusId !== undefined) {
+          try { updateSourcePreview(data => { data.checkOwnership[statusId] = checkOwnership; }); }
+          catch { toast.error(t('lifecycle.saveFailed')); }
+        } else if (checkOwnership) toast.warning(t('lifecycle.saveFailed'));
       } catch (error) {
         toast(
           error instanceof Error
@@ -240,6 +249,7 @@ export default function EventStatusPage() {
   function openNew() {
     if (reorderMode) return;
     setEditingId(null);
+    setCheckOwnership(false);
     formik.resetForm({ values: emptyForm(total + 1) });
     setStatusModal(true);
   }
@@ -247,6 +257,7 @@ export default function EventStatusPage() {
   function openEdit(row: EventStatusRow) {
     if (reorderMode) return;
     setEditingId(row.id);
+    setCheckOwnership(preview.checkOwnership[row.id] === true);
     formik.resetForm({
       values: {
         cuttingStock: row.cuttingStock,
@@ -393,6 +404,7 @@ export default function EventStatusPage() {
 
       <div className="stats-bar">
         {(['cuttingStock', 'productionItem'] as const).map(flag => <div className="stat-card" key={flag}><strong className="stat-value">{orderedStatuses.filter(row => row[flag]).length}</strong><span>{t('eventUpgrade.' + flag)}</span></div>)}
+        <div className="stat-card"><strong className="stat-value">{orderedStatuses.filter(row => preview.checkOwnership[row.id]).length}</strong><span>{t('sourceUpgrade.checkOwnership')}</span></div>
       </div>
       <div className="card">
         <div className="toolbar">
@@ -441,6 +453,7 @@ export default function EventStatusPage() {
                 <SortTh label={t("wording.order")} id="order_data" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 70, textAlign: "center" }} />
                 <th style={{ width: 80, textAlign: "center" }}>{t("wording.editOrder")}</th>
                 <SortTh label={t("wording.status")} id="name" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} />
+                <th>{t("sourceUpgrade.checkOwnership")}</th>
                 <th style={{ width: 100, textAlign: "center" }}>{t("wording.showScan")}</th>
                 <th>{t('wording.code')}</th>
                 {(['cuttingStock', 'productionItem'] as const).map(flag => <th key={flag}>{t('eventUpgrade.' + flag)}</th>)}
@@ -452,11 +465,11 @@ export default function EventStatusPage() {
             </thead>
             <tbody>
               {isLoading && statuses.length === 0 ? (
-                <tr><td colSpan={11} style={{ textAlign: "center", padding: 40 }}>{t("wording.loadingEventStatuses")}</td></tr>
+                <tr><td colSpan={12} style={{ textAlign: "center", padding: 40 }}>{t("wording.loadingEventStatuses")}</td></tr>
               ) : isError ? (
-                <tr><td colSpan={11} style={{ textAlign: "center", padding: 40, color: "var(--red)" }}>{t("wording.failedToLoadEventStatuses")}</td></tr>
+                <tr><td colSpan={12} style={{ textAlign: "center", padding: 40, color: "var(--red)" }}>{t("wording.failedToLoadEventStatuses")}</td></tr>
               ) : displayedStatuses.length === 0 ? (
-                <tr><td colSpan={11} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>{t("wording.noStatusesFound")}</td></tr>
+                <tr><td colSpan={12} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>{t("wording.noStatusesFound")}</td></tr>
               ) : (
                 displayedStatuses.map((row) => {
                   const orderedIndex = displayedStatuses.findIndex((status) => status.id === row.id);
@@ -480,6 +493,7 @@ export default function EventStatusPage() {
                       )}
                     </td>
                     <td className="name-cell">{row.status}</td>
+                    <td><span className={preview.checkOwnership[row.id] ? 'badge badge-green' : 'badge badge-gray'}>{t('eventUpgrade.' + (preview.checkOwnership[row.id] ? 'true' : 'false'))}</span></td>
                     <td style={{ textAlign: "center" }}><ScanBadge scan={row.scan} /></td>
                     <td><span className="badge badge-gray">{row.code || '—'}</span></td>
                     {(['cuttingStock', 'productionItem'] as const).map(flag => <td key={flag}><span className={row[flag] ? 'badge badge-green' : 'badge badge-gray'}>{t('eventUpgrade.' + (row[flag] ? 'true' : 'false'))}</span></td>)}
@@ -543,6 +557,7 @@ export default function EventStatusPage() {
             { value: 'true', label: owner ? t('eventUpgrade.exclusive', { name: owner.status }) : t('eventUpgrade.true'), disabled: Boolean(owner) },
           ]} /></div>;
         })}
+        <div className="form-group"><label>{t('sourceUpgrade.checkOwnership')}</label><SearchableSelect value={String(checkOwnership)} onChange={v => setCheckOwnership(v === 'true')} options={[{ value: 'false', label: t('eventUpgrade.false') }, { value: 'true', label: t('eventUpgrade.true') }]} /><p className="ed-lock-note">{t('sourceUpgrade.statusPreview')}</p></div>
         <TextInput label={t('wording.code')} value={formik.values.code} onChange={value => formik.setFieldValue('code', value.toUpperCase())} />
         <div className="form-group">
           <label>{t("wording.scan")}</label>

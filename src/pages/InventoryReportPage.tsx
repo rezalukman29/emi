@@ -141,7 +141,7 @@ export default function InventoryReportPage() {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 18, marginBottom: 22 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))", gap: 18, marginBottom: 22 }}>
         <div className="card">
           <div className="section-title">{t("wording.stockByCategory")}</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>

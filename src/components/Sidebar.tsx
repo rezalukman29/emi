@@ -99,6 +99,7 @@ const SECTIONS = [
   {
     label: 'Master Data',
     items: [
+      { to: '/vendor', label: 'Vendor', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="7" r="4"/><path d="M4 21v-4a8 8 0 0 1 16 0v4"/></svg> },
       { to: '/area', label: 'Area',
         icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> },
       { to: '/sub-area', label: 'Sub Area',
@@ -190,7 +191,7 @@ function isTenantAdmin() {
   }
 }
 
-export default function Sidebar({ visible }: { visible: boolean }) {
+export default function Sidebar({ visible, mobile = false }: { visible: boolean; mobile?: boolean }) {
   const { t } = useTranslation();
   const enabledFeatures = useUserPlanController();
   const sections = SECTIONS.map((section) => {
@@ -207,7 +208,7 @@ export default function Sidebar({ visible }: { visible: boolean }) {
     .filter((section) => section.items.length > 0);
 
   return (
-    <nav className="sidebar" style={visible ? {} : { display: 'none' }}>
+    <nav className={`sidebar${mobile ? " sidebar-mobile" : ""}`} style={visible ? {} : { display: 'none' }}>
       {sections.map(section => (
         <div key={section.label} className="sidebar-section">
           <div className="sidebar-section-label">

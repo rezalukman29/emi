@@ -37,10 +37,10 @@ const ITEM_TRANSLATION_KEYS = {
   'Default Units': 'navigation.items.defaultUnits',
 };
 
-export default function SuperAdminSidebar({ visible }) {
+export default function SuperAdminSidebar({ visible, mobile = false }) {
   const { t } = useTranslation();
   return (
-    <nav className="sidebar" style={visible ? {} : { display: 'none' }}>
+    <nav className={`sidebar${mobile ? " sidebar-mobile" : ""}`} style={visible ? {} : { display: 'none' }}>
       {SECTIONS.map(section => (
         <div key={section.label} className="sidebar-section">
           <div className="sidebar-section-label">

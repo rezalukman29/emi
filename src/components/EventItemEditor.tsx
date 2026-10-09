@@ -7,10 +7,13 @@ import useGetAreaList from '../hooks/api/useGetAreaList';
 import useGetSubArea from '../hooks/api/useGetSubArea';
 import { OWNERSHIPS, type Ownership } from '../lib/eventLifecycle';
 import ConversionForm, { type ConversionDraft, type ConversionSourceItem } from './ConversionForm';
+import useGetWarehouse from '../hooks/api/useGetWarehouse';
+import { useSourcePreview, type ProductionMetadata } from '../lib/sourcePreview';
 
 export interface EventItemDraft {
   name: string; qty: number; area: string; areaId?: number; subArea?: string;
   subAreaId?: number; pic: string; note: string; ownerships: Ownership[];
+  productionMetadata?: ProductionMetadata;
 }
 export default function EventItemEditor({ initial, production, onSave, onClose, onConvert, conversionItems = [] }: {
   initial: EventItemDraft; production: boolean; onSave: (value: EventItemDraft) => void | Promise<void>; onClose: () => void;
@@ -21,6 +24,14 @@ export default function EventItemEditor({ initial, production, onSave, onClose, 
   const [value, setValue] = useState(initial);
   const [tab, setTab] = useState<'new' | 'convert'>('new');
   const [saving, setSaving] = useState(false);
+  const { vendors } = useSourcePreview();
+  const { data: warehouseResponse } = useGetWarehouse({ options: { enabled: production } });
+  const warehouseData = warehouseResponse?.data;
+  const warehouses: Array<{ id: number; nama: string }> = (Array.isArray(warehouseData) ? warehouseData : warehouseData?.data ?? []).filter((warehouse: { nama: string }) => warehouse.nama?.trim().toLowerCase() !== 'buy');
+  const metadata = value.productionMetadata;
+  function setMetadata(patch: Partial<ProductionMetadata>) {
+    setValue(v => ({ ...v, productionMetadata: { warehouseId: 0, warehouseName: '', vendorId: 0, vendorName: '', vendorOrigin: 'Internal', ...v.productionMetadata, ...patch } }));
+  }
   const { data: areaData } = useGetAreaList({});
   const { data: subData } = useGetSubArea({});
   const areas: { id: number; name: string }[] = areaData?.data?.data ?? [];
@@ -45,6 +56,12 @@ export default function EventItemEditor({ initial, production, onSave, onClose, 
     {production && onConvert && <div className="wi-tabs" role="tablist">{(['new', 'convert'] as const).map(mode => <button type="button" role="tab" aria-selected={tab === mode} className={`wi-tab-btn${tab === mode ? ' active' : ''}`} key={mode} onClick={() => setTab(mode)}>{t(mode === 'new' ? 'conversion.newProduction' : 'conversion.convert')}</button>)}</div>}
     {tab === 'convert' && onConvert ? <ConversionForm onSave={onConvert} eventItems={conversionItems} /> : <>
     {production && <p className="prod-notice prod-notice-info">{t('conversion.completeInfo')}</p>}
+    {production && <>
+      <p className="ed-lock-note">{t('sourceUpgrade.metadataPreview')}</p>
+      <div className="form-group"><label>{t('sourceUpgrade.warehouse')}</label><SearchableSelect value={metadata?.warehouseId || ''} onChange={id => setMetadata({ warehouseId: Number(id), warehouseName: warehouses.find(w => w.id === Number(id))?.nama ?? '' })} options={warehouses.map(w => ({ value: w.id, label: w.nama }))} placeholder={t('sourceUpgrade.warehouse')} /></div>
+      <div className="form-group"><label>{t('sourceUpgrade.origin')}</label><div className="seg-choice">{(['Internal', 'External'] as const).map(origin => <button type="button" key={origin} className={(metadata?.vendorOrigin ?? 'Internal') === origin ? 'active' : ''} onClick={() => setMetadata({ vendorOrigin: origin, vendorId: 0, vendorName: '' })}>{origin}</button>)}</div></div>
+      <div className="form-group"><label>{t('sourceUpgrade.vendor')}</label><SearchableSelect value={metadata?.vendorId || ''} onChange={id => setMetadata({ vendorId: Number(id), vendorName: vendors.find(v => v.id === Number(id))?.name ?? '' })} options={vendors.filter(v => v.origin === (metadata?.vendorOrigin ?? 'Internal')).map(v => ({ value: v.id, label: v.name }))} placeholder={t('sourceUpgrade.vendor')} /></div>
+    </>}
     {production ? <TextInput label={t('wording.name')} value={value.name} onChange={name => setValue(v => ({ ...v, name }))} isRequired /> : <strong>{value.name}</strong>}
     <div className="form-group"><label>{t('wording.qty')}</label><input type="number" min="1" step="1" value={value.qty} onChange={e => setValue(v => ({ ...v, qty: Number(e.target.value) }))} /></div>
     <div className="form-group"><label>{t('wording.area')}</label><SearchableSelect value={value.areaId ?? ''} onChange={id => { const areaId = Number(id); const first = allSubAreas.find(row => row.area_id === areaId); setValue(v => ({ ...v, areaId, area: areas.find(a => a.id === areaId)?.name ?? '', subAreaId: first?.id, subArea: first?.sub_area_name ?? '' })); }} options={areas.map(a => ({ value: a.id, label: a.name }))} placeholder={t('wording.selectArea')} /></div>

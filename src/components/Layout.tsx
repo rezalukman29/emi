@@ -1,3 +1,4 @@
+import useSidebar from './useSidebar';
 import { useState, useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import Sidebar, {
@@ -33,7 +34,7 @@ type StoredAuth = {
 
 export default function Layout() {
   const { t } = useTranslation();
-  const [sidebarVisible, setSidebarVisible] = useState(true);
+  const { isMobile, visible: sidebarVisible, toggle, close } = useSidebar();
   const [currentUser, setCurrentUser] = useState<StoredAuth | null>(null);
   const dispatch = useDispatch();
   const queryClient = useQueryClient();
@@ -128,7 +129,7 @@ export default function Layout() {
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button
             className="header-btn"
-            onClick={() => setSidebarVisible((v) => !v)}
+            onClick={toggle} aria-expanded={sidebarVisible} aria-label={t("header.toggleMenu")}
             title={t("header.toggleMenu")}
           >
             <IconMenu />
@@ -151,7 +152,8 @@ export default function Layout() {
         </div>
       </header>
       <div className="layout">
-        <Sidebar visible={sidebarVisible} />
+        <Sidebar visible={sidebarVisible} mobile={isMobile} />
+        {isMobile && sidebarVisible && <button type="button" className="sidebar-backdrop" aria-label={t("wording.close")} onClick={close} />}
         <main className="main">
           <Outlet />
         </main>

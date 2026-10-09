@@ -17,9 +17,10 @@ import useFinalizeEventItems, { type FinalizeEventItemsPayload } from '../hooks/
 import { OWNERSHIPS, ownershipClass, resolveLifecycle, updateLifecycle, useEventLifecycle, type Ownership } from '../lib/eventLifecycle';
 
 export type LifecycleModalMode = 'ownership' | 'check' | 'return' | null;
-export default function EventLifecycleModal({ eventId, eventName, items, stages, mode, onFinalized, onClose }: {
+export default function EventLifecycleModal({ eventId, eventName, items, stages, mode, onFinalized, onClose, onOwnershipSaved }: {
   eventId: number; eventName: string; items: EventItem[]; stages: EventStatusItem[];
   mode: LifecycleModalMode; onFinalized: () => Promise<void>; onClose: () => void;
+  onOwnershipSaved?: () => void;
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -117,7 +118,8 @@ export default function EventLifecycleModal({ eventId, eventName, items, stages,
         queryClient.invalidateQueries(['useGetEventPackages']),
       ]);
       toast.success(response.message || t('lifecycle.ownershipUpdated'));
-      onClose();
+      if (onOwnershipSaved) onOwnershipSaved();
+      else onClose();
     } catch (error) {
       const message = error instanceof Error ? error.message : t('lifecycle.ownershipUpdateFailed');
       toast.error(message);

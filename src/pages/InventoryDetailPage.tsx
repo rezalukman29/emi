@@ -205,7 +205,7 @@ export default function InventoryDetailPage() {
         </button> */}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <div className="grid-2col" style={{ gap: 16 }}>
         <div className="card" style={{ padding: 24 }}>
           <div
             style={{
@@ -235,8 +235,7 @@ export default function InventoryDetailPage() {
               {t("wording.itemInfo")}
             </span>
           </div>
-          <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}
+          <div className="grid-2col" style={{ gap: 18 }}
           >
             <Field label={t("wording.sku")} value={item.code} />
             <Field label={t("wording.category")} value={category} />

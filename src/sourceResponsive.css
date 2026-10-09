@@ -1,0 +1,167 @@
+/* Items created from production that still need their info completed
+   (Inventory + Warehouse Inventory, see lib/producedItems.js) */
+.row-needs-setup td { background: #fffaf0; }
+.row-needs-setup td:first-child { box-shadow: inset 3px 0 0 var(--orange); }
+.needs-setup-chip { margin-left: 8px; font-size: 10px; }
+.setup-missing { font-size: 12px; color: var(--orange); font-style: italic; }
+.setup-banner {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 18px; padding: 12px 16px;
+  background: var(--orange-bg); color: var(--orange); border-radius: var(--r-lg); font-size: 12.5px; line-height: 1.5;
+}
+.setup-banner > svg { width: 18px; height: 18px; flex-shrink: 0; }
+.setup-banner > div { flex: 1; }
+
+/* Broken items, ownership/broken steps, vendor choice (Event Detail) */
+.broken-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 12.5px; }
+.broken-table th { text-align: left; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.broken-table td { padding: 7px 8px; border-bottom: 1px solid var(--border-2); }
+.drawer-broken { background: var(--red-bg); color: var(--red); border-radius: var(--r-lg); padding: 10px 14px; font-size: 12.5px; line-height: 1.5; margin-bottom: 14px; }
+.drawer-broken-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.drawer-broken-meta { font-size: 11.5px; opacity: .8; margin-top: 4px; }
+.drawer-broken-done { background: var(--bg); color: var(--text-2); }
+.drawer-link-btn { background: none; border: none; padding: 0; color: inherit; font: inherit; font-size: 12px; text-decoration: underline; cursor: pointer; }
+.drawer-wh-list { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.drawer-wh-list em { font-style: normal; font-weight: 400; color: var(--text-muted); }
+.drawer-footer { flex-wrap: wrap; }
+.btn-create-production:not(:disabled) { color: var(--purple); border-color: var(--purple); }
+.btn-create-production:disabled { opacity: .5; cursor: not-allowed; }
+.seg-choice { display: inline-flex; padding: 3px; gap: 2px; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--white); }
+.seg-choice button { padding: 6px 14px; border: none; background: none; border-radius: var(--r); font-size: 12.5px; font-weight: 600; color: var(--text-muted); cursor: pointer; font-family: inherit; }
+.seg-choice button.active { background: var(--brand-bg); color: var(--brand); }
+
+/* =========================================================
+   RESPONSIVE
+   Breakpoints used across the app:
+     <= 1100px  compact desktop / landscape tablet
+     <=  900px  tablet / phone — sidebar becomes a slide-over menu (keep in sync with
+                MOBILE_QUERY in components/useMediaQuery.js), tighter paddings
+     <=  560px  phone — single-column forms, 2-column stat cards, full-width modals
+   Page-specific fixes live next to their feature above; this block holds the shell
+   (header, sidebar, main, cards, toolbars, modals) and global overrides.
+   ========================================================= */
+.header-actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.sidebar-backdrop { display: none; }
+
+@media (max-width: 900px) {
+  body { height: 100vh; height: 100dvh; }
+
+  /* Header */
+  .header { padding: 0 12px; gap: 8px; }
+  .header-title { white-space: nowrap; }
+  .global-search { margin: 0 4px; min-width: 0; max-width: none; }
+  .header-actions { gap: 6px; }
+  .header-user { display: none; }
+  .lang-switcher-code { display: none; }
+
+  /* Global search: results span the full header width instead of the tiny input width */
+  .global-search { position: static; }
+  .global-search-dropdown { left: 8px; right: 8px; top: calc(100% + 4px); max-height: 60vh; }
+
+  /* Sidebar → slide-over menu */
+  .sidebar.sidebar-mobile {
+    position: fixed; top: 52px; left: 0; z-index: 120; height: calc(100vh - 52px); height: calc(100dvh - 52px);
+    width: min(280px, 86vw); min-width: 0; box-shadow: var(--shadow-lg);
+    animation: sidebar-slide-in .18s ease-out;
+  }
+  .sidebar-backdrop {
+    display: block; position: fixed; inset: 52px 0 0 0; z-index: 110; background: rgba(15,20,50,.35);
+    animation: drawer-fade .15s ease-out;
+  }
+  @keyframes sidebar-slide-in { from { transform: translateX(-16px); opacity: .6; } }
+
+  /* Content area */
+  .main { padding: 16px 14px; min-width: 0; }
+  .card { padding: 16px 14px; }
+  .page-title { font-size: 16px; margin-bottom: 14px; }
+
+  /* Toolbars: let search + filters + buttons wrap instead of overflowing */
+  .toolbar { align-items: stretch; }
+  .toolbar-left, .toolbar-right { flex-wrap: wrap; }
+  .toolbar-left { flex-basis: 100%; }
+  .search-wrap { max-width: none; flex-basis: 100%; }
+
+  /* KPI rows with inline `gridTemplateColumns: repeat(N, 1fr)` → 3 columns */
+  .stats-bar { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+
+  /* Modals never wider than the screen */
+  .modal-overlay { padding: 12px; }
+  .modal { max-width: calc(100vw - 24px) !important; max-height: calc(100dvh - 24px); }
+  .modal-body { overflow-y: auto; }
+
+  /* Event Detail */
+  .event-header-row { align-items: flex-start; }
+  .event-status-section { align-items: stretch; }
+  .status-progress { min-width: 0; flex-basis: 100%; }
+  .btn-next-stage { margin-left: 0; width: 100%; justify-content: center; }
+  .ed-toolbar .ed-toolbar-search { flex-basis: 100%; }
+  .ed-toolbar-select { flex: 1 1 130px; min-width: 0; }
+  .stage-tabs-row { flex-direction: column-reverse; align-items: stretch; }
+  .view-toggle { align-self: flex-end; margin-bottom: 8px; }
+  .stage-tabs { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; }
+  .stage-tab { flex-shrink: 0; }
+  .wi-tabs { max-width: 100%; overflow-x: auto; }
+  .wi-tab-btn { flex-shrink: 0; white-space: nowrap; }
+  .production-card-actions { width: 100%; }
+
+  /* Inventory picker (two panels) stacks */
+  .inv-pick-modal { height: auto; max-height: calc(100dvh - 24px); }
+  .inv-pick-modal-body { overflow-y: auto; }
+  .inv-pick-split { flex-direction: column; flex: none; }
+  .inv-pick-right { border-left: none; padding-left: 0; border-top: 1px solid var(--border); padding-top: 16px; }
+  .inv-pick-list, .inv-pick-right .cart-list { max-height: 42vh; max-height: 42dvh; min-height: 200px; }
+
+  .form-row { grid-template-columns: 1fr; }
+
+  /* Picker rows: info on top, qty + Add underneath; warehouse select can shrink */
+  .inv-pick-row { flex-wrap: wrap; }
+  .inv-pick-info { flex-basis: calc(100% - 64px); }
+  .inv-pick-warehouse-row { flex-wrap: wrap; }
+  .inv-pick-warehouse-row .ss-wrap.ss-inline { display: flex; flex: 1 1 160px; min-width: 0; }
+  .inv-pick-warehouse-row .ss-inline .ss-trigger { width: 100%; min-width: 0; }
+  .inv-pick-actions { flex-direction: row; align-items: center; justify-content: flex-end; width: 100%; }
+}
+
+@media (max-width: 430px) {
+  /* Brand text gives way to the search box on small phones */
+  .header-title { display: none; }
+}
+
+@media (max-width: 560px) {
+  .header-title { font-size: 13.5px; }
+  .upgrade-cta { padding: 7px 10px; }
+  .upgrade-cta-label { display: none; }
+  .stats-bar { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px; }
+  .stat-card { padding: 12px; gap: 10px; }
+  .stat-icon { width: 38px; height: 38px; }
+  .modal { width: calc(100vw - 24px) !important; }
+  .items-grid { grid-template-columns: 1fr; }
+  .drawer { width: 100vw; }
+  .modal-footer { flex-wrap: wrap; }
+  .auth-card { padding: 26px 20px 22px; }
+}
+
+/* Two-column page layouts (detail pages, dashboard, reports). Replaces inline
+   `display:grid; gridTemplateColumns:'1fr 1fr'` so they can collapse on narrow screens.
+   Gap/margins stay inline on the element. */
+.grid-2col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid-2col-wide { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); }
+@media (max-width: 900px) {
+  .grid-2col, .grid-2col-wide { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  /* label/value pairs inside detail cards: stack instead of squeezing two columns */
+  .card .grid-2col { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Detail pages (Area / Category / Unit / Warehouse / Inventory): Back + title + Edit/Delete */
+.detail-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+@media (max-width: 560px) {
+  .detail-header { flex-wrap: wrap; row-gap: 12px; margin-bottom: 18px; }
+  /* Row 1: Back … Edit Delete.  Row 2: the title on its own line. */
+  .detail-header .page-title { order: 5; flex: 1 1 100% !important; }
+  .detail-header .btn-icon.edit { margin-left: auto; }
+}
+
+.table-wrap { max-width: 100%; overflow-x: auto; }
+.sidebar-backdrop { border: 0; }
+@media (max-width: 560px) { .ss-dropdown { max-width: calc(100vw - 32px); } }

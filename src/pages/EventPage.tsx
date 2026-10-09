@@ -728,9 +728,10 @@ export default function EventPage() {
 
       {/* Stats row */}
       <div
+        className="stats-bar"
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))",
+          gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,180px),1fr))",
           gap: 12,
           marginBottom: 22,
         }}
@@ -902,7 +903,7 @@ export default function EventPage() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: ['checking-inventory', 'transferred'].includes(activeTab) ? '1fr' : "repeat(auto-fill, minmax(270px,1fr))",
+                gridTemplateColumns: ['checking-inventory', 'transferred'].includes(activeTab) ? '1fr' : "repeat(auto-fill, minmax(min(100%,270px),1fr))",
                 gap: 14,
               }}
             >

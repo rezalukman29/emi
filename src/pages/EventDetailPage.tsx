@@ -1,3 +1,5 @@
+import BrokenItemReport from '../components/BrokenItemReport';
+import { useSourcePreview, updateSourcePreview, stagePromptStep, type BrokenReport } from '../lib/sourcePreview';
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import axios from "axios";
@@ -150,6 +152,10 @@ function getLoggedInFullname(): string | null {
 }
 
 interface DisplayItem {
+  category?: string;
+  sku?: string;
+  warehouses?: string;
+  brokenReport?: BrokenReport;
   ownerships: Ownership[];
   resolution?: 'returned' | 'transferred';
   stockCut?: boolean;
@@ -301,6 +307,9 @@ function mapEventItem(
     id: item.id,
     photo: getPhotoUrl(item.photo),
     name: item.nama_barang,
+    category: item.kategori ?? undefined,
+    sku: item.code,
+    warehouses: item.gudang?.map(w => `${w.nama} (${w.stock})`).join(", "),
     area: item.area_name || item.sub_list_name || "-",
     status: stage,
     stage,
@@ -438,7 +447,7 @@ function ItemCard({
             {ownership}
           </span>
         ))}
-        <StockBadge item={item} />
+        <StockBadge item={item} />{item.brokenReport && <span className="badge badge-red">{i18n.t("sourceUpgrade.broken", { qty: item.brokenReport.qty })}</span>}
         {item.fromProduction && <span className="badge badge-purple">{i18n.t('eventUpgrade.previewItem')}</span>}
         {item.isNewProductionItem && <span className="badge badge-purple">{i18n.t('eventUpgrade.productionItem')}</span>}
         {item.fromConvert && <span className="badge badge-blue">{i18n.t('conversion.converted')}</span>}
@@ -554,6 +563,7 @@ function ItemTable({ items, onOpen, onModify, onDelete, onScan, showScanButton, 
   </tr></thead><tbody>{items.map(item => <tr key={item.id} tabIndex={0} className="item-table-row" onClick={() => onOpen(item)} onKeyDown={e => { if (e.target === e.currentTarget && e.key === 'Enter') onOpen(item); }}>
     <td><strong>{item.name}</strong><div className="item-table-flags">
       {item.groupName && <span className="badge badge-purple">{item.groupName}</span>}<StockBadge item={item} />
+      {item.brokenReport && <span className="badge badge-red">{t('sourceUpgrade.broken', { qty: item.brokenReport.qty })}</span>}
       {item.fromProduction && <span className="badge badge-purple">{t('eventUpgrade.previewItem')}</span>}
       {item.isNewProductionItem && <span className="badge badge-purple">{t('eventUpgrade.productionItem')}</span>}
       {item.fromConvert && <span className="badge badge-blue">{t('conversion.converted')}</span>}
@@ -581,6 +591,12 @@ export default function EventDetailPage() {
   const queryClient = useQueryClient();
   const eventId = Number(routeEventId ?? searchParams.get("id"));
   const lifecycleStore = useEventLifecycle();
+  const sourcePreview = useSourcePreview();
+  const [reportItem, setReportItem] = useState<DisplayItem | null>(null);
+  const [productionInitial, setProductionInitial] = useState<EventItemDraft | null>(null);
+  const [flowStep, setFlowStep] = useState<'ownership' | 'broken' | 'confirm'>('confirm');
+  const [ownershipAnswered, setOwnershipAnswered] = useState<number[]>([]);
+  const [resumeStage, setResumeStage] = useState<number | null>(null);
   const lifecycle = lifecycleStore.events[eventId];
   const [lifecycleMode, setLifecycleMode] = useState<LifecycleModalMode>(null);
   const [ownershipFilter, setOwnershipFilter] = useState('');
@@ -764,6 +780,7 @@ export default function EventDetailPage() {
 
   useEffect(() => {
     setCurrentStatusId(null);
+    setReportItem(null); setProductionInitial(null); setOwnershipAnswered([]); setResumeStage(null); setFlowStep('confirm');
     setItemEdits({}); setDetailId(null); setModifyItem(null); setPendingStage(null); setCreatedItems([]);
     setStepperError("");
     setLocalPackages([]);
@@ -913,6 +930,7 @@ export default function EventDetailPage() {
         return {
           ...item,
           ...itemEdits[item.id],
+          brokenReport: item.isNewProductionItem ? undefined : sourcePreview.reports[eventId]?.[item.id],
           resolution: lifecycle?.items?.[item.id]?.resolution,
           ...scanOverrides[item.id],
           groupId: assignedGroupId,
@@ -946,6 +964,7 @@ export default function EventDetailPage() {
     lifecycleItems,
     lifecycle?.items,
     lifecycle?.productionRequests,
+    sourcePreview.reports,
   ]);
 
   const backendProductionItems = useMemo(
@@ -1185,6 +1204,24 @@ export default function EventDetailPage() {
   function requestStageChange(_step: string, index: number, viaNext = false) {
     if (!eventDetail || !canChangeStage({ current: currentStageIndex, target: index, furthest: maxReachedIndex, stageCount: eventStatuses.length, viaNext, scanRequired: stageScanEnabled, unscanned: unscannedCount, locked: isClosing || isChangingEventStatus })) return;
     setPendingStage(index);
+    setFlowStep(stagePromptStep(index > currentStageIndex, sourcePreview.checkOwnership[currentStatus.id] === true, ownershipAnswered.includes(currentStatus.id), items.some(item => item.brokenReport)));
+  }
+  function afterOwnership() {
+    setOwnershipAnswered(ids => ids.includes(currentStatus.id) ? ids : [...ids, currentStatus.id]);
+    setFlowStep(items.some(item => item.brokenReport) ? 'broken' : 'confirm');
+  }
+  function cancelStageFlow() {
+    setPendingStage(null); setResumeStage(null); setFlowStep('confirm');
+  }
+  function removeReport(itemId: number) {
+    if (isClosing) return;
+    try { updateSourcePreview(data => { delete data.reports[eventId]?.[itemId]; }); }
+    catch { toast.error(t('lifecycle.saveFailed')); }
+  }
+  function replaceBrokenItem(item: DisplayItem) {
+    if (!productionEnabled || isClosing || !item.brokenReport) return;
+    setProductionInitial({ ...item, qty: item.brokenReport.qty, note: t('sourceUpgrade.replacement', { qty: item.brokenReport.qty, name: item.name }) + (item.brokenReport.note ? ': ' + item.brokenReport.note : ''), productionMetadata: { warehouseId: 0, warehouseName: '', vendorId: 0, vendorName: '', vendorOrigin: 'Internal', replacesItemId: item.id } });
+    setProductionOpen(true);
   }
   const crossedStages = pendingStage !== null && pendingStage > currentStageIndex ? eventStatuses.slice(currentStageIndex + 1, pendingStage + 1) : [];
   const willCut = crossedStages.some(s => features[s.id]?.cuttingStock);
@@ -1254,7 +1291,7 @@ export default function EventDetailPage() {
       setPendingStage(null);
       setStageFilter("all");
       setStepperError("");
-      await refetchEventDetail();
+      await Promise.all([refetchEventDetail(), refetchEventItems(), refetchProductionRequests()]);
     } catch (error) {
       toast.error(error instanceof Error && error.message === 'conversionStockUnavailable' ? t('conversion.insufficient') : getCheckoutErrorMessage(error));
     } finally {
@@ -1907,6 +1944,10 @@ export default function EventDetailPage() {
         ...(value.subAreaId ? { sub_area_id: value.subAreaId } : {}),
         notes: value.note.trim(),
       });
+      if (value.productionMetadata) {
+        try { updateSourcePreview(data => { data.production.unshift({ ...value.productionMetadata!, eventId, itemName: value.name.trim(), at: new Date().toISOString() }); }); }
+        catch { toast.warning(t('sourceUpgrade.savedMetadataFailed')); }
+      }
       setStageFilter("production");
       await Promise.all([
         refetchEventItems(),
@@ -2036,7 +2077,7 @@ export default function EventDetailPage() {
           <div className="event-title-wrap"><div className="event-heading">{eventName}</div><span className={`badge ${LIFECYCLE_BADGES[closingFlag]}`}>{t(`lifecycle.${closingFlag}`)}</span></div>
 
           <div className="event-actions-bar">
-            {productionEnabled && <button className="btn btn-ghost" onClick={() => setProductionOpen(true)}>{t("eventUpgrade.requestProduction")}</button>}
+            {productionEnabled && <button className="btn btn-ghost" onClick={() => { setProductionInitial(null); setProductionOpen(true); }}>{t("eventUpgrade.requestProduction")}</button>}
             <button className="action-icon-btn btn-cart-outline" disabled={addLocked} onClick={openCart}>
               <IconCart />
             </button>
@@ -2168,6 +2209,9 @@ export default function EventDetailPage() {
           })}
         </div><div className="view-toggle">{(['cards', 'list'] as const).map(mode => <button key={mode} title={t('eventUpgrade.' + mode)} aria-label={t('eventUpgrade.' + mode)} aria-pressed={viewMode === mode} className={viewMode === mode ? 'active' : ''} onClick={() => { setViewMode(mode); try { localStorage.setItem('emi_event_detail_view', mode); } catch { /* Preference is optional. */ } }}>{mode === 'cards' ? '▦' : '☰'}</button>)}</div></div>
         {effectiveStageFilter === "production" ? <div className="production-list">
+          {sourcePreview.production.filter(entry => entry.eventId === eventId).map((entry, index) => <div className="production-card production-request-card" key={`${entry.at}-${index}`}>
+            <div className="production-card-main"><strong>{entry.itemName}</strong><p className="ed-lock-note">{t('sourceUpgrade.metadataPreview')}</p><div className="production-request-route"><span>{t('sourceUpgrade.warehouse')}: {entry.warehouseName || '—'}</span><span>{entry.vendorOrigin} · {entry.vendorName || '—'}</span></div></div>
+          </div>)}
           {isProductionRequestsLoading ? (
             <p className="no-data">{t("wording.loading")}</p>
           ) : !isProductionRequestsError ? (
@@ -2332,7 +2376,16 @@ export default function EventDetailPage() {
         )}
       </div>
 
-      <Modal open={pendingStage !== null} title={t('eventUpgrade.confirmStage')} onClose={() => { if (!isChangingEventStatus) setPendingStage(null); }} footer={<>
+      <Modal open={pendingStage !== null && flowStep === 'ownership'} title={t('sourceUpgrade.checkOwnership')} onClose={cancelStageFlow} footer={<>
+        <button className="btn-cancel-modal" onClick={cancelStageFlow}>{t('wording.cancel')}</button>
+        <button className="btn btn-ghost" onClick={afterOwnership}>{t('sourceUpgrade.no')}</button>
+        <button className="btn-save-modal" onClick={() => { setResumeStage(pendingStage); setPendingStage(null); setLifecycleMode('ownership'); }}>{t('sourceUpgrade.yes')}</button>
+      </>}><p>{t('sourceUpgrade.ownershipQuestion')}</p></Modal>
+      <Modal open={pendingStage !== null && flowStep === 'broken'} title={t('sourceUpgrade.report')} onClose={cancelStageFlow} footer={<>
+        <button className="btn-cancel-modal" onClick={cancelStageFlow}>{t('wording.cancel')}</button>
+        <button className="btn-save-modal" onClick={() => setFlowStep('confirm')}>{t('eventUpgrade.confirm')}</button>
+      </>}><p className="prod-notice prod-notice-warn">{t('sourceUpgrade.brokenWarning')}</p><div className="table-wrap"><table className="broken-table"><tbody>{items.filter(item => item.brokenReport).map(item => <tr key={item.id}><td>{item.name}</td><td>{item.brokenReport?.qty} / {item.qty}</td></tr>)}</tbody></table></div></Modal>
+      <Modal open={pendingStage !== null && flowStep === 'confirm'} title={t('eventUpgrade.confirmStage')} onClose={() => { if (!isChangingEventStatus) setPendingStage(null); }} footer={<>
         <button className="btn-cancel-modal" disabled={isChangingEventStatus} onClick={() => setPendingStage(null)}>{t('wording.cancel')}</button>
         <button className="btn-save-modal" disabled={isChangingEventStatus || pendingStage === null} onClick={() => { if (pendingStage !== null) void changeEventStatus(stages[pendingStage], pendingStage); }}>{t(isChangingEventStatus ? 'wording.saving' : willReturn ? 'eventUpgrade.confirmReturn' : willCut ? 'eventUpgrade.confirmCut' : 'eventUpgrade.confirm')}</button>
       </>}>
@@ -2346,6 +2399,8 @@ export default function EventDetailPage() {
         {isClosing ? <span className="drawer-lock-note">{t('eventUpgrade.readOnly')}</span> : <>
           <button className="btn-cancel-modal" onClick={() => void deleteItem(detailItem.id)}>{t('wording.delete')}</button>
           <button className="btn-save-modal" onClick={() => setModifyItem(detailItem)}>{t('eventUpgrade.modify')}</button>
+          {!detailItem.isNewProductionItem && detailItem.id > 0 && detailItem.qty > 0 && <button className="btn btn-ghost" onClick={() => setReportItem(detailItem)}>{t(detailItem.brokenReport ? 'sourceUpgrade.editReport' : 'sourceUpgrade.report')}</button>}
+          {detailItem.brokenReport && <button className="btn btn-ghost btn-create-production" disabled={!productionEnabled} onClick={() => replaceBrokenItem(detailItem)}>{t('sourceUpgrade.createProduction')}</button>}
         </>}
         {stageScanEnabled && detailItem.id > 0 && <button className="btn btn-check" onClick={() => openScanPopup(detailItem)}>{t('wording.scan')}</button>}
       </>}>
@@ -2357,9 +2412,14 @@ export default function EventDetailPage() {
           {detailItem.isConverted && <span className="badge badge-blue">{t('conversion.convertedQty', { count: detailItem.convertedQty })}</span>}
           <dl className="drawer-dl">{[
             [t('wording.qty'), `${detailItem.qty} ${detailItem.unit ?? ''}`], [t('wording.area'), detailItem.area], [t('wording.subArea'), detailItem.subArea],
+            [t('wording.category'), detailItem.category], ['SKU', detailItem.sku], [t('wording.warehouse'), detailItem.warehouses],
             ['PIC', detailItem.pic], [t('wording.ownerships'), detailItem.ownerships.join(', ')], [t('wording.status'), detailItem.stage],
             [t('wording.checking'), detailItem.checking ? '✓' : '—'], [t('wording.scanIn'), detailItem.scanIn], [t('wording.scanOut'), detailItem.scanOut],
           ].map(([key, value]) => <div className="drawer-dl-row" key={key}><dt>{key}</dt><dd>{value || '—'}</dd></div>)}</dl>
+          {detailItem.brokenReport && <div className="drawer-broken">
+            <div className="drawer-broken-head"><strong>{t('sourceUpgrade.broken', { qty: detailItem.brokenReport.qty })}</strong>{!isClosing && <button className="drawer-link-btn" onClick={() => removeReport(detailItem.id)}>{t('sourceUpgrade.removeReport')}</button>}</div>
+            <p>{detailItem.brokenReport.note}</p><div className="drawer-broken-meta">{t('sourceUpgrade.reportBy', { name: detailItem.brokenReport.by || '—', date: new Date(detailItem.brokenReport.at).toLocaleString() })}</div>
+          </div>}
           <p className="item-note">{detailItem.note || '—'}</p>
           <div className="item-flow-flags">
             {detailItem.isReturned && <span className="item-flow-chip returned">✓ {t('lifecycle.returned')}</span>}
@@ -2368,9 +2428,10 @@ export default function EventDetailPage() {
           </div>
         </>}
       </Drawer>
+      {reportItem && !isClosing && <BrokenItemReport key={reportItem.id} eventId={eventId} item={reportItem} report={sourcePreview.reports[eventId]?.[reportItem.id]} onClose={() => setReportItem(null)} />}
       {modifyItem && <EventItemEditor key={modifyItem.id} initial={modifyItem} production={false} onSave={saveItemPreview} onClose={() => setModifyItem(null)} />}
       {productionOpen && <EventItemEditor
-        initial={{ name: '', qty: 1, area: '', pic: '', note: '', ownerships: ['IHP'] }}
+        initial={productionInitial ?? { name: '', qty: 1, area: '', pic: '', note: '', ownerships: ['IHP'] }}
         production
         onSave={submitProduction}
         onConvert={submitConversion}
@@ -2386,7 +2447,7 @@ export default function EventDetailPage() {
           }))}
         onClose={() => setProductionOpen(false)}
       />}
-      <EventLifecycleModal key={`${eventId}-${lifecycleMode}`} eventId={eventId} eventName={eventName} items={lifecycleItems} stages={eventStatuses} mode={lifecycleMode} onFinalized={refreshAfterFinalize} onClose={() => setLifecycleMode(null)} />
+      <EventLifecycleModal key={`${eventId}-${lifecycleMode}`} eventId={eventId} eventName={eventName} items={lifecycleItems} stages={eventStatuses} mode={lifecycleMode} onFinalized={refreshAfterFinalize} onOwnershipSaved={() => { setLifecycleMode(null); if (resumeStage !== null) { setPendingStage(resumeStage); setResumeStage(null); afterOwnership(); } }} onClose={() => { setLifecycleMode(null); setResumeStage(null); }} />
       <Modal
         open={atcOpen}
         title={t("wording.addToCart")}
