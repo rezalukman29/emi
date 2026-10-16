@@ -54,6 +54,13 @@ test('event status rows and features use authoritative backend booleans and code
   assert.equal(featureModule.hasReachedProductionStatus({ order_data: 8 }, []), false);
 });
 
+test('production request timestamps are displayed in Asia/Jakarta without a GMT suffix', () => {
+  const { formatJakartaDateTime } = load('pages/EventDetailPage.tsx', '\nexport { formatJakartaDateTime };');
+  assert.equal(formatJakartaDateTime('2026-10-16 07:01:56'), '2026-10-16 14:01:56');
+  assert.equal(formatJakartaDateTime('2026-10-16T07:01:56Z'), '2026-10-16 14:01:56');
+  assert.equal(formatJakartaDateTime(''), '');
+});
+
 test('create and update event status send code and boolean feature payloads, including false', async () => {
   const calls = [];
   const dependencies = {
@@ -106,17 +113,21 @@ test('get event items sends v3 production and conversion filters, including zero
   assert.equal(JSON.stringify(calls[0].params), JSON.stringify({ event_id: 88, list_id: 0, status_event_id: 0, search: 'chair', ownership: 'ihc,ihp', is_new_production_item: 1, isConverted: 0, order: 'asc' }));
 });
 
-test('new production request sends the backend payload without renaming its fields', async () => {
+test('new and replacement production requests preserve vendor, origin, warehouse, and broken item fields', async () => {
   const calls = [];
   const { createProductionRequest } = load('hooks/api/useCreateProductionRequest.ts', '', {
     '../../service/axios': { __esModule: true, default: {
       post: async (url, payload) => { calls.push({ url, payload }); return { data: { success: true, message: 'created' } }; },
     } },
   });
-  const payload = { event_id: 88, item_name: 'Custom Welcome Sign', qty: 2, area_id: 10, sub_area_id: 5, notes: 'Blue' };
+  const payload = { event_id: 88, request_type: 'NEW_PRODUCTION', item_name: 'Custom Welcome Sign', qty: 2, area_id: 10, sub_area_id: 5, warehouse_id: 3, vendor_id: 7, origin: 'External', notes: 'Blue' };
   const response = await createProductionRequest(payload);
+  const replacement = { ...payload, request_type: 'REPLACEMENT', item_name: 'Replacement Chair', barang_event_id: 597, fix_list_item_id: 597 };
+  await createProductionRequest(replacement);
   assert.equal(calls[0].url, '/v1/event-production-request');
   assert.deepEqual(calls[0].payload, payload);
+  assert.equal(calls[1].url, '/v1/event-production-request');
+  assert.deepEqual(calls[1].payload, replacement);
   assert.equal(response.message, 'created');
 });
 
@@ -219,8 +230,9 @@ test('conversion loaders use backend pagination and stable inventory identifiers
 });
 
 test('cards and list preserve backend return / transfer chips, and locked item actions disappear', () => {
-  const { ItemCard, ItemTable, isPackableEventItem } = load('pages/EventDetailPage.tsx', '\nexport { ItemCard, ItemTable, isPackableEventItem };', {
+  const { ItemCard, ItemTable, isPackableEventItem, mapEventItem } = load('pages/EventDetailPage.tsx', '\nexport { ItemCard, ItemTable, isPackableEventItem, mapEventItem };', {
     '../lib/eventLifecycle': { ownershipClass: () => 'badge-purple' },
+    '../utils/function': { isValidUrl: () => false, noImage: '/empty.jpg', STORAGE_BOOQABLE: '' },
   });
   const item = { id: 1, name: 'Chair', photo: '/chair.jpg', area: 'Entrance', qty: 2, unit: 'pcs', ownerships: ['IHP'], checking: true, isReturned: true, isTransferredFromOtherEvent: true, isTransferredToOtherEvent: true, isNewProductionItem: true, isConverted: true, convertedQty: 1 };
   const props = { item, onOpen() {}, onScan() {}, showScanButton: false, isScanned: false };
@@ -241,4 +253,97 @@ test('cards and list preserve backend return / transfer chips, and locked item a
   assert.equal(isPackableEventItem({ id: 1, packageId: null }), true);
   assert.equal(isPackableEventItem({ id: 2, packageId: 24 }), false);
   assert.equal(isPackableEventItem({ id: 3 }), false, 'only an explicit package:null response is eligible');
+  const mapped = mapEventItem({
+    id: 597, photo: '', nama_barang: 'Chair', kategori: null, code: 'CHAIR', gudang: null,
+    area_name: 'CEREMONY', sub_list_name: 'AISLE', qty: 2, pic: '', satuan: 'pcs',
+    is_checking: { Valid: true, Int64: 0 }, is_ware_house_item: { Valid: true, Int64: 0 },
+    scan_in: 0, scan_in_date: { Valid: false, Time: '' }, scan_out_date: { Valid: false, Time: '' },
+    notes: '', list_id: 16, sub_list_id: { Valid: true, Int64: 26 }, barang_id: 2232,
+    barang_gudang_id: 2408, event_status_id: 1, group_detail: '', ownerships: {},
+    is_returned: 0, is_transfer_to_other_event: 0, is_transfer_from_other_event: 0,
+    is_new_production_item: false, is_converted: false, converted_qty: 0, package: null,
+    broken_item: { id: 4, qty: 1, notes: 'dirty' },
+  }, new Map([[1, 'Preparation']]));
+  assert.equal(mapped.brokenReport.id, 4);
+  assert.equal(mapped.brokenReport.qty, 1);
+  assert.equal(mapped.brokenReport.note, 'dirty');
+});
+
+test('vendor CMS uses the v1 vendor contract for list, create, update, and delete', async () => {
+  const calls = [];
+  const axios = {
+    get: async (url, config) => {
+      calls.push({ method: 'GET', url, params: config.params });
+      return { data: { success: true, message: 'ok', data: { items: [], page: 2, limit: 10, total: 0, total_pages: 0, stats: { total: 0, internal: 0, external: 0 } } } };
+    },
+    post: async (url, payload) => {
+      calls.push({ method: 'POST', url, payload });
+      return { data: { success: true, message: 'created', data: { id: 1, ...payload } } };
+    },
+    put: async (url, payload) => {
+      calls.push({ method: 'PUT', url, payload });
+      return { data: { success: true, message: 'updated', data: { id: 7, ...payload } } };
+    },
+    delete: async url => {
+      calls.push({ method: 'DELETE', url });
+      return { data: { success: true, message: 'deleted', data: null } };
+    },
+  };
+  const api = load('hooks/api/useVendors.ts', '', {
+    '../../service/axios': { __esModule: true, default: axios },
+  });
+  const payload = { name: 'Workshop Kayu', category: 'Carpentry', contact: '0812', origin: 'Internal' };
+
+  await api.getVendors({ page: 2, limit: 10, search: 'wood', origin: 'Internal' });
+  await api.createVendor(payload);
+  await api.updateVendor({ id: 7, payload });
+  await api.deleteVendor(7);
+
+  assert.equal(calls[0].method, 'GET');
+  assert.equal(calls[0].url, '/v1/vendor');
+  assert.equal(JSON.stringify(calls[0].params), JSON.stringify({ page: 2, limit: 10, search: 'wood', origin: 'Internal' }));
+  assert.equal(calls[1].method, 'POST');
+  assert.equal(calls[1].url, '/v1/vendor');
+  assert.deepEqual(calls[1].payload, payload);
+  assert.equal(calls[2].method, 'PUT');
+  assert.equal(calls[2].url, '/v1/vendor/7');
+  assert.deepEqual(calls[2].payload, payload);
+  assert.equal(calls[3].method, 'DELETE');
+  assert.equal(calls[3].url, '/v1/vendor/7');
+});
+
+test('broken item reports use the v3 create, update, and delete contracts', async () => {
+  const calls = [];
+  const axios = {
+    post: async (url, payload) => {
+      calls.push({ method: 'POST', url, payload });
+      return { data: { success: true, message: 'created', data: { id: 91, ...payload } } };
+    },
+    put: async (url, payload) => {
+      calls.push({ method: 'PUT', url, payload });
+      return { data: { success: true, message: 'updated', data: { id: 91, ...payload } } };
+    },
+    delete: async url => {
+      calls.push({ method: 'DELETE', url });
+      return { data: { success: true, message: 'deleted' } };
+    },
+  };
+  const api = load('hooks/api/useBrokenItemReport.ts', '', {
+    '../../service/axios': { __esModule: true, default: axios },
+  });
+  const createPayload = { barang_event_id: 404, fix_list_item_id: 404, qty: 2, notes: 'Leg cracked' };
+  const updatePayload = { qty: 1, notes: 'One unit confirmed' };
+
+  await api.createBrokenItemReport(createPayload);
+  await api.updateBrokenItemReport({ id: 91, payload: updatePayload });
+  await api.deleteBrokenItemReport(91);
+
+  assert.equal(calls[0].method, 'POST');
+  assert.equal(calls[0].url, '/v3/fix-list-item/report');
+  assert.deepEqual(calls[0].payload, createPayload);
+  assert.equal(calls[1].method, 'PUT');
+  assert.equal(calls[1].url, '/v3/fix-list-item/report/91');
+  assert.deepEqual(calls[1].payload, updatePayload);
+  assert.equal(calls[2].method, 'DELETE');
+  assert.equal(calls[2].url, '/v3/fix-list-item/report/91');
 });

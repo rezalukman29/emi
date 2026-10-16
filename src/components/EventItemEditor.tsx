@@ -8,7 +8,8 @@ import useGetSubArea from '../hooks/api/useGetSubArea';
 import { OWNERSHIPS, type Ownership } from '../lib/eventLifecycle';
 import ConversionForm, { type ConversionDraft, type ConversionSourceItem } from './ConversionForm';
 import useGetWarehouse from '../hooks/api/useGetWarehouse';
-import { useSourcePreview, type ProductionMetadata } from '../lib/sourcePreview';
+import { type ProductionMetadata } from '../lib/sourcePreview';
+import { useGetVendors } from '../hooks/api/useVendors';
 
 export interface EventItemDraft {
   name: string; qty: number; area: string; areaId?: number; subArea?: string;
@@ -24,11 +25,16 @@ export default function EventItemEditor({ initial, production, onSave, onClose, 
   const [value, setValue] = useState(initial);
   const [tab, setTab] = useState<'new' | 'convert'>('new');
   const [saving, setSaving] = useState(false);
-  const { vendors } = useSourcePreview();
   const { data: warehouseResponse } = useGetWarehouse({ options: { enabled: production } });
   const warehouseData = warehouseResponse?.data;
   const warehouses: Array<{ id: number; nama: string }> = (Array.isArray(warehouseData) ? warehouseData : warehouseData?.data ?? []).filter((warehouse: { nama: string }) => warehouse.nama?.trim().toLowerCase() !== 'buy');
   const metadata = value.productionMetadata;
+  const vendorOrigin = metadata?.vendorOrigin ?? 'Internal';
+  const { data: vendorResponse } = useGetVendors({
+    params: { page: 1, limit: 100, origin: vendorOrigin },
+    options: { enabled: production },
+  });
+  const vendors = vendorResponse?.data?.items ?? [];
   function setMetadata(patch: Partial<ProductionMetadata>) {
     setValue(v => ({ ...v, productionMetadata: { warehouseId: 0, warehouseName: '', vendorId: 0, vendorName: '', vendorOrigin: 'Internal', ...v.productionMetadata, ...patch } }));
   }
@@ -57,9 +63,8 @@ export default function EventItemEditor({ initial, production, onSave, onClose, 
     {tab === 'convert' && onConvert ? <ConversionForm onSave={onConvert} eventItems={conversionItems} /> : <>
     {production && <p className="prod-notice prod-notice-info">{t('conversion.completeInfo')}</p>}
     {production && <>
-      <p className="ed-lock-note">{t('sourceUpgrade.metadataPreview')}</p>
       <div className="form-group"><label>{t('sourceUpgrade.warehouse')}</label><SearchableSelect value={metadata?.warehouseId || ''} onChange={id => setMetadata({ warehouseId: Number(id), warehouseName: warehouses.find(w => w.id === Number(id))?.nama ?? '' })} options={warehouses.map(w => ({ value: w.id, label: w.nama }))} placeholder={t('sourceUpgrade.warehouse')} /></div>
-      <div className="form-group"><label>{t('sourceUpgrade.origin')}</label><div className="seg-choice">{(['Internal', 'External'] as const).map(origin => <button type="button" key={origin} className={(metadata?.vendorOrigin ?? 'Internal') === origin ? 'active' : ''} onClick={() => setMetadata({ vendorOrigin: origin, vendorId: 0, vendorName: '' })}>{origin}</button>)}</div></div>
+      <div className="form-group"><label>{t('sourceUpgrade.origin')}</label><div className="seg-choice">{(['Internal', 'External'] as const).map(origin => <button type="button" key={origin} className={vendorOrigin === origin ? 'active' : ''} onClick={() => setMetadata({ vendorOrigin: origin, vendorId: 0, vendorName: '' })}>{origin}</button>)}</div></div>
       <div className="form-group"><label>{t('sourceUpgrade.vendor')}</label><SearchableSelect value={metadata?.vendorId || ''} onChange={id => setMetadata({ vendorId: Number(id), vendorName: vendors.find(v => v.id === Number(id))?.name ?? '' })} options={vendors.filter(v => v.origin === (metadata?.vendorOrigin ?? 'Internal')).map(v => ({ value: v.id, label: v.name }))} placeholder={t('sourceUpgrade.vendor')} /></div>
     </>}
     {production ? <TextInput label={t('wording.name')} value={value.name} onChange={name => setValue(v => ({ ...v, name }))} isRequired /> : <strong>{value.name}</strong>}

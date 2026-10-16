@@ -1,59 +1,400 @@
-import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { toast } from 'react-toastify';
-import Modal from '../components/Modal';
-import Pagination from '../components/Pagination';
-import TextInput from '../components/TextInput';
-import SearchableSelect from '../components/SearchableSelect';
-import SourcePreviewNotice from '../components/SourcePreviewNotice';
-import { IconPlus, IconEdit, IconDelete } from '../components/icons';
-import { updateSourcePreview, useSourcePreview, type Vendor } from '../lib/sourcePreview';
+import { useDeferredValue, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useQueryClient } from "react-query";
+import { toast } from "react-toastify";
 
-const empty: Omit<Vendor, 'id'> = { name: '', contact: '', type: '', origin: 'External' };
+import Modal from "../components/Modal";
+import Pagination from "../components/Pagination";
+import SearchableSelect from "../components/SearchableSelect";
+import TextInput from "../components/TextInput";
+import { IconDelete, IconEdit, IconPlus, IconSearch } from "../components/icons";
+import {
+  type VendorItem,
+  type VendorOrigin,
+  type VendorPayload,
+  useCreateVendor,
+  useDeleteVendor,
+  useGetVendors,
+  useUpdateVendor,
+} from "../hooks/api/useVendors";
+
+const PAGE_SIZE = 10;
+const EMPTY_FORM: VendorPayload = {
+  name: "",
+  origin: "External",
+  category: "",
+  contact: "",
+};
+const ORIGINS: VendorOrigin[] = ["Internal", "External"];
+
+function errorMessage(error: unknown, fallback: string) {
+  const apiMessage = (error as {
+    response?: { data?: { message?: string } };
+    message?: string;
+  })?.response?.data?.message;
+  return apiMessage || (error as { message?: string })?.message || fallback;
+}
+
 export default function VendorPage() {
   const { t } = useTranslation();
-  const { vendors } = useSourcePreview();
-  const [search, setSearch] = useState('');
-  const [origin, setOrigin] = useState('');
+  const queryClient = useQueryClient();
+  const [searchInput, setSearchInput] = useState("");
+  const search = useDeferredValue(searchInput.trim());
+  const [origin, setOrigin] = useState<VendorOrigin | "">("");
   const [page, setPage] = useState(1);
-  const [form, setForm] = useState(empty);
-  const [editing, setEditing] = useState<number | null>(null);
-  const [open, setOpen] = useState(false);
-  const [deleting, setDeleting] = useState<Vendor | null>(null);
-  const filtered = vendors.filter(v => (!origin || v.origin === origin) && `${v.name} ${v.contact} ${v.type}`.toLowerCase().includes(search.trim().toLowerCase()));
-  const safePage = Math.min(page, Math.max(1, Math.ceil(filtered.length / 10)));
-  const shown = filtered.slice((safePage - 1) * 10, safePage * 10);
-  function save() {
-    if (!form.name.trim()) return;
+  const [form, setForm] = useState<VendorPayload>(EMPTY_FORM);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<VendorItem | null>(null);
+
+  const vendorQuery = useGetVendors({
+    params: {
+      page,
+      limit: PAGE_SIZE,
+      ...(search ? { search } : {}),
+      ...(origin ? { origin } : {}),
+    },
+    options: { keepPreviousData: true },
+  });
+  const createMutation = useCreateVendor();
+  const updateMutation = useUpdateVendor();
+  const deleteMutation = useDeleteVendor();
+
+  const result = vendorQuery.data?.data;
+  const vendors = result?.items ?? [];
+  const stats = result?.stats ?? { total: 0, internal: 0, external: 0 };
+  const total = result?.total ?? 0;
+  const limit = result?.limit || PAGE_SIZE;
+  const currentPage = result?.page || page;
+  const isSaving = createMutation.isLoading || updateMutation.isLoading;
+
+  function resetFormModal() {
+    setModalOpen(false);
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+  }
+
+  function openNewVendor() {
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+    setModalOpen(true);
+  }
+
+  function openEditVendor(vendor: VendorItem) {
+    setEditingId(vendor.id);
+    setForm({
+      name: vendor.name,
+      origin: vendor.origin,
+      category: vendor.category ?? "",
+      contact: vendor.contact ?? "",
+    });
+    setModalOpen(true);
+  }
+
+  async function saveVendor() {
+    const payload: VendorPayload = {
+      ...form,
+      name: form.name.trim(),
+      category: form.category.trim(),
+      contact: form.contact.trim(),
+    };
+    if (!payload.name || isSaving) return;
+
     try {
-      updateSourcePreview(data => {
-        const vendor = { ...form, name: form.name.trim(), contact: form.contact.trim(), type: form.type.trim(), id: editing ?? Math.max(0, ...data.vendors.map(v => v.id)) + 1 };
-        data.vendors = editing ? data.vendors.map(v => v.id === editing ? vendor : v) : [...data.vendors, vendor];
-      });
-      setOpen(false);
-    } catch { toast.error(t('lifecycle.saveFailed')); }
+      if (editingId) {
+        await updateMutation.mutateAsync({ id: editingId, payload });
+        toast.success(t("sourceUpgrade.vendorUpdated"));
+      } else {
+        await createMutation.mutateAsync(payload);
+        toast.success(t("sourceUpgrade.vendorCreated"));
+      }
+      resetFormModal();
+      await queryClient.invalidateQueries("useGetVendors");
+    } catch (error) {
+      toast.error(
+        errorMessage(
+          error,
+          t(
+            editingId
+              ? "sourceUpgrade.failedUpdateVendor"
+              : "sourceUpgrade.failedCreateVendor",
+          ),
+        ),
+      );
+    }
   }
-  function remove() {
-    if (!deleting) return;
-    try { updateSourcePreview(data => { data.vendors = data.vendors.filter(v => v.id !== deleting.id); }); setDeleting(null); }
-    catch { toast.error(t('lifecycle.saveFailed')); }
+
+  async function removeVendor() {
+    if (!deleteTarget || deleteMutation.isLoading) return;
+    try {
+      await deleteMutation.mutateAsync(deleteTarget.id);
+      const shouldMoveBack = vendors.length === 1 && page > 1;
+      if (shouldMoveBack) setPage(current => current - 1);
+      setDeleteTarget(null);
+      toast.success(t("sourceUpgrade.vendorDeleted"));
+      await queryClient.invalidateQueries("useGetVendors");
+    } catch (error) {
+      toast.error(errorMessage(error, t("sourceUpgrade.failedDeleteVendor")));
+    }
   }
-  return <>
-    <div className="toolbar"><h1 className="page-title">{t('sourceUpgrade.vendors')}</h1><button className="btn-new" onClick={() => { setEditing(null); setForm(empty); setOpen(true); }}><IconPlus />{t('sourceUpgrade.newVendor')}</button></div>
-    <SourcePreviewNotice />
-    <div className="stats-bar">{['all', 'Internal', 'External'].map(value => <div className="stat-card" key={value}><strong className="stat-value">{vendors.filter(v => value === 'all' || v.origin === value).length}</strong><span>{value === 'all' ? t('sourceUpgrade.vendors') : value}</span></div>)}</div>
-    <div className="card">
-      <div className="toolbar"><div className="toolbar-left"><input aria-label={t('wording.search')} className="search-input" placeholder={t('wording.search')} value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} /><SearchableSelect value={origin} onChange={v => { setOrigin(String(v)); setPage(1); }} options={[{ value: '', label: t('wording.all') }, ...['Internal', 'External'].map(value => ({ value, label: value }))]} /></div></div>
-      <div className="table-wrap"><table><thead><tr>{['name', 'origin', 'category', 'contact', 'action'].map(key => <th key={key}>{t('sourceUpgrade.' + key)}</th>)}</tr></thead><tbody>
-        {!shown.length && <tr><td colSpan={5}>{t('wording.noData')}</td></tr>}
-        {shown.map(v => <tr key={v.id}><td className="name-cell">{v.name}</td><td><span className={`badge badge-${v.origin === 'Internal' ? 'green' : 'orange'}`}>{v.origin}</span></td><td>{v.type || '—'}</td><td>{v.contact || '—'}</td><td><div className="action-btns"><button className="btn-icon edit" aria-label={t('wording.edit')} onClick={() => { setEditing(v.id); setForm(v); setOpen(true); }}><IconEdit /></button><button className="btn-icon delete" aria-label={t('wording.delete')} onClick={() => setDeleting(v)}><IconDelete /></button></div></td></tr>)}
-      </tbody></table></div><Pagination currentPage={safePage} total={filtered.length} pageSize={10} onPage={setPage} label={t('sourceUpgrade.vendors')} />
-    </div>
-    <Modal open={open} title={t(editing ? 'sourceUpgrade.editVendor' : 'sourceUpgrade.newVendor')} onClose={() => setOpen(false)} footer={<><button className="btn-cancel-modal" onClick={() => setOpen(false)}>{t('wording.cancel')}</button><button className="btn-save-modal" disabled={!form.name.trim()} onClick={save}>{t('wording.save')}</button></>}>
-      <TextInput label={t('wording.name')} isRequired value={form.name} onChange={name => setForm(f => ({ ...f, name }))} />
-      <div className="form-group"><label>{t('sourceUpgrade.origin')}</label><SearchableSelect value={form.origin} onChange={origin => setForm(f => ({ ...f, origin: origin as Vendor['origin'] }))} options={['Internal', 'External'].map(value => ({ value, label: value }))} /></div>
-      <TextInput label={t('sourceUpgrade.category')} value={form.type} onChange={type => setForm(f => ({ ...f, type }))} /><TextInput label={t('sourceUpgrade.contact')} value={form.contact} onChange={contact => setForm(f => ({ ...f, contact }))} />
-    </Modal>
-    <Modal open={Boolean(deleting)} title={t('wording.delete')} onClose={() => setDeleting(null)} footer={<><button className="btn-cancel-modal" onClick={() => setDeleting(null)}>{t('wording.cancel')}</button><button className="btn-del-ok" onClick={remove}>{t('wording.delete')}</button></>}><p>{t('sourceUpgrade.deleteVendor', { name: deleting?.name })}</p></Modal>
-  </>;
+
+  const summary = [
+    {
+      label: t("sourceUpgrade.totalVendors"),
+      value: stats.total,
+      color: "var(--brand)",
+      background: "var(--brand-bg)",
+    },
+    {
+      label: t("sourceUpgrade.internal"),
+      value: stats.internal,
+      color: "var(--green)",
+      background: "var(--green-bg)",
+    },
+    {
+      label: t("sourceUpgrade.external"),
+      value: stats.external,
+      color: "var(--orange)",
+      background: "var(--orange-bg)",
+    },
+  ];
+
+  return (
+    <>
+      <div className="vendor-page-header">
+        <div>
+          <h1 className="page-title">{t("sourceUpgrade.vendors")}</h1>
+          <p className="vendor-page-description">
+            {t("sourceUpgrade.vendorDescription")}
+          </p>
+        </div>
+        <button className="btn-new" onClick={openNewVendor}>
+          <IconPlus />
+          {t("sourceUpgrade.newVendor")}
+        </button>
+      </div>
+
+      <div className="stats-bar vendor-stats-bar">
+        {summary.map(item => (
+          <div className="stat-card" key={item.label}>
+            <span
+              className="stat-icon"
+              style={{ background: item.background }}
+            >
+              <strong className="stat-value" style={{ color: item.color }}>
+                {item.value}
+              </strong>
+            </span>
+            <span className="stat-label">{item.label}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="card vendor-list-card">
+        <div className="toolbar vendor-toolbar">
+          <div className="toolbar-left">
+            <div className="search-wrap">
+              <IconSearch />
+              <input
+                aria-label={t("sourceUpgrade.searchVendor")}
+                className="search-input"
+                placeholder={t("sourceUpgrade.searchVendor")}
+                value={searchInput}
+                onChange={event => {
+                  setSearchInput(event.target.value);
+                  setPage(1);
+                }}
+              />
+            </div>
+            <div className="vendor-origin-filter">
+              <SearchableSelect
+                value={origin}
+                onChange={value => {
+                  setOrigin(value as VendorOrigin | "");
+                  setPage(1);
+                }}
+                options={[
+                  { value: "", label: t("sourceUpgrade.allOrigins") },
+                  ...ORIGINS.map(value => ({ value, label: value })),
+                ]}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>{t("sourceUpgrade.name")}</th>
+                <th>{t("sourceUpgrade.origin")}</th>
+                <th>{t("sourceUpgrade.category")}</th>
+                <th>{t("sourceUpgrade.contact")}</th>
+                <th>{t("sourceUpgrade.action")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {vendorQuery.isLoading && (
+                <tr>
+                  <td className="vendor-empty-cell" colSpan={5}>
+                    {t("wording.loading")}
+                  </td>
+                </tr>
+              )}
+              {vendorQuery.isError && !vendorQuery.isLoading && (
+                <tr>
+                  <td className="vendor-empty-cell vendor-error-cell" colSpan={5}>
+                    {errorMessage(
+                      vendorQuery.error,
+                      t("sourceUpgrade.failedLoadVendors"),
+                    )}
+                  </td>
+                </tr>
+              )}
+              {!vendorQuery.isLoading && !vendorQuery.isError && vendors.length === 0 && (
+                <tr>
+                  <td className="vendor-empty-cell" colSpan={5}>
+                    {t("sourceUpgrade.noVendors")}
+                  </td>
+                </tr>
+              )}
+              {vendors.map(vendor => (
+                <tr key={vendor.id}>
+                  <td className="name-cell">{vendor.name}</td>
+                  <td>
+                    <span
+                      className={`badge badge-${
+                        vendor.origin === "Internal" ? "green" : "orange"
+                      }`}
+                    >
+                      {vendor.origin}
+                    </span>
+                  </td>
+                  <td>{vendor.category || "—"}</td>
+                  <td>{vendor.contact || "—"}</td>
+                  <td>
+                    <div className="action-btns">
+                      <button
+                        className="btn-icon edit"
+                        aria-label={t("wording.edit")}
+                        onClick={() => openEditVendor(vendor)}
+                      >
+                        <IconEdit />
+                      </button>
+                      <button
+                        className="btn-icon delete"
+                        aria-label={t("wording.delete")}
+                        onClick={() => setDeleteTarget(vendor)}
+                      >
+                        <IconDelete />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <Pagination
+          currentPage={currentPage}
+          total={total}
+          pageSize={limit}
+          onPage={setPage}
+          label={t("sourceUpgrade.vendors")}
+        />
+      </div>
+
+      <Modal
+        open={modalOpen}
+        title={t(
+          editingId ? "sourceUpgrade.editVendor" : "sourceUpgrade.newVendor",
+        )}
+        onClose={() => {
+          if (!isSaving) resetFormModal();
+        }}
+        footer={
+          <>
+            <button
+              className="btn-cancel-modal"
+              disabled={isSaving}
+              onClick={resetFormModal}
+            >
+              {t("wording.cancel")}
+            </button>
+            <button
+              className="btn-save-modal"
+              disabled={!form.name.trim() || isSaving}
+              onClick={() => void saveVendor()}
+            >
+              {t(isSaving ? "wording.saving" : "wording.save")}
+            </button>
+          </>
+        }
+      >
+        <TextInput
+          label={t("sourceUpgrade.name")}
+          isRequired
+          placeholder={t("sourceUpgrade.vendorNamePlaceholder")}
+          value={form.name}
+          onChange={name => setForm(current => ({ ...current, name }))}
+        />
+        <div className="form-group">
+          <label>{t("sourceUpgrade.origin")}</label>
+          <SearchableSelect
+            value={form.origin}
+            onChange={value =>
+              setForm(current => ({
+                ...current,
+                origin: value as VendorOrigin,
+              }))
+            }
+            options={ORIGINS.map(value => ({ value, label: value }))}
+          />
+          <p className="vendor-origin-help">{t("sourceUpgrade.originHelp")}</p>
+        </div>
+        <div className="form-row">
+          <TextInput
+            label={t("sourceUpgrade.category")}
+            placeholder={t("sourceUpgrade.categoryPlaceholder")}
+            value={form.category}
+            onChange={category => setForm(current => ({ ...current, category }))}
+          />
+          <TextInput
+            label={t("sourceUpgrade.contact")}
+            placeholder={t("sourceUpgrade.contactPlaceholder")}
+            value={form.contact}
+            onChange={contact => setForm(current => ({ ...current, contact }))}
+          />
+        </div>
+      </Modal>
+
+      <Modal
+        open={Boolean(deleteTarget)}
+        title={t("sourceUpgrade.deleteVendorTitle")}
+        onClose={() => {
+          if (!deleteMutation.isLoading) setDeleteTarget(null);
+        }}
+        footer={
+          <>
+            <button
+              className="btn-cancel-modal"
+              disabled={deleteMutation.isLoading}
+              onClick={() => setDeleteTarget(null)}
+            >
+              {t("wording.cancel")}
+            </button>
+            <button
+              className="btn-del-ok"
+              disabled={deleteMutation.isLoading}
+              onClick={() => void removeVendor()}
+            >
+              {t("wording.delete")}
+            </button>
+          </>
+        }
+      >
+        <p>{t("sourceUpgrade.deleteVendor", { name: deleteTarget?.name })}</p>
+      </Modal>
+    </>
+  );
 }

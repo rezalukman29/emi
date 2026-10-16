@@ -20,6 +20,7 @@
 .drawer-broken-meta { font-size: 11.5px; opacity: .8; margin-top: 4px; }
 .drawer-broken-done { background: var(--bg); color: var(--text-2); }
 .drawer-link-btn { background: none; border: none; padding: 0; color: inherit; font: inherit; font-size: 12px; text-decoration: underline; cursor: pointer; }
+.drawer-link-btn:disabled { opacity: .55; cursor: wait; }
 .drawer-wh-list { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
 .drawer-wh-list em { font-style: normal; font-weight: 400; color: var(--text-muted); }
 .drawer-footer { flex-wrap: wrap; }
@@ -28,6 +29,23 @@
 .seg-choice { display: inline-flex; padding: 3px; gap: 2px; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--white); }
 .seg-choice button { padding: 6px 14px; border: none; background: none; border-radius: var(--r); font-size: 12.5px; font-weight: 600; color: var(--text-muted); cursor: pointer; font-family: inherit; }
 .seg-choice button.active { background: var(--brand-bg); color: var(--brand); }
+
+/* Vendor CMS */
+.vendor-page-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 18px; margin-bottom: 18px;
+}
+.vendor-page-header .page-title { margin: 0 0 7px; }
+.vendor-page-description { max-width: 980px; color: var(--text-muted); font-size: 12.5px; line-height: 1.5; }
+.vendor-stats-bar { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.vendor-list-card { padding-top: 18px; }
+.vendor-toolbar .toolbar-left { max-width: 730px; }
+.vendor-toolbar .search-wrap { flex: 1 1 360px; max-width: 540px; }
+.vendor-origin-filter { flex: 0 0 180px; min-width: 180px; }
+.vendor-origin-filter .ss-trigger { width: 100%; }
+.vendor-empty-cell { padding: 38px 16px !important; color: var(--text-muted); text-align: center; }
+.vendor-error-cell { color: var(--red); }
+.vendor-origin-help { margin: 5px 0 0; color: var(--text-muted); font-size: 11.5px; line-height: 1.45; }
 
 /* =========================================================
    RESPONSIVE
@@ -138,6 +156,10 @@
   .drawer { width: 100vw; }
   .modal-footer { flex-wrap: wrap; }
   .auth-card { padding: 26px 20px 22px; }
+  .vendor-page-header { flex-wrap: wrap; }
+  .vendor-page-header .btn-new { width: 100%; justify-content: center; }
+  .vendor-stats-bar { grid-template-columns: 1fr !important; }
+  .vendor-toolbar .search-wrap, .vendor-origin-filter { flex-basis: 100%; min-width: 0; width: 100%; max-width: none; }
 }
 
 /* Two-column page layouts (detail pages, dashboard, reports). Replaces inline

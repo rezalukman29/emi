@@ -1,5 +1,5 @@
 import BrokenItemReport from '../components/BrokenItemReport';
-import { useSourcePreview, updateSourcePreview, stagePromptStep, type BrokenReport } from '../lib/sourcePreview';
+import { useSourcePreview, stagePromptStep, type BrokenReport } from '../lib/sourcePreview';
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import axios from "axios";
@@ -35,6 +35,7 @@ import useCreateFixListItem from "../hooks/api/useCreateFixListItem";
 import usePutEventItem from '../hooks/api/usePutEventItem';
 import useCreateProductionRequest from '../hooks/api/useCreateProductionRequest';
 import useConvertEventItem from '../hooks/api/useConvertEventItem';
+import { useDeleteBrokenItemReport } from '../hooks/api/useBrokenItemReport';
 import useGetProductionRequests from '../hooks/api/useGetProductionRequests';
 import useCreatePackage from "../hooks/api/useCreatePackage";
 import useGetEventPackages from "../hooks/api/useGetEventPackages";
@@ -72,6 +73,29 @@ function formatEventDate(value?: string | null): string {
 
   const displayDate = value?.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
   return displayDate?.[0] ?? "";
+}
+
+function formatJakartaDateTime(value?: string | null): string {
+  const trimmed = value?.trim();
+  if (!trimmed) return "";
+
+  const hasTimeZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(trimmed);
+  const normalized = trimmed.includes("T")
+    ? `${trimmed}${hasTimeZone ? "" : "Z"}`
+    : `${trimmed.replace(" ", "T")}${hasTimeZone ? "" : "Z"}`;
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) return trimmed;
+
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Jakarta",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).format(date);
 }
 
 function parseBackendDate(value?: string): number | null {
@@ -340,6 +364,13 @@ function mapEventItem(
     isConverted: item.is_converted,
     convertedQty: Number(item.converted_qty ?? 0),
     packageId: item.package?.id ?? null,
+    brokenReport: item.broken_item
+      ? {
+        id: item.broken_item.id,
+        qty: item.broken_item.qty,
+        note: item.broken_item.notes ?? "",
+      }
+      : undefined,
   };
 }
 
@@ -678,6 +709,8 @@ export default function EventDetailPage() {
   const { mutateAsync: putEventItem } = usePutEventItem();
   const { mutateAsync: createProductionRequest } = useCreateProductionRequest();
   const { mutateAsync: convertEventItem } = useConvertEventItem();
+  const { mutateAsync: deleteBrokenReport, isLoading: isDeletingBrokenReport } =
+    useDeleteBrokenItemReport();
 
   const [detailId, setDetailId] = useState<number | null>(null);
   const [modifyItem, setModifyItem] = useState<DisplayItem | null>(null);
@@ -930,7 +963,7 @@ export default function EventDetailPage() {
         return {
           ...item,
           ...itemEdits[item.id],
-          brokenReport: item.isNewProductionItem ? undefined : sourcePreview.reports[eventId]?.[item.id],
+          brokenReport: item.isNewProductionItem ? undefined : item.brokenReport,
           resolution: lifecycle?.items?.[item.id]?.resolution,
           ...scanOverrides[item.id],
           groupId: assignedGroupId,
@@ -964,7 +997,6 @@ export default function EventDetailPage() {
     lifecycleItems,
     lifecycle?.items,
     lifecycle?.productionRequests,
-    sourcePreview.reports,
   ]);
 
   const backendProductionItems = useMemo(
@@ -1213,14 +1245,26 @@ export default function EventDetailPage() {
   function cancelStageFlow() {
     setPendingStage(null); setResumeStage(null); setFlowStep('confirm');
   }
-  function removeReport(itemId: number) {
-    if (isClosing) return;
-    try { updateSourcePreview(data => { delete data.reports[eventId]?.[itemId]; }); }
-    catch { toast.error(t('lifecycle.saveFailed')); }
+  async function saveBrokenReport() {
+    await refetchEventItems();
+  }
+  async function removeReport(item: DisplayItem) {
+    if (isClosing || isDeletingBrokenReport) return;
+    if (!item.brokenReport?.id) {
+      toast.error(t('sourceUpgrade.reportIdUnavailable'));
+      return;
+    }
+    try {
+      const response = await deleteBrokenReport(item.brokenReport.id);
+      await refetchEventItems();
+      toast.success(response.message || t('sourceUpgrade.reportDeleted'));
+    } catch (error) {
+      toast.error(getCheckoutErrorMessage(error));
+    }
   }
   function replaceBrokenItem(item: DisplayItem) {
     if (!productionEnabled || isClosing || !item.brokenReport) return;
-    setProductionInitial({ ...item, qty: item.brokenReport.qty, note: t('sourceUpgrade.replacement', { qty: item.brokenReport.qty, name: item.name }) + (item.brokenReport.note ? ': ' + item.brokenReport.note : ''), productionMetadata: { warehouseId: 0, warehouseName: '', vendorId: 0, vendorName: '', vendorOrigin: 'Internal', replacesItemId: item.id } });
+    setProductionInitial({ ...item, name: '', qty: item.brokenReport.qty, note: t('sourceUpgrade.replacement', { qty: item.brokenReport.qty, name: item.name }) + (item.brokenReport.note ? ': ' + item.brokenReport.note : ''), productionMetadata: { warehouseId: 0, warehouseName: '', vendorId: 0, vendorName: '', vendorOrigin: 'Internal', replacesItemId: item.id } });
     setProductionOpen(true);
   }
   const crossedStages = pendingStage !== null && pendingStage > currentStageIndex ? eventStatuses.slice(currentStageIndex + 1, pendingStage + 1) : [];
@@ -1936,18 +1980,30 @@ export default function EventDetailPage() {
   async function submitProduction(value: EventItemDraft) {
     if (!productionEnabled || !value.areaId) return;
     try {
+      const metadata = value.productionMetadata;
+      const replacementItemId = metadata?.replacesItemId;
       const response = await createProductionRequest({
         event_id: eventId,
+        request_type: replacementItemId ? "REPLACEMENT" : "NEW_PRODUCTION",
         item_name: value.name.trim(),
         qty: value.qty,
         area_id: value.areaId,
         ...(value.subAreaId ? { sub_area_id: value.subAreaId } : {}),
+        ...(metadata?.warehouseId ? { warehouse_id: metadata.warehouseId } : {}),
+        ...(metadata?.vendorId
+          ? {
+            vendor_id: metadata.vendorId,
+            origin: metadata.vendorOrigin,
+          }
+          : {}),
+        ...(replacementItemId
+          ? {
+            barang_event_id: replacementItemId,
+            fix_list_item_id: replacementItemId,
+          }
+          : {}),
         notes: value.note.trim(),
       });
-      if (value.productionMetadata) {
-        try { updateSourcePreview(data => { data.production.unshift({ ...value.productionMetadata!, eventId, itemName: value.name.trim(), at: new Date().toISOString() }); }); }
-        catch { toast.warning(t('sourceUpgrade.savedMetadataFailed')); }
-      }
       setStageFilter("production");
       await Promise.all([
         refetchEventItems(),
@@ -2209,14 +2265,13 @@ export default function EventDetailPage() {
           })}
         </div><div className="view-toggle">{(['cards', 'list'] as const).map(mode => <button key={mode} title={t('eventUpgrade.' + mode)} aria-label={t('eventUpgrade.' + mode)} aria-pressed={viewMode === mode} className={viewMode === mode ? 'active' : ''} onClick={() => { setViewMode(mode); try { localStorage.setItem('emi_event_detail_view', mode); } catch { /* Preference is optional. */ } }}>{mode === 'cards' ? '▦' : '☰'}</button>)}</div></div>
         {effectiveStageFilter === "production" ? <div className="production-list">
-          {sourcePreview.production.filter(entry => entry.eventId === eventId).map((entry, index) => <div className="production-card production-request-card" key={`${entry.at}-${index}`}>
-            <div className="production-card-main"><strong>{entry.itemName}</strong><p className="ed-lock-note">{t('sourceUpgrade.metadataPreview')}</p><div className="production-request-route"><span>{t('sourceUpgrade.warehouse')}: {entry.warehouseName || '—'}</span><span>{entry.vendorOrigin} · {entry.vendorName || '—'}</span></div></div>
-          </div>)}
           {isProductionRequestsLoading ? (
             <p className="no-data">{t("wording.loading")}</p>
           ) : !isProductionRequestsError ? (
             apiProductionRequests.length > 0 ? apiProductionRequests.map((request) => {
               const isConvertRequest = (request.type || "").toUpperCase() === "CONVERT";
+              const isReplacementRequest = (request.type || "").toUpperCase() === "REPLACEMENT";
+              const requestQty = request.qty ?? request.new_item?.qty ?? request.replacement_for?.broken_qty;
               const normalizedStatus = (request.status || "").toUpperCase();
               const statusClass = normalizedStatus === "COMPLETED"
                 ? "badge-green"
@@ -2227,12 +2282,12 @@ export default function EventDetailPage() {
                 <div className="production-card-main">
                   <div className="production-request-header">
                     <div className="production-request-heading">
-                      <span className={`badge ${isConvertRequest ? "badge-blue" : "badge-purple"}`}>
-                        {t(isConvertRequest ? "conversion.convert" : "conversion.newProduction")}
+                      <span className={`badge ${isConvertRequest ? "badge-blue" : isReplacementRequest ? "badge-orange" : "badge-purple"}`}>
+                        {t(isConvertRequest ? "conversion.convert" : isReplacementRequest ? "sourceUpgrade.replacementRequest" : "conversion.newProduction")}
                       </span>
                       <strong className="production-request-title">{isConvertRequest
                         ? `${request.old_item?.qty ?? 0} × ${request.old_item?.nama || "—"} → ${request.new_item?.qty ?? 0} × ${request.new_item?.nama || "—"}`
-                        : request.item_name}</strong>
+                        : `${requestQty ?? "—"} × ${request.item_name || "—"}`}</strong>
                     </div>
                     <span className={`badge production-request-status ${statusClass}`}>{normalizedStatus || "—"}</span>
                   </div>
@@ -2255,8 +2310,8 @@ export default function EventDetailPage() {
                   </div>
                   <div className="production-request-footer">
                     <span>{t("conversion.requestedBy", { name: request.requested_by || "—" })}</span>
-                    {request.created_at && <span>{request.created_at}</span>}
-                    {request.applied_at && <span>{t("conversion.appliedAt")}: {request.applied_at}</span>}
+                    {request.created_at && <span>{formatJakartaDateTime(request.created_at)}</span>}
+                    {request.applied_at && <span>{t("conversion.appliedAt")}: {formatJakartaDateTime(request.applied_at)}</span>}
                   </div>
                 </div>
               </div>;
@@ -2417,8 +2472,9 @@ export default function EventDetailPage() {
             [t('wording.checking'), detailItem.checking ? '✓' : '—'], [t('wording.scanIn'), detailItem.scanIn], [t('wording.scanOut'), detailItem.scanOut],
           ].map(([key, value]) => <div className="drawer-dl-row" key={key}><dt>{key}</dt><dd>{value || '—'}</dd></div>)}</dl>
           {detailItem.brokenReport && <div className="drawer-broken">
-            <div className="drawer-broken-head"><strong>{t('sourceUpgrade.broken', { qty: detailItem.brokenReport.qty })}</strong>{!isClosing && <button className="drawer-link-btn" onClick={() => removeReport(detailItem.id)}>{t('sourceUpgrade.removeReport')}</button>}</div>
-            <p>{detailItem.brokenReport.note}</p><div className="drawer-broken-meta">{t('sourceUpgrade.reportBy', { name: detailItem.brokenReport.by || '—', date: new Date(detailItem.brokenReport.at).toLocaleString() })}</div>
+            <div className="drawer-broken-head"><strong>{t('sourceUpgrade.broken', { qty: detailItem.brokenReport.qty })}</strong>{!isClosing && <button className="drawer-link-btn" disabled={isDeletingBrokenReport} onClick={() => void removeReport(detailItem)}>{t('sourceUpgrade.removeReport')}</button>}</div>
+            {detailItem.brokenReport.note && <p>{detailItem.brokenReport.note}</p>}
+            {(detailItem.brokenReport.by || detailItem.brokenReport.at) && <div className="drawer-broken-meta">{t('sourceUpgrade.reportBy', { name: detailItem.brokenReport.by || '—', date: detailItem.brokenReport.at ? new Date(detailItem.brokenReport.at).toLocaleString() : '—' })}</div>}
           </div>}
           <p className="item-note">{detailItem.note || '—'}</p>
           <div className="item-flow-flags">
@@ -2428,13 +2484,13 @@ export default function EventDetailPage() {
           </div>
         </>}
       </Drawer>
-      {reportItem && !isClosing && <BrokenItemReport key={reportItem.id} eventId={eventId} item={reportItem} report={sourcePreview.reports[eventId]?.[reportItem.id]} onClose={() => setReportItem(null)} />}
+      {reportItem && !isClosing && <BrokenItemReport key={reportItem.id} item={reportItem} report={reportItem.brokenReport} onSaved={saveBrokenReport} onClose={() => setReportItem(null)} />}
       {modifyItem && <EventItemEditor key={modifyItem.id} initial={modifyItem} production={false} onSave={saveItemPreview} onClose={() => setModifyItem(null)} />}
       {productionOpen && <EventItemEditor
         initial={productionInitial ?? { name: '', qty: 1, area: '', pic: '', note: '', ownerships: ['IHP'] }}
         production
         onSave={submitProduction}
-        onConvert={submitConversion}
+        onConvert={productionInitial?.productionMetadata?.replacesItemId ? undefined : submitConversion}
         conversionItems={items
           .filter((item) => item.id > 0 && item.qty > 0 && Boolean(item.barangId))
           .map((item) => ({

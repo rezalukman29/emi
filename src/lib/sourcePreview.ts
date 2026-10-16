@@ -1,7 +1,7 @@
 import { useMemo, useSyncExternalStore } from 'react';
 
 export interface Vendor { id: number; name: string; contact: string; type: string; origin: 'Internal' | 'External' }
-export interface BrokenReport { qty: number; note: string; by: string; at: string }
+export interface BrokenReport { id?: number; qty: number; note: string; by?: string; at?: string }
 export interface ProductionMetadata { warehouseId: number; warehouseName: string; vendorId: number; vendorName: string; vendorOrigin: 'Internal' | 'External'; replacesItemId?: number }
 export interface SourcePreview {
   vendors: Vendor[];

@@ -38,6 +38,12 @@ export interface EventItemPackage {
   qr_type: string;
 }
 
+export interface EventItemBrokenItem {
+  id: number;
+  qty: number;
+  notes: string;
+}
+
 export interface EventItem {
   id: number;
   scan_out: number;
@@ -83,6 +89,7 @@ export interface EventItem {
   is_new_production_item: boolean;
   is_converted: boolean;
   converted_qty: number;
+  broken_item?: EventItemBrokenItem | null;
 }
 
 export interface ParamsGetEventItemInterface {

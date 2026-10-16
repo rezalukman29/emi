@@ -22,10 +22,17 @@ export interface ProductionRequestItem {
   new_item: ProductionRequestItemDetail | null;
   notes: string;
   old_item: ProductionRequestItemDetail | null;
+  qty?: number;
   requested_by: string;
   status: "PENDING" | "COMPLETED" | "CANCELLED" | string;
   sub_area_name: string;
-  type: "CONVERT" | "NEW_PRODUCTION" | string;
+  type: "CONVERT" | "NEW_PRODUCTION" | "REPLACEMENT" | string;
+  replacement_for?: {
+    fix_list_item_id: number;
+    barang_id: number;
+    item_name: string;
+    broken_qty: number;
+  } | null;
 }
 
 export async function getProductionRequests(
