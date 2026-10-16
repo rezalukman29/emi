@@ -262,11 +262,13 @@ test('cards and list preserve backend return / transfer chips, and locked item a
     barang_gudang_id: 2408, event_status_id: 1, group_detail: '', ownerships: {},
     is_returned: 0, is_transfer_to_other_event: 0, is_transfer_from_other_event: 0,
     is_new_production_item: false, is_converted: false, converted_qty: 0, package: null,
-    broken_item: { id: 4, qty: 1, notes: 'dirty' },
+    broken_item: { id: 4, qty: 1, notes: 'dirty', reported_by: 'Monata', reported_at: '2026-10-16 06:20:00' },
   }, new Map([[1, 'Preparation']]));
   assert.equal(mapped.brokenReport.id, 4);
   assert.equal(mapped.brokenReport.qty, 1);
   assert.equal(mapped.brokenReport.note, 'dirty');
+  assert.equal(mapped.brokenReport.by, 'Monata');
+  assert.equal(mapped.brokenReport.at, '2026-10-16 06:20:00');
 });
 
 test('vendor CMS uses the v1 vendor contract for list, create, update, and delete', async () => {

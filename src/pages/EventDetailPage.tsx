@@ -369,6 +369,8 @@ function mapEventItem(
         id: item.broken_item.id,
         qty: item.broken_item.qty,
         note: item.broken_item.notes ?? "",
+        by: item.broken_item.reported_by ?? "",
+        at: item.broken_item.reported_at ?? "",
       }
       : undefined,
   };
@@ -2474,7 +2476,7 @@ export default function EventDetailPage() {
           {detailItem.brokenReport && <div className="drawer-broken">
             <div className="drawer-broken-head"><strong>{t('sourceUpgrade.broken', { qty: detailItem.brokenReport.qty })}</strong>{!isClosing && <button className="drawer-link-btn" disabled={isDeletingBrokenReport} onClick={() => void removeReport(detailItem)}>{t('sourceUpgrade.removeReport')}</button>}</div>
             {detailItem.brokenReport.note && <p>{detailItem.brokenReport.note}</p>}
-            {(detailItem.brokenReport.by || detailItem.brokenReport.at) && <div className="drawer-broken-meta">{t('sourceUpgrade.reportBy', { name: detailItem.brokenReport.by || '—', date: detailItem.brokenReport.at ? new Date(detailItem.brokenReport.at).toLocaleString() : '—' })}</div>}
+            {(detailItem.brokenReport.by || detailItem.brokenReport.at) && <div className="drawer-broken-meta">{t('sourceUpgrade.reportBy', { name: detailItem.brokenReport.by || '—', date: detailItem.brokenReport.at ? formatJakartaDateTime(detailItem.brokenReport.at) : '—' })}</div>}
           </div>}
           <p className="item-note">{detailItem.note || '—'}</p>
           <div className="item-flow-flags">
