@@ -1,4 +1,7 @@
+import { fmtNum as fmtDisplayNumber } from '../lib/format';
 import BrokenItemReport from '../components/BrokenItemReport';
+import PrintPlanModal from '../components/PrintPlanModal.jsx';
+import RentalLogTab from '../components/RentalLogTab';
 import { useSourcePreview, stagePromptStep, type BrokenReport } from '../lib/sourcePreview';
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -498,7 +501,7 @@ function ItemCard({
             )}
             {isScanned && <span className="item-scanned-badge"><CheckIcon /> {i18n.t("wording.scanned")}</span>}
           </span>
-          <span className="item-qty">{i18n.t("wording.qtyPrefix")} {item.qty}</span>
+          <span className="item-qty">{i18n.t("wording.qtyPrefix")} {fmtDisplayNumber(item.qty)}</span>
         </div>
         <div className="item-pic">
           <svg
@@ -605,7 +608,7 @@ function ItemTable({ items, onOpen, onModify, onDelete, onScan, showScanButton, 
       {item.isTransferredFromOtherEvent && <span className="badge badge-orange">↓ {t('lifecycle.transferred')}</span>}
       {item.isTransferredToOtherEvent && <span className="badge badge-orange">↑ {t('lifecycle.transferred')}</span>}
     </div><div className="item-table-note">{item.note}</div></td>
-    <td>{item.area}<div className="item-table-sub">{item.subArea}</div></td><td>{item.qty} {item.unit}</td><td>{item.pic || '—'}</td>
+    <td>{item.area}<div className="item-table-sub">{item.subArea}</div></td><td>{fmtDisplayNumber(item.qty)} {item.unit}</td><td>{item.pic || '—'}</td>
     <td>{item.ownerships.map(o => <span key={o} className={'badge ' + ownershipClass(o)}>{o}</span>)}</td>
     <td>{item.checking ? '✓' : '—'}</td><td>{item.scanIn || '—'}</td><td>{item.scanOut || '—'}</td>
     <td><div className="item-table-actions">
@@ -734,6 +737,9 @@ export default function EventDetailPage() {
   const [currentStatusId, setCurrentStatusId] = useState<number | null>(null);
   const [isChangingEventStatus, setIsChangingEventStatus] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [printPlanOpen, setPrintPlanOpen] = useState(false);
+  const printPlanItems = useGetEventItem({ params: { event_id: eventId, order: 'asc' }, options: { enabled: printPlanOpen && eventId > 0 } });
+  const [rentalOpen, setRentalOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement | null>(null);
   const [stepperError, setStepperError] = useState("");
@@ -1065,6 +1071,7 @@ export default function EventDetailPage() {
   const eventStatus = currentStatus?.name ?? stages[currentStageIndex] ?? stages[0];
   const closingFlag = resolveLifecycle({ id: eventId, status: currentStatus?.id, is_complete: eventDetail?.is_complete, is_finished: eventDetail?.is_finished, total_items: lifecycleItems.length }, { ...lifecycle, stageId: currentStatus?.id, itemCount: lifecycleItems.length }, eventStatuses[eventStatuses.length - 1]?.id);
   const isClosing = ['checking-inventory', 'returned-completed', 'transferred'].includes(closingFlag);
+  const deleteAllowed = !isClosing && (currentStatus?.allow_delete ?? sourcePreview.allowDelete[currentStatus?.id]) !== false;
   const features = Object.fromEntries(eventStatuses.map(status => [status.id, eventStatusFeatures(status)]));
   const maxReachedIndex = Math.max(currentStageIndex, eventStatuses.findIndex(s => s.id === lifecycle?.furthestStageId));
   const returnIndex = eventStatuses.findIndex(s => features[s.id]?.stockReturn);
@@ -1584,7 +1591,7 @@ export default function EventDetailPage() {
   }
 
   async function deleteItem(id: number) {
-    if (isClosing) return;
+    if (!deleteAllowed) return;
     if (!window.confirm("Delete this item from the event?")) return;
     if (id <= 0) {
       setHiddenItemIds(ids => [...ids, id]);
@@ -2135,12 +2142,11 @@ export default function EventDetailPage() {
           <div className="event-title-wrap"><div className="event-heading">{eventName}</div><span className={`badge ${LIFECYCLE_BADGES[closingFlag]}`}>{t(`lifecycle.${closingFlag}`)}</span></div>
 
           <div className="event-actions-bar">
+            {!isClosing && (currentStatus?.loan_item ?? sourcePreview.loanItem[currentStatus?.id]) && <button className="btn btn-ghost" onClick={() => setRentalOpen(true)}>{t('october.newRental')}</button>}
             {productionEnabled && <button className="btn btn-ghost" onClick={() => { setProductionInitial(null); setProductionOpen(true); }}>{t("eventUpgrade.requestProduction")}</button>}
-            <button className="action-icon-btn btn-cart-outline" disabled={addLocked} onClick={openCart}>
-              <IconCart />
-            </button>
             <button className="btn-new" disabled={addLocked} onClick={openCart}>
               <IconPlus /> {t("wording.addItem")}
+              {cart.length > 0 && <span className="add-item-cart-count"><IconCart /> {fmtDisplayNumber(cart.length)}</span>}
             </button>
             <div className="more-menu-wrap" ref={moreMenuRef}>
               <button
@@ -2154,6 +2160,8 @@ export default function EventDetailPage() {
               </button>
               {moreMenuOpen && (
                 <div className="more-menu-dropdown">
+                  <button className="more-menu-item" onClick={() => { setRentalOpen(true); setMoreMenuOpen(false); }}>{t('october.rentals')}</button>
+                  <button className="more-menu-item" onClick={() => { setPrintPlanOpen(true); setMoreMenuOpen(false); }}><IconPrint /> {t('october.printPlan')}</button>
                   {!isClosing && <button className="more-menu-item" onClick={() => { openPackagingModal(); setMoreMenuOpen(false); }}>{t('lifecycle.groupItems')}</button>}
                   {!isClosing && <button className="more-menu-item" onClick={() => { setLifecycleMode('ownership'); setMoreMenuOpen(false); }}>{t('lifecycle.bulkOwnership')}</button>}
                   {closingFlag === 'checking-inventory' && <button className="more-menu-item" onClick={() => { setLifecycleMode('check'); setMoreMenuOpen(false); }}>{t('lifecycle.crossCheck')}</button>}
@@ -2328,7 +2336,7 @@ export default function EventDetailPage() {
                 items={visibleProductionItems}
                 onOpen={(item) => setDetailId(item.id)}
                 onModify={isClosing ? undefined : setModifyItem}
-                onDelete={isClosing ? undefined : deleteItem}
+                onDelete={deleteAllowed ? deleteItem : undefined}
                 onScan={openScanPopup}
                 showScanButton={stageScanEnabled}
                 isScanned={isItemScannedForCurrentStatus}
@@ -2343,7 +2351,7 @@ export default function EventDetailPage() {
                     showScanButton={stageScanEnabled && item.id > 0}
                     isScanned={isItemScannedForCurrentStatus(item)}
                     onScan={openScanPopup}
-                    onDelete={isClosing ? undefined : deleteItem}
+                    onDelete={deleteAllowed ? deleteItem : undefined}
                     onOpen={(selectedItem) => setDetailId(selectedItem.id)}
                     onModify={isClosing ? undefined : setModifyItem}
                   />
@@ -2361,7 +2369,7 @@ export default function EventDetailPage() {
               <div className="no-data">{t("wording.noBoxesYetUseTheBoxIconAbove")}</div>
             ) : (
               <>
-                <p className="summary-text"><strong>{packages.length}</strong> {t("wording.box")}{packages.length === 1 ? "" : t("wording.es")} {t("wording.packagedEachBoxScansAsOneQrCode")}</p>
+                <p className="summary-text"><strong>{fmtDisplayNumber(packages.length)}</strong> {t("wording.box")}{packages.length === 1 ? "" : t("wording.es")} {t("wording.packagedEachBoxScansAsOneQrCode")}</p>
                 <div className="package-list">
                   {packages.map((group) => {
                     const members = group.items ?? items.filter((item) => group.itemIds.includes(item.id));
@@ -2373,13 +2381,13 @@ export default function EventDetailPage() {
                         <div className="package-header">
                           <div className="package-header-info">
                             <span className="package-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /></svg></span>
-                            <div><div className="package-name">{group.name}</div><div className="package-meta">{members.length} {t("wording.itemInline")}{members.length === 1 ? "" : t("wording.s")} {t("wording.inThisBox")}</div></div>
+                            <div><div className="package-name">{group.name}</div><div className="package-meta">{fmtDisplayNumber(members.length)} {t("wording.itemInline")}{members.length === 1 ? "" : t("wording.s")} {t("wording.inThisBox")}</div></div>
                           </div>
                           {stageScanEnabled && members.length > 0 && (
                             <button className={`btn-ia-scan${allScanned ? " scanned" : ""}`} onClick={() => openScanPopup(members[0])}>{allScanned ? t("wording.reScanBox") : t("wording.scanBox")}</button>
                           )}
                         </div>
-                        {viewMode === 'list' ? <ItemTable items={members} onOpen={item => setDetailId(item.id)} onModify={isClosing ? undefined : setModifyItem} onDelete={isClosing ? undefined : deleteItem} onScan={openScanPopup} showScanButton={false} isScanned={isItemScannedForCurrentStatus} /> : <div className="items-grid package-items-grid">
+                        {viewMode === 'list' ? <ItemTable items={members} onOpen={item => setDetailId(item.id)} onModify={isClosing ? undefined : setModifyItem} onDelete={deleteAllowed ? deleteItem : undefined} onScan={openScanPopup} showScanButton={false} isScanned={isItemScannedForCurrentStatus} /> : <div className="items-grid package-items-grid">
                           {members.map((item) => (
                             <ItemCard
                               key={item.id}
@@ -2388,7 +2396,7 @@ export default function EventDetailPage() {
                               showScanButton={false}
                               isScanned={isItemScannedForCurrentStatus(item)}
                               onScan={openScanPopup}
-                              onDelete={isClosing ? undefined : deleteItem}
+                              onDelete={deleteAllowed ? deleteItem : undefined}
                               onOpen={item => setDetailId(item.id)} onModify={isClosing ? undefined : setModifyItem}
                             />
                           ))}
@@ -2410,12 +2418,12 @@ export default function EventDetailPage() {
           <>
             <p className="summary-text">
               {effectiveStageFilter === "waiting" ? (
-                <><strong>{displayedItems.length}</strong> {t("wording.itemInline")}{displayedItems.length === 1 ? "" : t("wording.s")} {t("wording.stillNeed")}{displayedItems.length === 1 ? t("wording.s") : ""} {t("wording.scanningAtEventStatus")} <strong>&ldquo;{eventStatus}&rdquo;</strong> {t("wording.inArea")} <strong>&ldquo;{areaLabel}&rdquo;</strong></>
+                <><strong>{fmtDisplayNumber(displayedItems.length)}</strong> {t("wording.itemInline")}{displayedItems.length === 1 ? "" : t("wording.s")} {t("wording.stillNeed")}{displayedItems.length === 1 ? t("wording.s") : ""} {t("wording.scanningAtEventStatus")} <strong>&ldquo;{eventStatus}&rdquo;</strong> {t("wording.inArea")} <strong>&ldquo;{areaLabel}&rdquo;</strong></>
               ) : (
-                <><strong>{displayedItems.length}</strong> {t("wording.itemSWithStatus")} <strong>&ldquo;{eventStatus}&rdquo;</strong> {t("wording.inArea")} <strong>&ldquo;{areaLabel}&rdquo;</strong></>
+                <><strong>{fmtDisplayNumber(displayedItems.length)}</strong> {t("wording.itemSWithStatus")} <strong>&ldquo;{eventStatus}&rdquo;</strong> {t("wording.inArea")} <strong>&ldquo;{areaLabel}&rdquo;</strong></>
               )}
             </p>
-            {viewMode === 'list' ? <ItemTable items={displayedItems} onOpen={item => setDetailId(item.id)} onModify={isClosing ? undefined : setModifyItem} onDelete={isClosing ? undefined : deleteItem} onScan={openScanPopup} showScanButton={stageScanEnabled} isScanned={isItemScannedForCurrentStatus} /> : <div className="items-grid">
+            {viewMode === 'list' ? <ItemTable items={displayedItems} onOpen={item => setDetailId(item.id)} onModify={isClosing ? undefined : setModifyItem} onDelete={deleteAllowed ? deleteItem : undefined} onScan={openScanPopup} showScanButton={stageScanEnabled} isScanned={isItemScannedForCurrentStatus} /> : <div className="items-grid">
             {displayedItems.map((item) => (
               <ItemCard
                 key={item.id}
@@ -2424,7 +2432,7 @@ export default function EventDetailPage() {
                 showScanButton={stageScanEnabled && item.id > 0}
                 isScanned={isItemScannedForCurrentStatus(item)}
                 onScan={openScanPopup}
-                onDelete={isClosing ? undefined : deleteItem}
+                onDelete={deleteAllowed ? deleteItem : undefined}
                               onOpen={item => setDetailId(item.id)} onModify={isClosing ? undefined : setModifyItem}
               />
             ))}
@@ -2441,7 +2449,7 @@ export default function EventDetailPage() {
       <Modal open={pendingStage !== null && flowStep === 'broken'} title={t('sourceUpgrade.report')} onClose={cancelStageFlow} footer={<>
         <button className="btn-cancel-modal" onClick={cancelStageFlow}>{t('wording.cancel')}</button>
         <button className="btn-save-modal" onClick={() => setFlowStep('confirm')}>{t('eventUpgrade.confirm')}</button>
-      </>}><p className="prod-notice prod-notice-warn">{t('sourceUpgrade.brokenWarning')}</p><div className="table-wrap"><table className="broken-table"><tbody>{items.filter(item => item.brokenReport).map(item => <tr key={item.id}><td>{item.name}</td><td>{item.brokenReport?.qty} / {item.qty}</td></tr>)}</tbody></table></div></Modal>
+      </>}><p className="prod-notice prod-notice-warn">{t('sourceUpgrade.brokenWarning')}</p><div className="table-wrap"><table className="broken-table"><tbody>{items.filter(item => item.brokenReport).map(item => <tr key={item.id}><td>{item.name}</td><td>{fmtDisplayNumber(item.brokenReport?.qty)} / {fmtDisplayNumber(item.qty)}</td></tr>)}</tbody></table></div></Modal>
       <Modal open={pendingStage !== null && flowStep === 'confirm'} title={t('eventUpgrade.confirmStage')} onClose={() => { if (!isChangingEventStatus) setPendingStage(null); }} footer={<>
         <button className="btn-cancel-modal" disabled={isChangingEventStatus} onClick={() => setPendingStage(null)}>{t('wording.cancel')}</button>
         <button className="btn-save-modal" disabled={isChangingEventStatus || pendingStage === null} onClick={() => { if (pendingStage !== null) void changeEventStatus(stages[pendingStage], pendingStage); }}>{t(isChangingEventStatus ? 'wording.saving' : willReturn ? 'eventUpgrade.confirmReturn' : willCut ? 'eventUpgrade.confirmCut' : 'eventUpgrade.confirm')}</button>
@@ -2454,7 +2462,7 @@ export default function EventDetailPage() {
       </Modal>
       <Drawer open={Boolean(detailItem)} title={t('eventUpgrade.detail')} onClose={() => setDetailId(null)} footer={detailItem && <>
         {isClosing ? <span className="drawer-lock-note">{t('eventUpgrade.readOnly')}</span> : <>
-          <button className="btn-cancel-modal" onClick={() => void deleteItem(detailItem.id)}>{t('wording.delete')}</button>
+          {deleteAllowed && <button className="btn-cancel-modal" onClick={() => void deleteItem(detailItem.id)}>{t('wording.delete')}</button>}
           <button className="btn-save-modal" onClick={() => setModifyItem(detailItem)}>{t('eventUpgrade.modify')}</button>
           {!detailItem.isNewProductionItem && detailItem.id > 0 && detailItem.qty > 0 && <button className="btn btn-ghost" onClick={() => setReportItem(detailItem)}>{t(detailItem.brokenReport ? 'sourceUpgrade.editReport' : 'sourceUpgrade.report')}</button>}
           {detailItem.brokenReport && <button className="btn btn-ghost btn-create-production" disabled={!productionEnabled} onClick={() => replaceBrokenItem(detailItem)}>{t('sourceUpgrade.createProduction')}</button>}
@@ -2487,6 +2495,8 @@ export default function EventDetailPage() {
         </>}
       </Drawer>
       {reportItem && !isClosing && <BrokenItemReport key={reportItem.id} item={reportItem} report={reportItem.brokenReport} onSaved={saveBrokenReport} onClose={() => setReportItem(null)} />}
+{printPlanOpen && (printPlanItems.isLoading || printPlanItems.isError ? <Modal open title={t('october.printPlan')} onClose={() => setPrintPlanOpen(false)}><p>{t(printPlanItems.isError ? 'october.loadError' : 'wording.loading')}</p></Modal> : <PrintPlanModal eventName={eventName} currentStage={eventStatus} stages={stages} items={(printPlanItems.data?.data || []).map(item => mapEventItem(item, statusNames))} printedBy={getLoggedInFullname() || "—"} onClose={() => setPrintPlanOpen(false)} />)}
+      <Modal open={rentalOpen} size="3xl" title={t('october.rentals')} onClose={() => setRentalOpen(false)}><RentalLogTab eventId={eventId} canCreate={!isClosing && Boolean(currentStatus?.loan_item ?? sourcePreview.loanItem[currentStatus?.id])} /></Modal>
       {modifyItem && <EventItemEditor key={modifyItem.id} initial={modifyItem} production={false} onSave={saveItemPreview} onClose={() => setModifyItem(null)} />}
       {productionOpen && <EventItemEditor
         initial={productionInitial ?? { name: '', qty: 1, area: '', pic: '', note: '', ownerships: ['IHP'] }}
@@ -2618,7 +2628,7 @@ export default function EventDetailPage() {
                 <div className="cart-item-info">
                   <div className="cart-item-name">{cartItem.name}</div>
                   <div className="cart-item-meta">
-                    <span>{t("wording.qtyPrefix")} {cartItem.qty}</span>
+                    <span>{t("wording.qtyPrefix")} {fmtDisplayNumber(cartItem.qty)}</span>
                     <span>{t("wording.areaPrefix")} {cartItem.area}</span>
                     <span>{t("wording.subAreaPrefix")} {cartItem.subArea || "-"}</span>
                     <span>{t("wording.statusPrefix")} {cartItem.status}</span>
@@ -2728,7 +2738,7 @@ export default function EventDetailPage() {
                         {barang.nama_barang}
                       </span>
                       <span className="event-master-item-stock">
-                        {t("wording.stockPrefix")} {barang.stok_barang}
+                        {t("wording.stockPrefix")} {fmtDisplayNumber(barang.stok_barang)}
                       </span>
                     </div>
                   </button>
@@ -3033,6 +3043,7 @@ export default function EventDetailPage() {
                             <SearchableSelect
                               inline
                               value={selectedWarehouse?.barang_gudang_id ?? ""}
+                              placeholder={t("wording.selectWarehouseText")}
                               onChange={(value) => {
                                 const barangGudangId = Number(value);
                                 setPickerWarehouseIds((current) => ({
@@ -3093,7 +3104,7 @@ export default function EventDetailPage() {
           <div className="inv-pick-right">
             <div className="inv-cart-header">
               <IconCart /> {t("wording.cart")}{" "}
-              <span className="inv-cart-count">{cart.length}</span>
+              <span className="inv-cart-count">{fmtDisplayNumber(cart.length)}</span>
             </div>
 
             {cart.length === 0 ? (
@@ -3128,7 +3139,7 @@ export default function EventDetailPage() {
                       }
                       onChange={toggleSelectAllCart}
                     />
-                    {t("wording.selectAll")}{selectedCartIds.length}/{cart.length})
+                    {t("wording.selectAll")}{fmtDisplayNumber(selectedCartIds.length)}/{fmtDisplayNumber(cart.length)})
                   </label>
                   <button
                     className="btn btn-ghost"
@@ -3140,7 +3151,7 @@ export default function EventDetailPage() {
                       alignSelf: "flex-start",
                     }}
                   >
-                    {t("wording.assignLocations")}{selectedCartIds.length})
+                    {t("wording.assignLocations")}{fmtDisplayNumber(selectedCartIds.length)})
                   </button>
                 </div>
 
@@ -3185,7 +3196,7 @@ export default function EventDetailPage() {
                       disabled={!bulkAreaId || !bulkSubAreaId}
                       onClick={applyBulkAssign}
                     >
-                      <IconCheck /> {t("wording.applyTo")} {selectedCartIds.length} {t("wording.itemsInline")}
+                      <IconCheck /> {t("wording.applyTo")} {fmtDisplayNumber(selectedCartIds.length)} {t("wording.itemsInline")}
                     </button>
                     <button
                       className="btn-cancel-m"
@@ -3369,13 +3380,13 @@ export default function EventDetailPage() {
         <div className="summary-popup-title">{eventName}</div>
         <div className="summary-popup-status">{t("wording.statusPrefix")} {eventStatus}</div>
         <div className="summary-popup-kpis">
-          <div className="summary-popup-kpi"><div className="summary-popup-kpi-value">{summaryStats.total}</div><div className="summary-popup-kpi-label">{t("wording.totalItems")}</div></div>
+          <div className="summary-popup-kpi"><div className="summary-popup-kpi-value">{fmtDisplayNumber(summaryStats.total)}</div><div className="summary-popup-kpi-label">{t("wording.totalItems")}</div></div>
           <div className="summary-popup-kpi"><div className="summary-popup-kpi-value">{summaryStats.checked}</div><div className="summary-popup-kpi-label">{t("wording.checked")}</div></div>
           <div className="summary-popup-kpi"><div className="summary-popup-kpi-value">{summaryStats.scanIn}</div><div className="summary-popup-kpi-label">{t("wording.scannedIn")}</div></div>
         </div>
         <p className="summary-text">
           {t("wording.totalQuantity")} <strong>{summaryStats.totalQty}</strong> {t("wording.scannedOut")}{" "}
-          <strong>{summaryStats.scanOut}</strong> {t("wording.of")} {summaryStats.total}
+          <strong>{summaryStats.scanOut}</strong> {t("wording.of")} {fmtDisplayNumber(summaryStats.total)}
         </p>
         <button
           type="button"
@@ -3441,7 +3452,7 @@ export default function EventDetailPage() {
           ) : packableItems.map((item) => (
             <label key={item.id} className={`package-pick-row${packagingSelection.includes(item.id) ? " selected" : ""}`}>
               <input type="checkbox" checked={packagingSelection.includes(item.id)} onChange={() => togglePackagingSelection(item.id)} />
-              <span><span className="package-pick-row-name">{item.name}</span><span className="package-pick-row-meta">{item.area} {t("wording.qtyPrefixOnEventDetailPage")} {item.qty}</span></span>
+              <span><span className="package-pick-row-name">{item.name}</span><span className="package-pick-row-meta">{item.area} {t("wording.qtyPrefixOnEventDetailPage")} {fmtDisplayNumber(item.qty)}</span></span>
             </label>
           ))}
         </div>

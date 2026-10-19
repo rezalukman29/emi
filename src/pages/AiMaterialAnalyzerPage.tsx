@@ -1,3 +1,4 @@
+import { fmtNum as fmtDisplayNumber } from '../lib/format';
 import { useState, useRef, useCallback, useMemo } from "react";
 import { toast } from "react-toastify";
 import type {
@@ -507,7 +508,7 @@ function AdditionalItemCard({ item }: { item: AiAdditionalItemMatched }) {
               <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
                 {i18n.t("wording.stockPrefix")}{" "}
                 <strong style={{ color: "var(--text-2)" }}>
-                  {barang!.stok}
+                  {fmtDisplayNumber(barang!.stok)}
                 </strong>
               </span>
             </>
@@ -747,7 +748,7 @@ function InventoryCard({ item }: { item: AiMatchedBarang }) {
           )}
           <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
             {i18n.t("wording.stockPrefix")}{" "}
-            <strong style={{ color: "var(--text-2)" }}>{item.stok}</strong>
+            <strong style={{ color: "var(--text-2)" }}>{fmtDisplayNumber(item.stok)}</strong>
           </span>
         </div>
         <div
@@ -1619,7 +1620,7 @@ export default function AiMaterialAnalyzerPage() {
             </div>
             {(state.result.matched_barang?.length ?? 0) > 0 && (
               <span className="badge badge-green">
-                {state.result.matched_barang!.length} {t("wording.itemsFound")}
+                {fmtDisplayNumber(state.result.matched_barang!.length)} {t("wording.itemsFound")}
               </span>
             )}
           </div>
@@ -1687,8 +1688,8 @@ export default function AiMaterialAnalyzerPage() {
                 fontStyle: "italic",
               }}
             >
-              {state.result.additional_items.filter((i) => i.found).length} {t("wording.of")}{" "}
-              {state.result.additional_items.length} {t("wording.availableInInventoryInline")}
+              {fmtDisplayNumber(state.result.additional_items.filter((i) => i.found).length)} {t("wording.of")}{" "}
+              {fmtDisplayNumber(state.result.additional_items.length)} {t("wording.availableInInventoryInline")}
             </span>
           </div>
           <div

@@ -1,3 +1,4 @@
+import { fmtNum as fmtDisplayNumber } from '../lib/format';
 import { useEffect, useMemo, useState } from "react";
 
 import Pagination from "../components/Pagination";
@@ -108,7 +109,7 @@ export default function InventoryReportPage() {
   }, [page, totalPages]);
 
   const summaryValue = (value?: number) => (
-    isSummaryLoading ? "—" : (value ?? 0).toLocaleString("en-US")
+    isSummaryLoading ? "—" : (value ?? 0).toLocaleString("id-ID")
   );
 
   return (
@@ -152,9 +153,9 @@ export default function InventoryReportPage() {
                     <div key={item.category_id}>
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
                         <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-2)" }}>
-                          {item.category} <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>({item.sku_count} {t("wording.skuText")}</span>
+                          {item.category} <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>({fmtDisplayNumber(item.sku_count)} {t("wording.skuText")}</span>
                         </span>
-                        <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text)" }}>{item.total_stock.toLocaleString("en-US")}</span>
+                        <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text)" }}>{item.total_stock.toLocaleString("id-ID")}</span>
                       </div>
                       <div className="progress-bar-track">
                         <div className="progress-bar-fill" style={{ width: `${(item.total_stock / maxCategoryStock) * 100}%`, background: "var(--brand)" }} />
@@ -174,9 +175,9 @@ export default function InventoryReportPage() {
                     <div key={`${item.warehouse}-${index}`}>
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
                         <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-2)" }}>
-                          {item.warehouse} <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>({item.sku_count} {t("wording.skuText")}</span>
+                          {item.warehouse} <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>({fmtDisplayNumber(item.sku_count)} {t("wording.skuText")}</span>
                         </span>
-                        <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text)" }}>{item.total_stock.toLocaleString("en-US")}</span>
+                        <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text)" }}>{item.total_stock.toLocaleString("id-ID")}</span>
                       </div>
                       <div className="progress-bar-track">
                         <div className="progress-bar-fill" style={{ width: `${(item.total_stock / maxWarehouseStock) * 100}%`, background: "var(--green)" }} />
@@ -248,7 +249,7 @@ export default function InventoryReportPage() {
                     <td>{item.nama_kategori || "-"}</td>
                     <td>{item.nama_satuan || "-"}</td>
                     <td style={{ color: "var(--text-muted)" }}>{item.gudang_name || item.gudang?.gudang_name || "-"}</td>
-                    <td style={{ textAlign: "right", fontWeight: 600 }}>{item.stok_gudang.toLocaleString("en-US")}</td>
+                    <td style={{ textAlign: "right", fontWeight: 600 }}>{item.stok_gudang.toLocaleString("id-ID")}</td>
                     <td><span className={`badge ${stockBadgeClass(status)}`}>{statusLabel(status)}</span></td>
                   </tr>
                 );

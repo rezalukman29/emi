@@ -1,4 +1,9 @@
+import { fmtNum as fmtDisplayNumber } from '../lib/format';
 import { Fragment, useState, useMemo, type CSSProperties } from 'react';
+import RentalLogTab from '../components/RentalLogTab';
+import useGetProductionRequests from '../hooks/api/useGetProductionRequests';
+import { fmtNum } from '../lib/format';
+import { downloadCsv } from '../lib/exportCsv';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import Pagination from '../components/Pagination';
 import SearchableSelect from '../components/SearchableSelect';
@@ -11,7 +16,6 @@ import useGetEventStatus from '../hooks/api/useGetEventStatus';
 import { useTranslation } from "react-i18next";
 import { translateApiValue } from "../utils/function";
 
-const TABLE_PAGE_SIZE = 12;
 
 interface SummaryItem {
   id: number;
@@ -133,6 +137,9 @@ export default function EventSummaryPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [areaFilter, setAreaFilter] = useState('');
   const [tablePage, setTablePage] = useState(1);
+  const [tablePageSize, setTablePageSize] = useState(25);
+  const [reportTab, setReportTab] = useState('overview');
+  const productions = useGetProductionRequests({ eventId, options: { enabled: eventId > 0 && reportTab === 'supply' } });
 
   const {
     data: eventSummaryResponse,
@@ -218,6 +225,7 @@ export default function EventSummaryPage() {
     );
   }, [items, tableSearch, statusFilter, areaFilter]);
 
+  const TABLE_PAGE_SIZE = tablePageSize || Math.max(1, tableFiltered.length);
   const tableTotalPages = Math.max(1, Math.ceil(tableFiltered.length / TABLE_PAGE_SIZE));
   const safePage = Math.min(tablePage, tableTotalPages);
   const pageData = tableFiltered.slice((safePage - 1) * TABLE_PAGE_SIZE, safePage * TABLE_PAGE_SIZE);
@@ -281,6 +289,7 @@ export default function EventSummaryPage() {
           <h1 className="page-title" style={{ margin:0 }}>{t("wording.eventSummary")}</h1>
         </div>
         <div style={{ display:'flex', gap:8 }}>
+          <button className="btn-print" disabled={isSummaryLoading || isSummaryError} onClick={() => downloadCsv(`event-${eventId}.csv`, [['Item', 'Area', 'Sub area', 'Qty', 'Unit', 'Status', 'PIC', 'Ownership', 'Notes'], ...tableFiltered.map(item => [item.name, item.area, item.subArea, item.qty, item.unit, item.status, item.pic, item.ownerships, item.notes])])}>{t('october.exportCsv')}</button>
           <button className="btn-print" onClick={() => window.print()}><IconPrint /> {t("wording.printReport")}</button>
         </div>
       </div>
@@ -307,6 +316,8 @@ export default function EventSummaryPage() {
         </div>
       </div>
 
+      <div className="wi-tabs no-print">{['overview', 'items', 'supply', 'issues'].map(tab => <button key={tab} className={`wi-tab-btn${reportTab === tab ? ' active' : ''}`} onClick={() => setReportTab(tab)}>{t(`october.${tab}`)}</button>)}</div>
+      <div hidden={reportTab !== 'overview'}>
       {/* KPIs */}
       <div className="kpi-grid" style={{ marginBottom:22 }}>
         {kpis.map(k => (
@@ -328,7 +339,7 @@ export default function EventSummaryPage() {
               <div key={b.label}>
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
                   <span style={{ fontSize:'12.5px', fontWeight:600, color:'var(--text-2)' }}>{b.label}</span>
-                  <span style={{ fontSize:'12.5px', fontWeight:700, color:'var(--text)' }}>{b.value} / {b.total} <span style={{ color:'var(--text-muted)', fontWeight:400 }}>({p}%)</span></span>
+                  <span style={{ fontSize:'12.5px', fontWeight:700, color:'var(--text)' }}>{b.value} / {fmtDisplayNumber(b.total)} <span style={{ color:'var(--text-muted)', fontWeight:400 }}>({p}%)</span></span>
                 </div>
                 <div className="progress-bar-track">
                   <div className="progress-bar-fill" style={{ width:`${p}%`, background:b.color }} />
@@ -350,7 +361,7 @@ export default function EventSummaryPage() {
             <div key={name} className="area-stat-card" style={{ background:'var(--white)', border:'1px solid var(--border)', borderRadius:'var(--r-lg)', padding:'14px 16px', boxShadow:'0 1px 4px rgba(0,0,0,.04)' }}>
               <div className="area-stat-header">
                 <span className="area-stat-name">{name}</span>
-                <span className="area-stat-count">{a.total} {t("wording.itemInline")}{a.total !== 1 ? t("wording.s") : ''}</span>
+                <span className="area-stat-count">{fmtDisplayNumber(a.total)} {t("wording.itemInline")}{a.total !== 1 ? t("wording.s") : ''}</span>
               </div>
               {[
                 { label:t("wording.checked"), color:'var(--brand)', val:cp },
@@ -376,10 +387,15 @@ export default function EventSummaryPage() {
         })}
       </div>
 
+      </div>
+      {reportTab === 'supply' && <><RentalLogTab eventId={eventId} canCreate={false} />{productions.isLoading ? <p>{t('wording.loading')}</p> : productions.isError ? <p>{t('october.loadError')}</p> : <div className="table-wrap"><table><thead><tr><th>{t('october.item')}</th><th>{t('october.qty')}</th><th>{t('october.status')}</th></tr></thead><tbody>{productions.data?.data.map(row => <tr key={`${row.type}-${row.id}`}><td>{row.item_name || row.new_item?.nama}</td><td>{fmtNum(row.qty ?? row.new_item?.qty)}</td><td>{row.status}</td></tr>)}</tbody></table></div>}</>}
+      {reportTab === 'issues' && <div className="card"><p>{t('wording.missing', { defaultValue: 'Missing' })}: {fmtNum(missing)}</p><p>{t('wording.damaged', { defaultValue: 'Damaged' })}: {fmtNum(damaged)}</p><p>{t('wording.checking')}: {fmtNum(Math.max(0, total - checked))} / {fmtNum(total)}</p></div>}
+      <div hidden={reportTab !== 'items'}>
       {/* Item Table */}
       <div className="card">
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14, flexWrap:'wrap', gap:8 }}>
           <div className="section-title" style={{ margin:0, flex:1 }}>{t("wording.itemDetail")}</div>
+          <SearchableSelect inline value={tablePageSize} onChange={value => { setTablePageSize(Number(value)); setTablePage(1); }} options={[25, 50, 100, 0].map(value => ({ value, label: value ? String(value) : t('october.all') }))} />
           <div style={{ display:'flex', gap:7, alignItems:'center', flexWrap:'wrap' }}>
             <div className="search-wrap" style={{ maxWidth:220 }}>
               <IconSearch />
@@ -441,7 +457,7 @@ export default function EventSummaryPage() {
                     <td><span className="badge badge-gray" style={{ fontSize:'10.5px', textTransform:'uppercase' }}>{it.area}</span></td>
                     <td>{it.subArea}</td>
                     <td style={{ textAlign:'center' }}>
-                      {it.qty}{it.unit ? ` ${it.unit}` : ''}
+                      {fmtDisplayNumber(it.qty)}{it.unit ? ` ${it.unit}` : ''}
                     </td>
                     <td style={{ textAlign:'center' }}><span className={`badge ${STATUS_BADGE[it.status] || 'badge-gray'}`}>{translateApiValue(it.status)}</span></td>
                     <td style={{ textAlign:'center' }}>{it.checking ? <DotOk /> : <DotNo />}</td>
@@ -459,6 +475,7 @@ export default function EventSummaryPage() {
         <Pagination currentPage={safePage} total={tableFiltered.length} pageSize={TABLE_PAGE_SIZE} onPage={(p: number) => setTablePage(p)} label={t("wording.itemsInline")} />
       </div>
 
+      </div>
       <section className="event-summary-print-report" aria-hidden="true">
         <div className="event-summary-print-header">
           <div>
@@ -519,7 +536,7 @@ export default function EventSummaryPage() {
                     <td>{item.subArea !== '—' ? item.subArea : item.area}</td>
                     <td>{item.name}</td>
                     <td className="print-cell-center">
-                      {item.qty}{item.unit ? ` ${item.unit}` : ''}
+                      {fmtDisplayNumber(item.qty)}{item.unit ? ` ${item.unit}` : ''}
                     </td>
                     <td>{item.notes}</td>
                   </tr>

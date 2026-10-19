@@ -1,7 +1,10 @@
+import { fmtNum as fmtDisplayNumber } from '../lib/format';
 import { needsInventorySetup } from '../lib/inventorySetup';
 import { useState, useMemo, useEffect } from "react";
 import { useQueryClient } from "react-query";
 import ConversionStockHistory from '../components/ConversionStockHistory';
+import ProductionLogTab from '../components/ProductionLogTab';
+import RentalLogTab from '../components/RentalLogTab';
 import '../eventUpgrade.css';
 import { useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -993,6 +996,8 @@ export default function WarehouseInventoryPage() {
           { id: "movingorder", label: t("wording.movingOrder") },
           { id: "opnamehistory", label: t("wording.opnameHistory") },
           { id: "stockhistory", label: t("conversion.stockHistory") },
+          { id: "production", label: t("eventUpgrade.production") },
+          { id: "rentals", label: t("october.rentals") },
         ].map((t) => (
           <button
             key={t.id}
@@ -1005,6 +1010,8 @@ export default function WarehouseInventoryPage() {
       </div>
 
       {tab === 'stockhistory' && <ConversionStockHistory />}
+      {tab === 'production' && <ProductionLogTab />}
+      {tab === 'rentals' && <RentalLogTab />}
       {tab === "inventory" && (
         <div className="card">
           <div className="toolbar">
@@ -1230,7 +1237,7 @@ export default function WarehouseInventoryPage() {
                           fontVariantNumeric: "tabular-nums",
                         }}
                       >
-                        {r.stok_gudang}
+                        {fmtDisplayNumber(r.stok_gudang)}
                       </td>
                       <td>{r.gudang_name}</td>
                       <td
@@ -1239,7 +1246,7 @@ export default function WarehouseInventoryPage() {
                           fontVariantNumeric: "tabular-nums",
                         }}
                       >
-                        {r.stok_barang}
+                        {fmtDisplayNumber(r.stok_barang)}
                       </td>
                       <td
                         style={{
@@ -1247,7 +1254,7 @@ export default function WarehouseInventoryPage() {
                           fontVariantNumeric: "tabular-nums",
                         }}
                       >
-                        {r.stok_minimum}
+                        {fmtDisplayNumber(r.stok_minimum)}
                       </td>
                       <td
                         style={{
@@ -1497,7 +1504,7 @@ export default function WarehouseInventoryPage() {
           ) : (
             <>
               <span className="inventory-search-count">
-                {listInventory.length} {t("wording.itemInline")}
+                {fmtDisplayNumber(listInventory.length)} {t("wording.itemInline")}
                 {listInventory.length === 1 ? "" : t("wording.s")} {t("wording.found")}
               </span>
               {hasActiveItemSearch && (
@@ -1549,7 +1556,7 @@ export default function WarehouseInventoryPage() {
                 <span className="inventory-item-meta">
                   <span className="inventory-item-name">{item.nama}</span>
                   <span className="inventory-item-stock">
-                    {t("wording.stockPrefix")} {item.stok_barang}
+                    {t("wording.stockPrefix")} {fmtDisplayNumber(item.stok_barang)}
                   </span>
                 </span>
               </button>
@@ -1654,9 +1661,9 @@ export default function WarehouseInventoryPage() {
           <div className="item-detail-grid">
             <div className="item-detail-row"><span>{t("wording.name")}</span><strong>{detailRow.nama_barang}</strong></div>
             <div className="item-detail-row"><span>{t("wording.warehouse")}</span><strong>{detailRow.gudang_name ?? detailRow.gudang?.gudang_name ?? "-"}</strong></div>
-            <div className="item-detail-row"><span>{t("wording.warehouseStock")}</span><strong>{detailRow.stok_gudang}</strong></div>
-            <div className="item-detail-row"><span>{t("wording.itemStockTitle")}</span><strong>{detailRow.stok_barang}</strong></div>
-            <div className="item-detail-row"><span>{t("wording.minimumStock")}</span><strong>{detailRow.stok_minimum}</strong></div>
+            <div className="item-detail-row"><span>{t("wording.warehouseStock")}</span><strong>{fmtDisplayNumber(detailRow.stok_gudang)}</strong></div>
+            <div className="item-detail-row"><span>{t("wording.itemStockTitle")}</span><strong>{fmtDisplayNumber(detailRow.stok_barang)}</strong></div>
+            <div className="item-detail-row"><span>{t("wording.minimumStock")}</span><strong>{fmtDisplayNumber(detailRow.stok_minimum)}</strong></div>
             <div className="item-detail-row"><span>{t("wording.used")}</span><strong>{detailRow.stock_used}</strong></div>
             <div className="item-detail-row"><span>{t("wording.valuation")}</span><strong>{detailRow.valuation ? currency(Number(detailRow.valuation)) : "0"}</strong></div>
             <div className="item-detail-row"><span>{t("wording.totalValuation")}</span><strong>{detailRow.valuation ? currency(Number(detailRow.valuation) * Number(detailRow.stok_gudang)) : "0"}</strong></div>
@@ -1729,7 +1736,7 @@ export default function WarehouseInventoryPage() {
                     </td>
                     <td className="name-cell">{order.from_warehouse_name || "-"}</td>
                     <td>{order.to_warehouse_name || "-"}</td>
-                    <td style={{ fontVariantNumeric: "tabular-nums", fontWeight: 700, textAlign: "right" }}>{order.total_items}</td>
+                    <td style={{ fontVariantNumeric: "tabular-nums", fontWeight: 700, textAlign: "right" }}>{fmtDisplayNumber(order.total_items)}</td>
                     <td style={{ color: "var(--text-muted)" }}>{order.notes || "-"}</td>
                     <td>{order.moved_by || "-"}</td>
                   </tr>
@@ -1784,7 +1791,7 @@ export default function WarehouseInventoryPage() {
 
         {movingSourceWarehouse && (
           <div className="form-group">
-            <label>{t("wording.itemsToMove")} <span style={{ color: "var(--red)" }}>*</span>{selectedMovingRows.length > 0 && <span style={{ color: "var(--text-muted)", letterSpacing: 0, marginLeft: 6, textTransform: "none" }}>({selectedMovingRows.length} {t("wording.selected")}</span>}</label>
+            <label>{t("wording.itemsToMove")} <span style={{ color: "var(--red)" }}>*</span>{selectedMovingRows.length > 0 && <span style={{ color: "var(--text-muted)", letterSpacing: 0, marginLeft: 6, textTransform: "none" }}>({fmtDisplayNumber(selectedMovingRows.length)} {t("wording.selected")}</span>}</label>
             <div className="mo-item-search">
               <IconSearch />
               <input
@@ -1813,7 +1820,7 @@ export default function WarehouseInventoryPage() {
                     <label className="mo-item-check">
                       <input type="checkbox" checked={checked} onChange={() => toggleMovingItem(row)} />
                       <span className="mo-item-name">{row.nama_barang}</span>
-                      <span className="mo-item-stock">{t("wording.stockPrefixOnWarehouseInventoryPage")} {row.stok_gudang}</span>
+                      <span className="mo-item-stock">{t("wording.stockPrefixOnWarehouseInventoryPage")} {fmtDisplayNumber(row.stok_gudang)}</span>
                     </label>
                     {checked && (
                       <input
@@ -1845,7 +1852,7 @@ export default function WarehouseInventoryPage() {
         </div>
         {movingOrderValid && (
           <div className="mo-flow" style={{ background: "var(--bg)", borderRadius: "var(--r-lg)", fontSize: 12.5, marginTop: 4, padding: "10px 12px" }}>
-            <strong>{selectedMovingRows.length} {t("wording.itemInline")}{selectedMovingRows.length === 1 ? "" : t("wording.s")}</strong>
+            <strong>{fmtDisplayNumber(selectedMovingRows.length)} {t("wording.itemInline")}{selectedMovingRows.length === 1 ? "" : t("wording.s")}</strong>
             <span className="mo-flow-arrow" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="5" y1="12" x2="19" y2="12" />
@@ -1919,7 +1926,7 @@ export default function WarehouseInventoryPage() {
                       <td>{record.period || "-"}</td>
                       <td>{opnameWarehouse(record)}</td>
                       <td>{record.user_name ?? record.created_by ?? (record.userId ? t("dynamic.userNumber", { id: record.userId }) : "-")}</td>
-                      <td style={{ textAlign: "right" }}>{opnameItems(record).length}</td>
+                      <td style={{ textAlign: "right" }}>{fmtDisplayNumber(opnameItems(record).length)}</td>
                       <td>{opnameStatusBadge(record)}</td>
                       <td style={{ textAlign: "center" }}>
                         <div className="action-btns" style={{ justifyContent: "center" }}>
@@ -1971,7 +1978,7 @@ export default function WarehouseInventoryPage() {
         {historyDetail && (
           <>
             <p className="confirm-msg" style={{ marginBottom: 10 }}>
-              <strong>{opnameItems(historyDetail).length}</strong> {t("wording.itemInline")}{opnameItems(historyDetail).length === 1 ? "" : t("wording.s")} {t("wording.in")} <strong>{opnameWarehouse(historyDetail)}</strong>.
+              <strong>{fmtDisplayNumber(opnameItems(historyDetail).length)}</strong> {t("wording.itemInline")}{opnameItems(historyDetail).length === 1 ? "" : t("wording.s")} {t("wording.in")} <strong>{opnameWarehouse(historyDetail)}</strong>.
             </p>
             <p style={{ marginBottom: 12 }}>{opnameStatusBadge(historyDetail)}{historyDetail.remark && <span style={{ color: "var(--text-muted)", fontSize: 12, marginLeft: 8 }}>{historyDetail.remark}</span>}</p>
             {normalizedOpnameStatus(historyDetail) === "REJECTED"

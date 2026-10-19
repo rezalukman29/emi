@@ -1,3 +1,4 @@
+import { fmtNum as fmtDisplayNumber } from '../lib/format';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import Modal from '../components/Modal';
@@ -89,7 +90,7 @@ export default function UnitDetailPage() {
         </div>
 
         <div className="card" style={{ padding:24, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:8 }}>
-          <span style={{ fontSize:48, fontWeight:800, color:'var(--brand)', fontVariantNumeric:'tabular-nums' }}>{unit.itemCount}</span>
+          <span style={{ fontSize:48, fontWeight:800, color:'var(--brand)', fontVariantNumeric:'tabular-nums' }}>{fmtDisplayNumber(unit.itemCount)}</span>
           <span style={{ fontSize:14, color:'var(--text-muted)', fontWeight:500 }}>{t("wording.itemsUsingThisUnit")}</span>
           <div style={{ marginTop:8, background:'var(--brand-bg)', padding:'6px 18px', borderRadius:20 }}>
             <span style={{ fontSize:16, fontWeight:700, color:'var(--brand)' }}>{unit.abbr}</span>

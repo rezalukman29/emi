@@ -14,6 +14,7 @@ function load(file, appended = '', dependencies = {}) {
     exports,
     require(name) {
       if (name in dependencies) return dependencies[name];
+      if (name.endsWith('/lib/format')) return load('lib/format.ts');
       if (name === 'react' || name === 'react/jsx-runtime') return require(name);
       if (name === 'react-i18next') return { useTranslation: () => ({ t: key => key }) };
       if (name === '../i18n') return { __esModule: true, default: { t: key => key } };

@@ -13,6 +13,9 @@ export interface ProductionRequestItemDetail {
 }
 
 export interface ProductionRequestItem {
+  vendor_id?: number;
+  warehouse_id?: number;
+  origin?: string;
   affects_stock: boolean;
   applied_at: string;
   area_name: string;

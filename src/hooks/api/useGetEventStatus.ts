@@ -6,6 +6,8 @@ import type {
 import ax from "../../service/axios";
 
 export interface EventStatusItem {
+  allow_delete?: boolean;
+  loan_item?: boolean;
   code?: string;
   cutting_stock?: boolean;
   stock_return?: boolean;

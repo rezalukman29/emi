@@ -85,7 +85,7 @@ export default function OverviewReportPage() {
   }, [page, totalPages]);
 
   const summaryValue = (value?: number) => (
-    isSummaryLoading || isSummaryError ? "—" : (value ?? 0).toLocaleString("en-US")
+    isSummaryLoading || isSummaryError ? "—" : (value ?? 0).toLocaleString("id-ID")
   );
 
   return (

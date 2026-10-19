@@ -1,4 +1,4 @@
-import { useEffect, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react';
 import { IconClose } from './icons';
 
 type ModalSize = 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl';
@@ -35,10 +35,12 @@ export default function Modal({
   bodyClassName = '',
   footerClassName = '',
 }: ModalProps) {
+  const overlayRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
     const handler = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      const overlays = document.querySelectorAll('.modal-overlay.open');
+      if (event.key === 'Escape' && overlays[overlays.length - 1] === overlayRef.current) onClose();
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
@@ -48,6 +50,7 @@ export default function Modal({
 
   return (
     <div
+      ref={overlayRef}
       className="modal-overlay open"
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();

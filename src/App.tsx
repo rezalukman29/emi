@@ -4,6 +4,10 @@ import { QueryClient, QueryClientProvider } from "react-query";
 import { ToastContainer } from "react-toastify";
 import Layout from "./components/Layout";
 import VendorPage from "./pages/VendorPage";
+import VendorDetailPage from "./pages/VendorDetailPage";
+import EventCalendarPage from "./pages/EventCalendarPage";
+import EventReportPage from "./pages/EventReportPage";
+import StockOpnameReportPage from "./pages/StockOpnameReportPage";
 import RequireAuth from "./components/RequireAuth.jsx";
 import RequireTenantAuth from "./components/RequireTenantAuth";
 import AreaDetailPage from "./pages/AreaDetailPage.jsx";
@@ -121,6 +125,11 @@ export default function App() {
               <Route path="item-loan-detail" element={<ItemLoanDetailPage />} />
               <Route path="area" element={<AreaPage />} />
               <Route path="vendor" element={<VendorPage />} />
+              <Route path="loan" element={<VendorPage key="loan" kind="loan" />} />
+              <Route path="vendor-detail" element={<VendorDetailPage />} />
+              <Route path="event-calendar" element={<EventCalendarPage />} />
+              <Route path="event-report" element={<EventReportPage />} />
+              <Route path="stock-opname-report" element={<StockOpnameReportPage />} />
               <Route path="area-detail" element={<AreaDetailPage />} />
               <Route path="sub-area" element={<SubAreaPage />} />
               <Route path="event-status" element={<EventStatusPage />} />

@@ -1,3 +1,4 @@
+import { fmtNum as fmtDisplayNumber } from '../lib/format';
 import { useEffect, useState } from "react";
 import { useFormik } from "formik";
 import { useQueryClient } from "react-query";
@@ -267,7 +268,7 @@ export default function ItemLoanPage() {
                   <tr key={loan.id}>
                     <td className="name-cell">{loan.item_name}<div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>{loan.purpose || "-"}</div></td>
                     <td>{loan.borrower_name}<div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>{loan.borrower_contact || "-"}</div></td>
-                    <td style={{ textAlign: "right" }}>{loan.qty} {loan.unit_name}</td>
+                    <td style={{ textAlign: "right" }}>{fmtDisplayNumber(loan.qty)} {loan.unit_name}</td>
                     <td style={{ color: "var(--text-muted)" }}>{loan.warehouse_name || "-"}</td>
                     <td style={{ color: "var(--text-muted)", fontSize: 12.5 }}>{fmtDate(loan.loan_date)}</td>
                     <td style={{ color: "var(--text-muted)", fontSize: 12.5 }}>{fmtDate(loan.due_date)}</td>

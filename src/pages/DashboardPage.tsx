@@ -1,3 +1,4 @@
+import { fmtNum as fmtDisplayNumber } from '../lib/format';
 import { useNavigate } from 'react-router-dom';
 import { inventoryData } from '../data/inventory';
 import useGetDashboard from '../hooks/api/useGetDashboard';
@@ -78,7 +79,7 @@ export default function MainDashboardPage() {
           <div className="dash-hero-sub">
             {t("wording.youHave")} <strong>{summary?.upcoming_count ?? 0} {t("wording.upcomingEventsInline")}</strong>
             {nextEvent && <> {t("wording.theNearestIs")} <strong>{nextEvent.name}</strong> {t("wording.in")} {daysUntil(nextEvent.event_start)} {t("wording.days")}</>}
-            {needsAttention.length > 0 && <> {t("wording.and")} <strong>{needsAttention.length} {t("wording.itemsInline")}</strong> {t("wording.needRestocking")}</>}
+            {needsAttention.length > 0 && <> {t("wording.and")} <strong>{fmtDisplayNumber(needsAttention.length)} {t("wording.itemsInline")}</strong> {t("wording.needRestocking")}</>}
           </div>
         </div>
         <div className="dash-hero-date">{fmtToday(new Date())}</div>
@@ -93,7 +94,7 @@ export default function MainDashboardPage() {
         <div className="kpi-card green-accent">
           <div className="kpi-label">{t("wording.inventorySku")}</div>
           <div className="kpi-value">{isLoading ? '—' : (summary?.inventory_sku ?? 0)}</div>
-          <div className="kpi-sub">{(summary?.total_stock ?? 0).toLocaleString('en-US')} {t("wording.totalUnitsInline")}</div>
+          <div className="kpi-sub">{(summary?.total_stock ?? 0).toLocaleString('id-ID')} {t("wording.totalUnitsInline")}</div>
         </div>
         <div className="kpi-card orange-accent">
           <div className="kpi-label">{t("wording.lowStock")}</div>
@@ -162,11 +163,11 @@ export default function MainDashboardPage() {
           </div>
           <div className="viz-legend">
             <span className="viz-legend-item"><i style={{ background: 'var(--green)' }} /> {t("wording.available")} <strong>{availableCount}</strong></span>
-            <span className="viz-legend-item"><i style={{ background: 'var(--orange)' }} /> {t("wording.lowStock")} <strong>{lowStock.length}</strong></span>
-            <span className="viz-legend-item"><i style={{ background: 'var(--red)' }} /> {t("wording.outOfStock")} <strong>{outOfStock.length}</strong></span>
+            <span className="viz-legend-item"><i style={{ background: 'var(--orange)' }} /> {t("wording.lowStock")} <strong>{fmtDisplayNumber(lowStock.length)}</strong></span>
+            <span className="viz-legend-item"><i style={{ background: 'var(--red)' }} /> {t("wording.outOfStock")} <strong>{fmtDisplayNumber(outOfStock.length)}</strong></span>
           </div>
           <p className="summary-text" style={{ marginTop: 14, marginBottom: 0 }}>
-            <strong>{pct(availableCount, inventoryData.length).toFixed(0)}%</strong> {t("wording.of")} {inventoryData.length} {t("wording.skusHaveHealthyStockLevels")}
+            <strong>{pct(availableCount, inventoryData.length).toFixed(0)}%</strong> {t("wording.of")} {fmtDisplayNumber(inventoryData.length)} {t("wording.skusHaveHealthyStockLevels")}
           </p>
         </div>
       </div>
@@ -184,10 +185,10 @@ export default function MainDashboardPage() {
             ) : warehouseBreakdown.map(item => (
                 <div key={item.warehouse} className="viz-bar-row">
                   <div className="viz-bar-label">{item.warehouse || '—'}</div>
-                  <div className="viz-bar-track" title={t("dynamic.warehouseUnits", { warehouse: item.warehouse, count: item.total_stock.toLocaleString(i18n.language === "id" ? t("wording.idId") : t("wording.enUs")) })}>
+                  <div className="viz-bar-track" title={t("dynamic.warehouseUnits", { warehouse: item.warehouse, count: item.total_stock.toLocaleString("id-ID") })}>
                     <div className="viz-bar-fill" style={{ width: `${pct(item.total_stock, maxWarehouseStock)}%` }} />
                   </div>
-                  <div className="viz-bar-value">{item.total_stock.toLocaleString('en-US')}</div>
+                  <div className="viz-bar-value">{item.total_stock.toLocaleString('id-ID')}</div>
                 </div>
               ))}
           </div>
@@ -227,10 +228,10 @@ export default function MainDashboardPage() {
           ) : categoryBreakdown.map(item => (
               <div key={item.category} className="viz-bar-row">
                 <div className="viz-bar-label">{item.category || '—'}</div>
-                <div className="viz-bar-track" title={t("dynamic.categoryUnitsSkus", { category: item.category, count: item.total_stock.toLocaleString(i18n.language === "id" ? t("wording.idId") : t("wording.enUs")), skuCount: item.sku_count })}>
+                <div className="viz-bar-track" title={t("dynamic.categoryUnitsSkus", { category: item.category, count: item.total_stock.toLocaleString("id-ID"), skuCount: item.sku_count })}>
                   <div className="viz-bar-fill" style={{ width: `${pct(item.total_stock, maxCategoryStock)}%` }} />
                 </div>
-                <div className="viz-bar-value">{item.total_stock.toLocaleString('en-US')}</div>
+                <div className="viz-bar-value">{item.total_stock.toLocaleString('id-ID')}</div>
               </div>
             ))}
         </div>
@@ -261,7 +262,7 @@ export default function MainDashboardPage() {
                     <td className="name-cell">{i.name}</td>
                     <td>{i.category}</td>
                     <td style={{ color: 'var(--text-muted)' }}>{i.warehouse}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{i.total_stock} {i.unit}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmtDisplayNumber(i.total_stock)} {i.unit}</td>
                     <td><span className={`badge ${stockBadgeClass(i.status)}`}>{translateApiValue(i.status)}</span></td>
                   </tr>
                 ))}

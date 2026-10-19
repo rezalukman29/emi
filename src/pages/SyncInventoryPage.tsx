@@ -1,3 +1,4 @@
+import { fmtNum as fmtDisplayNumber } from '../lib/format';
 import { useMemo, useState } from "react";
 import { toast } from "react-toastify";
 
@@ -290,7 +291,7 @@ export default function SyncInventoryPage() {
                           fontWeight: 600,
                         }}
                       >
-                        {item.stok}
+                        {fmtDisplayNumber(item.stok)}
                       </td>
                       <td
                         style={{

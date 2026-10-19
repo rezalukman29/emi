@@ -1,4 +1,5 @@
 import { needsInventorySetup } from '../lib/inventorySetup';
+import { fmtNum, formatIDR } from '../lib/format';
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Pagination from "../components/Pagination";
@@ -455,7 +456,8 @@ export default function InventoryPage() {
   const { unitOptions } = useUnitController();
   const imgInputRef = useRef<any>(null);
   const [query, setQuery] = useState("");
-  const [catFilter, setCatFilter] = useState("");
+  const [catFilter, setCatFilter] = useState<Array<string | number>>([]);
+  const inventoryRequest = useRef(0);
   const [stockFilter, setStockFilter] = useState<InventoryStockStatus | "">("");
   const [page, setPage] = useState(1);
   const [sortCol, setSortCol] = useState(0);
@@ -531,7 +533,7 @@ export default function InventoryPage() {
           !q ||
           r.name.toLowerCase().includes(q) ||
           r.sku.toLowerCase().includes(q);
-        const mC = !catFilter || r.category === catFilter;
+        const mC = !catFilter.length || catFilter.includes(r.category);
         const mS = !stockFilter || r.stockStatus === stockFilter;
         return mQ && mC && mS;
       })
@@ -567,23 +569,49 @@ export default function InventoryPage() {
   ).length;
 
   const getInventoryList = async (size?: number) => {
+    const request = ++inventoryRequest.current;
     try {
       setIsLoading(true);
+      if (catFilter.length > 1) {
+        const lists = await Promise.all(catFilter.map(async category => {
+          const fetchPage = (page: number) => InventoryService.getInventory({ page, limit: 100, search: query, category: String(category), status: stockFilter || undefined, sort, sortBy });
+          const first = await fetchPage(1);
+          const rows = [...first.data.data];
+          for (let p = 2; p <= first.data.total_pages; p++) rows.push(...(await fetchPage(p)).data.data);
+          return rows;
+        }));
+        if (request !== inventoryRequest.current) return;
+        const rows = [...new Map(lists.flat().map(row => [row.id, row])).values()];
+        rows.sort((a, b) => {
+          const left = a[sortBy] ?? a.nama ?? '';
+          const right = b[sortBy] ?? b.nama ?? '';
+          const result = typeof left === 'number' && typeof right === 'number' ? left - right : String(left).localeCompare(String(right), 'id', { numeric: true });
+          return sort === 'DESC' ? -result : result;
+        });
+        const limit = size ?? 10;
+        setListBarang(rows.slice((page - 1) * limit, page * limit));
+        setTotal(rows.length);
+        setTotalPages(Math.ceil(rows.length / limit));
+        setIsLoading(false);
+        return;
+      }
       const response = await InventoryService.getInventory({
         order: "asc",
         page,
         limit: size ?? 10,
         search: query,
-        category: catFilter || undefined,
+        category: catFilter.length ? String(catFilter[0]) : undefined,
         status: stockFilter || undefined,
         sort,
         sortBy,
       });
+      if (request !== inventoryRequest.current) return;
       setListBarang(response.data.data);
       setTotal(response.data.total_records);
       setTotalPages(response.data.total_pages);
       setIsLoading(false);
     } catch (error) {
+      if (request !== inventoryRequest.current) return;
       setIsLoading(false);
       setPage(1);
       setFirst(0);
@@ -810,6 +838,7 @@ export default function InventoryPage() {
       </div>
 
       {/* Stats */}
+      <div className="card oct-toolbar"><strong>{t('october.assetValue')}: {formatIDR(inventorySummary?.total_asset_value)}</strong><span className="ed-lock-note">{t('october.valuePending')}</span></div>
       <div
         className="stats-bar"
         style={{ gridTemplateColumns: "repeat(4,1fr)" }}
@@ -869,13 +898,13 @@ export default function InventoryPage() {
             </div>
             <SearchableSelect
               inline
+              multiple
               value={catFilter}
               onChange={(value) => {
-                setCatFilter(String(value));
+                setCatFilter(value);
                 setPage(1);
               }}
               options={[
-                { value: "", label: t("wording.allCategories") },
                 ...categoryOptions.map((category: { value: string; label: string }) => ({
                   value: category.label,
                   label: category.label,
@@ -1000,6 +1029,7 @@ export default function InventoryPage() {
                   id="updated_at"
                 />
                 <th style={{ width: 60, textAlign: "center" }}>{t("wording.image")}</th>
+                <th>{t('october.itemValue')}</th><th>{t('october.totalValue')}</th>
                 <th style={{ width: 80, textAlign: "center" }}>{t("wording.action")}</th>
               </tr>
             </thead>
@@ -1007,7 +1037,7 @@ export default function InventoryPage() {
               {setupRows.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={12}
                     style={{
                       textAlign: "center",
                       color: "var(--text-muted)",
@@ -1052,7 +1082,7 @@ export default function InventoryPage() {
                         fontWeight: 600,
                       }}
                     >
-                      {r.stok_barang}
+                      {fmtNum(r.stok_barang)}
                     </td>
                     <td>{stockBadge(r.status ?? "AVAILABLE")}</td>
                     <td
@@ -1093,6 +1123,8 @@ export default function InventoryPage() {
                         }
                       />
                     </td>
+                    <td>{formatIDR(r.item_value ?? r.itemValue)}</td>
+                    <td>{formatIDR((r.item_value ?? r.itemValue) != null && r.stok_barang != null ? Number(r.item_value ?? r.itemValue) * Number(r.stok_barang) : null)}</td>
                     <td>
                       <div
                         className="action-btns"

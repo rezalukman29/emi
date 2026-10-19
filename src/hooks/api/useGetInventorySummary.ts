@@ -4,6 +4,7 @@ import type { APIResponse } from "../../interfaces/BaseApiResponse";
 import ax from "../../service/axios";
 
 export interface InventorySummary {
+  total_asset_value?: number;
   total_items: number;
   available: number;
   low_stock: number;

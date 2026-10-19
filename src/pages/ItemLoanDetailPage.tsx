@@ -1,3 +1,4 @@
+import { fmtNum as fmtDisplayNumber } from '../lib/format';
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "react-query";
@@ -163,7 +164,7 @@ export default function ItemLoanDetailPage() {
               <tr>
                 <td className="name-cell">{loan.item_name}</td>
                 <td style={{ color: "var(--text-muted)" }}>{loan.warehouse_name || "—"}</td>
-                <td style={{ textAlign: "right" }}>{loan.qty} {loan.unit_name}</td>
+                <td style={{ textAlign: "right" }}>{fmtDisplayNumber(loan.qty)} {loan.unit_name}</td>
                 <td><span className={`badge ${statusBadgeClass(loan.status)}`}>{translateApiValue(loan.status)}</span></td>
                 <td style={{ color: "var(--text-muted)", fontSize: 12.5 }}>{fmtDate(loan.return_date)}</td>
                 <td style={{ textAlign: "center" }}>
@@ -191,7 +192,7 @@ export default function ItemLoanDetailPage() {
         )}
       >
         <p className="confirm-msg">
-          {t("wording.mark")} <strong>{loan.qty} {loan.unit_name}</strong> {t("wording.of")} <strong>&ldquo;{loan.item_name}&rdquo;</strong> {t("wording.asReturned")}
+          {t("wording.mark")} <strong>{fmtDisplayNumber(loan.qty)} {loan.unit_name}</strong> {t("wording.of")} <strong>&ldquo;{loan.item_name}&rdquo;</strong> {t("wording.asReturned")}
         </p>
       </Modal>
     </>

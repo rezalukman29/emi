@@ -1,3 +1,4 @@
+import { fmtNum as fmtDisplayNumber } from '../lib/format';
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate, type NavigateFunction } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -149,6 +150,7 @@ export default function EventPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("upcoming");
+  const [filters, setFilters] = useState({ location: '', stage: '', from: '', to: '', size: '' });
   const queryClient = useQueryClient();
   const [isModify, setIsModify] = useState(false);
   const [event, setEvent] = useState<EventRecord | null>(null);
@@ -287,13 +289,20 @@ export default function EventPage() {
   const { data: eventsResponse, isFetching, isError, error } = useGetEvents({
     status: activeTab === 'invite' ? undefined : activeTab as LifecycleStatus,
     search: debouncedSearch || undefined,
+    event_start: filters.from || undefined,
+    event_end: filters.to || undefined,
     page: pastPage, limit: PAGE_SIZE, sort_by: 'date_event', sort: 'DESC',
   }, activeTab !== 'invite' && search === debouncedSearch);
   const countQueries = useGetEventLifecycleCounts();
   const lifecycleCounts = Object.fromEntries(LIFECYCLE_STATUSES.map((flag, index) => [
     flag, countQueries[index].data?.data.total_records ?? 0,
   ]));
-  const events = eventsResponse?.data.data ?? [];
+  const events = (eventsResponse?.data.data ?? []).filter(row => {
+    const count = row.total_items ?? row.item_count;
+    return (!filters.location || String(row.address || '').toLowerCase().includes(filters.location.toLowerCase()))
+      && (!filters.stage || String(row.status) === filters.stage)
+      && (!filters.size || (count != null && (filters.size === 'small' ? Number(count) < 30 : Number(count) >= 30)));
+  });
   const totalRecords = eventsResponse?.data.total_records ?? 0;
   const listLoading = isFetching || search !== debouncedSearch;
   useEffect(() => {
@@ -806,6 +815,8 @@ export default function EventPage() {
       </div>
 
       {/* Tab bar */}
+      <div className="oct-toolbar"><input aria-label={t('wording.location', { defaultValue: 'Location' })} placeholder={t('wording.location', { defaultValue: 'Location' })} value={filters.location} onChange={e => setFilters({ ...filters, location: e.target.value })} /><SearchableSelect inline value={filters.stage} onChange={value => setFilters({ ...filters, stage: String(value) })} options={[{ value: '', label: t('wording.allStatus') }, ...(eventStatus?.data.data || []).map(row => ({ value: row.id, label: row.name }))]} /><label>{t('october.from')} <input type="date" value={filters.from} onChange={e => { setFilters({ ...filters, from: e.target.value }); setPastPage(1); }} /></label><label>{t('october.to')} <input type="date" value={filters.to} min={filters.from} onChange={e => { setFilters({ ...filters, to: e.target.value }); setPastPage(1); }} /></label><SearchableSelect inline value={filters.size} onChange={value => setFilters({ ...filters, size: String(value) })} options={[{ value: '', label: t('october.all') }, { value: 'small', label: '< 30 items' }, { value: 'large', label: '≥ 30 items' }]} /><button className="btn btn-ghost" onClick={() => { setFilters({ location: '', stage: '', from: '', to: '', size: '' }); setPastPage(1); }}>{t('wording.clear', { defaultValue: 'Clear' })}</button></div>
+      <p className="ed-lock-note">{t('october.filterScope')}</p>
       <div
         style={{
           display: "flex",
@@ -854,7 +865,7 @@ export default function EventPage() {
                   color: activeTab === t.id ? "var(--brand)" : "#64748b",
                 }}
               >
-                {t.count}
+                {fmtDisplayNumber(t.count)}
               </span>
             )}
           </button>
@@ -1008,7 +1019,7 @@ export default function EventPage() {
                         fontWeight: 600,
                       }}
                     >
-                      {group.items.length}
+                      {fmtDisplayNumber(group.items.length)}
                     </span>
                     <div
                       style={{

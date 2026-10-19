@@ -1,4 +1,7 @@
 import { useDeferredValue, useState } from "react";
+import { Link } from 'react-router-dom';
+import ProductionLogTab from '../components/ProductionLogTab';
+import RentalLogTab from '../components/RentalLogTab';
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "react-query";
 import { toast } from "react-toastify";
@@ -35,7 +38,8 @@ function errorMessage(error: unknown, fallback: string) {
   return apiMessage || (error as { message?: string })?.message || fallback;
 }
 
-export default function VendorPage() {
+export default function VendorPage({ kind = 'production' }: { kind?: 'production' | 'loan' }) {
+  const [productionTab, setProductionTab] = useState(false);
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [searchInput, setSearchInput] = useState("");
@@ -159,9 +163,11 @@ export default function VendorPage() {
     },
   ];
 
+  if (productionTab) return <><button className="btn btn-ghost" onClick={() => setProductionTab(false)}>← {t('sourceUpgrade.vendors')}</button>{kind === 'loan' ? <RentalLogTab /> : <ProductionLogTab />}</>;
   return (
     <>
       <div className="vendor-page-header">
+        <button className="btn btn-ghost" onClick={() => setProductionTab(true)}>{t(kind === 'loan' ? 'october.rentals' : 'october.productionLog')}</button>
         <div>
           <h1 className="page-title">{t("sourceUpgrade.vendors")}</h1>
           <p className="vendor-page-description">
@@ -174,6 +180,7 @@ export default function VendorPage() {
         </button>
       </div>
 
+      {kind === 'loan' && <p className="ed-lock-note">{t('october.sharedVendors')}</p>}
       <div className="stats-bar vendor-stats-bar">
         {summary.map(item => (
           <div className="stat-card" key={item.label}>
@@ -260,7 +267,7 @@ export default function VendorPage() {
               )}
               {vendors.map(vendor => (
                 <tr key={vendor.id}>
-                  <td className="name-cell">{vendor.name}</td>
+                  <td className="name-cell"><Link to={`/vendor-detail?id=${vendor.id}&kind=${kind}`}>{vendor.name}</Link></td>
                   <td>
                     <span
                       className={`badge badge-${
@@ -283,6 +290,7 @@ export default function VendorPage() {
                       </button>
                       <button
                         className="btn-icon delete"
+                        disabled={kind === 'loan'}
                         aria-label={t("wording.delete")}
                         onClick={() => setDeleteTarget(vendor)}
                       >

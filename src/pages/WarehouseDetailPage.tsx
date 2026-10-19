@@ -1,3 +1,4 @@
+import { fmtNum as fmtDisplayNumber } from '../lib/format';
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useMemo, useState } from "react";
 import Modal from "../components/Modal";
@@ -303,7 +304,7 @@ export default function WarehouseDetailPage() {
                         fontWeight: 600,
                       }}
                     >
-                      {item.stok}
+                      {fmtDisplayNumber(item.stok)}
                     </td>
                     <td>{statusBadge('Available')}</td>
                   </tr>

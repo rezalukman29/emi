@@ -4,12 +4,16 @@ export interface Vendor { id: number; name: string; contact: string; type: strin
 export interface BrokenReport { id?: number; qty: number; note: string; by?: string; at?: string }
 export interface ProductionMetadata { warehouseId: number; warehouseName: string; vendorId: number; vendorName: string; vendorOrigin: 'Internal' | 'External'; replacesItemId?: number }
 export interface SourcePreview {
+  rentals: RentalPreview[];
+  allowDelete: Record<number, boolean>;
+  loanItem: Record<number, boolean>;
   vendors: Vendor[];
   checkOwnership: Record<number, boolean>;
   reports: Record<number, Record<number, BrokenReport>>;
   production: Array<ProductionMetadata & { eventId: number; itemName: string; at: string }>;
 }
 const CHANGE = 'emi-source-preview-change';
+export interface RentalPreview { id: string; eventId?: number; vendorId: number; vendorName: string; name: string; qty: number; cost: number; due: string; destination: string; createdAt: string; status: 'Requested' | 'Borrowed' | 'Returned' }
 function key() {
   const auth = JSON.parse(localStorage.getItem('auth') || 'null');
   // Never share unintegrated drafts across tenants or users.
@@ -17,8 +21,8 @@ function key() {
 }
 function snapshot() { try { return localStorage.getItem(key()) || ''; } catch { return ''; } }
 function parse(raw: string): SourcePreview {
-  try { const value = JSON.parse(raw); return { vendors: value.vendors || [], checkOwnership: value.checkOwnership || {}, reports: value.reports || {}, production: value.production || [] }; }
-  catch { return { vendors: [], checkOwnership: {}, reports: {}, production: [] }; }
+  try { const value = JSON.parse(raw); return { vendors: value.vendors || [], rentals: value.rentals || [], checkOwnership: value.checkOwnership || {}, allowDelete: value.allowDelete || {}, loanItem: value.loanItem || {}, reports: value.reports || {}, production: value.production || [] }; }
+  catch { return { vendors: [], rentals: [], checkOwnership: {}, allowDelete: {}, loanItem: {}, reports: {}, production: [] }; }
 }
 function subscribe(callback: () => void) {
   window.addEventListener(CHANGE, callback); window.addEventListener('storage', callback);

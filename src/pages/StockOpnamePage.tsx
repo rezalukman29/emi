@@ -1,3 +1,4 @@
+import { fmtNum as fmtDisplayNumber } from '../lib/format';
 import { useEffect, useMemo, useState } from "react";
 import { useFormik } from "formik";
 import { useQueryClient } from "react-query";
@@ -337,7 +338,7 @@ export default function StockOpnamePage() {
                 setConfirmOpen(true);
               }}
             >
-              <IconCheck /> {t("wording.submitForApproval")}{changedRows.length})
+              <IconCheck /> {t("wording.submitForApproval")}{fmtDisplayNumber(changedRows.length)})
             </button>
           </div>
         </div>
@@ -380,7 +381,7 @@ export default function StockOpnamePage() {
                 return (
                   <tr key={row.barang_gudang_id}>
                     <td className="name-cell">{row.nama_barang}</td>
-                    <td style={{ textAlign: "right" }}>{row.stok_gudang}</td>
+                    <td style={{ textAlign: "right" }}>{fmtDisplayNumber(row.stok_gudang)}</td>
                     <td style={{ textAlign: "right" }}>
                       <input
                         className="inv-pick-qty"
@@ -479,7 +480,7 @@ export default function StockOpnamePage() {
           errorText={formik.errors.remark}
         />
         <p className="confirm-msg" style={{ marginBottom: 12 }}>
-          <strong>{changedRows.length}</strong> {t("wording.itemInline")}{changedRows.length === 1 ? "" : t("wording.s")} {t("wording.willBeSubmittedAsPendingStockWillNot")}
+          <strong>{fmtDisplayNumber(changedRows.length)}</strong> {t("wording.itemInline")}{changedRows.length === 1 ? "" : t("wording.s")} {t("wording.willBeSubmittedAsPendingStockWillNot")}
         </p>
         <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 240, overflowY: "auto" }}>
           {changedRows.map((row) => {
@@ -487,7 +488,7 @@ export default function StockOpnamePage() {
             return (
               <div key={row.barang_gudang_id} style={{ borderBottom: "1px solid var(--border-2)", display: "flex", fontSize: 12.5, justifyContent: "space-between", padding: "6px 0" }}>
                 <span>{row.nama_barang}{getCondition(row) === "Poor" && <span className="badge badge-red" style={{ fontSize: 10, marginLeft: 6 }}>{t("wording.poor")}</span>}</span>
-                <strong>{row.stok_gudang} → {getActual(row)} ({difference > 0 ? "+" : ""}{difference})</strong>
+                <strong>{fmtDisplayNumber(row.stok_gudang)} → {getActual(row)} ({difference > 0 ? "+" : ""}{difference})</strong>
               </div>
             );
           })}

@@ -1,3 +1,4 @@
+import { fmtNum as fmtDisplayNumber } from '../lib/format';
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import Modal from "../components/Modal";
@@ -591,7 +592,7 @@ export default function AreaPage() {
             marginTop: 14,
           }}
         >
-          {areaDetail?.list_sub_area?.length} {t("wording.subAreaInline")}
+          {fmtDisplayNumber(areaDetail?.list_sub_area?.length)} {t("wording.subAreaInline")}
           {areaDetail?.list_sub_area?.length !== 1 ? t("wording.s") : ""} {t("wording.in")}{" "}
           <strong>{subAreaRecord?.name}</strong>
         </p>

@@ -1,3 +1,4 @@
+import { fmtNum as fmtDisplayNumber } from '../lib/format';
 import {
   useEffect,
   useRef,
@@ -17,9 +18,7 @@ export interface SearchableSelectOption {
   disabled?: boolean;
 }
 
-interface SearchableSelectProps {
-  value: string | number | null | undefined;
-  onChange: (value: string | number) => void;
+interface SearchableSelectBaseProps {
   onSearchChange?: (value: string) => void;
   options: SearchableSelectOption[];
   placeholder?: string;
@@ -31,6 +30,11 @@ interface SearchableSelectProps {
   style?: CSSProperties;
 }
 
+type SearchableSelectProps = SearchableSelectBaseProps & (
+  | { multiple?: false; value: string | number | null | undefined; onChange: (value: string | number) => void }
+  | { multiple: true; value: Array<string | number>; onChange: (value: Array<string | number>) => void }
+);
+
 interface MenuPosition {
   left: number;
   width?: number;
@@ -41,6 +45,7 @@ interface MenuPosition {
 }
 
 export default function SearchableSelect({
+  multiple = false,
   value,
   onChange,
   onSearchChange,
@@ -59,7 +64,14 @@ export default function SearchableSelect({
   const [position, setPosition] = useState<MenuPosition | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const selected = options.find((option) => String(option.value) === String(value ?? ""));
+  const selectedValues = Array.isArray(value) ? value : [];
+  const isSelected = (option: SearchableSelectOption) => multiple
+    ? selectedValues.some(selectedValue => String(selectedValue) === String(option.value))
+    : String(option.value) === String(value ?? "");
+  const selected = options.find(isSelected);
+  const selectedLabel = multiple
+    ? options.filter(isSelected).map(option => option.label).join(', ')
+    : selected?.label;
 
   useEffect(() => {
     if (!open) return undefined;
@@ -129,7 +141,13 @@ export default function SearchableSelect({
 
   function pickOption(option: SearchableSelectOption) {
     if (option.disabled) return;
-    onChange(option.value);
+    if (multiple) {
+      (onChange as (values: Array<string | number>) => void)(isSelected(option)
+        ? selectedValues.filter(selectedValue => String(selectedValue) !== String(option.value))
+        : [...selectedValues, option.value]);
+      return;
+    }
+    (onChange as (value: string | number) => void)(option.value);
     setOpen(false);
   }
 
@@ -146,11 +164,12 @@ export default function SearchableSelect({
         disabled={disabled}
         className={`ss-trigger${open ? " open" : ""}${!selected ? " placeholder" : ""}`}
         aria-invalid={Boolean(errorText?.trim())}
+        aria-expanded={open}
         onClick={() => !disabled && setOpen((current) => !current)}
         style={{ borderColor: errorText?.trim() ? "var(--red)" : undefined }}
       >
         <span className="ss-trigger-label">
-          {selected?.label ?? placeholder ?? t("select.placeholder")}
+          {selectedLabel || placeholder || t("select.placeholder")}
         </span>
         <IconChevronDown />
       </button>
@@ -187,12 +206,13 @@ export default function SearchableSelect({
             />
           </div>
           <div className="ss-list" style={{ maxHeight: position.maxHeight }}>
+            {multiple && selectedValues.length > 0 && <button type="button" className="ss-item" onClick={() => (onChange as (values: Array<string | number>) => void)([])}>{t('wording.clear', { defaultValue: 'Clear' })} ({fmtDisplayNumber(selectedValues.length)})</button>}
             {!filteredOptions.length ? (
               <div className="ss-empty">{emptyText ?? t("select.empty")}</div>
             ) : filteredOptions.map((option) => (
               <div
                 key={String(option.value)}
-                className={`ss-item${String(option.value) === String(value ?? "") ? " selected" : ""}${option.disabled ? " disabled" : ""}`}
+                className={`ss-item${isSelected(option) ? " selected" : ""}${option.disabled ? " disabled" : ""}`}
                 onMouseDown={(event) => handleOptionMouseDown(event, option)}
               >
                 <span className="ss-item-label">{option.label}</span>

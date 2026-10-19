@@ -1,3 +1,4 @@
+import { fmtNum as fmtDisplayNumber } from '../lib/format';
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
@@ -85,7 +86,7 @@ export default function BrokenItemReport({
       <h3>{item.name}</h3>
       <div className="form-group">
         <label htmlFor="broken-quantity">
-          {t("wording.qty")} (1–{item.qty})
+          {t("wording.qty")} (1–{fmtDisplayNumber(item.qty)})
         </label>
         <input
           id="broken-quantity"

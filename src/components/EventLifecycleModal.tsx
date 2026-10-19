@@ -1,3 +1,4 @@
+import { fmtNum as fmtDisplayNumber } from '../lib/format';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
@@ -218,7 +219,7 @@ export default function EventLifecycleModal({ eventId, eventName, items, stages,
         return <div className="lifecycle-item" key={item.id}>
           <div className="lifecycle-item-row">
             {mode !== 'return' && <input type="checkbox" aria-label={item.nama_barang} checked={mode === 'ownership' ? selected.includes(item.id) : Boolean(state?.checked)} onChange={() => mode === 'ownership' ? setSelected(ids => ids.includes(item.id) ? ids.filter(id => id !== item.id) : [...ids, item.id]) : patchItem(item.id, { checked: !state?.checked })} />}
-            <div className="lifecycle-item-info"><strong>{item.nama_barang}</strong><div>{item.area_name} · {item.qty} {item.satuan}</div></div>
+            <div className="lifecycle-item-info"><strong>{item.nama_barang}</strong><div>{item.area_name} · {fmtDisplayNumber(item.qty)} {item.satuan}</div></div>
             {ownershipsOf(item).map(value => <span key={value} className={`badge ${ownershipClass(value)}`}>{value}</span>)}
             {mode === 'ownership' && selected.includes(item.id) && !ownershipsOf(item).includes(target) && <span>→ {target}</span>}
             {mode === 'return' && (state?.resolution ? <span className="lifecycle-resolution">
