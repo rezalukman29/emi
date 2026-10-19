@@ -1,57 +1,194 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from 'react-query';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { IconChevronLeft, IconChevronRight } from '../components/icons';
 import { loadEvents, loadEventItems, loadStockTotals, mapLimited, bookingWindow } from '../lib/reportData';
 import { computeClashes } from '../lib/eventClashes';
-import Modal from '../components/Modal';
 import { fmtNum } from '../lib/format';
+
+const COLORS = ['#4f46e5', '#059669', '#d97706', '#7c3aed', '#0891b2', '#db2777', '#65a30d', '#dc2626'];
+const todayJakarta = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Jakarta' });
+function colorFor(id: number) { return COLORS[Math.abs(id) % COLORS.length]; }
+function moveMonth(value: string, delta: number) {
+  const [year, month] = value.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1 + delta, 1)).toISOString().slice(0, 7);
+}
+function dateLabel(iso: string, locale: string, year = false) {
+  return new Intl.DateTimeFormat(locale, { timeZone: 'UTC', day: 'numeric', month: 'short', ...(year ? { year: 'numeric' } : {}) }).format(new Date(`${iso}T00:00:00Z`));
+}
+function rangeLabel(from: string, to: string, locale: string) {
+  return from === to ? dateLabel(from, locale) : `${dateLabel(from, locale)} – ${dateLabel(to, locale)}`;
+}
 
 export default function EventCalendarPage() {
   const { t, i18n } = useTranslation();
-  const [month, setMonth] = useState(() => new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Jakarta' }).slice(0, 7));
-  const [checkMonth, setCheckMonth] = useState('');
+  const [month, setMonth] = useState(() => todayJakarta().slice(0, 7));
   const [selectedDay, setSelectedDay] = useState('');
   const [shortagesOnly, setShortagesOnly] = useState(false);
-  const query = useQuery(['report-events'], loadEvents);
-  const [year, m] = month.split('-').map(Number);
-  const days = new Date(year, m, 0).getDate();
-  const offset = (new Date(year, m - 1, 1).getDay() + 6) % 7;
-  const clashes = useQuery(['event-clashes', month, query.dataUpdatedAt], async () => {
-    const from = `${month}-01`;
-    const to = `${month}-${days}`;
-    const events = (query.data || []).filter(event => {
-      const { from: start, to: finish } = bookingWindow(event);
-      return start && start <= to && finish >= from && event.closing_status !== 'transferred' && event.status !== 'transferred' && event.is_finished !== 1;
-    });
-    const bookings = (await mapLimited(events, async event => (await loadEventItems(event.id))
+  const eventsQuery = useQuery(['report-events'], loadEvents);
+  const [year, monthNumber] = month.split('-').map(Number);
+  const lastDay = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
+  const first = `${month}-01`;
+  const last = `${month}-${String(lastDay).padStart(2, '0')}`;
+  const today = todayJakarta();
+  const locale = i18n.resolvedLanguage || i18n.language || 'en';
+  const monthLabel = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${first}T00:00:00Z`));
+
+  const monthEvents = useMemo(() => (eventsQuery.data || []).filter(event => {
+    const window = bookingWindow(event);
+    return window.from && window.from <= last && window.to >= first;
+  }), [eventsQuery.data, first, last]);
+
+  const clashesQuery = useQuery(['event-clashes', month, eventsQuery.dataUpdatedAt], async () => {
+    const eligible = monthEvents.filter(event =>
+      event.closing_status !== 'transferred' && event.status !== 'transferred'
+    );
+    const bookings = (await mapLimited(eligible, async event => (await loadEventItems(event.id))
       .filter(item => item.barang_id > 0 && !item.ownerships?.outsource && !item.is_new_production_item && !item.is_returned && !item.is_transfer_to_other_event)
-      .map(item => ({ eventId: event.id, eventName: String(event.name || event.description || event.id), itemId: item.barang_id, itemName: item.nama_barang, qty: item.qty, ...bookingWindow(event) })))).flat();
+      .map(item => ({
+        eventId: event.id,
+        eventName: String(event.name || event.description || event.id),
+        itemId: item.barang_id,
+        itemName: item.nama_barang,
+        qty: item.qty,
+        ...bookingWindow(event),
+      })))).flat();
     const stocks = await loadStockTotals();
-    return computeClashes(bookings, from, to).map(row => ({ ...row, stock: stocks.get(row.itemId) }));
-  }, { enabled: Boolean(query.data) && month === checkMonth, staleTime: 30000 });
-  const visibleClashes = (clashes.data || []).filter(row => !shortagesOnly || row.stock != null && row.demand > row.stock);
-  const dayEvents = (query.data || []).filter(event => { const window = bookingWindow(event); return window.from && window.from <= selectedDay && window.to >= selectedDay; });
-  const weekdays = Array.from({ length: 7 }, (_, i) => new Date(Date.UTC(2026, 9, 19 + i)).toLocaleDateString(i18n.language, { weekday: 'short', timeZone: 'UTC' }));
-  return <div className="page-content"><h2>{t('october.calendar')}</h2>
-    <div className="oct-toolbar"><input type="month" value={month} onChange={e => e.target.value && setMonth(e.target.value)} /><Link to="/event">{t('navigation.items.event', { defaultValue: 'Events' })}</Link><button className="btn btn-ghost" disabled={!query.data || clashes.isFetching} onClick={() => { if (checkMonth === month) void clashes.refetch(); else setCheckMonth(month); }}>{t('october.clashes')}</button></div>
-    {query.isLoading ? <p>{t('wording.loading')}</p> : query.isError ? <p role="alert">{t('october.loadError')}</p> : <>
-      <p className="ed-lock-note">{t('october.calendarNote')}</p>
-      <div className="oct-calendar oct-calendar-weekdays">{weekdays.map(day => <strong key={day}>{day}</strong>)}</div>
-      <div className="oct-calendar">{Array.from({ length: offset }, (_, i) => <div className="oct-calendar-empty" key={`empty-${i}`} />)}
-        {Array.from({ length: days }, (_, i) => {
-          const day = `${month}-${String(i + 1).padStart(2, '0')}`;
-          const events = (query.data || []).filter(event => {
-            const { from: start, to: end } = bookingWindow(event);
-            return start && start <= day && end >= day;
-          });
-          return <section key={day} className="oct-calendar-day"><button className="btn btn-ghost" aria-label={day} onClick={() => setSelectedDay(day)}>{i + 1}</button><small>{fmtNum(events.length)} {t('october.events')}</small>{events.map(event => <Link key={event.id} to={`/event-detail?id=${event.id}`}>{String(event.name || event.description || event.id)}</Link>)}</section>;
-        })}
+    return computeClashes(bookings, first, last).map(row => ({ ...row, stock: stocks.get(row.itemId) }));
+  }, { enabled: Boolean(eventsQuery.data), staleTime: 30000 });
+
+  const allClashes = clashesQuery.data || [];
+  const isShort = (row: typeof allClashes[number]) => row.stock != null && row.demand > row.stock;
+  const shownClashes = allClashes.filter(row => !shortagesOnly || isShort(row))
+    .sort((a, b) => Number(isShort(b)) - Number(isShort(a)) || a.itemName.localeCompare(b.itemName, locale));
+  const clashDays = new Set<string>();
+  for (const row of allClashes) {
+    for (let time = Date.parse(`${row.from}T00:00:00Z`); time <= Date.parse(`${row.to}T00:00:00Z`); time += 86400000) {
+      clashDays.add(new Date(time).toISOString().slice(0, 10));
+    }
+  }
+  const itemCount = new Set(allClashes.map(row => row.itemId)).size;
+  const shortCount = new Set(allClashes.filter(isShort).map(row => row.itemId)).size;
+  const selectedEvents = monthEvents.filter(event => {
+    const window = bookingWindow(event);
+    return window.from <= selectedDay && window.to >= selectedDay;
+  });
+  const selectedClashes = shownClashes.filter(row => row.from <= selectedDay && row.to >= selectedDay);
+
+  const offset = (new Date(Date.UTC(year, monthNumber - 1, 1)).getUTCDay() + 6) % 7;
+  const cellCount = Math.ceil((offset + lastDay) / 7) * 7;
+  const cells = Array.from({ length: cellCount }, (_, index) => {
+    const date = new Date(Date.UTC(year, monthNumber - 1, index - offset + 1));
+    const iso = date.toISOString().slice(0, 10);
+    return { iso, day: date.getUTCDate(), inMonth: iso.startsWith(month) };
+  });
+  const weekdays = Array.from({ length: 7 }, (_, index) =>
+    new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' })
+      .format(new Date(Date.UTC(2026, 9, 19 + index))));
+
+  function changeMonth(delta: number) {
+    setMonth(current => moveMonth(current, delta));
+    setSelectedDay('');
+  }
+
+  return <div className="page-content event-calendar-page">
+    <div className="cal-head">
+      <h1 className="page-title">{t('october.calendar')}</h1>
+      <div className="cal-nav">
+        <button type="button" className="cal-nav-btn" onClick={() => changeMonth(-1)} aria-label={t('calendarUi.previousMonth')}><IconChevronLeft /></button>
+        <span className="cal-month">{monthLabel}</span>
+        <button type="button" className="cal-nav-btn" onClick={() => changeMonth(1)} aria-label={t('calendarUi.nextMonth')}><IconChevronRight /></button>
+        <button type="button" className="btn btn-ghost" onClick={() => { const current = todayJakarta(); setMonth(current.slice(0, 7)); setSelectedDay(current); }}>{t('calendarUi.today')}</button>
+        <label className="pp-check"><input type="checkbox" checked={shortagesOnly} onChange={event => setShortagesOnly(event.target.checked)} />{t('october.shortagesOnly')}</label>
       </div>
-      {checkMonth === month && <section className="card"><p className="ed-lock-note">{t('october.clashNote')}</p><label className="pp-check"><input type="checkbox" checked={shortagesOnly} onChange={e => setShortagesOnly(e.target.checked)} />{t('october.shortagesOnly')}</label><p>{t('october.clashRanges')}: {fmtNum(clashes.data?.length)} · {t('october.shortages')}: {fmtNum(clashes.data?.filter(row => row.stock != null && row.demand > row.stock).length)}</p>{clashes.isFetching ? <p>{t('wording.loading')}</p> : clashes.isError ? <p role="alert">{t('october.loadError')}</p> : visibleClashes.length ? <div className="table-wrap"><table><thead><tr><th>{t('october.item')}</th><th>{t('october.date')}</th><th>{t('october.events')}</th><th>{t('october.qty')} / {t('wording.totalStock')}</th></tr></thead><tbody>{visibleClashes.map(row => <tr key={`${row.itemId}-${row.from}-${row.events.map(e => e.id).join('-')}`}><td>{row.itemName}</td><td>{row.from} – {row.to}</td><td>{row.events.map(event => <div key={event.id}><Link to={`/event-detail?id=${event.id}`}>{event.name}</Link> · {fmtNum(event.qty)}</div>)}</td><td><span className={row.stock != null && row.demand > row.stock ? 'badge badge-red' : 'badge badge-orange'}>{fmtNum(row.demand)} / {fmtNum(row.stock)}</span></td></tr>)}</tbody></table></div> : <p>{t('october.noClashes')}</p>}</section>}
-    </>}
-    <Modal open={Boolean(selectedDay)} title={selectedDay} onClose={() => setSelectedDay('')}>
-      {dayEvents.length ? dayEvents.map(event => <div className="card" key={event.id}><Link to={`/event-detail?id=${event.id}`}>{String(event.name || event.description || event.id)}</Link><p>{bookingWindow(event).from} – {bookingWindow(event).to}</p></div>) : <p>{t('october.notFound')}</p>}
-    </Modal>
+    </div>
+    <p className="cal-intro">{t('calendarUi.intro')} <span className="cal-chip-key shared">{t('calendarUi.clash')}</span>{t('calendarUi.introMiddle')} <span className="cal-chip-key shortage">{t('calendarUi.shortage')}</span>. {t('calendarUi.introEnd')}</p>
+    {eventsQuery.isError && <p role="alert">{t('october.loadError')}</p>}
+    {clashesQuery.isError && <p role="alert">{t('calendarUi.clashLoadError')}</p>}
+
+    <div className="stats-bar cal-stats">
+      {[
+        { label: t('calendarUi.eventsThisMonth'), value: eventsQuery.isLoading ? null : monthEvents.length, color: 'var(--brand)', bg: 'var(--brand-bg)' },
+        { label: t('calendarUi.daysWithClashes'), value: clashesQuery.isLoading || clashesQuery.isError ? null : clashDays.size, color: 'var(--orange)', bg: 'var(--orange-bg)' },
+        { label: t('calendarUi.itemsClashing'), value: clashesQuery.isLoading || clashesQuery.isError ? null : itemCount, color: 'var(--purple)', bg: 'var(--purple-bg)' },
+        { label: t('calendarUi.itemsShort'), value: clashesQuery.isLoading || clashesQuery.isError ? null : shortCount, color: 'var(--red)', bg: 'var(--red-bg)' },
+      ].map(card => <div className="stat-card" key={card.label}>
+        <div className="stat-icon" style={{ background: card.bg }}><span className="stat-value" style={{ color: card.color }}>{fmtNum(card.value)}</span></div>
+        <span className="stat-label">{card.label}</span>
+      </div>)}
+    </div>
+
+    <div className="cal-layout">
+      <div className="card cal-card">
+        <div className="cal-grid">
+          {weekdays.map((day, index) => <div className="cal-weekday" key={index}>{day}</div>)}
+          {cells.map(cell => {
+            const dayEvents = cell.inMonth ? monthEvents.filter(event => {
+              const window = bookingWindow(event);
+              return window.from <= cell.iso && window.to >= cell.iso;
+            }) : [];
+            const dayClashes = cell.inMonth ? shownClashes.filter(row => row.from <= cell.iso && row.to >= cell.iso) : [];
+            const hasShortage = dayClashes.some(isShort);
+            return <button type="button" key={cell.iso}
+              className={`cal-cell${cell.inMonth ? '' : ' out'}${cell.iso === today ? ' today' : ''}${cell.iso === selectedDay ? ' selected' : ''}${dayClashes.length ? hasShortage ? ' has-shortage' : ' has-clash' : ''}`}
+              onClick={() => setSelectedDay(cell.iso)} disabled={!cell.inMonth}
+              aria-label={`${dateLabel(cell.iso, locale, true)}, ${dayEvents.length} ${t('october.events')}`}>
+              <span className="cal-day">{cell.day}</span>
+              {dayEvents.slice(0, 3).map(event => {
+                const color = colorFor(event.id);
+                return <span key={event.id} className="cal-event" style={{ borderLeftColor: color, background: `${color}14` }} title={String(event.name || event.description || event.id)}>
+                  {String(event.name || event.description || event.id)}
+                </span>;
+              })}
+              {dayEvents.length > 3 && <span className="cal-more">+{fmtNum(dayEvents.length - 3)} {t('calendarUi.more')}</span>}
+              {dayClashes.length > 0 && <span className={`cal-clash ${hasShortage ? 'shortage' : 'shared'}`}>⚠ {fmtNum(dayClashes.length)} {t('october.items')}</span>}
+            </button>;
+          })}
+        </div>
+      </div>
+
+      <aside className="card cal-side">
+        {!selectedDay ? <div className="cal-side-empty">{t('calendarUi.selectDay')}</div> : <>
+          <div className="cal-side-title">{dateLabel(selectedDay, locale, true)} <span>{fmtNum(selectedEvents.length)} {t('october.events')}</span></div>
+          {selectedEvents.length === 0 && <p className="cal-muted">{t('calendarUi.noEvents')}</p>}
+          <ul className="cal-side-events">{selectedEvents.map(event => {
+            const window = bookingWindow(event);
+            return <li key={event.id}>
+              <span className="cal-dot" style={{ background: colorFor(event.id) }} />
+              <div><Link to={`/event-detail?id=${event.id}`}>{String(event.name || event.description || event.id)}</Link>
+                <div className="cal-muted">{rangeLabel(window.from, window.to, locale)}{event.location || event.address ? ` · ${event.location || event.address}` : ''}</div>
+              </div>
+            </li>;
+          })}</ul>
+          <div className="cal-side-title">{t('calendarUi.itemClashes')} <span>{clashesQuery.isLoading || clashesQuery.isError ? '—' : fmtNum(selectedClashes.length)}</span></div>
+          {eventsQuery.isError || clashesQuery.isError ? <p className="cal-muted">{t('calendarUi.clashLoadError')}</p> : clashesQuery.isLoading ? <p className="cal-muted">{t('wording.loading')}</p> : selectedClashes.length === 0 ? <p className="cal-muted">{t('calendarUi.noDayClashes')}</p> : <div className="cal-clash-list">
+            {selectedClashes.map(row => <div className={`cal-clash-row ${isShort(row) ? 'shortage' : 'shared'}`} key={`${row.itemId}-${row.from}`}>
+              <div className="cal-clash-item"><strong>{row.itemName}</strong><span className={`badge ${isShort(row) ? 'badge-red' : 'badge-orange'}`}>{row.stock == null ? t('calendarUi.stockUnknown') : isShort(row) ? `${t('calendarUi.short')} ${fmtNum(row.demand - row.stock)}` : t('calendarUi.shared')}</span></div>
+              <div className="cal-muted">{row.events.map(event => `${event.name}: ${fmtNum(event.qty)}`).join(' · ')}</div>
+              <div className="cal-clash-bar"><div style={{ width: `${row.stock == null ? 0 : Math.min(100, row.stock ? row.demand / row.stock * 100 : 100)}%` }} /></div>
+              <div className="cal-muted">{t('calendarUi.needed')} {fmtNum(row.demand)} · {t('calendarUi.inStock')} {fmtNum(row.stock)}</div>
+            </div>)}
+          </div>}
+        </>}
+      </aside>
+    </div>
+
+    <section className="card cal-table-card">
+      <div className="cal-side-title">{t('calendarUi.clashesIn', { month: monthLabel })}<span>{clashesQuery.isLoading || clashesQuery.isError ? '—' : fmtNum(shownClashes.length)} {t('calendarUi.shortagesFirst')}</span></div>
+      <div className="table-wrap"><table><thead><tr>
+        <th>{t('october.item')}</th><th>{t('october.date')}</th><th>{t('calendarUi.bookedBy')}</th>
+        <th className="cal-number">{t('calendarUi.needed')}</th><th className="cal-number">{t('calendarUi.inStock')}</th><th>{t('october.status')}</th>
+      </tr></thead><tbody>
+        {eventsQuery.isError || clashesQuery.isError ? <tr><td colSpan={6}>{t('calendarUi.clashLoadError')}</td></tr> : clashesQuery.isLoading || eventsQuery.isLoading ? <tr><td colSpan={6}>{t('wording.loading')}</td></tr> : shownClashes.length === 0 ? <tr><td colSpan={6} className="cal-table-empty">{t('october.noClashes')}</td></tr> :
+          shownClashes.map(row => <tr key={`${row.itemId}-${row.from}-${row.events.map(event => event.id).join('-')}`}>
+            <td className="name-cell">{row.itemName}</td><td>{rangeLabel(row.from, row.to, locale)}</td>
+            <td>{row.events.map((event, index) => <span key={event.id}>{index > 0 && ' · '}<Link to={`/event-detail?id=${event.id}`}>{event.name}</Link> ({fmtNum(event.qty)})</span>)}</td>
+            <td className="cal-number"><strong>{fmtNum(row.demand)}</strong></td><td className="cal-number">{fmtNum(row.stock)}</td>
+            <td><span className={`badge ${isShort(row) ? 'badge-red' : 'badge-orange'}`}>{row.stock == null ? t('calendarUi.stockUnknown') : isShort(row) ? `${t('calendarUi.short')} ${fmtNum(row.demand - row.stock)}` : t('calendarUi.sharedEnough')}</span></td>
+          </tr>)
+        }
+      </tbody></table></div>
+    </section>
   </div>;
 }
