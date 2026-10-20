@@ -3,11 +3,11 @@ import BrokenItemReport from '../components/BrokenItemReport';
 import PrintPlanModal from '../components/PrintPlanModal.jsx';
 import RentalLogTab from '../components/RentalLogTab';
 import { useSourcePreview, stagePromptStep, type BrokenReport } from '../lib/sourcePreview';
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type UIEvent as ReactUIEvent } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
-import { useQueryClient } from "react-query";
+import { useInfiniteQuery, useQueryClient } from "react-query";
 import Modal from "../components/Modal";
 import EventLifecycleModal, { type LifecycleModalMode } from '../components/EventLifecycleModal';
 import { useEventLifecycle, updateEventLifecycle, resolveLifecycle, LIFECYCLE_BADGES, OWNERSHIPS, ownershipClass, type Ownership } from '../lib/eventLifecycle';
@@ -28,7 +28,8 @@ import {
   IconUser,
   IconTag,
 } from "../components/icons";
-import useGetBarangGudangV2, {
+import {
+  getBarangGudangV2,
   type BarangGudangItemV2,
   type BarangGudangWarehouseV2,
 } from "../hooks/api/useGetBarangGudangV2";
@@ -799,6 +800,7 @@ export default function EventDetailPage() {
   // Inventory picker
   const [pickerQuery, setPickerQuery] = useState("");
   const [pickerCategory, setPickerCategory] = useState("");
+  const inventoryPickerListRef = useRef<HTMLDivElement>(null);
   const [pickerQty, setPickerQty] = useState<Record<number, number>>({});
   const [pickerWarehouseIds, setPickerWarehouseIds] = useState<Record<number, number>>({});
   const [selectedCartIds, setSelectedCartIds] = useState<string[]>([]);
@@ -942,22 +944,38 @@ export default function EventDetailPage() {
     },
   });
 
+  const barangGudangFilters = useMemo(() => ({
+    gudang_id: selectedWarehouseId ? Number(selectedWarehouseId) : undefined,
+    categoryId: pickerCategory ? Number(pickerCategory) : undefined,
+    search: debouncedBarangSearch || undefined,
+  }), [debouncedBarangSearch, pickerCategory, selectedWarehouseId]);
   const {
-    data: barangGudangResponse,
+    data: barangGudangPages,
     isLoading: isBarangGudangLoading,
     isError: isBarangGudangError,
-  } = useGetBarangGudangV2({
-    params: {
-      page: 1,
-      limit: 30,
-      gudang_id: selectedWarehouseId ? Number(selectedWarehouseId) : undefined,
-      categoryId: pickerCategory ? Number(pickerCategory) : undefined,
-      search: debouncedBarangSearch || undefined,
-    },
-    options: {
+    refetch: refetchBarangGudangPages,
+    isFetchingNextPage: isFetchingNextBarangPage,
+    fetchNextPage: fetchNextBarangPage,
+    hasNextPage: hasNextBarangPage,
+  } = useInfiniteQuery(
+    ["useGetBarangGudangV2", "infinite", barangGudangFilters],
+    ({ pageParam = 1 }) => getBarangGudangV2({
+      params: {
+        page: Number(pageParam),
+        limit: 30,
+        ...barangGudangFilters,
+      },
+    }),
+    {
       enabled: newItemOpen,
+      getNextPageParam: (lastPage) =>
+        lastPage.page < lastPage.total_pages ? lastPage.page + 1 : undefined,
     },
-  });
+  );
+
+  useEffect(() => {
+    if (newItemOpen) inventoryPickerListRef.current?.scrollTo({ top: 0 });
+  }, [debouncedBarangSearch, newItemOpen, pickerCategory, selectedWarehouseId]);
 
   const lifecycleItems = useMemo(() => [...(eventItemResponse?.data ?? []), ...(lifecycle?.incoming ?? [])].filter(item => !hiddenItemIds.includes(item.id)), [eventItemResponse?.data, lifecycle?.incoming, hiddenItemIds]);
   const items = useMemo(() => {
@@ -1136,8 +1154,12 @@ export default function EventDetailPage() {
     ?? backendProductionItems.find(item => item.id === detailId)
     ?? packages.flatMap(p => p.items ?? []).find(item => item.id === detailId);
   const barangGudangItems = useMemo(
-    () => barangGudangResponse?.data ?? [],
-    [barangGudangResponse?.data],
+    () => [...new Map(
+      (barangGudangPages?.pages ?? [])
+        .flatMap((page) => page.data)
+        .map((item) => [item.barang_id, item] as const),
+    ).values()],
+    [barangGudangPages?.pages],
   );
 
   const masterAreas = useMemo<AreaItem[]>(
@@ -1162,6 +1184,18 @@ export default function EventDetailPage() {
         .includes(query);
     });
   }, [barangGudangItems, pickerQuery]);
+
+  function handleInventoryPickerScroll(event: ReactUIEvent<HTMLDivElement>) {
+    const list = event.currentTarget;
+    const distanceToBottom = list.scrollHeight - list.scrollTop - list.clientHeight;
+    if (
+      distanceToBottom <= 160 &&
+      hasNextBarangPage &&
+      !isFetchingNextBarangPage
+    ) {
+      void fetchNextBarangPage();
+    }
+  }
 
   const bulkSubAreas = useMemo(() => {
     const areaId = Number(bulkAreaId);
@@ -2995,8 +3029,21 @@ export default function EventDetailPage() {
               </div>
             </div>
 
-            <div className="inv-pick-list">
-              {pickerFiltered.length === 0 ? (
+            <div
+              ref={inventoryPickerListRef}
+              className="inv-pick-list"
+              onScroll={handleInventoryPickerScroll}
+            >
+              {isBarangGudangLoading ? (
+                <div className="inv-pick-loading">{t("wording.loadingInventory")}</div>
+              ) : isBarangGudangError && barangGudangItems.length === 0 ? (
+                <div className="inv-pick-loading inv-pick-load-error">
+                  <span>{t("wording.unableToLoadInventory")}</span>
+                  <button className="btn btn-ghost" onClick={() => void refetchBarangGudangPages()}>
+                    {t("conversion.retry")}
+                  </button>
+                </div>
+              ) : pickerFiltered.length === 0 ? (
                 <div className="no-data">{t("wording.noItemsFound")}</div>
               ) : (
                 pickerFiltered.map((inv) => {
@@ -3096,6 +3143,19 @@ export default function EventDetailPage() {
                     </div>
                   );
                 })
+              )}
+              {isFetchingNextBarangPage && (
+                <div className="inv-pick-loading" role="status">
+                  {t("wording.loadingInventory")}
+                </div>
+              )}
+              {isBarangGudangError && barangGudangItems.length > 0 && !isFetchingNextBarangPage && (
+                <div className="inv-pick-loading inv-pick-load-error">
+                  <span>{t("wording.unableToLoadInventory")}</span>
+                  <button className="btn btn-ghost" onClick={() => void fetchNextBarangPage()}>
+                    {t("conversion.retry")}
+                  </button>
+                </div>
               )}
             </div>
           </div>
