@@ -48,12 +48,20 @@ function statusBadge(status: string) {
 }
 
 async function getVendorProductions(id: number) {
-  const first = await getProductionRequestList({ page: 1, limit: 100 });
+  const first = await getProductionRequestList({
+    page: 1,
+    limit: 100,
+    vendor_id: id,
+  });
   const rows = [...first.data.data];
   for (let page = 2; page <= first.data.total_pages; page += 1) {
-    rows.push(...(await getProductionRequestList({ page, limit: 100 })).data.data);
+    rows.push(...(await getProductionRequestList({
+      page,
+      limit: 100,
+      vendor_id: id,
+    })).data.data);
   }
-  return rows.filter(item => item.vendor?.id === id);
+  return rows;
 }
 
 export default function VendorDetailPage() {

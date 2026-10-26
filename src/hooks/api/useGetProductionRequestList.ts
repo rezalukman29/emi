@@ -13,6 +13,7 @@ export type ProductionRequestSource = "EVENT" | "RESTOCK";
 export interface ProductionRequestListParams {
   status?: ProductionRequestStatus;
   source?: ProductionRequestSource;
+  vendor_id?: number;
   warehouse_id?: number;
   search?: string;
   page?: number;
