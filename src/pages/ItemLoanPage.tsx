@@ -1,357 +1,345 @@
-import { fmtNum as fmtDisplayNumber } from '../lib/format';
-import { useEffect, useState } from "react";
-import { useFormik } from "formik";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useQueryClient } from "react-query";
-import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import * as Yup from "yup";
 
 import Modal from "../components/Modal";
 import Pagination from "../components/Pagination";
-import TextInput from "../components/TextInput";
-import { IconCheck, IconClose, IconEye, IconPlus, IconSearch } from "../components/icons";
-import useGetBarangGudang from "../hooks/api/useGetBarangGudang";
-import useGetItemLoans, {
-  type ItemLoanStatus,
-} from "../hooks/api/useGetItemLoans";
-import usePostItemLoan from "../hooks/api/usePostItemLoan";
 import SearchableSelect from "../components/SearchableSelect";
-import { useTranslation } from "react-i18next";
+import { IconCheck, IconClose, IconDelete, IconEdit, IconPlus, IconSearch } from "../components/icons";
+import useGetWarehouse from "../hooks/api/useGetWarehouse";
+import useGetUnit from "../hooks/api/useGetUnit";
+import {
+  getLoanItem,
+  loanItemToUpdatePayload,
+  type LoanItem,
+  type LoanItemPayload,
+  type LoanItemStatus,
+  useCreateLoanItem,
+  useDeleteLoanItem,
+  useGetLoanItems,
+  useUpdateLoanItem,
+} from "../hooks/api/useGetItemLoans";
+import { useGetLoanVendors } from "../hooks/api/useLoanVendors";
+import { fmtNum, formatIDR } from "../lib/format";
 import { translateApiValue } from "../utils/function";
 
-const PAGE_SIZE = 10;
-const ITEM_PAGE_SIZE = 30;
-const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const PAGE_SIZE = 15;
+const STATUSES: LoanItemStatus[] = ["REQUESTED", "BORROWED", "OVERDUE", "RETURNED"];
 
-function fmtDate(value: string | null) {
+interface ItemLoanPageProps {
+  embedded?: boolean;
+  vendorId?: number;
+  allowCreate?: boolean;
+}
+
+type LoanForm = {
+  item_name: string;
+  qty: string;
+  unit: string;
+  warehouse_id: string;
+  purpose: string;
+  vendor_id: string;
+  borrow_from: string;
+  return_by: string;
+  rental_cost_per_unit: string;
+  notes: string;
+};
+
+function localIsoDate() {
+  const date = new Date();
+  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-");
+}
+
+function emptyForm(vendorId?: number): LoanForm {
+  return {
+    item_name: "",
+    qty: "1",
+    unit: "pcs",
+    warehouse_id: "",
+    purpose: "",
+    vendor_id: vendorId ? String(vendorId) : "",
+    borrow_from: localIsoDate(),
+    return_by: "",
+    rental_cost_per_unit: "",
+    notes: "",
+  };
+}
+
+function dateLabel(value?: string | null) {
   if (!value) return "—";
-  const [year, month, day] = value.split("-");
-  const monthIndex = Number(month) - 1;
-  const date = Number.parseInt(day, 10);
-  if (!year || !MONTHS_SHORT[monthIndex] || Number.isNaN(date)) return value;
-  return `${date} ${MONTHS_SHORT[monthIndex]} ${year}`;
+  const parsed = new Date(`${value.slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-function todayIso() {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, "0");
-  const day = String(today.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function statusBadgeClass(status: string) {
-  if (status.toLowerCase() === "returned") return "badge-green";
-  if (status.toLowerCase() === "overdue") return "badge-red";
+function badge(status: string) {
+  if (status === "RETURNED") return "badge-green";
+  if (status === "OVERDUE") return "badge-red";
+  if (status === "REQUESTED") return "badge-orange";
   return "badge-blue";
 }
 
-function statusLabel(status: string) {
-  return translateApiValue(status);
-}
-
 function errorMessage(error: unknown, fallback: string) {
-  const apiMessage = (error as { response?: { data?: { message?: string } } })
-    ?.response?.data?.message;
-  if (apiMessage) return apiMessage;
-  return error instanceof Error ? error.message : fallback;
+  return (error as { response?: { data?: { message?: string } } })?.response?.data?.message
+    || (error as Error)?.message
+    || fallback;
 }
 
-export default function ItemLoanPage() {
+export default function ItemLoanPage({ embedded = false, vendorId, allowCreate = true }: ItemLoanPageProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<ItemLoanStatus | "">("");
+  const [query, setQuery] = useState("");
+  const search = useDeferredValue(query.trim());
+  const [status, setStatus] = useState<LoanItemStatus | "">("");
+  const [selectedVendor, setSelectedVendor] = useState("");
   const [page, setPage] = useState(1);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [itemSearchInput, setItemSearchInput] = useState("");
-  const [itemSearch, setItemSearch] = useState("");
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingItem, setEditingItem] = useState<LoanItem | null>(null);
+  const [loadingEdit, setLoadingEdit] = useState(false);
+  const [form, setForm] = useState<LoanForm>(() => emptyForm(vendorId));
+  const [deleteTarget, setDeleteTarget] = useState<LoanItem | null>(null);
+  const [transitionTarget, setTransitionTarget] = useState<LoanItem | null>(null);
 
-  const {
-    data: loansResponse,
-    isLoading: isLoansLoading,
-    isError: isLoansError,
-  } = useGetItemLoans({
+  const listQuery = useGetLoanItems({
     params: {
       page,
       limit: PAGE_SIZE,
-      search: search || undefined,
-      status: statusFilter || undefined,
+      ...(search ? { search } : {}),
+      ...(status ? { status } : {}),
+      ...(vendorId ? { vendor_id: vendorId } : selectedVendor ? { vendor_id: Number(selectedVendor) } : {}),
     },
     options: { keepPreviousData: true },
   });
-  const { data: loanedResponse } = useGetItemLoans({
-    params: { page: 1, limit: 1, status: "Loaned" },
+  const vendorQuery = useGetLoanVendors({
+    params: { page: 1, limit: 100 },
+    options: { enabled: formOpen || (!vendorId && embedded) },
   });
-  const { data: overdueResponse } = useGetItemLoans({
-    params: { page: 1, limit: 1, status: "Overdue" },
-  });
-  const { data: returnedResponse } = useGetItemLoans({
-    params: { page: 1, limit: 1, status: "Returned" },
-  });
-  const {
-    data: inventoryResponse,
-    isLoading: isInventoryLoading,
-    isError: isInventoryError,
-  } = useGetBarangGudang({
-    params: {
-      page: 1,
-      limit: ITEM_PAGE_SIZE,
-      search: itemSearch || undefined,
-      sort: "ASC",
-      sortBy: "name",
-    },
-    options: {
-      enabled: modalOpen,
-      keepPreviousData: true,
-    },
-  });
-  const { mutateAsync: createItemLoan, isLoading: isCreating } = usePostItemLoan();
+  const warehouseQuery = useGetWarehouse({ options: { enabled: formOpen } });
+  const unitQuery = useGetUnit({ options: { enabled: formOpen } });
+  const createMutation = useCreateLoanItem();
+  const updateMutation = useUpdateLoanItem();
+  const deleteMutation = useDeleteLoanItem();
 
-  useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      setSearch(searchInput.trim());
-      setPage(1);
-    }, 400);
-    return () => window.clearTimeout(timeout);
-  }, [searchInput]);
+  const result = listQuery.data?.data;
+  const loans = result?.data ?? [];
+  const summary = result?.summary;
+  const totalPages = Math.max(1, result?.total_pages || 1);
+  const currentPage = Math.min(result?.page || page, totalPages);
+  const vendors = vendorQuery.data?.data?.items ?? [];
+  const warehouseData = warehouseQuery.data?.data;
+  const warehouses: Array<{ id: number; nama: string }> = (Array.isArray(warehouseData) ? warehouseData : warehouseData?.data ?? [])
+    .filter((item: { nama?: string }) => item.nama?.trim().toLowerCase() !== "buy");
+  const units: Array<{ id: number; name: string }> = unitQuery.data?.data ?? [];
+  const isSaving = createMutation.isLoading || updateMutation.isLoading;
+  const isActing = updateMutation.isLoading || deleteMutation.isLoading;
+  const totalCost = Number(summary?.total_rental_cost || 0);
 
-  useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      setItemSearch(itemSearchInput.trim());
-    }, 400);
-    return () => window.clearTimeout(timeout);
-  }, [itemSearchInput]);
-
-  const loans = loansResponse?.data.data ?? [];
-  const totalRecords = loansResponse?.data.total_records ?? 0;
-  const totalPages = Math.max(1, loansResponse?.data.total_pages ?? 1);
-  const safePage = Math.min(page, totalPages);
-  const inventoryRows = inventoryResponse?.data ?? [];
-  const loanedCount = loanedResponse?.data.total_records ?? 0;
-  const overdueCount = overdueResponse?.data.total_records ?? 0;
-  const returnedCount = returnedResponse?.data.total_records ?? 0;
-  const totalLoanCount = loanedCount + overdueCount + returnedCount;
-
+  useEffect(() => setPage(1), [search, status, selectedVendor, vendorId]);
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
-  const formik = useFormik({
-    initialValues: {
-      barang_gudang_id: "",
-      qty: "1",
-      borrower_name: "",
-      borrower_contact: "",
-      purpose: "",
-      loan_date: todayIso(),
-      due_date: "",
-    },
-    validationSchema: Yup.object({
-      barang_gudang_id: Yup.string().required(t("wording.required")),
-      qty: Yup.number().typeError("Must be a number").integer("Must be a whole number").min(1, t("wording.minimumQuantityIs1")).required(t("wording.required")),
-      borrower_name: Yup.string().trim().required(t("wording.required")),
-      borrower_contact: Yup.string().trim().required(t("wording.required")),
-      purpose: Yup.string().trim().required(t("wording.required")),
-      loan_date: Yup.string().required(t("wording.required")),
-      due_date: Yup.string().required(t("wording.required")),
-    }),
-    validateOnChange: false,
-    onSubmit: async (values, { resetForm }) => {
-      try {
-        const response = await createItemLoan({
-          barang_gudang_id: Number(values.barang_gudang_id),
-          borrower_contact: values.borrower_contact.trim(),
-          borrower_name: values.borrower_name.trim(),
-          due_date: values.due_date,
-          loan_date: values.loan_date,
-          purpose: values.purpose.trim(),
-          qty: Number(values.qty),
-        });
-        toast(response.message, { type: "success" });
-        setModalOpen(false);
-        resetForm();
-        setItemSearchInput("");
-        setItemSearch("");
-        setPage(1);
-        await queryClient.invalidateQueries(["useGetItemLoans"]);
-      } catch (error) {
-        toast(errorMessage(error, "Failed to create item loan."), { type: "error" });
-      }
-    },
-  });
+  const valid = useMemo(() => {
+    const qty = Number(form.qty);
+    const cost = Number(form.rental_cost_per_unit || 0);
+    return Boolean(
+      form.item_name.trim()
+      && Number.isInteger(qty) && qty >= 1
+      && form.unit.trim()
+      && Number(form.warehouse_id) > 0
+      && Number(form.vendor_id) > 0
+      && form.borrow_from
+      && form.return_by
+      && form.return_by >= form.borrow_from
+      && cost >= 0,
+    );
+  }, [form]);
 
-  function openNew() {
-    formik.resetForm();
-    setItemSearchInput("");
-    setItemSearch("");
-    setModalOpen(true);
+  const rentalTotal = (Number(form.qty) || 0) * (Number(form.rental_cost_per_unit) || 0);
+
+  function setField<K extends keyof LoanForm>(key: K, value: LoanForm[K]) {
+    setForm(current => ({ ...current, [key]: value }));
   }
 
-  function closeModal() {
-    if (isCreating) return;
-    formik.resetForm();
-    setModalOpen(false);
+  function openCreate() {
+    setEditingId(null);
+    setEditingItem(null);
+    setForm(emptyForm(vendorId));
+    setFormOpen(true);
   }
 
-  return (
-    <>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22 }}>
-        <h1 className="page-title" style={{ margin: 0 }}>{t("wording.itemLoan")}</h1>
-        <button className="btn-new" onClick={openNew}><IconPlus /> {t("wording.loanItem")}</button>
+  async function openEdit(item: LoanItem) {
+    setLoadingEdit(true);
+    try {
+      const response = await getLoanItem(item.id);
+      const detail = response.data;
+      setEditingId(detail.id);
+      setEditingItem(detail);
+      setForm({
+        item_name: detail.item_name || "",
+        qty: String(detail.qty || 1),
+        unit: detail.unit || "pcs",
+        warehouse_id: detail.warehouse_id ? String(detail.warehouse_id) : "",
+        purpose: detail.purpose || "",
+        vendor_id: detail.vendor_id ? String(detail.vendor_id) : "",
+        borrow_from: detail.borrow_from?.slice(0, 10) || localIsoDate(),
+        return_by: detail.return_by?.slice(0, 10) || "",
+        rental_cost_per_unit: detail.rental_cost_per_unit ? String(detail.rental_cost_per_unit) : "",
+        notes: detail.notes || "",
+      });
+      setFormOpen(true);
+    } catch (error) {
+      toast.error(errorMessage(error, t("borrowedItemsApi.loadDetailError")));
+    } finally {
+      setLoadingEdit(false);
+    }
+  }
+
+  function closeForm() {
+    if (isSaving) return;
+    setFormOpen(false);
+    setEditingId(null);
+    setEditingItem(null);
+    setForm(emptyForm(vendorId));
+  }
+
+  function payload(): LoanItemPayload {
+    return {
+      item_name: form.item_name.trim(),
+      qty: Number(form.qty),
+      unit: form.unit.trim(),
+      vendor_id: Number(form.vendor_id),
+      warehouse_id: Number(form.warehouse_id),
+      borrow_from: form.borrow_from,
+      return_by: form.return_by,
+      rental_cost_per_unit: Number(form.rental_cost_per_unit || 0),
+      purpose: form.purpose.trim(),
+      notes: form.notes.trim(),
+      ...(Number(editingItem?.event_id || editingItem?.event?.id || 0) > 0 ? { event_id: Number(editingItem?.event_id || editingItem?.event?.id) } : {}),
+      ...(Number(editingItem?.area_id || 0) > 0 ? { area_id: Number(editingItem?.area_id) } : {}),
+      ...(Number(editingItem?.sub_area_id || 0) > 0 ? { sub_area_id: Number(editingItem?.sub_area_id) } : {}),
+    };
+  }
+
+  async function refresh() {
+    await queryClient.invalidateQueries("useGetLoanItems");
+    await queryClient.invalidateQueries("useGetLoanVendors");
+  }
+
+  async function save() {
+    if (!valid || isSaving) return;
+    try {
+      const response = editingId
+        ? await updateMutation.mutateAsync({ id: editingId, payload: payload() })
+        : await createMutation.mutateAsync(payload());
+      toast.success(response.message || t(editingId ? "borrowedItemsApi.updated" : "borrowedItemsApi.created"));
+      closeForm();
+      setPage(1);
+      await refresh();
+    } catch (error) {
+      toast.error(errorMessage(error, t("borrowedItemsApi.saveError")));
+    }
+  }
+
+  async function remove() {
+    if (!deleteTarget || deleteMutation.isLoading) return;
+    try {
+      const response = await deleteMutation.mutateAsync(deleteTarget.id);
+      toast.success(response.message || t("borrowedItemsApi.deleted"));
+      setDeleteTarget(null);
+      await refresh();
+    } catch (error) {
+      toast.error(errorMessage(error, t("borrowedItemsApi.deleteError")));
+    }
+  }
+
+  async function advance() {
+    if (!transitionTarget || updateMutation.isLoading) return;
+    const nextStatus = transitionTarget.status === "REQUESTED" ? "BORROWED" : "RETURNED";
+    try {
+      const detailResponse = await getLoanItem(transitionTarget.id);
+      const response = await updateMutation.mutateAsync({
+        id: transitionTarget.id,
+        payload: loanItemToUpdatePayload(detailResponse.data, nextStatus),
+      });
+      toast.success(response.message || t("borrowedItemsApi.statusUpdated"));
+      setTransitionTarget(null);
+      await refresh();
+    } catch (error) {
+      toast.error(errorMessage(error, t("borrowedItemsApi.statusError")));
+    }
+  }
+
+  const cards = [
+    ["borrowedItemsApi.loanRecords", summary?.total_records ?? 0, "var(--brand)", "var(--brand-bg)"],
+    ["borrowedItemsApi.currentlyBorrowed", summary?.borrowed ?? 0, "var(--purple)", "var(--purple-bg)"],
+    ["borrowedItemsApi.overdue", summary?.overdue ?? 0, "var(--red)", "var(--red-bg)"],
+    ["borrowedItemsApi.waiting", summary?.waiting_to_arrive ?? 0, "var(--orange)", "var(--orange-bg)"],
+  ] as const;
+
+  return <>
+    {!embedded && <div className="vendor-page-header loan-page-header"><h1 className="page-title">{t("loanVendor.borrowedItems")}</h1>{allowCreate && <button className="btn-new" onClick={openCreate}><IconPlus /> {t("loanVendor.newRental")}</button>}</div>}
+
+    <div className="stats-bar loan-borrowed-stats">{cards.map(([label, value, color, background]) => <div className="stat-card" key={label}><span className="stat-icon" style={{ background }}><strong className="stat-value" style={{ color }}>{fmtNum(value)}</strong></span><span className="stat-label">{t(label)}</span></div>)}</div>
+
+    <section className="card loan-items-card">
+      <div className="toolbar">
+        <div className="toolbar-left">
+          <div className="search-wrap"><IconSearch /><input className="search-input" value={query} onChange={event => setQuery(event.target.value)} placeholder={t("borrowedItemsApi.search")} /></div>
+          <SearchableSelect inline value={status} onChange={value => setStatus(String(value) as LoanItemStatus | "")} options={[{ value: "", label: t("borrowedItemsApi.allStatuses") }, ...STATUSES.map(value => ({ value, label: translateApiValue(value) }))]} placeholder={t("borrowedItemsApi.allStatuses")} />
+          {!vendorId && <SearchableSelect inline value={selectedVendor} onChange={value => setSelectedVendor(String(value))} options={[{ value: "", label: t("borrowedItemsApi.allVendors") }, ...vendors.map(vendor => ({ value: vendor.id, label: vendor.name }))]} placeholder={t("borrowedItemsApi.allVendors")} />}
+        </div>
+        <div className="toolbar-right loan-items-toolbar-right"><span>{t("borrowedItemsApi.totalCost")} <strong>{formatIDR(totalCost)}</strong></span>{allowCreate && <button className="btn-new" onClick={openCreate}><IconPlus /> {t("loanVendor.newRental")}</button>}</div>
       </div>
+      <p className="loan-borrowed-description">{t("borrowedItemsApi.description")}</p>
+      <div className="table-wrap"><table className="loan-items-table">
+        <thead><tr><th>{t("borrowedItemsApi.item")}</th><th className="number-cell">{t("wording.qty")}</th>{!vendorId && <th>{t("borrowedItemsApi.vendor")}</th>}<th>{t("borrowedItemsApi.for")}</th><th>{t("borrowedItemsApi.period")}</th><th className="number-cell">{t("borrowedItemsApi.rentalCost")}</th><th>{t("wording.status")}</th><th className="loan-action-cell">{t("wording.action")}</th></tr></thead>
+        <tbody>
+          {listQuery.isLoading && !loans.length && <tr><td colSpan={vendorId ? 7 : 8} className="vendor-empty-cell">{t("wording.loading")}</td></tr>}
+          {listQuery.isError && <tr><td colSpan={vendorId ? 7 : 8} className="vendor-empty-cell vendor-error-cell">{errorMessage(listQuery.error, t("borrowedItemsApi.loadError"))}</td></tr>}
+          {!listQuery.isLoading && !listQuery.isError && loans.length === 0 && <tr><td colSpan={vendorId ? 7 : 8} className="vendor-empty-cell">{t("borrowedItemsApi.empty")}</td></tr>}
+          {loans.map(item => {
+            const isEvent = Boolean(item.event?.id || item.event_id);
+            const canAdvance = item.status === "REQUESTED" || item.status === "BORROWED" || item.status === "OVERDUE";
+            return <tr key={item.id}>
+              <td className="name-cell">{item.item_name}<small>{item.notes || ""}</small></td>
+              <td className="number-cell loan-nowrap">{fmtNum(item.qty)} <small>{item.unit}</small></td>
+              {!vendorId && <td>{item.vendor?.id ? <Link to={`/loan-vendor-detail?id=${item.vendor.id}`}>{item.vendor.name}</Link> : "—"}</td>}
+              <td>{isEvent ? <><Link to={`/event-detail?id=${item.event?.id || item.event_id}`}>{item.event?.name || t("borrowedItemsApi.event")}</Link><small>{[item.event?.area, item.event?.sub_area].filter(Boolean).join(" · ")}</small></> : <><span className="badge badge-gray">{t("wording.warehouse")}</span> {item.warehouse?.name || "—"}<small>{item.purpose || ""}</small></>}</td>
+              <td className="loan-nowrap">{dateLabel(item.borrow_from)} → {dateLabel(item.return_by)}{item.returned_at && <small>{t("borrowedItemsApi.returnedOn", { date: dateLabel(item.returned_at) })}</small>}</td>
+              <td className="number-cell loan-nowrap">{item.rental_cost ? formatIDR(item.rental_cost) : "—"}{item.rental_cost_per_unit > 0 && <small>{formatIDR(item.rental_cost_per_unit)} / {item.unit}</small>}</td>
+              <td><span className={`badge ${badge(item.status)}`}>{translateApiValue(item.status)}</span></td>
+              <td className="loan-action-cell"><div className="action-btns loan-row-actions">
+                {isEvent ? <span className="loan-event-action">{item.status === "RETURNED" ? t("borrowedItemsApi.returned") : t("borrowedItemsApi.updateInEvent")}</span> : <>
+                  {item.status !== "RETURNED" && <button className="btn-icon edit" disabled={loadingEdit || isActing} title={t("wording.edit")} onClick={() => void openEdit(item)}><IconEdit /></button>}
+                  {item.status === "REQUESTED" && <button className="btn btn-ghost loan-small-btn" disabled={isActing} onClick={() => setDeleteTarget(item)}>{t("wording.cancel")}</button>}
+                  {canAdvance && <button className="btn-save-modal loan-small-btn" disabled={isActing} onClick={() => setTransitionTarget(item)}>{t(item.status === "REQUESTED" ? "borrowedItemsApi.markReceived" : "borrowedItemsApi.markReturned")}</button>}
+                  {item.status === "RETURNED" && <span className="production-complete">{t("borrowedItemsApi.returned")}</span>}
+                </>}
+              </div></td>
+            </tr>;
+          })}
+        </tbody>
+      </table></div>
+      <Pagination currentPage={currentPage} total={result?.total_records ?? 0} pageSize={result?.record_per_page || PAGE_SIZE} onPage={setPage} label={t("loanVendor.borrowedItems")} />
+    </section>
 
-      <div className="stats-bar" style={{ gridTemplateColumns: "repeat(4,1fr)" }}>
-        {[
-          { label: t("wording.totalLoans"), value: totalLoanCount, color: "var(--brand)", bg: "var(--brand-bg)" },
-          { label: t("wording.currentlyBorrowed"), value: loanedCount, color: "var(--brand)", bg: "var(--brand-bg)" },
-          { label: t("wording.overdue"), value: overdueCount, color: "var(--red)", bg: "var(--red-bg)" },
-          { label: t("wording.returned"), value: returnedCount, color: "var(--green)", bg: "var(--green-bg)" },
-        ].map((stat) => (
-          <div key={stat.label} className="stat-card">
-            <div className="stat-icon" style={{ background: stat.bg }}>
-              <span className="stat-value" style={{ color: stat.color }}>{stat.value}</span>
-            </div>
-            <span className="stat-label">{stat.label}</span>
-          </div>
-        ))}
-      </div>
+    <Modal open={formOpen} title={t(editingId ? "borrowedItemsApi.editRental" : "loanVendor.newRental")} onClose={closeForm} footer={<><button className="btn-cancel-modal" disabled={isSaving} onClick={closeForm}><IconClose /> {t("wording.cancel")}</button><button className="btn-save-modal" disabled={!valid || isSaving} onClick={() => void save()}><IconCheck /> {t(isSaving ? "wording.saving" : "borrowedItemsApi.submit")}</button></>}>
+      <p className="loan-form-intro">{t("borrowedItemsApi.formIntro")}</p>
+      <div className="form-group"><label>{t("borrowedItemsApi.item")} <span className="required-mark">*</span></label><input value={form.item_name} onChange={event => setField("item_name", event.target.value)} placeholder={t("borrowedItemsApi.itemPlaceholder")} /></div>
+      <div className="form-row"><div className="form-group"><label>{t("wording.qty")} <span className="required-mark">*</span></label><input type="number" min="1" step="1" value={form.qty} onChange={event => setField("qty", event.target.value)} /></div><div className="form-group"><label>{t("borrowedItemsApi.unit")}</label><SearchableSelect value={form.unit} onChange={value => setField("unit", String(value))} options={(units.length ? units.map(unit => unit.name) : ["pcs", "unit", "set", "roll", "meter"]).map(value => ({ value, label: value }))} /></div></div>
+      <div className="form-row"><div className="form-group"><label>{t("borrowedItemsApi.warehouse")} <span className="required-mark">*</span></label><SearchableSelect value={form.warehouse_id} onChange={value => setField("warehouse_id", String(value))} options={warehouses.map(item => ({ value: item.id, label: item.nama }))} placeholder={t("borrowedItemsApi.selectWarehouse")} /></div><div className="form-group"><label>{t("wording.purpose")}</label><input value={form.purpose} onChange={event => setField("purpose", event.target.value)} placeholder={t("borrowedItemsApi.purposePlaceholder")} /></div></div>
+      <div className="form-group"><label>{t("borrowedItemsApi.loanVendor")} <span className="required-mark">*</span></label><SearchableSelect value={form.vendor_id} onChange={value => setField("vendor_id", String(value))} disabled={Boolean(vendorId)} options={vendors.map(item => ({ value: item.id, label: item.name, meta: item.phone || "" }))} placeholder={t("borrowedItemsApi.selectVendor")} />{vendors.length === 0 && !vendorQuery.isLoading && <small className="loan-form-warning">{t("borrowedItemsApi.noVendors")}</small>}</div>
+      <div className="form-row"><div className="form-group"><label>{t("borrowedItemsApi.borrowFrom")} <span className="required-mark">*</span></label><input type="date" value={form.borrow_from} onChange={event => setField("borrow_from", event.target.value)} /></div><div className="form-group"><label>{t("borrowedItemsApi.returnBy")} <span className="required-mark">*</span></label><input type="date" min={form.borrow_from} value={form.return_by} onChange={event => setField("return_by", event.target.value)} /></div></div>
+      <div className="form-group"><label>{t("borrowedItemsApi.costPerUnit")}</label><input type="number" min="0" value={form.rental_cost_per_unit} onChange={event => setField("rental_cost_per_unit", event.target.value)} placeholder={t("borrowedItemsApi.optional")} />{rentalTotal > 0 && <small>{t("borrowedItemsApi.total")}: {formatIDR(rentalTotal)}</small>}</div>
+      <div className="form-group"><label>{t("wording.notes")}</label><textarea rows={2} value={form.notes} onChange={event => setField("notes", event.target.value)} placeholder={t("borrowedItemsApi.optional")} /></div>
+    </Modal>
 
-      <div className="card">
-        <div className="toolbar">
-          <div className="toolbar-left">
-            <div className="search-wrap">
-              <IconSearch />
-              <input className="search-input" type="text" placeholder={t("wording.searchItemsOrBorrowers")} value={searchInput} onChange={(event) => setSearchInput(event.target.value)} />
-            </div>
-            <SearchableSelect
-              inline
-              value={statusFilter}
-              onChange={(value) => { setStatusFilter(String(value) as ItemLoanStatus | ""); setPage(1); }}
-              options={[
-                { value: "", label: t("wording.allStatuses") },
-                { value: "Loaned", label: t("wording.loaned") },
-                { value: "Overdue", label: t("wording.overdue") },
-                { value: "Returned", label: t("wording.returned") },
-              ]}
-              placeholder={t("wording.allStatuses")}
-              searchPlaceholder={t("wording.searchStatuses")}
-            />
-          </div>
-        </div>
+    <Modal open={Boolean(deleteTarget)} title={t("borrowedItemsApi.cancelTitle")} onClose={() => { if (!deleteMutation.isLoading) setDeleteTarget(null); }} footer={<><button className="btn-cancel-modal" disabled={deleteMutation.isLoading} onClick={() => setDeleteTarget(null)}>{t("wording.cancel")}</button><button className="btn-del-ok" disabled={deleteMutation.isLoading} onClick={() => void remove()}><IconDelete /> {t("borrowedItemsApi.cancelRental")}</button></>}><p>{t("borrowedItemsApi.cancelConfirm", { item: deleteTarget?.item_name })}</p></Modal>
 
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>{t("wording.item")}</th>
-                <th>{t("wording.borrower")}</th>
-                <th style={{ width: 80, textAlign: "right" }}>{t("wording.qty")}</th>
-                <th>{t("wording.warehouse")}</th>
-                <th style={{ width: 110 }}>{t("wording.loanDate")}</th>
-                <th style={{ width: 110 }}>{t("wording.dueDate")}</th>
-                <th style={{ width: 110 }}>{t("wording.status")}</th>
-                <th style={{ width: 100, textAlign: "center" }}>{t("wording.action")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoansLoading && !loans.length ? (
-                <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--text-muted)", padding: 32 }}>{t("wording.loadingLoans")}</td></tr>
-              ) : isLoansError ? (
-                <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--red)", padding: 32 }}>{t("wording.unableToLoadLoans")}</td></tr>
-              ) : !loans.length ? (
-                <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--text-muted)", padding: 32 }}>{t("wording.noLoansFound")}</td></tr>
-              ) : loans.map((loan) => {
-                return (
-                  <tr key={loan.id}>
-                    <td className="name-cell">{loan.item_name}<div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>{loan.purpose || "-"}</div></td>
-                    <td>{loan.borrower_name}<div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>{loan.borrower_contact || "-"}</div></td>
-                    <td style={{ textAlign: "right" }}>{fmtDisplayNumber(loan.qty)} {loan.unit_name}</td>
-                    <td style={{ color: "var(--text-muted)" }}>{loan.warehouse_name || "-"}</td>
-                    <td style={{ color: "var(--text-muted)", fontSize: 12.5 }}>{fmtDate(loan.loan_date)}</td>
-                    <td style={{ color: "var(--text-muted)", fontSize: 12.5 }}>{fmtDate(loan.due_date)}</td>
-                    <td><span className={`badge ${statusBadgeClass(loan.status)}`}>{statusLabel(loan.status)}</span></td>
-                    <td style={{ textAlign: "center" }}>
-                      <button
-                        className="btn-icon"
-                        title={t("wording.viewDetail")}
-                        style={{ color: "var(--brand)" }}
-                        onClick={() =>
-                          navigate(`/item-loan-detail?id=${loan.id}`, {
-                            state: { loan },
-                          })
-                        }
-                      >
-                        <IconEye />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        <Pagination currentPage={safePage} total={totalRecords} pageSize={PAGE_SIZE} onPage={setPage} label={t("wording.loans")} />
-      </div>
-
-      <Modal
-        open={modalOpen}
-        title={t("wording.loanItem")}
-        onClose={closeModal}
-        footer={(
-          <>
-            <button className="btn-cancel-modal" disabled={isCreating} onClick={closeModal}><IconClose /> {t("wording.cancel")}</button>
-            <button className="btn-save-modal" disabled={isCreating} onClick={() => formik.handleSubmit()}><IconCheck /> {isCreating ? t("common.actions.saving") : t("common.actions.save")}</button>
-          </>
-        )}
-      >
-        <div className="form-group">
-          <label>{t("wording.searchItem")}</label>
-          <div className="search-wrap" style={{ width: "100%" }}>
-            <IconSearch />
-            <input
-              className="search-input"
-              style={{ paddingLeft: 36 }}
-              placeholder={t("wording.searchItemName")}
-              value={itemSearchInput}
-              onChange={(event) => setItemSearchInput(event.target.value)}
-            />
-          </div>
-        </div>
-        <div className="form-group">
-          <label>{t("wording.item")} <span style={{ color: "var(--red)" }}>*</span></label>
-          <SearchableSelect
-            value={formik.values.barang_gudang_id}
-            onChange={(value) => formik.setFieldValue("barang_gudang_id", String(value))}
-            options={[
-              { value: "", label: t("wording.selectAnItem") },
-              ...inventoryRows.map((item) => ({
-                value: item.barang_gudang_id,
-                label: item.nama_barang,
-                meta: `${item.gudang_name || item.gudang?.gudang_name || t("dynamic.unknownWarehouse")} · ${item.stok_gudang} ${item.nama_satuan}`,
-              })),
-            ]}
-            placeholder={t("wording.selectAnItem")}
-            searchPlaceholder={t("wording.searchItemsPlaceholder")}
-            disabled={isInventoryLoading}
-            errorText={formik.errors.barang_gudang_id}
-          />
-          {isInventoryLoading && <span style={{ color: "var(--text-muted)", fontSize: 12 }}>{t("wording.loadingItems")}</span>}
-          {isInventoryError && <span style={{ color: "var(--red)", fontSize: 12 }}>{t("wording.unableToLoadItems")}</span>}
-        </div>
-        <div className="form-row">
-          <TextInput value={formik.values.qty} onChange={(value) => formik.setFieldValue("qty", value)} isRequired isNumeric label={t("wording.qty")} errorText={formik.errors.qty as string} />
-          <TextInput value={formik.values.borrower_name} onChange={(value) => formik.setFieldValue("borrower_name", value)} isRequired label={t("wording.borrowerName")} errorText={formik.errors.borrower_name} />
-        </div>
-        <TextInput value={formik.values.borrower_contact} onChange={(value) => formik.setFieldValue("borrower_contact", value)} isRequired label={t("wording.contact")} placeholder={t("wording.phoneNumberEmail")} errorText={formik.errors.borrower_contact} />
-        <TextInput value={formik.values.purpose} onChange={(value) => formik.setFieldValue("purpose", value)} isRequired label={t("wording.purpose")} placeholder={t("wording.whatIsTheItemBeingBorrowedFor")} errorText={formik.errors.purpose} />
-        <div className="form-row">
-          <TextInput value={formik.values.loan_date} onChange={(value) => formik.setFieldValue("loan_date", value)} isRequired inputType="date" label={t("wording.loanDate")} errorText={formik.errors.loan_date} />
-          <TextInput value={formik.values.due_date} onChange={(value) => formik.setFieldValue("due_date", value)} isRequired inputType="date" label={t("wording.dueDate")} errorText={formik.errors.due_date} />
-        </div>
-      </Modal>
-    </>
-  );
+    <Modal open={Boolean(transitionTarget)} title={t(transitionTarget?.status === "REQUESTED" ? "borrowedItemsApi.markReceived" : "borrowedItemsApi.markReturned")} onClose={() => { if (!updateMutation.isLoading) setTransitionTarget(null); }} footer={<><button className="btn-cancel-modal" disabled={updateMutation.isLoading} onClick={() => setTransitionTarget(null)}>{t("wording.cancel")}</button><button className="btn-save-modal" disabled={updateMutation.isLoading} onClick={() => void advance()}><IconCheck /> {t("eventUpgrade.confirm")}</button></>}><p>{t(transitionTarget?.status === "REQUESTED" ? "borrowedItemsApi.receiveConfirm" : "borrowedItemsApi.returnConfirmNew", { item: transitionTarget?.item_name })}</p></Modal>
+  </>;
 }

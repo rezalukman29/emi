@@ -4,7 +4,7 @@ import type { APIResponse } from "../../interfaces/BaseApiResponse";
 import ax from "../../service/axios";
 
 export interface InventorySummary {
-  total_asset_value?: number;
+  total_asset_value: number;
   total_items: number;
   available: number;
   low_stock: number;
@@ -14,7 +14,8 @@ export interface InventorySummary {
 export const getInventorySummary = async (): Promise<
   APIResponse<InventorySummary>
 > => {
-  const response = await ax.get("/v1/inventory-summary");
+  const response = await ax.get<APIResponse<InventorySummary>>("/v1/inventory-summary");
+  if (!response.data.success) throw new Error(response.data.message);
   return response.data;
 };
 

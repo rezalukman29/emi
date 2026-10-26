@@ -68,6 +68,16 @@ export async function getVendors(params: GetVendorsParams = {}) {
   return response.data;
 }
 
+export async function getVendorById(id: number) {
+  const response = await ax.get<APIResponse<VendorItem>>(`/v1/vendor/${id}`);
+
+  if (response.data?.success === false) {
+    throw new Error(response.data.message || "Failed to load vendor");
+  }
+
+  return response.data;
+}
+
 export async function createVendor(payload: VendorPayload) {
   const response = await ax.post<APIResponse<VendorItem>>("/v1/vendor", payload);
 
@@ -118,6 +128,14 @@ export function useGetVendors({
     ["useGetVendors", params],
     () => getVendors(params),
     options,
+  );
+}
+
+export function useGetVendor(id: number) {
+  return useQuery<APIResponse<VendorItem>, Error>(
+    ["useGetVendor", id],
+    () => getVendorById(id),
+    { enabled: id > 0 },
   );
 }
 

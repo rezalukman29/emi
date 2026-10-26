@@ -53,6 +53,17 @@ test('event status rows and features use authoritative backend booleans and code
   assert.equal(featureModule.hasReachedProductionStatus({ order_data: 3 }, productionStatuses), true);
   assert.equal(featureModule.hasReachedProductionStatus({ order_data: 8 }, productionStatuses), true);
   assert.equal(featureModule.hasReachedProductionStatus({ order_data: 8 }, []), false);
+
+  const scanStatuses = [
+    { order_data: 1, action: '' },
+    { order_data: 3, action: 'SCAN_IN' },
+    { order_data: 5, action: 'SCAN_OUT' },
+  ];
+  assert.equal(featureModule.canBorrowBeforeScanIn({ order_data: 1 }, scanStatuses), true);
+  assert.equal(featureModule.canBorrowBeforeScanIn({ order_data: 2 }, scanStatuses), true);
+  assert.equal(featureModule.canBorrowBeforeScanIn({ order_data: 3 }, scanStatuses), false);
+  assert.equal(featureModule.canBorrowBeforeScanIn({ order_data: 4 }, scanStatuses), false);
+  assert.equal(featureModule.canBorrowBeforeScanIn({ order_data: 1 }, []), false);
 });
 
 test('production request timestamps are displayed in Asia/Jakarta without a GMT suffix', () => {
@@ -132,6 +143,72 @@ test('new and replacement production requests preserve vendor, origin, warehouse
   assert.equal(response.message, 'created');
 });
 
+test('restock production supports existing and new inventory item payloads without an event', async () => {
+  const calls = [];
+  const { createProductionRequest } = load('hooks/api/useCreateProductionRequest.ts', '', {
+    '../../service/axios': { __esModule: true, default: {
+      post: async (url, payload) => {
+        calls.push({ url, payload });
+        return { data: { success: true, message: 'created' } };
+      },
+    } },
+  });
+
+  await createProductionRequest({
+    request_type: 'NEW_PRODUCTION',
+    barang_id: 456,
+    item_name: 'Existing Chair',
+    name: 'Existing Chair',
+    qty: 3,
+    warehouse_id: 19,
+    vendor_id: 7,
+    origin: 'Internal',
+  });
+  await createProductionRequest({
+    request_type: 'NEW_PRODUCTION',
+    item_name: 'Brand New Chair',
+    name: 'Brand New Chair',
+    qty: 2,
+    warehouse_id: 19,
+    vendor_id: 4,
+    origin: 'External',
+  });
+
+  assert.equal(calls[0].url, '/v1/event-production-request');
+  assert.equal(calls[0].payload.barang_id, 456);
+  assert.equal('event_id' in calls[0].payload, false);
+  assert.equal(calls[1].payload.item_name, 'Brand New Chair');
+  assert.equal(calls[1].payload.name, 'Brand New Chair');
+  assert.equal('barang_id' in calls[1].payload, false);
+  assert.equal('event_id' in calls[1].payload, false);
+});
+
+test('restock production actions use cancel and status transition endpoints', async () => {
+  const calls = [];
+  const {
+    cancelProductionRequest,
+    updateProductionRequestStatus,
+  } = load('hooks/api/useProductionRequestActions.ts', '', {
+    '../../service/axios': { __esModule: true, default: {
+      put: async (url, payload) => {
+        calls.push({ url, payload });
+        return { data: { success: true, message: 'updated' } };
+      },
+    } },
+  });
+
+  await cancelProductionRequest(41);
+  await updateProductionRequestStatus({ id: 42, status: 'IN_PRODUCTION' });
+  await updateProductionRequestStatus({ id: 42, status: 'DONE' });
+
+  assert.equal(calls[0].url, '/v3/production-requests/41/cancel');
+  assert.equal(calls[0].payload, undefined);
+  assert.equal(calls[1].url, '/v1/production-requests/42/status');
+  assert.equal(JSON.stringify(calls[1].payload), JSON.stringify({ status: 'IN_PRODUCTION' }));
+  assert.equal(calls[2].url, '/v1/production-requests/42/status');
+  assert.equal(JSON.stringify(calls[2].payload), JSON.stringify({ status: 'DONE' }));
+});
+
 test('event item conversion sends the v3 backend payload', async () => {
   const calls = [];
   const { convertEventItem } = load('hooks/api/useConvertEventItem.ts', '', {
@@ -157,6 +234,84 @@ test('production requests are loaded for the current event', async () => {
   assert.equal(calls[0].url, '/v3/production-requests');
   assert.equal(JSON.stringify(calls[0].params), JSON.stringify({ event_id: 88 }));
   assert.equal(response.success, true);
+});
+
+test('warehouse production list uses the global endpoint with server-side filters and pagination', async () => {
+  const calls = [];
+  const apiResponse = {
+    success: true,
+    message: 'production requests',
+    data: {
+      page: 2,
+      total_pages: 3,
+      total_records: 25,
+      prev: 1,
+      next: 3,
+      record_per_page: 10,
+      summary: { production_records: 25, in_progress: 7, done: 18, qty_produced: 42 },
+      data: [],
+    },
+  };
+  const { getProductionRequestList } = load('hooks/api/useGetProductionRequestList.ts', '', {
+    '../../service/axios': { __esModule: true, default: {
+      get: async (url, config) => {
+        calls.push({ url, params: config.params });
+        return { data: apiResponse };
+      },
+    } },
+  });
+
+  const response = await getProductionRequestList({
+    status: 'REQUESTED',
+    source: 'EVENT',
+    warehouse_id: 19,
+    search: 'lampu',
+    page: 2,
+    limit: 10,
+  });
+
+  assert.equal(calls[0].url, '/v1/production-requests');
+  assert.equal(JSON.stringify(calls[0].params), JSON.stringify({
+    page: 2,
+    limit: 10,
+    status: 'REQUESTED',
+    source: 'EVENT',
+    warehouse_id: 19,
+    search: 'lampu',
+  }));
+  assert.equal(response.data.summary.qty_produced, 42);
+  assert.equal(response.data.total_records, 25);
+});
+
+test('event calendar and clashes use the selected month backend contracts', async () => {
+  const calls = [];
+  const { getEventCalendar, getEventCalendarClashes } = load('hooks/api/useGetEventCalendar.ts', '', {
+    '../../service/axios': { __esModule: true, default: {
+      get: async (url, config) => {
+        calls.push({ url, params: config.params });
+        return { data: { success: true, message: 'ok', data: {} } };
+      },
+    } },
+  });
+  await getEventCalendar('2026-10');
+  await getEventCalendarClashes('2026-10');
+  assert.equal(JSON.stringify(calls), JSON.stringify([
+    { url: '/v1/event-calendar', params: { month: '2026-10' } },
+    { url: '/v1/event-calendar/clashes', params: { month: '2026-10' } },
+  ]));
+});
+
+test('inventory total asset value comes from the inventory summary endpoint', async () => {
+  const calls = [];
+  const response = { success: true, message: 'ok', data: { total_items: 2, available: 1, low_stock: 0, out_of_stock: 1, total_asset_value: 1250000 } };
+  const { getInventorySummary } = load('hooks/api/useGetInventorySummary.ts', '', {
+    '../../service/axios': { __esModule: true, default: {
+      get: async url => { calls.push(url); return { data: response }; },
+    } },
+  });
+  const result = await getInventorySummary();
+  assert.equal(calls[0], '/v1/inventory-summary');
+  assert.equal(result.data.total_asset_value, 1250000);
 });
 
 test('Next only unlocks the immediately following stage; scan gate permits returning to reached stages', () => {
@@ -313,6 +468,130 @@ test('vendor CMS uses the v1 vendor contract for list, create, update, and delet
   assert.deepEqual(calls[2].payload, payload);
   assert.equal(calls[3].method, 'DELETE');
   assert.equal(calls[3].url, '/v1/vendor/7');
+});
+
+test('loan vendor CMS uses its separate v1 loan-vendors CRUD contract', async () => {
+  const calls = [];
+  const axios = {
+    get: async (url, config = {}) => {
+      calls.push({ method: 'GET', url, params: config.params });
+      return { data: { success: true, message: 'ok', data: url.endsWith('/7') ? { id: 7, name: 'Rental' } : { items: [], page: 2, limit: 10, total: 0, total_pages: 0, stats: { total: 0, internal: 0, external: 0 } } } };
+    },
+    post: async (url, payload) => {
+      calls.push({ method: 'POST', url, payload });
+      return { data: { success: true, message: 'created', data: { id: 7, ...payload } } };
+    },
+    put: async (url, payload) => {
+      calls.push({ method: 'PUT', url, payload });
+      return { data: { success: true, message: 'updated', data: { id: 7, ...payload } } };
+    },
+    delete: async url => {
+      calls.push({ method: 'DELETE', url });
+      return { data: { success: true, message: 'deleted' } };
+    },
+  };
+  const api = load('hooks/api/useLoanVendors.ts', '', {
+    '../../service/axios': { __esModule: true, default: axios },
+  });
+  const payload = { name: 'Bali Party Rental', type: 'External', description: 'Furniture rental', phone: '0812', address: 'Denpasar', is_loan: true, is_production: false };
+
+  await api.getLoanVendors({ page: 2, limit: 10, search: 'party', type: 'External' });
+  await api.getLoanVendor(7);
+  await api.createLoanVendor(payload);
+  await api.updateLoanVendor({ id: 7, payload });
+  await api.deleteLoanVendor(7);
+
+  assert.equal(calls[0].url, '/v1/loan-vendors');
+  assert.equal(JSON.stringify(calls[0].params), JSON.stringify({ page: 2, limit: 10, search: 'party', type: 'External' }));
+  assert.equal(calls[1].url, '/v1/loan-vendors/7');
+  assert.equal(calls[2].url, '/v1/loan-vendors');
+  assert.deepEqual(calls[2].payload, payload);
+  assert.equal(calls[3].url, '/v1/loan-vendors/7');
+  assert.deepEqual(calls[3].payload, payload);
+  assert.equal(calls[4].url, '/v1/loan-vendors/7');
+});
+
+test('borrowed items use the loan-items list, detail, create, update, and delete contracts', async () => {
+  const calls = [];
+  const axios = {
+    get: async (url, config) => {
+      calls.push({ method: 'GET', url, params: config?.params });
+      return { data: { success: true, message: 'ok', data: url.endsWith('/44') ? { id: 44, item_name: 'Chair', qty: 2, unit: 'pcs', vendor_id: 7, warehouse_id: 19, event_id: 0, area_id: 0, sub_area_id: 0, borrow_from: '2026-10-25', return_by: '2026-11-02', rental_cost_per_unit: 50000, purpose: 'Event buffer', notes: 'White' } : { data: [], summary: {}, page: 2, total_records: 0 } } };
+    },
+    post: async (url, payload) => {
+      calls.push({ method: 'POST', url, payload });
+      return { data: { success: true, message: 'created' } };
+    },
+    put: async (url, payload) => {
+      calls.push({ method: 'PUT', url, payload });
+      return { data: { success: true, message: 'updated', data: { id: 44, ...payload } } };
+    },
+    delete: async url => {
+      calls.push({ method: 'DELETE', url });
+      return { data: { success: true, message: 'deleted' } };
+    },
+  };
+  const dependencies = { '../../service/axios': { __esModule: true, default: axios } };
+  const api = load('hooks/api/useGetItemLoans.ts', '', dependencies);
+  const payload = { item_name: 'Chair', qty: 2, unit: 'pcs', vendor_id: 7, warehouse_id: 19, borrow_from: '2026-10-25', return_by: '2026-11-02', rental_cost_per_unit: 50000, purpose: 'Event buffer', notes: 'White' };
+
+  await api.getLoanItems({ page: 2, limit: 15, search: 'chair', status: 'OVERDUE', vendor_id: 7, warehouse_id: 19 });
+  await api.getLoanItem(44);
+  await api.createLoanItem(payload);
+  await api.updateLoanItem({ id: 44, payload });
+  const detail = await api.getLoanItem(44);
+  const statusPayload = api.loanItemToUpdatePayload(detail.data, 'BORROWED');
+  await api.updateLoanItem({ id: 44, payload: statusPayload });
+  await api.deleteLoanItem(44);
+
+  assert.equal(JSON.stringify(calls[0]), JSON.stringify({ method: 'GET', url: '/v1/loan-items', params: { page: 2, limit: 15, search: 'chair', status: 'OVERDUE', vendor_id: 7, warehouse_id: 19 } }));
+  assert.equal(calls[1].url, '/v1/loan-items/44');
+  assert.equal(calls[2].url, '/v1/loan-items');
+  assert.deepEqual(calls[2].payload, payload);
+  assert.equal(calls[3].url, '/v1/loan-items/44');
+  assert.deepEqual(calls[3].payload, payload);
+  assert.equal(calls[4].url, '/v1/loan-items/44');
+  assert.equal(calls[5].url, '/v1/loan-items/44');
+  assert.equal(JSON.stringify(calls[5].payload), JSON.stringify({ ...payload, status: 'BORROWED' }));
+  assert.equal(calls[6].url, '/v1/loan-items/44');
+});
+
+test('event borrowed items use the event-specific list and create contracts', async () => {
+  const calls = [];
+  const axios = {
+    get: async (url, config) => {
+      calls.push({ method: 'GET', url, params: config?.params });
+      return { data: { success: true, message: 'ok', data: { event_id: 73, total: 0, items: [] } } };
+    },
+    post: async (url, payload) => {
+      calls.push({ method: 'POST', url, payload });
+      return { data: { success: true, message: 'created', data: { id: 45, ...payload } } };
+    },
+  };
+  const api = load('hooks/api/useGetItemLoans.ts', '', {
+    '../../service/axios': { __esModule: true, default: axios },
+  });
+  const payload = {
+    item_name: 'Champagne Glass Coupe',
+    qty: 24,
+    unit: 'pcs',
+    vendor_id: 7,
+    area_id: 10,
+    sub_area_id: 5,
+    borrow_from: '2026-10-25',
+    return_by: '2026-11-02',
+    rental_cost_per_unit: 15000,
+    purpose: '',
+    notes: 'For reception',
+  };
+
+  await api.getEventBorrowedItems(73);
+  await api.borrowItemToEvent({ eventId: 73, payload });
+
+  assert.equal(JSON.stringify(calls[0]), JSON.stringify({ method: 'GET', url: '/v1/events/73/borrowed-items' }));
+  assert.equal(calls[1].method, 'POST');
+  assert.equal(calls[1].url, '/v1/events/73/borrow-item');
+  assert.equal(JSON.stringify(calls[1].payload), JSON.stringify({ ...payload, event_id: 73 }));
 });
 
 test('broken item reports use the v3 create, update, and delete contracts', async () => {

@@ -1,13 +1,12 @@
 import { useDeferredValue, useState } from "react";
-import { Link } from 'react-router-dom';
-import ProductionLogTab from '../components/ProductionLogTab';
-import RentalLogTab from '../components/RentalLogTab';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "react-query";
 import { toast } from "react-toastify";
 
 import Modal from "../components/Modal";
 import Pagination from "../components/Pagination";
+import ProductionLogTab from "../components/ProductionLogTab";
 import SearchableSelect from "../components/SearchableSelect";
 import TextInput from "../components/TextInput";
 import { IconDelete, IconEdit, IconPlus, IconSearch } from "../components/icons";
@@ -20,6 +19,7 @@ import {
   useGetVendors,
   useUpdateVendor,
 } from "../hooks/api/useVendors";
+import { useWarehouseController } from "./lib/useWarehouseController";
 
 const PAGE_SIZE = 10;
 const EMPTY_FORM: VendorPayload = {
@@ -39,9 +39,11 @@ function errorMessage(error: unknown, fallback: string) {
 }
 
 export default function VendorPage({ kind = 'production' }: { kind?: 'production' | 'loan' }) {
-  const [productionTab, setProductionTab] = useState(false);
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { warehouseOptions } = useWarehouseController();
+  const [activeTab, setActiveTab] = useState<"vendors" | "produced">("vendors");
   const [searchInput, setSearchInput] = useState("");
   const search = useDeferredValue(searchInput.trim());
   const [origin, setOrigin] = useState<VendorOrigin | "">("");
@@ -58,7 +60,7 @@ export default function VendorPage({ kind = 'production' }: { kind?: 'production
       ...(search ? { search } : {}),
       ...(origin ? { origin } : {}),
     },
-    options: { keepPreviousData: true },
+    options: { keepPreviousData: true, enabled: activeTab === "vendors" },
   });
   const createMutation = useCreateVendor();
   const updateMutation = useUpdateVendor();
@@ -163,41 +165,60 @@ export default function VendorPage({ kind = 'production' }: { kind?: 'production
     },
   ];
 
-  if (productionTab) return <><button className="btn btn-ghost" onClick={() => setProductionTab(false)}>← {t('sourceUpgrade.vendors')}</button>{kind === 'loan' ? <RentalLogTab /> : <ProductionLogTab />}</>;
   return (
     <>
       <div className="vendor-page-header">
-        <button className="btn btn-ghost" onClick={() => setProductionTab(true)}>{t(kind === 'loan' ? 'october.rentals' : 'october.productionLog')}</button>
         <div>
           <h1 className="page-title">{t("sourceUpgrade.vendors")}</h1>
           <p className="vendor-page-description">
             {t("sourceUpgrade.vendorDescription")}
           </p>
         </div>
-        <button className="btn-new" onClick={openNewVendor}>
-          <IconPlus />
-          {t("sourceUpgrade.newVendor")}
+        {activeTab === "vendors" && (
+          <button className="btn-new" onClick={openNewVendor}>
+            <IconPlus />
+            {t("sourceUpgrade.newVendor")}
+          </button>
+        )}
+      </div>
+
+      <div className="wi-tabs">
+        <button
+          type="button"
+          className={`wi-tab-btn${activeTab === "vendors" ? " active" : ""}`}
+          onClick={() => setActiveTab("vendors")}
+        >
+          {t("sourceUpgrade.vendors")}
+        </button>
+        <button
+          type="button"
+          className={`wi-tab-btn${activeTab === "produced" ? " active" : ""}`}
+          onClick={() => setActiveTab("produced")}
+        >
+          {t("october.productionLog")}
         </button>
       </div>
 
-      {kind === 'loan' && <p className="ed-lock-note">{t('october.sharedVendors')}</p>}
-      <div className="stats-bar vendor-stats-bar">
-        {summary.map(item => (
-          <div className="stat-card" key={item.label}>
-            <span
-              className="stat-icon"
-              style={{ background: item.background }}
-            >
-              <strong className="stat-value" style={{ color: item.color }}>
-                {item.value}
-              </strong>
-            </span>
-            <span className="stat-label">{item.label}</span>
+      {activeTab === "vendors" ? (
+        <>
+          {kind === 'loan' && <p className="ed-lock-note">{t('october.sharedVendors')}</p>}
+          <div className="stats-bar vendor-stats-bar">
+            {summary.map(item => (
+              <div className="stat-card" key={item.label}>
+                <span
+                  className="stat-icon"
+                  style={{ background: item.background }}
+                >
+                  <strong className="stat-value" style={{ color: item.color }}>
+                    {item.value}
+                  </strong>
+                </span>
+                <span className="stat-label">{item.label}</span>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      <div className="card vendor-list-card">
+          <div className="card vendor-list-card">
         <div className="toolbar vendor-toolbar">
           <div className="toolbar-left">
             <div className="search-wrap">
@@ -266,8 +287,21 @@ export default function VendorPage({ kind = 'production' }: { kind?: 'production
                 </tr>
               )}
               {vendors.map(vendor => (
-                <tr key={vendor.id}>
-                  <td className="name-cell"><Link to={`/vendor-detail?id=${vendor.id}&kind=${kind}`}>{vendor.name}</Link></td>
+                <tr
+                  key={vendor.id}
+                  className="row-clickable"
+                  role="link"
+                  tabIndex={0}
+                  title={t("wording.viewDetail")}
+                  onClick={() => navigate(`/vendor-detail?id=${vendor.id}&kind=${kind}`)}
+                  onKeyDown={event => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      navigate(`/vendor-detail?id=${vendor.id}&kind=${kind}`);
+                    }
+                  }}
+                >
+                  <td className="name-cell">{vendor.name}</td>
                   <td>
                     <span
                       className={`badge badge-${
@@ -279,7 +313,10 @@ export default function VendorPage({ kind = 'production' }: { kind?: 'production
                   </td>
                   <td>{vendor.category || "—"}</td>
                   <td>{vendor.contact || "—"}</td>
-                  <td>
+                  <td
+                    onClick={event => event.stopPropagation()}
+                    onKeyDown={event => event.stopPropagation()}
+                  >
                     <div className="action-btns">
                       <button
                         className="btn-icon edit"
@@ -310,7 +347,11 @@ export default function VendorPage({ kind = 'production' }: { kind?: 'production
           onPage={setPage}
           label={t("sourceUpgrade.vendors")}
         />
-      </div>
+          </div>
+        </>
+      ) : (
+        <ProductionLogTab warehouseOptions={warehouseOptions} />
+      )}
 
       <Modal
         open={modalOpen}

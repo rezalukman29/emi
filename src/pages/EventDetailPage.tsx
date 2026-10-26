@@ -2,6 +2,8 @@ import { fmtNum as fmtDisplayNumber } from '../lib/format';
 import BrokenItemReport from '../components/BrokenItemReport';
 import PrintPlanModal from '../components/PrintPlanModal.jsx';
 import RentalLogTab from '../components/RentalLogTab';
+import EventBorrowItemModal from '../components/EventBorrowItemModal';
+import EventBorrowedItemsPanel from '../components/EventBorrowedItemsPanel';
 import { useSourcePreview, stagePromptStep, type BrokenReport } from '../lib/sourcePreview';
 import { useEffect, useMemo, useRef, useState, type UIEvent as ReactUIEvent } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -41,6 +43,14 @@ import useCreateProductionRequest from '../hooks/api/useCreateProductionRequest'
 import useConvertEventItem from '../hooks/api/useConvertEventItem';
 import { useDeleteBrokenItemReport } from '../hooks/api/useBrokenItemReport';
 import useGetProductionRequests from '../hooks/api/useGetProductionRequests';
+import {
+  getLoanItem,
+  loanItemToUpdatePayload,
+  type LoanItem,
+  useDeleteLoanItem,
+  useGetEventBorrowedItems,
+  useUpdateLoanItem,
+} from '../hooks/api/useGetItemLoans';
 import useCreatePackage from "../hooks/api/useCreatePackage";
 import useGetEventPackages from "../hooks/api/useGetEventPackages";
 import useGetEventItem, { type EventItem } from "../hooks/api/useGetEventItem";
@@ -61,7 +71,7 @@ import { type ProductionRequest, type ConvertRequest, updateLifecycle } from "..
 import type { ConversionDraft } from '../components/ConversionForm';
 import { loadConversionStock } from '../lib/conversionInventory';
 import { planConversions } from '../lib/conversionPreview';
-import { eventStatusFeatures, hasReachedProductionStatus } from '../lib/eventStatusFeatures';
+import { canBorrowBeforeScanIn, eventStatusFeatures, hasReachedProductionStatus } from '../lib/eventStatusFeatures';
 import { canChangeStage } from "../lib/eventStageRules";
 
 
@@ -695,6 +705,12 @@ export default function EventDetailPage() {
     eventId,
     options: { enabled: Boolean(eventId) },
   });
+  const {
+    data: borrowedItemsResponse,
+    isLoading: isBorrowedItemsLoading,
+    isError: isBorrowedItemsError,
+    refetch: refetchBorrowedItems,
+  } = useGetEventBorrowedItems(eventId, Boolean(eventId));
   const statusNames = useMemo(
     () => new Map(eventStatuses.map((status) => [status.id, status.name])),
     [eventStatuses],
@@ -717,6 +733,8 @@ export default function EventDetailPage() {
   const { mutateAsync: convertEventItem } = useConvertEventItem();
   const { mutateAsync: deleteBrokenReport, isLoading: isDeletingBrokenReport } =
     useDeleteBrokenItemReport();
+  const { mutateAsync: updateLoanItem, isLoading: isUpdatingLoanItem } = useUpdateLoanItem();
+  const { mutateAsync: deleteLoanItem, isLoading: isDeletingLoanItem } = useDeleteLoanItem();
 
   const [detailId, setDetailId] = useState<number | null>(null);
   const [modifyItem, setModifyItem] = useState<DisplayItem | null>(null);
@@ -741,6 +759,7 @@ export default function EventDetailPage() {
   const [printPlanOpen, setPrintPlanOpen] = useState(false);
   const printPlanItems = useGetEventItem({ params: { event_id: eventId, order: 'asc' }, options: { enabled: printPlanOpen && eventId > 0 } });
   const [rentalOpen, setRentalOpen] = useState(false);
+  const [borrowOpen, setBorrowOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement | null>(null);
   const [stepperError, setStepperError] = useState("");
@@ -754,7 +773,7 @@ export default function EventDetailPage() {
   const { mutateAsync: createPackageRequest, isLoading: isCreatingPackage } = useCreatePackage();
 
   const [selectedArea, setSelectedArea] = useState("");
-  const [stageFilter, setStageFilter] = useState<"all" | "waiting" | "added" | "grouped" | "production">("all");
+  const [stageFilter, setStageFilter] = useState<"all" | "waiting" | "added" | "grouped" | "production" | "borrowed">("all");
   const [kwSearch, setKwSearch] = useState("");
 
   const {
@@ -1104,11 +1123,17 @@ export default function EventDetailPage() {
     currentStatus,
     eventStatuses,
   );
+  const loanEnabled = canBorrowBeforeScanIn(currentStatus, eventStatuses);
+  const borrowedItems = borrowedItemsResponse?.data?.items ?? [];
+  const borrowedTabVisible = loanEnabled || borrowedItems.length > 0;
   useEffect(() => {
     if (!productionTabVisible && stageFilter === "production") {
       setStageFilter("all");
     }
-  }, [productionTabVisible, stageFilter]);
+    if (!borrowedTabVisible && stageFilter === "borrowed") {
+      setStageFilter("all");
+    }
+  }, [borrowedTabVisible, productionTabVisible, stageFilter]);
   const requests = lifecycle?.productionRequests ?? [];
   const apiProductionRequests = productionRequestsResponse?.data ?? [];
   const pendingConverts = requests.filter((r): r is ConvertRequest => r.type === 'convert' && r.status === 'Pending');
@@ -1243,6 +1268,8 @@ export default function EventDetailPage() {
   const effectiveStageFilter =
     stageFilter === "production" && !productionTabVisible
       ? "all"
+      : stageFilter === "borrowed" && !borrowedTabVisible
+        ? "all"
       : stageFilter === "waiting" && !stageScanEnabled
         ? "all"
         : stageFilter;
@@ -1303,6 +1330,36 @@ export default function EventDetailPage() {
       toast.success(response.message || t('sourceUpgrade.reportDeleted'));
     } catch (error) {
       toast.error(getCheckoutErrorMessage(error));
+    }
+  }
+  async function advanceBorrowedItem(item: LoanItem) {
+    if (isClosing || isUpdatingLoanItem) return;
+    const nextStatus = item.status === "REQUESTED" ? "BORROWED" : "RETURNED";
+    const confirmationKey = nextStatus === "BORROWED"
+      ? "eventBorrow.receiveConfirm"
+      : "eventBorrow.returnConfirm";
+    if (!window.confirm(t(confirmationKey, { item: item.item_name }))) return;
+    try {
+      const detail = await getLoanItem(item.id);
+      const response = await updateLoanItem({
+        id: item.id,
+        payload: loanItemToUpdatePayload(detail.data, nextStatus),
+      });
+      toast.success(response.message || t("eventBorrow.statusUpdated"));
+      await Promise.all([refetchBorrowedItems(), refetchEventItems()]);
+    } catch (error) {
+      toast.error(getCheckoutErrorMessage(error) || t("eventBorrow.statusError"));
+    }
+  }
+  async function cancelBorrowedItem(item: LoanItem) {
+    if (isClosing || isDeletingLoanItem) return;
+    if (!window.confirm(t("eventBorrow.cancelConfirm", { item: item.item_name }))) return;
+    try {
+      const response = await deleteLoanItem(item.id);
+      toast.success(response.message || t("eventBorrow.cancelled"));
+      await Promise.all([refetchBorrowedItems(), refetchEventItems()]);
+    } catch (error) {
+      toast.error(getCheckoutErrorMessage(error) || t("eventBorrow.cancelError"));
     }
   }
   function replaceBrokenItem(item: DisplayItem) {
@@ -2176,8 +2233,8 @@ export default function EventDetailPage() {
           <div className="event-title-wrap"><div className="event-heading">{eventName}</div><span className={`badge ${LIFECYCLE_BADGES[closingFlag]}`}>{t(`lifecycle.${closingFlag}`)}</span></div>
 
           <div className="event-actions-bar">
-            {!isClosing && (currentStatus?.loan_item ?? sourcePreview.loanItem[currentStatus?.id]) && <button className="btn btn-ghost" onClick={() => setRentalOpen(true)}>{t('october.newRental')}</button>}
-            {productionEnabled && <button className="btn btn-ghost" onClick={() => { setProductionInitial(null); setProductionOpen(true); }}>{t("eventUpgrade.requestProduction")}</button>}
+            {loanEnabled && <button className="btn btn-ghost btn-request-production" onClick={() => setBorrowOpen(true)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 3h5v5"/><path d="M21 3l-7 7"/><path d="M8 21H3v-5"/><path d="M3 21l7-7"/></svg>{t('eventBorrow.button')}</button>}
+            {productionEnabled && <button className="btn btn-ghost btn-request-production" onClick={() => { setProductionInitial(null); setProductionOpen(true); }}>{t("eventUpgrade.requestProduction")}</button>}
             <button className="btn-new" disabled={addLocked} onClick={openCart}>
               <IconPlus /> {t("wording.addItem")}
               {cart.length > 0 && <span className="add-item-cart-count"><IconCart /> {fmtDisplayNumber(cart.length)}</span>}
@@ -2302,13 +2359,21 @@ export default function EventDetailPage() {
         </div>
 
         <div className="stage-tabs-row"><div className="stage-tabs">
-          {(['all', 'added', ...(stageScanEnabled ? ['waiting'] : []), 'grouped', ...(productionTabVisible ? ['production'] : [])] as const).map(tab => {
-            const labels: Record<string, string> = { all: 'wording.all', added: 'wording.addedNew', waiting: 'wording.waitingScan', grouped: 'wording.grouped', production: 'eventUpgrade.production' };
-            const counts: Record<string, number> = { all: scopedItems.length, added: currentStageItems.length, waiting: waitingScanItems.length, grouped: packages.length, production: productionRequestsResponse ? apiProductionRequests.length : (productionItemResponse ? backendProductionItems.length : items.filter(item => item.isNewProductionItem).length) + requests.length };
+          {(['all', 'added', ...(stageScanEnabled ? ['waiting'] : []), 'grouped', ...(productionTabVisible ? ['production'] : []), ...(borrowedTabVisible ? ['borrowed'] : [])] as const).map(tab => {
+            const labels: Record<string, string> = { all: 'wording.all', added: 'wording.addedNew', waiting: 'wording.waitingScan', grouped: 'wording.grouped', production: 'eventUpgrade.production', borrowed: 'eventBorrow.borrowed' };
+            const counts: Record<string, number> = { all: scopedItems.length, added: currentStageItems.length, waiting: waitingScanItems.length, grouped: packages.length, production: productionRequestsResponse ? apiProductionRequests.length : (productionItemResponse ? backendProductionItems.length : items.filter(item => item.isNewProductionItem).length) + requests.length, borrowed: borrowedItems.length };
             return <button key={tab} className={'stage-tab' + (effectiveStageFilter === tab ? ' active' : '')} onClick={() => setStageFilter(tab as typeof stageFilter)}>{t(labels[tab])} <span className="stage-tab-count">{counts[tab]}</span></button>;
           })}
         </div><div className="view-toggle">{(['cards', 'list'] as const).map(mode => <button key={mode} title={t('eventUpgrade.' + mode)} aria-label={t('eventUpgrade.' + mode)} aria-pressed={viewMode === mode} className={viewMode === mode ? 'active' : ''} onClick={() => { setViewMode(mode); try { localStorage.setItem('emi_event_detail_view', mode); } catch { /* Preference is optional. */ } }}>{mode === 'cards' ? '▦' : '☰'}</button>)}</div></div>
-        {effectiveStageFilter === "production" ? <div className="production-list">
+        {effectiveStageFilter === "borrowed" ? <EventBorrowedItemsPanel
+          items={borrowedItems}
+          isLoading={isBorrowedItemsLoading}
+          isError={isBorrowedItemsError}
+          locked={isClosing || addLocked}
+          isActing={isUpdatingLoanItem || isDeletingLoanItem}
+          onAdvance={(item) => void advanceBorrowedItem(item)}
+          onCancel={(item) => void cancelBorrowedItem(item)}
+        /> : effectiveStageFilter === "production" ? <div className="production-list">
           {isProductionRequestsLoading ? (
             <p className="no-data">{t("wording.loading")}</p>
           ) : !isProductionRequestsError ? (
@@ -2530,7 +2595,15 @@ export default function EventDetailPage() {
       </Drawer>
       {reportItem && !isClosing && <BrokenItemReport key={reportItem.id} item={reportItem} report={reportItem.brokenReport} onSaved={saveBrokenReport} onClose={() => setReportItem(null)} />}
 {printPlanOpen && (printPlanItems.isLoading || printPlanItems.isError ? <Modal open title={t('october.printPlan')} onClose={() => setPrintPlanOpen(false)}><p>{t(printPlanItems.isError ? 'october.loadError' : 'wording.loading')}</p></Modal> : <PrintPlanModal eventName={eventName} currentStage={eventStatus} stages={stages} items={(printPlanItems.data?.data || []).map(item => mapEventItem(item, statusNames))} printedBy={getLoggedInFullname() || "—"} onClose={() => setPrintPlanOpen(false)} />)}
-      <Modal open={rentalOpen} size="3xl" title={t('october.rentals')} onClose={() => setRentalOpen(false)}><RentalLogTab eventId={eventId} canCreate={!isClosing && Boolean(currentStatus?.loan_item ?? sourcePreview.loanItem[currentStatus?.id])} /></Modal>
+      <Modal open={rentalOpen} size="3xl" title={t('october.rentals')} onClose={() => setRentalOpen(false)}><RentalLogTab eventId={eventId} canCreate={loanEnabled} /></Modal>
+      {borrowOpen && <EventBorrowItemModal
+        eventId={eventId}
+        onClose={() => setBorrowOpen(false)}
+        onCreated={async () => {
+          await Promise.all([refetchBorrowedItems(), refetchEventItems()]);
+          setStageFilter("borrowed");
+        }}
+      />}
       {modifyItem && <EventItemEditor key={modifyItem.id} initial={modifyItem} production={false} onSave={saveItemPreview} onClose={() => setModifyItem(null)} />}
       {productionOpen && <EventItemEditor
         initial={productionInitial ?? { name: '', qty: 1, area: '', pic: '', note: '', ownerships: ['IHP'] }}

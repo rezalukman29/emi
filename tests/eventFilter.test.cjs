@@ -21,20 +21,29 @@ function setup(success = true) {
   return { ...exports, calls, response };
 }
 
-test('all six filters send v2 status, search and server pagination without date restriction', async () => {
+test('lifecycle and header filters use the v2 server contract', async () => {
   const api = setup();
   for (const status of statuses) {
-    const result = await api.getEvents({ status, search: 'Wedding', page: 2, limit: 8 });
+    const result = await api.getEvents({ status, status_id: 12, search: 'Wedding', location: 'Bali', from: '2026-10-01', to: '2026-10-31', items_max: 29, page: 2, limit: 8 });
     const call = api.calls.at(-1);
     assert.equal(call.url, '/v2/event-filter');
     assert.equal(call.params.status, status);
+    assert.equal(call.params.status_id, 12);
     assert.equal(call.params.search, 'Wedding');
+    assert.equal(call.params.location, 'Bali');
+    assert.equal(call.params.from, '2026-10-01');
+    assert.equal(call.params.to, '2026-10-31');
+    assert.equal(call.params.items_max, 29);
+    assert.equal(call.params.items_min, undefined);
     assert.equal(call.params.page, 2);
     assert.equal(call.params.limit, 8);
     assert.equal(call.params.sort, 'DESC');
     assert.equal(call.params.event_start, undefined);
+    assert.equal(call.params.event_end, undefined);
     assert.equal(result.data.total_records, 20);
   }
+  await api.getEvents({ items_min: 30 });
+  assert.equal(api.calls.at(-1).params.items_min, 30);
 });
 
 test('counts use unsearched totals, query keys separate filters and errors propagate', async () => {

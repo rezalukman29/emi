@@ -4,11 +4,13 @@ import type { APIResponse } from "../../interfaces/BaseApiResponse";
 import ax from "../../service/axios";
 
 export interface CreateProductionRequestPayload {
-  event_id: number;
+  event_id?: number;
   request_type: "NEW_PRODUCTION" | "REPLACEMENT";
   item_name: string;
+  name?: string;
+  barang_id?: number;
   qty: number;
-  area_id: number;
+  area_id?: number;
   sub_area_id?: number;
   warehouse_id?: number;
   vendor_id?: number;

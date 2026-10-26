@@ -838,7 +838,7 @@ export default function InventoryPage() {
       </div>
 
       {/* Stats */}
-      <div className="card oct-toolbar"><strong>{t('october.assetValue')}: {formatIDR(inventorySummary?.total_asset_value)}</strong><span className="ed-lock-note">{t('october.valuePending')}</span></div>
+      <div className="card oct-toolbar"><strong>{t('october.assetValue')}: {formatIDR(inventorySummary?.total_asset_value)}</strong></div>
       <div
         className="stats-bar"
         style={{ gridTemplateColumns: "repeat(4,1fr)" }}

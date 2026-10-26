@@ -4,7 +4,6 @@ import { useState, useMemo, useEffect } from "react";
 import { useQueryClient } from "react-query";
 import ConversionStockHistory from '../components/ConversionStockHistory';
 import ProductionLogTab from '../components/ProductionLogTab';
-import RentalLogTab from '../components/RentalLogTab';
 import '../eventUpgrade.css';
 import { useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -366,7 +365,7 @@ export default function WarehouseInventoryPage() {
   const profile = useSelector((state: RootState) => state.profile);
   const isAdmin = profile.user_type?.toUpperCase() === "ADMIN";
   const [tab, setTab] = useState(
-    ['opnamehistory', 'stockhistory'].includes(searchParams.get('tab') ?? '') ? searchParams.get('tab')! : 'inventory',
+    ['opnamehistory', 'stockhistory', 'production'].includes(searchParams.get('tab') ?? '') ? searchParams.get('tab')! : 'inventory',
   );
   const [query, setQuery] = useState("");
   const [warehouseFilter, setWarehouseFilter] = useState("");
@@ -997,7 +996,6 @@ export default function WarehouseInventoryPage() {
           { id: "opnamehistory", label: t("wording.opnameHistory") },
           { id: "stockhistory", label: t("conversion.stockHistory") },
           { id: "production", label: t("eventUpgrade.production") },
-          { id: "rentals", label: t("october.rentals") },
         ].map((t) => (
           <button
             key={t.id}
@@ -1010,8 +1008,7 @@ export default function WarehouseInventoryPage() {
       </div>
 
       {tab === 'stockhistory' && <ConversionStockHistory />}
-      {tab === 'production' && <ProductionLogTab />}
-      {tab === 'rentals' && <RentalLogTab />}
+      {tab === 'production' && <ProductionLogTab warehouseOptions={warehouseOptions} />}
       {tab === "inventory" && (
         <div className="card">
           <div className="toolbar">

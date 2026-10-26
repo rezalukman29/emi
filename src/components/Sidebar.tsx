@@ -7,6 +7,7 @@ import useUserPlanController, {
 
 export const ROUTE_FEATURES: Partial<Record<string, keyof UserPlanFeatureFlags>> = {
   '/loan': 'item_loan_price',
+  '/loan-vendor-detail': 'item_loan_price',
   '/event-calendar': 'event_management_price',
   '/event-report': 'reports_dashboard_price',
   '/stock-opname-report': 'reports_dashboard_price',
@@ -46,7 +47,7 @@ const LANDING_ROUTES: Array<{
   { to: '/event', feature: 'event_management_price' },
   { to: '/inventory', feature: 'inventory_management_price' },
   { to: '/warehouse', feature: 'warehouse_management_price' },
-  { to: '/item-loan', feature: 'item_loan_price' },
+  { to: '/loan', feature: 'item_loan_price' },
   { to: '/qr-code', feature: 'qr_scanning_price' },
   { to: '/ai-material-analyzer', feature: 'ai_analyzer_price' },
   { to: '/log' },
@@ -97,14 +98,12 @@ const SECTIONS = [
         icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> },
       { to: '/sync-inventory', label: 'Sync Inventory',
         icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg> },
-      { to: '/item-loan', label: 'Item Loan',
-        icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
     ],
   },
   {
     label: 'Master Data',
     items: [
-      { to: '/loan', label: 'Rentals', icon: <span aria-hidden="true">⇄</span> },
+      { to: '/loan', label: 'Loan', icon: <span aria-hidden="true">⇄</span> },
       { to: '/vendor', label: 'Vendor', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="7" r="4"/><path d="M4 21v-4a8 8 0 0 1 16 0v4"/></svg> },
       { to: '/area', label: 'Area',
         icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> },
@@ -166,7 +165,7 @@ const SECTION_TRANSLATION_KEYS: Record<string, string> = {
 };
 
 const ITEM_TRANSLATION_KEYS: Record<string, string> = {
-  Rentals: 'october.rentals',
+  Loan: 'loanVendor.title',
   'Event Calendar': 'october.calendar',
   'Event Report': 'wording.eventSummary',
   'Stock Opname Report': 'october.opnameReport',

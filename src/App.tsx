@@ -5,6 +5,8 @@ import { ToastContainer } from "react-toastify";
 import Layout from "./components/Layout";
 import VendorPage from "./pages/VendorPage";
 import VendorDetailPage from "./pages/VendorDetailPage";
+import LoanPage from "./pages/LoanPage";
+import LoanVendorDetailPage from "./pages/LoanVendorDetailPage";
 import EventCalendarPage from "./pages/EventCalendarPage";
 import EventReportPage from "./pages/EventReportPage";
 import StockOpnameReportPage from "./pages/StockOpnameReportPage";
@@ -24,8 +26,6 @@ import EventSummaryPage from "./pages/EventSummaryPage";
 import InventoryDetailPage from "./pages/InventoryDetailPage";
 import InventoryPage from "./pages/InventoryPage";
 import InventoryReportPage from "./pages/InventoryReportPage";
-import ItemLoanPage from "./pages/ItemLoanPage";
-import ItemLoanDetailPage from "./pages/ItemLoanDetailPage";
 import LogPage from "./pages/LogPage";
 import LoginPage from "./pages/Login";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
@@ -121,11 +121,12 @@ export default function App() {
               <Route path="inventory/:id" element={<InventoryDetailPage />} />
               <Route path="inventory-detail" element={<InventoryDetailPage />} />
               <Route path="sync-inventory" element={<SyncInventoryPage />} />
-              <Route path="item-loan" element={<ItemLoanPage />} />
-              <Route path="item-loan-detail" element={<ItemLoanDetailPage />} />
+              <Route path="item-loan" element={<Navigate to="/loan?tab=borrowed" replace />} />
+              <Route path="item-loan-detail" element={<Navigate to="/loan?tab=borrowed" replace />} />
               <Route path="area" element={<AreaPage />} />
               <Route path="vendor" element={<VendorPage />} />
-              <Route path="loan" element={<VendorPage key="loan" kind="loan" />} />
+              <Route path="loan" element={<LoanPage />} />
+              <Route path="loan-vendor-detail" element={<LoanVendorDetailPage />} />
               <Route path="vendor-detail" element={<VendorDetailPage />} />
               <Route path="event-calendar" element={<EventCalendarPage />} />
               <Route path="event-report" element={<EventReportPage />} />

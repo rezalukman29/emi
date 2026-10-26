@@ -134,7 +134,7 @@ export default function PRDPage() {
 
       <Section id="item-loan" title={t("wording.itemLoan")}>
         <Paragraph>
-          {t("wording.itemLoanUsesBackendPaginationSearchingStatusFilters")} <code>barang_gudang_id</code> {t("wording.perLoan")}
+          {t("wording.itemLoanUsesBackendPaginationSearchingStatusFilters")}
         </Paragraph>
       </Section>
 

@@ -150,7 +150,7 @@ export default function EventPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("upcoming");
-  const [filters, setFilters] = useState({ location: '', stage: '', from: '', to: '', size: '' });
+  const [filters, setFilters] = useState({ location: '', statusId: '', from: '', to: '', size: '' });
   const queryClient = useQueryClient();
   const [isModify, setIsModify] = useState(false);
   const [event, setEvent] = useState<EventRecord | null>(null);
@@ -282,29 +282,33 @@ export default function EventPage() {
 
   const search = (activeTab === 'returned-completed' ? pastQuery : upQuery).trim();
   const [debouncedSearch, setDebouncedSearch] = useState(search);
+  const [debouncedLocation, setDebouncedLocation] = useState(filters.location.trim());
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(search), 300);
     return () => window.clearTimeout(timer);
   }, [search]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedLocation(filters.location.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [filters.location]);
   const { data: eventsResponse, isFetching, isError, error } = useGetEvents({
     status: activeTab === 'invite' ? undefined : activeTab as LifecycleStatus,
     search: debouncedSearch || undefined,
-    event_start: filters.from || undefined,
-    event_end: filters.to || undefined,
+    location: debouncedLocation || undefined,
+    status_id: filters.statusId ? Number(filters.statusId) : undefined,
+    from: filters.from || undefined,
+    to: filters.to || undefined,
+    items_min: filters.size === 'large' ? 30 : undefined,
+    items_max: filters.size === 'small' ? 29 : undefined,
     page: pastPage, limit: PAGE_SIZE, sort_by: 'date_event', sort: 'DESC',
-  }, activeTab !== 'invite' && search === debouncedSearch);
+  }, activeTab !== 'invite' && search === debouncedSearch && filters.location.trim() === debouncedLocation);
   const countQueries = useGetEventLifecycleCounts();
   const lifecycleCounts = Object.fromEntries(LIFECYCLE_STATUSES.map((flag, index) => [
     flag, countQueries[index].data?.data.total_records ?? 0,
   ]));
-  const events = (eventsResponse?.data.data ?? []).filter(row => {
-    const count = row.total_items ?? row.item_count;
-    return (!filters.location || String(row.address || '').toLowerCase().includes(filters.location.toLowerCase()))
-      && (!filters.stage || String(row.status) === filters.stage)
-      && (!filters.size || (count != null && (filters.size === 'small' ? Number(count) < 30 : Number(count) >= 30)));
-  });
+  const events = eventsResponse?.data.data ?? [];
   const totalRecords = eventsResponse?.data.total_records ?? 0;
-  const listLoading = isFetching || search !== debouncedSearch;
+  const listLoading = isFetching || search !== debouncedSearch || filters.location.trim() !== debouncedLocation;
   useEffect(() => {
     const pages = Math.max(1, eventsResponse?.data.total_pages ?? 1);
     if (eventsResponse && pastPage > pages) setPastPage(pages);
@@ -815,8 +819,8 @@ export default function EventPage() {
       </div>
 
       {/* Tab bar */}
-      <div className="oct-toolbar"><input aria-label={t('wording.location', { defaultValue: 'Location' })} placeholder={t('wording.location', { defaultValue: 'Location' })} value={filters.location} onChange={e => setFilters({ ...filters, location: e.target.value })} /><SearchableSelect inline value={filters.stage} onChange={value => setFilters({ ...filters, stage: String(value) })} options={[{ value: '', label: t('wording.allStatus') }, ...(eventStatus?.data.data || []).map(row => ({ value: row.id, label: row.name }))]} /><label>{t('october.from')} <input type="date" value={filters.from} onChange={e => { setFilters({ ...filters, from: e.target.value }); setPastPage(1); }} /></label><label>{t('october.to')} <input type="date" value={filters.to} min={filters.from} onChange={e => { setFilters({ ...filters, to: e.target.value }); setPastPage(1); }} /></label><SearchableSelect inline value={filters.size} onChange={value => setFilters({ ...filters, size: String(value) })} options={[{ value: '', label: t('october.all') }, { value: 'small', label: '< 30 items' }, { value: 'large', label: '≥ 30 items' }]} /><button className="btn btn-ghost" onClick={() => { setFilters({ location: '', stage: '', from: '', to: '', size: '' }); setPastPage(1); }}>{t('wording.clear', { defaultValue: 'Clear' })}</button></div>
-      <p className="ed-lock-note">{t('october.filterScope')}</p>
+      <div className="oct-toolbar"><input aria-label={t('wording.location', { defaultValue: 'Location' })} placeholder={t('wording.location', { defaultValue: 'Location' })} value={filters.location} onChange={e => { setFilters({ ...filters, location: e.target.value }); setPastPage(1); }} /><SearchableSelect inline value={filters.statusId} onChange={value => { setFilters({ ...filters, statusId: String(value) }); setPastPage(1); }} options={[{ value: '', label: t('wording.allStatus') }, ...(eventStatus?.data.data || []).map(row => ({ value: row.id, label: row.name }))]} /><label>{t('october.from')} <input type="date" value={filters.from} onChange={e => { setFilters({ ...filters, from: e.target.value }); setPastPage(1); }} /></label><label>{t('october.to')} <input type="date" value={filters.to} min={filters.from} onChange={e => { setFilters({ ...filters, to: e.target.value }); setPastPage(1); }} /></label><SearchableSelect inline value={filters.size} onChange={value => { setFilters({ ...filters, size: String(value) }); setPastPage(1); }} options={[{ value: '', label: t('october.all') }, { value: 'small', label: '< 30 items' }, { value: 'large', label: '≥ 30 items' }]} /><button className="btn btn-ghost" onClick={() => { setFilters({ location: '', statusId: '', from: '', to: '', size: '' }); setPastPage(1); }}>{t('wording.clear', { defaultValue: 'Clear' })}</button></div>
+      <p className="ed-lock-note">{t('calendarUi.eventFilterScope')}</p>
       <div
         style={{
           display: "flex",

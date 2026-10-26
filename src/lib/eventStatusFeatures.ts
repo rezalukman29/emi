@@ -21,3 +21,15 @@ export function hasReachedProductionStatus(
   if (productionOrders.length === 0) return false;
   return currentStatus.order_data >= Math.min(...productionOrders);
 }
+
+export function canBorrowBeforeScanIn(
+  currentStatus: Pick<EventStatusItem, 'order_data'> | undefined,
+  statuses: Array<Pick<EventStatusItem, 'order_data' | 'action'>>,
+): boolean {
+  if (!currentStatus) return false;
+  const scanInOrders = statuses
+    .filter((status) => status.action?.trim().toUpperCase().replace(/\s+/g, '_') === 'SCAN_IN')
+    .map((status) => status.order_data);
+  if (scanInOrders.length === 0) return false;
+  return currentStatus.order_data < Math.min(...scanInOrders);
+}

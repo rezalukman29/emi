@@ -5,9 +5,13 @@ import { LIFECYCLE_STATUSES, type LifecycleStatus } from '../../lib/eventLifecyc
 
 export interface EventFilterParams {
   status?: LifecycleStatus;
+  status_id?: number;
+  location?: string;
+  from?: string;
+  to?: string;
+  items_min?: number;
+  items_max?: number;
   search?: string;
-  event_start?: string;
-  event_end?: string;
   sort_by?: string;
   sort?: 'ASC' | 'DESC';
   page?: number;
