@@ -864,6 +864,7 @@ td.id-cell   { color: var(--text-muted); font-size: 12px; }
 .ownership-badge-btn { border: 0; cursor: pointer; font-family: inherit; }
 .ownership-badge-btn:hover { filter: brightness(.94); }
 .bulk-own-target, .bulk-own-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
+.bulk-own-label { margin-right: 6px; color: var(--text-muted); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .bulk-own-filters > * { flex: 1; min-width: 160px; }
 .bulk-own-segment { border: 1.5px solid var(--border); padding: 8px 14px; border-radius: var(--r); background: var(--white); cursor: pointer; }
 .bulk-own-segment.active { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-bg); }
@@ -902,7 +903,8 @@ td.id-cell   { color: var(--text-muted); font-size: 12px; }
   .lifecycle-transfer > button { grid-column: 1; }
 }
 .lifecycle-item-row input[type="checkbox"], .lifecycle-check-row input[type="checkbox"] { width: 17px; height: 17px; flex: 0 0 17px; padding: 0; accent-color: var(--brand); appearance: auto; }
-.lifecycle-check-row { padding: 10px; margin-bottom: 8px; cursor: pointer; }
+.lifecycle-check-row { justify-content: space-between; padding: 10px; margin-bottom: 8px; cursor: pointer; }
+.lifecycle-check-row > span { display: inline-flex; align-items: center; gap: 10px; }
 .btn-ia-move { padding: 8px 12px; background: var(--brand-bg); color: var(--brand); border: 0; border-radius: var(--r); cursor: pointer; }
 .event-summary-print-report { display: none; }
 

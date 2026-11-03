@@ -50,6 +50,7 @@
 }
 .stage-confirm-route svg { width: 15px; height: 15px; color: var(--text-muted); flex-shrink: 0; }
 .stage-confirm-route strong { color: var(--brand); }
+.ownership-check-help { margin-top: 8px; color: var(--text-muted); }
 .stage-confirm-cut {
   display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; margin-top: 12px;
   background: var(--orange-bg); color: var(--orange); border-radius: var(--r-lg);

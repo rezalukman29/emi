@@ -4,7 +4,7 @@ import PrintPlanModal from '../components/PrintPlanModal.jsx';
 import RentalLogTab from '../components/RentalLogTab';
 import EventBorrowItemModal from '../components/EventBorrowItemModal';
 import EventBorrowedItemsPanel from '../components/EventBorrowedItemsPanel';
-import { useSourcePreview, stagePromptStep, type BrokenReport } from '../lib/sourcePreview';
+import { stagePromptStep, type BrokenReport } from '../lib/sourcePreview';
 import { useEffect, useMemo, useRef, useState, type UIEvent as ReactUIEvent } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import axios from "axios";
@@ -71,7 +71,7 @@ import { type ProductionRequest, type ConvertRequest, updateLifecycle } from "..
 import type { ConversionDraft } from '../components/ConversionForm';
 import { loadConversionStock } from '../lib/conversionInventory';
 import { planConversions } from '../lib/conversionPreview';
-import { canBorrowBeforeScanIn, eventStatusFeatures, hasReachedProductionStatus } from '../lib/eventStatusFeatures';
+import { eventStatusFeatures, hasReachedProductionStatus } from '../lib/eventStatusFeatures';
 import { canChangeStage } from "../lib/eventStageRules";
 
 
@@ -638,7 +638,6 @@ export default function EventDetailPage() {
   const queryClient = useQueryClient();
   const eventId = Number(routeEventId ?? searchParams.get("id"));
   const lifecycleStore = useEventLifecycle();
-  const sourcePreview = useSourcePreview();
   const [reportItem, setReportItem] = useState<DisplayItem | null>(null);
   const [productionInitial, setProductionInitial] = useState<EventItemDraft | null>(null);
   const [flowStep, setFlowStep] = useState<'ownership' | 'broken' | 'confirm'>('confirm');
@@ -1100,15 +1099,17 @@ export default function EventDetailPage() {
         : [...FALLBACK_STATUSES],
     [eventStatuses],
   );
-  const currentStageIndex = Math.max(
-    0,
-    eventStatuses.findIndex((status) => status.id === (currentStatusId ?? eventDetail?.status)),
+  const matchedCurrentStageIndex = eventStatuses.findIndex(
+    (status) => status.id === (currentStatusId ?? eventDetail?.status),
   );
-  const currentStatus = eventStatuses[currentStageIndex];
+  const currentStageIndex = Math.max(0, matchedCurrentStageIndex);
+  const currentStatus = matchedCurrentStageIndex >= 0
+    ? eventStatuses[matchedCurrentStageIndex]
+    : undefined;
   const eventStatus = currentStatus?.name ?? stages[currentStageIndex] ?? stages[0];
   const closingFlag = resolveLifecycle({ id: eventId, status: currentStatus?.id, is_complete: eventDetail?.is_complete, is_finished: eventDetail?.is_finished, total_items: lifecycleItems.length }, { ...lifecycle, stageId: currentStatus?.id, itemCount: lifecycleItems.length }, eventStatuses[eventStatuses.length - 1]?.id);
   const isClosing = ['checking-inventory', 'returned-completed', 'transferred'].includes(closingFlag);
-  const deleteAllowed = !isClosing && (currentStatus?.allow_delete ?? sourcePreview.allowDelete[currentStatus?.id]) !== false;
+  const deleteAllowed = currentStatus?.allow_delete === true && !isClosing;
   const features = Object.fromEntries(eventStatuses.map(status => [status.id, eventStatusFeatures(status)]));
   const maxReachedIndex = Math.max(currentStageIndex, eventStatuses.findIndex(s => s.id === lifecycle?.furthestStageId));
   const returnIndex = eventStatuses.findIndex(s => features[s.id]?.stockReturn);
@@ -1123,7 +1124,7 @@ export default function EventDetailPage() {
     currentStatus,
     eventStatuses,
   );
-  const loanEnabled = canBorrowBeforeScanIn(currentStatus, eventStatuses);
+  const loanEnabled = currentStatus?.borrow_item === true;
   const borrowedItems = borrowedItemsResponse?.data?.items ?? [];
   const borrowedTabVisible = loanEnabled || borrowedItems.length > 0;
   useEffect(() => {
@@ -1306,10 +1307,17 @@ export default function EventDetailPage() {
   function requestStageChange(_step: string, index: number, viaNext = false) {
     if (!eventDetail || !canChangeStage({ current: currentStageIndex, target: index, furthest: maxReachedIndex, stageCount: eventStatuses.length, viaNext, scanRequired: stageScanEnabled, unscanned: unscannedCount, locked: isClosing || isChangingEventStatus })) return;
     setPendingStage(index);
-    setFlowStep(stagePromptStep(index > currentStageIndex, sourcePreview.checkOwnership[currentStatus.id] === true, ownershipAnswered.includes(currentStatus.id), items.some(item => item.brokenReport)));
+    setFlowStep(stagePromptStep(
+      index > currentStageIndex,
+      currentStatus?.check_ownership === true,
+      currentStatus ? ownershipAnswered.includes(currentStatus.id) : false,
+      items.some(item => item.brokenReport),
+    ));
   }
   function afterOwnership() {
-    setOwnershipAnswered(ids => ids.includes(currentStatus.id) ? ids : [...ids, currentStatus.id]);
+    if (currentStatus) {
+      setOwnershipAnswered(ids => ids.includes(currentStatus.id) ? ids : [...ids, currentStatus.id]);
+    }
     setFlowStep(items.some(item => item.brokenReport) ? 'broken' : 'confirm');
   }
   function cancelStageFlow() {
@@ -2233,7 +2241,7 @@ export default function EventDetailPage() {
           <div className="event-title-wrap"><div className="event-heading">{eventName}</div><span className={`badge ${LIFECYCLE_BADGES[closingFlag]}`}>{t(`lifecycle.${closingFlag}`)}</span></div>
 
           <div className="event-actions-bar">
-            {loanEnabled && <button className="btn btn-ghost btn-request-production" onClick={() => setBorrowOpen(true)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 3h5v5"/><path d="M21 3l-7 7"/><path d="M8 21H3v-5"/><path d="M3 21l7-7"/></svg>{t('eventBorrow.button')}</button>}
+            {loanEnabled && <button className="btn btn-ghost btn-request-production" onClick={() => setBorrowOpen(true)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 3h5v5"/><path d="M21 3l-7 7"/><path d="M8 21H3v-5"/><path d="M3 21l7-7"/></svg>{t('sourceUpgrade.borrowItem')}</button>}
             {productionEnabled && <button className="btn btn-ghost btn-request-production" onClick={() => { setProductionInitial(null); setProductionOpen(true); }}>{t("eventUpgrade.requestProduction")}</button>}
             <button className="btn-new" disabled={addLocked} onClick={openCart}>
               <IconPlus /> {t("wording.addItem")}
@@ -2541,10 +2549,22 @@ export default function EventDetailPage() {
       </div>
 
       <Modal open={pendingStage !== null && flowStep === 'ownership'} title={t('sourceUpgrade.checkOwnership')} onClose={cancelStageFlow} footer={<>
-        <button className="btn-cancel-modal" onClick={cancelStageFlow}>{t('wording.cancel')}</button>
+        <button className="btn-cancel-modal" onClick={cancelStageFlow}><IconClose /> {t('wording.cancel')}</button>
         <button className="btn btn-ghost" onClick={afterOwnership}>{t('sourceUpgrade.no')}</button>
         <button className="btn-save-modal" onClick={() => { setResumeStage(pendingStage); setPendingStage(null); setLifecycleMode('ownership'); }}>{t('sourceUpgrade.yes')}</button>
-      </>}><p>{t('sourceUpgrade.ownershipQuestion')}</p></Modal>
+      </>}>
+        <div className="stage-confirm-route">
+          <span>{eventStatus}</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          <strong>{pendingStage !== null ? stages[pendingStage] : ''}</strong>
+        </div>
+        <p className="confirm-msg">
+          {t('sourceUpgrade.beforeMovingFrom')} <strong>&ldquo;{eventStatus}&rdquo;</strong>: {t('sourceUpgrade.ownershipQuestion')}
+        </p>
+        <p className="confirm-msg ownership-check-help">
+          {t('sourceUpgrade.ownershipHelp')}
+        </p>
+      </Modal>
       <Modal open={pendingStage !== null && flowStep === 'broken'} title={t('sourceUpgrade.report')} onClose={cancelStageFlow} footer={<>
         <button className="btn-cancel-modal" onClick={cancelStageFlow}>{t('wording.cancel')}</button>
         <button className="btn-save-modal" onClick={() => setFlowStep('confirm')}>{t('eventUpgrade.confirm')}</button>

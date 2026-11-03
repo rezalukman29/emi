@@ -203,12 +203,15 @@ export default function EventLifecycleModal({ eventId, eventName, items, stages,
   </>}>
     {/* {mode !== 'ownership' && <p className="stepper-error-banner">{t('lifecycle.preview')}</p>} */}
     {mode === 'ownership' && <>
-      <div className="bulk-own-target">{OWNERSHIPS.map(value => <button key={value} className={`bulk-own-segment${target === value ? ' active' : ''}`} onClick={() => setTarget(value)}>{value}</button>)}</div>
+      <div className="bulk-own-target">
+        <span className="bulk-own-label">{t('lifecycle.assignOwnership')}</span>
+        {OWNERSHIPS.map(value => <button key={value} className={`bulk-own-segment${target === value ? ' active' : ''}`} onClick={() => setTarget(value)}>{value}</button>)}
+      </div>
       <div className="bulk-own-filters">
         <TextInput label={t('common.actions.search')} value={bulkSearch} onChange={setBulkSearch} />
         <SearchableSelect value={bulkOwnership} onChange={v => setBulkOwnership(String(v))} options={[{ value: '', label: t('lifecycle.allOwnership') }, ...OWNERSHIPS.map(value => ({ value, label: value }))]} />
       </div>
-      <label className="lifecycle-check-row"><input type="checkbox" checked={shown.length > 0 && shown.every(item => selected.includes(item.id))} onChange={() => setSelected(ids => shown.every(item => ids.includes(item.id)) ? ids.filter(id => !shown.some(item => item.id === id)) : [...new Set([...ids, ...shown.map(item => item.id)])])} />{t('lifecycle.selectShown')}</label>
+      <label className="lifecycle-check-row"><span><input type="checkbox" checked={shown.length > 0 && shown.every(item => selected.includes(item.id))} onChange={() => setSelected(ids => shown.every(item => ids.includes(item.id)) ? ids.filter(id => !shown.some(item => item.id === id)) : [...new Set([...ids, ...shown.map(item => item.id)])])} />{t('lifecycle.selectShown')} ({fmtDisplayNumber(shown.length)})</span><span>{t('lifecycle.selected', { count: fmtDisplayNumber(selected.length) })}</span></label>
     </>}
     {mode === 'return' && <p>{t('lifecycle.logistics', { checked, total: items.length, missing: items.length - checked })}</p>}
     <div className="lifecycle-item-list">

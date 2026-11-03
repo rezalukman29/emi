@@ -122,7 +122,7 @@ export default function EventBorrowItemModal({ eventId, onClose, onCreated }: Ev
 
   return <Modal
     open
-    title={t("eventBorrow.title")}
+    title={t("sourceUpgrade.borrowItem")}
     onClose={() => { if (!createMutation.isLoading) onClose(); }}
     footer={<>
       <button className="btn-cancel-modal" disabled={createMutation.isLoading} onClick={onClose}><IconClose /> {t("wording.cancel")}</button>

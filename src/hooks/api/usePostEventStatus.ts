@@ -8,6 +8,9 @@ export interface EventStatusPayload {
   code: string;
   cutting_stock: boolean;
   production_item: boolean;
+  check_ownership: boolean;
+  allow_delete: boolean;
+  borrow_item: boolean;
   is_show_scan_result: number;
   order_data: number;
   action: string;
