@@ -11,6 +11,7 @@ export interface EventStatusPayload {
   check_ownership: boolean;
   allow_delete: boolean;
   borrow_item: boolean;
+  outsource_item: boolean;
   is_show_scan_result: number;
   order_data: number;
   action: string;

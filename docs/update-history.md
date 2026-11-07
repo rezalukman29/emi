@@ -41,6 +41,23 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+# 2026-11-07 — Outsource vendors and event outsource ordering
+
+- Integrated the dedicated Outsource backend catalogs instead of sharing production or rent vendors: vendor list/detail/create/update/delete use `/v1/outsource-vendors`.
+- Added the **Outsource** Master Data menu with Vendors and Outsourced Items tabs, server pagination/search/status filtering, summary cards, vendor detail/history, and item lifecycle actions.
+- Replaced the Event Detail outsource placeholder with a real request form using `/v1/events/{eventId}/outsource-item`; it captures an Inventory item, area/sub-area, vendor, dates, unit cost, quantity, and notes.
+- Added an **Outsourced** Event Detail tab. `REQUESTED` orders can be cancelled or marked `RECEIVED`; received orders can be marked `COMPLETED`. Event items are refetched after every action because `RECEIVED` creates the event item with Outsource ownership server-side.
+- API types and cache keys live in `src/hooks/api/useOutsource.ts`; event UI is split into `EventOutsourceItemModal.tsx` and `EventOutsourceItemsPanel.tsx`.
+
+---
+
+# 2026-11-04 — Adaptive port of emi-source commits from 2 November
+
+- Ported event date/edit rules, restricted Modify Item behavior, quick-add Inventory/vendor flows, and nested modal handling from `b1669d9e` and `545a7488`.
+- Added the 2 November product PRD and mobile technical system-schema PRD from `f59524c1`.
+- Kept the prototype Outsource module out of runtime until its backend lifecycle contract is available.
+- Full implementation/back-end gap notes: [source-migration-2026-11-02.md](source-migration-2026-11-02.md).
+
 ## Round 5 — Event Detail: stage tabs, searchable area filter, stepper numbering
 
 **Files:** `src/pages/EventDetailPage.jsx`, `src/components/Stepper.jsx`, `src/style.css`

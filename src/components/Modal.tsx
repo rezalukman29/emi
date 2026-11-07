@@ -39,8 +39,11 @@ export default function Modal({
   useEffect(() => {
     if (!open) return;
     const handler = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      // Let an open searchable dropdown consume Escape before its parent modal.
+      if (document.querySelector('.ss-menu')) return;
       const overlays = document.querySelectorAll('.modal-overlay.open');
-      if (event.key === 'Escape' && overlays[overlays.length - 1] === overlayRef.current) onClose();
+      if (overlays[overlays.length - 1] === overlayRef.current) onClose();
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);

@@ -25,6 +25,8 @@ type Props = {
   onFocus?: FocusEventHandler<HTMLInputElement>;
   onBlur?: FocusEventHandler<HTMLInputElement>;
   autoComplete?: string;
+  min?: string | number;
+  disabled?: boolean;
 };
 
 const TextInput = ({
@@ -46,11 +48,14 @@ const TextInput = ({
   onFocus,
   onBlur,
   autoComplete,
+  min,
+  disabled = false,
 }: Props) => {
   const input = (
     <input
       type={isNumeric ? "number" : inputType}
-      min={isNumeric ? 0 : undefined}
+      min={min ?? (isNumeric ? 0 : undefined)}
+      disabled={disabled}
       placeholder={placeholder ?? ""}
       value={value}
       onChange={(e) => onChange(e.target.value)}

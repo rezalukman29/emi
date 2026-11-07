@@ -28,6 +28,8 @@ interface SearchableSelectBaseProps {
   disabled?: boolean;
   inline?: boolean;
   style?: CSSProperties;
+  onCreate?: (query: string) => void;
+  createLabel?: string | ((query: string) => string);
 }
 
 type SearchableSelectProps = SearchableSelectBaseProps & (
@@ -57,6 +59,8 @@ export default function SearchableSelect({
   disabled = false,
   inline = false,
   style,
+  onCreate,
+  createLabel,
 }: SearchableSelectProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -220,6 +224,16 @@ export default function SearchableSelect({
               </div>
             ))}
           </div>
+          {onCreate && <button
+            type="button"
+            className="ss-create"
+            onMouseDown={(event) => {
+              event.preventDefault();
+              const nextQuery = query.trim();
+              setOpen(false);
+              onCreate(nextQuery);
+            }}
+          >+ {typeof createLabel === 'function' ? createLabel(query.trim()) : createLabel || t('quickAdd.addNew')}</button>}
         </div>,
         document.body,
       )}

@@ -7,6 +7,8 @@ import VendorPage from "./pages/VendorPage";
 import VendorDetailPage from "./pages/VendorDetailPage";
 import LoanPage from "./pages/LoanPage";
 import LoanVendorDetailPage from "./pages/LoanVendorDetailPage";
+import OutsourcePage from "./pages/OutsourcePage";
+import OutsourceVendorDetailPage from "./pages/OutsourceVendorDetailPage";
 import EventCalendarPage from "./pages/EventCalendarPage";
 import EventReportPage from "./pages/EventReportPage";
 import StockOpnameReportPage from "./pages/StockOpnameReportPage";
@@ -127,6 +129,8 @@ export default function App() {
               <Route path="vendor" element={<VendorPage />} />
               <Route path="loan" element={<LoanPage />} />
               <Route path="loan-vendor-detail" element={<LoanVendorDetailPage />} />
+              <Route path="outsource" element={<OutsourcePage />} />
+              <Route path="outsource-vendor-detail" element={<OutsourceVendorDetailPage />} />
               <Route path="vendor-detail" element={<VendorDetailPage />} />
               <Route path="event-calendar" element={<EventCalendarPage />} />
               <Route path="event-report" element={<EventReportPage />} />

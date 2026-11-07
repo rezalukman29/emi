@@ -73,6 +73,21 @@ function daysUntil(start?: string): number | null {
   return Math.ceil((eventDate.getTime() - today.getTime()) / 86400000);
 }
 
+function eventLastDate(record: EventRecord): string {
+  return [record.event_end, record.event_start, record.date_event]
+    .filter((value): value is string => typeof value === 'string' && Boolean(value) && value !== '-')
+    .sort()
+    .pop() ?? '';
+}
+
+function isEventPast(record: EventRecord): boolean {
+  const lastDate = eventLastDate(record).slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(lastDate)) return false;
+  const today = new Date();
+  const localToday = [today.getFullYear(), String(today.getMonth() + 1).padStart(2, '0'), String(today.getDate()).padStart(2, '0')].join('-');
+  return lastDate < localToday;
+}
+
 function IconPin() {
   return (
     <svg
@@ -194,7 +209,12 @@ export default function EventPage() {
       event_code: Yup.string().required(t("wording.required")),
       description: Yup.string().required(t("wording.required")),
       event_start: Yup.string().required(t("wording.required")),
-      event_end: Yup.string().required(t("wording.required")),
+      event_end: Yup.string()
+        .required(t("wording.required"))
+        .test('not-before-start', t('eventRules.finishBeforeStart'), function (value) {
+          const start = this.parent.event_start;
+          return !value || !start || value >= start;
+        }),
       date_event: Yup.string().required(t("wording.required")),
       PIC: Yup.string().required(t("wording.required")),
       address: Yup.string().required(t("wording.required")),
@@ -355,6 +375,10 @@ export default function EventPage() {
   function openEdit(id: number) {
     const r = events.find((candidate: EventRecord) => candidate.id === id);
     if (!r) return;
+    if (isEventPast(r)) {
+      toast.info(t('eventRules.pastEditLocked'));
+      return;
+    }
     setEditingId(id);
     setIsModify(true);
     setEvent(r);
@@ -525,7 +549,8 @@ export default function EventPage() {
           <div style={{ flex: 1 }} />
           <button
             className="btn-icon edit"
-            title={t("wording.edit")}
+            title={isEventPast(r) ? t('eventRules.pastEditLocked') : t("wording.edit")}
+            disabled={isEventPast(r)}
             onClick={() => openEdit(r.id)}
           >
             <IconEdit />
@@ -700,7 +725,8 @@ export default function EventPage() {
           </button>
           {!readOnly && <><button
             className="btn-icon edit"
-            title={t("wording.edit")}
+            title={isEventPast(r) ? t('eventRules.pastEditLocked') : t("wording.edit")}
+            disabled={isEventPast(r)}
             onClick={() => onEdit(r.id)}
           >
             <IconEdit />
@@ -1097,6 +1123,7 @@ export default function EventPage() {
               className="btn-save-modal"
               onClick={() => formik.handleSubmit()}
               type="button"
+              disabled={Boolean(formik.values.event_start && formik.values.event_end && formik.values.event_end < formik.values.event_start)}
             >
               <IconCheck /> {t("wording.saveEvent")}
             </button>
@@ -1147,8 +1174,9 @@ export default function EventPage() {
             onChange={(value) => formik.setFieldValue("event_end", value)}
             isRequired
             inputType="date"
+            min={formik.values.event_start || undefined}
             label={t("wording.finishDate")}
-            errorText={formik.errors.event_end ? "Required" : ("" as string)}
+            errorText={formik.errors.event_end as string}
           />
         </div>
         <div className="form-row">

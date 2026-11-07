@@ -14,6 +14,7 @@ import { formatIDR } from "../lib/format";
 import Modal from "./Modal";
 import SearchableSelect from "./SearchableSelect";
 import { IconCheck, IconClose } from "./icons";
+import { CatalogItemPicker, QuickVendorPicker } from "./QuickRequestPickers";
 
 interface EventBorrowItemModalProps {
   eventId: number;
@@ -130,7 +131,7 @@ export default function EventBorrowItemModal({ eventId, onClose, onCreated }: Ev
     </>}
   >
     <p className="loan-form-intro">{t("eventBorrow.intro")}</p>
-    <div className="form-group"><label>{t("borrowedItemsApi.item")} <span className="required-mark">*</span></label><input value={form.itemName} onChange={event => setField("itemName", event.target.value)} placeholder={t("borrowedItemsApi.itemPlaceholder")} /></div>
+    <div className="form-group"><label>{t("borrowedItemsApi.item")} <span className="required-mark">*</span></label><CatalogItemPicker value={form.itemName} onChange={(itemName, item) => setForm(current => ({ ...current, itemName, ...(item?.satuan ? { unit: item.satuan } : {}) }))} placeholder={t("borrowedItemsApi.itemPlaceholder")} /></div>
     <div className="form-row">
       <div className="form-group"><label>{t("wording.qty")} <span className="required-mark">*</span></label><input type="number" min="1" step="1" value={form.qty} onChange={event => setField("qty", event.target.value)} /></div>
       <div className="form-group"><label>{t("borrowedItemsApi.unit")}</label><SearchableSelect value={form.unit} onChange={value => setField("unit", String(value))} options={(units.length ? units.map(unit => unit.name) : ["pcs", "unit", "set", "roll", "meter"]).map(value => ({ value, label: value }))} /></div>
@@ -139,7 +140,7 @@ export default function EventBorrowItemModal({ eventId, onClose, onCreated }: Ev
       <div className="form-group"><label>{t("wording.area")} <span className="required-mark">*</span></label><SearchableSelect value={form.areaId} onChange={value => setForm(current => ({ ...current, areaId: String(value), subAreaId: "" }))} options={areas.map(area => ({ value: area.id, label: area.name }))} placeholder={t("wording.selectArea")} /></div>
       <div className="form-group"><label>{t("wording.subArea")}</label><SearchableSelect value={form.subAreaId} onChange={value => setField("subAreaId", String(value))} disabled={!form.areaId || subAreas.length === 0} options={subAreas.map(item => ({ value: item.id, label: item.sub_area_name }))} placeholder={subAreas.length ? t("wording.selectSubArea") : t("wording.noSubAreas")} /></div>
     </div>
-    <div className="form-group"><label>{t("borrowedItemsApi.loanVendor")} <span className="required-mark">*</span></label><SearchableSelect value={form.vendorId} onChange={value => setField("vendorId", String(value))} options={vendors.map(vendor => ({ value: vendor.id, label: vendor.name, meta: vendor.phone || "" }))} placeholder={t("borrowedItemsApi.selectVendor")} />{!vendorQuery.isLoading && vendors.length === 0 && <small className="loan-form-warning">{t("borrowedItemsApi.noVendors")}</small>}</div>
+    <div className="form-group"><label>{t("borrowedItemsApi.loanVendor")} <span className="required-mark">*</span></label><QuickVendorPicker kind="loan" value={form.vendorId} onChange={vendorId => setField("vendorId", String(vendorId))} placeholder={t("borrowedItemsApi.selectVendor")} />{!vendorQuery.isLoading && vendors.length === 0 && <small className="loan-form-warning">{t("borrowedItemsApi.noVendors")}</small>}</div>
     <div className="form-row">
       <div className="form-group"><label>{t("borrowedItemsApi.borrowFrom")} <span className="required-mark">*</span></label><input type="date" value={form.borrowFrom} onChange={event => setField("borrowFrom", event.target.value)} /></div>
       <div className="form-group"><label>{t("borrowedItemsApi.returnBy")} <span className="required-mark">*</span></label><input type="date" min={form.borrowFrom} value={form.returnBy} onChange={event => setField("returnBy", event.target.value)} /></div>

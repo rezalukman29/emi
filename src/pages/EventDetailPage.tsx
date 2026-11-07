@@ -4,6 +4,8 @@ import PrintPlanModal from '../components/PrintPlanModal.jsx';
 import RentalLogTab from '../components/RentalLogTab';
 import EventBorrowItemModal from '../components/EventBorrowItemModal';
 import EventBorrowedItemsPanel from '../components/EventBorrowedItemsPanel';
+import EventOutsourceItemModal from '../components/EventOutsourceItemModal';
+import EventOutsourceItemsPanel from '../components/EventOutsourceItemsPanel';
 import { stagePromptStep, type BrokenReport } from '../lib/sourcePreview';
 import { useEffect, useMemo, useRef, useState, type UIEvent as ReactUIEvent } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -51,6 +53,13 @@ import {
   useGetEventBorrowedItems,
   useUpdateLoanItem,
 } from '../hooks/api/useGetItemLoans';
+import {
+  outsourceItemPayload,
+  type OutsourceItem,
+  useDeleteOutsourceItem,
+  useGetEventOutsourceItems,
+  useUpdateOutsourceItem,
+} from '../hooks/api/useOutsource';
 import useCreatePackage from "../hooks/api/useCreatePackage";
 import useGetEventPackages from "../hooks/api/useGetEventPackages";
 import useGetEventItem, { type EventItem } from "../hooks/api/useGetEventItem";
@@ -710,6 +719,12 @@ export default function EventDetailPage() {
     isError: isBorrowedItemsError,
     refetch: refetchBorrowedItems,
   } = useGetEventBorrowedItems(eventId, Boolean(eventId));
+  const {
+    data: outsourceItemsResponse,
+    isLoading: isOutsourceItemsLoading,
+    isError: isOutsourceItemsError,
+    refetch: refetchOutsourceItems,
+  } = useGetEventOutsourceItems(eventId, { enabled: Boolean(eventId) });
   const statusNames = useMemo(
     () => new Map(eventStatuses.map((status) => [status.id, status.name])),
     [eventStatuses],
@@ -734,6 +749,8 @@ export default function EventDetailPage() {
     useDeleteBrokenItemReport();
   const { mutateAsync: updateLoanItem, isLoading: isUpdatingLoanItem } = useUpdateLoanItem();
   const { mutateAsync: deleteLoanItem, isLoading: isDeletingLoanItem } = useDeleteLoanItem();
+  const { mutateAsync: updateOutsourceItem, isLoading: isUpdatingOutsourceItem } = useUpdateOutsourceItem();
+  const { mutateAsync: deleteOutsourceItem, isLoading: isDeletingOutsourceItem } = useDeleteOutsourceItem();
 
   const [detailId, setDetailId] = useState<number | null>(null);
   const [modifyItem, setModifyItem] = useState<DisplayItem | null>(null);
@@ -759,6 +776,7 @@ export default function EventDetailPage() {
   const printPlanItems = useGetEventItem({ params: { event_id: eventId, order: 'asc' }, options: { enabled: printPlanOpen && eventId > 0 } });
   const [rentalOpen, setRentalOpen] = useState(false);
   const [borrowOpen, setBorrowOpen] = useState(false);
+  const [outsourceOpen, setOutsourceOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement | null>(null);
   const [stepperError, setStepperError] = useState("");
@@ -772,7 +790,7 @@ export default function EventDetailPage() {
   const { mutateAsync: createPackageRequest, isLoading: isCreatingPackage } = useCreatePackage();
 
   const [selectedArea, setSelectedArea] = useState("");
-  const [stageFilter, setStageFilter] = useState<"all" | "waiting" | "added" | "grouped" | "production" | "borrowed">("all");
+  const [stageFilter, setStageFilter] = useState<"all" | "waiting" | "added" | "grouped" | "production" | "borrowed" | "outsourced">("all");
   const [kwSearch, setKwSearch] = useState("");
 
   const {
@@ -1125,8 +1143,11 @@ export default function EventDetailPage() {
     eventStatuses,
   );
   const loanEnabled = currentStatus?.borrow_item === true;
+  const outsourceEnabled = currentStatus?.outsource_item === true;
   const borrowedItems = borrowedItemsResponse?.data?.items ?? [];
   const borrowedTabVisible = loanEnabled || borrowedItems.length > 0;
+  const outsourceItems = outsourceItemsResponse?.data?.items ?? [];
+  const outsourceTabVisible = outsourceEnabled || outsourceItems.length > 0;
   useEffect(() => {
     if (!productionTabVisible && stageFilter === "production") {
       setStageFilter("all");
@@ -1134,7 +1155,10 @@ export default function EventDetailPage() {
     if (!borrowedTabVisible && stageFilter === "borrowed") {
       setStageFilter("all");
     }
-  }, [borrowedTabVisible, productionTabVisible, stageFilter]);
+    if (!outsourceTabVisible && stageFilter === "outsourced") {
+      setStageFilter("all");
+    }
+  }, [borrowedTabVisible, outsourceTabVisible, productionTabVisible, stageFilter]);
   const requests = lifecycle?.productionRequests ?? [];
   const apiProductionRequests = productionRequestsResponse?.data ?? [];
   const pendingConverts = requests.filter((r): r is ConvertRequest => r.type === 'convert' && r.status === 'Pending');
@@ -1271,6 +1295,8 @@ export default function EventDetailPage() {
       ? "all"
       : stageFilter === "borrowed" && !borrowedTabVisible
         ? "all"
+      : stageFilter === "outsourced" && !outsourceTabVisible
+        ? "all"
       : stageFilter === "waiting" && !stageScanEnabled
         ? "all"
         : stageFilter;
@@ -1369,6 +1395,25 @@ export default function EventDetailPage() {
     } catch (error) {
       toast.error(getCheckoutErrorMessage(error) || t("eventBorrow.cancelError"));
     }
+  }
+  async function advanceOutsourceItem(item: OutsourceItem) {
+    if (isClosing || isUpdatingOutsourceItem) return;
+    const nextStatus = item.status === "REQUESTED" ? "RECEIVED" : "COMPLETED";
+    if (!window.confirm(`${nextStatus === "RECEIVED" ? "Mark" : "Complete"} “${item.item_name}”${nextStatus === "RECEIVED" ? " as received? It will be added to this event with Outsource ownership." : "?"}`)) return;
+    try {
+      const response = await updateOutsourceItem({ id: item.id, payload: outsourceItemPayload(item, nextStatus) });
+      toast.success(response.message || (nextStatus === "RECEIVED" ? "Item marked received." : "Outsource order completed."));
+      await Promise.all([refetchOutsourceItems(), refetchEventItems()]);
+    } catch (error) { toast.error(getCheckoutErrorMessage(error) || "Outsource status could not be updated."); }
+  }
+  async function cancelOutsourceItem(item: OutsourceItem) {
+    if (isClosing || isDeletingOutsourceItem) return;
+    if (!window.confirm(`Cancel the outsource request for “${item.item_name}”?`)) return;
+    try {
+      const response = await deleteOutsourceItem(item.id);
+      toast.success(response.message || "Outsource request cancelled.");
+      await Promise.all([refetchOutsourceItems(), refetchEventItems()]);
+    } catch (error) { toast.error(getCheckoutErrorMessage(error) || "Outsource request could not be cancelled."); }
   }
   function replaceBrokenItem(item: DisplayItem) {
     if (!productionEnabled || isClosing || !item.brokenReport) return;
@@ -2143,8 +2188,10 @@ export default function EventDetailPage() {
   }
   async function saveItemPreview(value: EventItemDraft) {
     if (!modifyItem || isClosing) return;
+    const qtyEditable = Number(modifyItem.eventStatusId) === Number(currentStatus?.id);
+    const nextQty = qtyEditable ? value.qty : modifyItem.qty;
     if (modifyItem.id <= 0) {
-      setItemEdits(old => ({ ...old, [modifyItem.id]: { ...old[modifyItem.id], qty: value.qty, pic: value.pic, area: value.area, areaId: value.areaId, subArea: value.subArea, subAreaId: value.subAreaId, note: value.note, ownerships: value.ownerships } }));
+      setItemEdits(old => ({ ...old, [modifyItem.id]: { ...old[modifyItem.id], qty: nextQty, pic: modifyItem.pic, area: value.area, areaId: value.areaId, subArea: value.subArea, subAreaId: value.subAreaId, note: modifyItem.note, ownerships: modifyItem.ownerships } }));
       setModifyItem(null); toast.success(t('eventUpgrade.previewSaved')); return;
     }
     if (!value.areaId || !value.subAreaId) return;
@@ -2153,13 +2200,13 @@ export default function EventDetailPage() {
         id: modifyItem.id,
         list_id: value.areaId,
         sub_list_id: value.subAreaId,
-        qty: value.qty,
-        pic: value.pic.trim(),
-        notes: value.note.trim(),
+        qty: nextQty,
+        pic: modifyItem.pic.trim(),
+        notes: modifyItem.note.trim(),
         ownerships: {
-          ihc: value.ownerships.includes('IHC'),
-          ihp: value.ownerships.includes('IHP'),
-          outsource: value.ownerships.includes('Outsource'),
+          ihc: modifyItem.ownerships.includes('IHC'),
+          ihp: modifyItem.ownerships.includes('IHP'),
+          outsource: modifyItem.ownerships.includes('Outsource'),
         },
       });
       setItemEdits(old => { const next = { ...old }; delete next[modifyItem.id]; return next; });
@@ -2241,6 +2288,7 @@ export default function EventDetailPage() {
           <div className="event-title-wrap"><div className="event-heading">{eventName}</div><span className={`badge ${LIFECYCLE_BADGES[closingFlag]}`}>{t(`lifecycle.${closingFlag}`)}</span></div>
 
           <div className="event-actions-bar">
+            {outsourceEnabled && <button type="button" className="btn btn-ghost btn-request-production" onClick={() => setOutsourceOpen(true)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>{t('sourceUpgrade.outsourceItem')}</button>}
             {loanEnabled && <button className="btn btn-ghost btn-request-production" onClick={() => setBorrowOpen(true)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 3h5v5"/><path d="M21 3l-7 7"/><path d="M8 21H3v-5"/><path d="M3 21l7-7"/></svg>{t('sourceUpgrade.borrowItem')}</button>}
             {productionEnabled && <button className="btn btn-ghost btn-request-production" onClick={() => { setProductionInitial(null); setProductionOpen(true); }}>{t("eventUpgrade.requestProduction")}</button>}
             <button className="btn-new" disabled={addLocked} onClick={openCart}>
@@ -2367,13 +2415,21 @@ export default function EventDetailPage() {
         </div>
 
         <div className="stage-tabs-row"><div className="stage-tabs">
-          {(['all', 'added', ...(stageScanEnabled ? ['waiting'] : []), 'grouped', ...(productionTabVisible ? ['production'] : []), ...(borrowedTabVisible ? ['borrowed'] : [])] as const).map(tab => {
-            const labels: Record<string, string> = { all: 'wording.all', added: 'wording.addedNew', waiting: 'wording.waitingScan', grouped: 'wording.grouped', production: 'eventUpgrade.production', borrowed: 'eventBorrow.borrowed' };
-            const counts: Record<string, number> = { all: scopedItems.length, added: currentStageItems.length, waiting: waitingScanItems.length, grouped: packages.length, production: productionRequestsResponse ? apiProductionRequests.length : (productionItemResponse ? backendProductionItems.length : items.filter(item => item.isNewProductionItem).length) + requests.length, borrowed: borrowedItems.length };
+          {(['all', 'added', ...(stageScanEnabled ? ['waiting'] : []), 'grouped', ...(productionTabVisible ? ['production'] : []), ...(borrowedTabVisible ? ['borrowed'] : []), ...(outsourceTabVisible ? ['outsourced'] : [])] as const).map(tab => {
+            const labels: Record<string, string> = { all: 'wording.all', added: 'wording.addedNew', waiting: 'wording.waitingScan', grouped: 'wording.grouped', production: 'eventUpgrade.production', borrowed: 'eventBorrow.borrowed', outsourced: 'sourceUpgrade.outsourced' };
+            const counts: Record<string, number> = { all: scopedItems.length, added: currentStageItems.length, waiting: waitingScanItems.length, grouped: packages.length, production: productionRequestsResponse ? apiProductionRequests.length : (productionItemResponse ? backendProductionItems.length : items.filter(item => item.isNewProductionItem).length) + requests.length, borrowed: borrowedItems.length, outsourced: outsourceItems.length };
             return <button key={tab} className={'stage-tab' + (effectiveStageFilter === tab ? ' active' : '')} onClick={() => setStageFilter(tab as typeof stageFilter)}>{t(labels[tab])} <span className="stage-tab-count">{counts[tab]}</span></button>;
           })}
         </div><div className="view-toggle">{(['cards', 'list'] as const).map(mode => <button key={mode} title={t('eventUpgrade.' + mode)} aria-label={t('eventUpgrade.' + mode)} aria-pressed={viewMode === mode} className={viewMode === mode ? 'active' : ''} onClick={() => { setViewMode(mode); try { localStorage.setItem('emi_event_detail_view', mode); } catch { /* Preference is optional. */ } }}>{mode === 'cards' ? '▦' : '☰'}</button>)}</div></div>
-        {effectiveStageFilter === "borrowed" ? <EventBorrowedItemsPanel
+        {effectiveStageFilter === "outsourced" ? <EventOutsourceItemsPanel
+          items={outsourceItems}
+          isLoading={isOutsourceItemsLoading}
+          isError={isOutsourceItemsError}
+          locked={isClosing || addLocked}
+          isActing={isUpdatingOutsourceItem || isDeletingOutsourceItem}
+          onAdvance={(item) => void advanceOutsourceItem(item)}
+          onCancel={(item) => void cancelOutsourceItem(item)}
+        /> : effectiveStageFilter === "borrowed" ? <EventBorrowedItemsPanel
           items={borrowedItems}
           isLoading={isBorrowedItemsLoading}
           isError={isBorrowedItemsError}
@@ -2624,7 +2680,23 @@ export default function EventDetailPage() {
           setStageFilter("borrowed");
         }}
       />}
-      {modifyItem && <EventItemEditor key={modifyItem.id} initial={modifyItem} production={false} onSave={saveItemPreview} onClose={() => setModifyItem(null)} />}
+      {outsourceOpen && <EventOutsourceItemModal
+        eventId={eventId}
+        onClose={() => setOutsourceOpen(false)}
+        onCreated={async () => {
+          await Promise.all([refetchOutsourceItems(), refetchEventItems()]);
+          setStageFilter("outsourced");
+        }}
+      />}
+      {modifyItem && <EventItemEditor
+        key={modifyItem.id}
+        initial={modifyItem}
+        production={false}
+        qtyEditable={Number(modifyItem.eventStatusId) === Number(currentStatus?.id)}
+        metadataReadOnly
+        onSave={saveItemPreview}
+        onClose={() => setModifyItem(null)}
+      />}
       {productionOpen && <EventItemEditor
         initial={productionInitial ?? { name: '', qty: 1, area: '', pic: '', note: '', ownerships: ['IHP'] }}
         production

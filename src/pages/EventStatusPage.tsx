@@ -40,6 +40,7 @@ interface EventStatusRow {
   checkOwnership: boolean;
   allowDelete: boolean;
   borrowItem: boolean;
+  outsourceItem: boolean;
   code: string;
   id: number;
   order: number;
@@ -108,6 +109,7 @@ function mapEventStatuses(response: GetEventStatusResponse): EventStatusRow[] {
     checkOwnership: status.check_ownership === true,
     allowDelete: status.allow_delete === true,
     borrowItem: status.borrow_item === true,
+    outsourceItem: status.outsource_item === true,
     id: status.id,
     code: status.code || '',
     order: status.order_data,
@@ -124,6 +126,7 @@ export default function EventStatusPage() {
   const [checkOwnership, setCheckOwnership] = useState(false);
   const [allowDelete, setAllowDelete] = useState(false);
   const [borrowItem, setBorrowItem] = useState(false);
+  const [outsourceItem, setOutsourceItem] = useState(false);
   const { t } = useTranslation();
   const [statuses, setStatuses] = useState<EventStatusRow[]>([]);
   const [searchInput, setSearchInput] = useState("");
@@ -169,13 +172,21 @@ export default function EventStatusPage() {
 
   const total = response?.data?.total_records ?? 0;
   const currentPage = response?.data?.page ?? page;
-  const runningTotal = statuses.reduce((sum, status) => sum + status.eventRunning, 0);
-  const scanEnabled = statuses.filter((status) => status.scan === "Scan").length;
   const deleteRecord = statuses.find((status) => status.id === deleteTarget);
   const orderedStatuses = orderedResponse
     ? mapEventStatuses(orderedResponse).sort((left, right) => left.order - right.order)
     : [...statuses].sort((left, right) => left.order - right.order);
   const displayedStatuses = (reorderMode ? draftStatuses : statuses);
+  const statusStats = [
+    { label: t("wording.totalStatuses"), value: total, color: "var(--brand)", bg: "var(--brand-bg)" },
+    { label: t("wording.scanEnabled"), value: orderedStatuses.filter((status) => status.scan === "Scan").length, color: "var(--green)", bg: "var(--green-bg)" },
+    { label: t("sourceUpgrade.checkOwnership"), value: orderedStatuses.filter((status) => status.checkOwnership).length, color: "var(--green)", bg: "var(--green-bg)" },
+    { label: t("eventUpgrade.productionItem"), value: orderedStatuses.filter((status) => status.productionItem).length, color: "var(--purple)", bg: "var(--purple-bg)" },
+    { label: t("sourceUpgrade.allowDelete"), value: orderedStatuses.filter((status) => status.allowDelete).length, color: "var(--red)", bg: "var(--red-bg)" },
+    { label: t("sourceUpgrade.borrowItem"), value: orderedStatuses.filter((status) => status.borrowItem).length, color: "var(--brand)", bg: "var(--brand-bg)" },
+    { label: t("sourceUpgrade.outsourceItem"), value: orderedStatuses.filter((status) => status.outsourceItem).length, color: "var(--purple)", bg: "var(--purple-bg)" },
+    { label: t("wording.eventsRunning"), value: orderedStatuses.reduce((sum, status) => sum + status.eventRunning, 0), color: "var(--orange)", bg: "var(--orange-bg)" },
+  ];
 
   async function refetchStatusLists() {
     await queryClient.invalidateQueries(['useGetEventStatus'], { refetchActive: false });
@@ -207,6 +218,7 @@ export default function EventStatusPage() {
           check_ownership: checkOwnership,
           allow_delete: allowDelete,
           borrow_item: borrowItem,
+          outsource_item: outsourceItem,
           is_show_scan_result: values.action ? 1 : 0,
           order_data: Number(values.order_data),
           action: values.action,
@@ -256,6 +268,7 @@ export default function EventStatusPage() {
     setCheckOwnership(false);
     setAllowDelete(false);
     setBorrowItem(false);
+    setOutsourceItem(false);
     formik.resetForm({ values: emptyForm(total + 1) });
     setStatusModal(true);
   }
@@ -266,6 +279,7 @@ export default function EventStatusPage() {
     setCheckOwnership(row.checkOwnership);
     setAllowDelete(row.allowDelete);
     setBorrowItem(row.borrowItem);
+    setOutsourceItem(row.outsourceItem);
     formik.resetForm({
       values: {
         cuttingStock: row.cuttingStock,
@@ -337,6 +351,7 @@ export default function EventStatusPage() {
             check_ownership: status.checkOwnership,
             allow_delete: status.allowDelete,
             borrow_item: status.borrowItem,
+            outsource_item: status.outsourceItem,
             is_show_scan_result: status.scan === "Scan" ? 1 : 0,
             order_data: status.order,
             action: normalizeScanAction(status.action),
@@ -398,26 +413,18 @@ export default function EventStatusPage() {
         {t("wording.thisListDrivesTheStageStepperOnEvery")}
       </p>
 
-      <div className="stats-bar" style={{ gridTemplateColumns: "repeat(3,1fr)" }}>
-        {[
-          { label: t("wording.totalStatuses"), value: total, color: "var(--brand)", bg: "var(--brand-bg)" },
-          { label: t("wording.scanEnabledOnPage"), value: scanEnabled, color: "var(--green)", bg: "var(--green-bg)" },
-          { label: t("wording.eventsRunningOnPage"), value: runningTotal, color: "var(--orange)", bg: "var(--orange-bg)" },
-        ].map((stat) => (
+      <div className="stats-bar event-status-stats">
+        {statusStats.map((stat) => (
           <div key={stat.label} className="stat-card">
             <div className="stat-icon" style={{ background: stat.bg }}>
-              <span className="stat-value" style={{ color: stat.color }}>{stat.value}</span>
+              <span className="stat-value" style={{ color: stat.color }}>{fmtDisplayNumber(stat.value)}</span>
             </div>
             <span className="stat-label">{stat.label}</span>
           </div>
         ))}
       </div>
 
-      <div className="stats-bar">
-        {(['cuttingStock', 'productionItem'] as const).map(flag => <div className="stat-card" key={flag}><strong className="stat-value">{fmtDisplayNumber(orderedStatuses.filter(row => row[flag]).length)}</strong><span>{t('eventUpgrade.' + flag)}</span></div>)}
-        <div className="stat-card"><strong className="stat-value">{fmtDisplayNumber(orderedStatuses.filter(row => row.checkOwnership).length)}</strong><span>{t('sourceUpgrade.checkOwnership')}</span></div>
-      </div>
-      <div className="card">
+      <div className="card event-status-table-card">
         <div className="toolbar">
           <div className="toolbar-left">
             <div className="search-wrap">
@@ -458,30 +465,33 @@ export default function EventStatusPage() {
         )}
 
         <div className="table-wrap">
-          <table>
+          <table className="event-status-table">
             <thead>
               <tr>
                 <SortTh label={t("wording.order")} id="order_data" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 70, textAlign: "center" }} />
                 <th style={{ width: 80, textAlign: "center" }}>{t("wording.editOrder")}</th>
                 <SortTh label={t("wording.status")} id="name" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} />
-                <th>{t("sourceUpgrade.checkOwnership")}</th>
-                <th>{t('sourceUpgrade.allowDelete')}</th><th>{t('sourceUpgrade.borrowItem')}</th>
-                <th style={{ width: 100, textAlign: "center" }}>{t("wording.showScan")}</th>
-                <th>{t('wording.code')}</th>
-                {(['cuttingStock', 'productionItem'] as const).map(flag => <th key={flag}>{t('eventUpgrade.' + flag)}</th>)}
-                <th style={{ width: 120, textAlign: "center" }}>{t("wording.action")}</th>
+                <th className="event-status-compact-head">{t('wording.code')}</th>
+                <th className="event-status-compact-head">{t("wording.scan")}</th>
+                <th className="event-status-compact-head">{t("wording.action")}</th>
+                <th className="event-status-flag-head">{t('eventUpgrade.cuttingStock')}</th>
+                <th className="event-status-flag-head">{t('eventUpgrade.productionItem')}</th>
+                <th className="event-status-flag-head">{t("sourceUpgrade.checkOwnership")}</th>
+                <th className="event-status-flag-head">{t('sourceUpgrade.allowDelete')}</th>
+                <th className="event-status-flag-head">{t('sourceUpgrade.borrowItem')}</th>
+                <th className="event-status-flag-head">{t('sourceUpgrade.outsourceItem')}</th>
                 <SortTh label={t("wording.eventRunning")} id="active_event" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 120, textAlign: "right" }} />
-                <SortTh label={t("wording.createdAt")} id="created_at" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 120 }} />
+                <SortTh label={t("wording.updatedAt")} id="created_at" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 120 }} />
                 <th style={{ width: 100, textAlign: "center" }}>{t("wording.actions")}</th>
               </tr>
             </thead>
             <tbody>
               {isLoading && statuses.length === 0 ? (
-                <tr><td colSpan={14} style={{ textAlign: "center", padding: 40 }}>{t("wording.loadingEventStatuses")}</td></tr>
+                <tr><td colSpan={15} style={{ textAlign: "center", padding: 40 }}>{t("wording.loadingEventStatuses")}</td></tr>
               ) : isError ? (
-                <tr><td colSpan={14} style={{ textAlign: "center", padding: 40, color: "var(--red)" }}>{t("wording.failedToLoadEventStatuses")}</td></tr>
+                <tr><td colSpan={15} style={{ textAlign: "center", padding: 40, color: "var(--red)" }}>{t("wording.failedToLoadEventStatuses")}</td></tr>
               ) : displayedStatuses.length === 0 ? (
-                <tr><td colSpan={14} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>{t("wording.noStatusesFound")}</td></tr>
+                <tr><td colSpan={15} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>{t("wording.noStatusesFound")}</td></tr>
               ) : (
                 displayedStatuses.map((row) => {
                   const orderedIndex = displayedStatuses.findIndex((status) => status.id === row.id);
@@ -505,15 +515,16 @@ export default function EventStatusPage() {
                       )}
                     </td>
                     <td className="name-cell">{row.status}</td>
-                    <td><span className={row.checkOwnership ? 'badge badge-green' : 'badge badge-gray'}>{t('eventUpgrade.' + (row.checkOwnership ? 'true' : 'false'))}</span></td>
-                    <td><span className={row.allowDelete ? 'badge badge-green' : 'badge badge-gray'}>{t('eventUpgrade.' + (row.allowDelete ? 'true' : 'false'))}</span></td>
-                    <td><span className={row.borrowItem ? 'badge badge-green' : 'badge badge-gray'}>{t('eventUpgrade.' + (row.borrowItem ? 'true' : 'false'))}</span></td>
-                    <td style={{ textAlign: "center" }}><ScanBadge scan={row.scan} /></td>
-                    <td><span className="badge badge-gray">{row.code || '—'}</span></td>
-                    {(['cuttingStock', 'productionItem'] as const).map(flag => <td key={flag}><span className={row[flag] ? 'badge badge-green' : 'badge badge-gray'}>{t('eventUpgrade.' + (row[flag] ? 'true' : 'false'))}</span></td>)}
+                    <td className="event-status-compact-cell">{row.code ? <span className="badge badge-gray">{row.code}</span> : <span className="event-status-empty-value">—</span>}</td>
+                    <td className="event-status-compact-cell"><ScanBadge scan={row.scan} /></td>
                     <td style={{ textAlign: "center", fontWeight: 600 }}>
                       <ScanActionBadge action={row.action} />
                     </td>
+                    {[row.cuttingStock, row.productionItem, row.checkOwnership, row.allowDelete, row.borrowItem, row.outsourceItem].map((enabled, index) => (
+                      <td className="event-status-flag-cell" key={`${row.id}-flag-${index}`}>
+                        <span className={enabled ? 'badge badge-green' : 'badge badge-gray'}>{t('eventUpgrade.' + (enabled ? 'true' : 'false'))}</span>
+                      </td>
+                    ))}
                     <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>
                       <span style={{ color: row.eventRunning > 0 ? "var(--orange)" : "var(--text-muted)" }}>{row.eventRunning}</span>
                     </td>
@@ -572,7 +583,7 @@ export default function EventStatusPage() {
           ]} /></div>;
         })}
         <div className="form-group"><label>{t('sourceUpgrade.checkOwnership')}</label><SearchableSelect value={String(checkOwnership)} onChange={v => setCheckOwnership(v === 'true')} options={[{ value: 'false', label: t('eventUpgrade.false') }, { value: 'true', label: t('eventUpgrade.true') }]} /></div>
-        {[{ label: 'allowDelete', value: allowDelete, set: setAllowDelete }, { label: 'borrowItem', value: borrowItem, set: setBorrowItem }].map(field => <div className="form-group" key={field.label}><label>{t(`sourceUpgrade.${field.label}`)}</label><SearchableSelect value={String(field.value)} onChange={value => field.set(value === 'true')} options={[{ value: 'true', label: t('eventUpgrade.true') }, { value: 'false', label: t('eventUpgrade.false') }]} /></div>)}
+        {[{ label: 'allowDelete', value: allowDelete, set: setAllowDelete }, { label: 'borrowItem', value: borrowItem, set: setBorrowItem }, { label: 'outsourceItem', value: outsourceItem, set: setOutsourceItem }].map(field => <div className="form-group" key={field.label}><label>{t(`sourceUpgrade.${field.label}`)}</label><SearchableSelect value={String(field.value)} onChange={value => field.set(value === 'true')} options={[{ value: 'true', label: t('eventUpgrade.true') }, { value: 'false', label: t('eventUpgrade.false') }]} /></div>)}
         <TextInput label={t('wording.code')} value={formik.values.code} onChange={value => formik.setFieldValue('code', value.toUpperCase())} />
         <div className="form-group">
           <label>{t("wording.scan")}</label>

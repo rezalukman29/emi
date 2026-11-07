@@ -9,17 +9,19 @@ import { OWNERSHIPS, type Ownership } from '../lib/eventLifecycle';
 import ConversionForm, { type ConversionDraft, type ConversionSourceItem } from './ConversionForm';
 import useGetWarehouse from '../hooks/api/useGetWarehouse';
 import { type ProductionMetadata } from '../lib/sourcePreview';
-import { useGetVendors } from '../hooks/api/useVendors';
+import { CatalogItemPicker, QuickVendorPicker } from './QuickRequestPickers';
 
 export interface EventItemDraft {
   name: string; qty: number; area: string; areaId?: number; subArea?: string;
   subAreaId?: number; pic: string; note: string; ownerships: Ownership[];
   productionMetadata?: ProductionMetadata;
 }
-export default function EventItemEditor({ initial, production, onSave, onClose, onConvert, conversionItems = [] }: {
+export default function EventItemEditor({ initial, production, onSave, onClose, onConvert, conversionItems = [], qtyEditable = true, metadataReadOnly = false }: {
   initial: EventItemDraft; production: boolean; onSave: (value: EventItemDraft) => void | Promise<void>; onClose: () => void;
   onConvert?: (value: ConversionDraft) => void | Promise<void>;
   conversionItems?: ConversionSourceItem[];
+  qtyEditable?: boolean;
+  metadataReadOnly?: boolean;
 }) {
   const { t } = useTranslation();
   const [value, setValue] = useState(initial);
@@ -30,11 +32,6 @@ export default function EventItemEditor({ initial, production, onSave, onClose, 
   const warehouses: Array<{ id: number; nama: string }> = (Array.isArray(warehouseData) ? warehouseData : warehouseData?.data ?? []).filter((warehouse: { nama: string }) => warehouse.nama?.trim().toLowerCase() !== 'buy');
   const metadata = value.productionMetadata;
   const vendorOrigin = metadata?.vendorOrigin ?? 'Internal';
-  const { data: vendorResponse } = useGetVendors({
-    params: { page: 1, limit: 100, origin: vendorOrigin },
-    options: { enabled: production },
-  });
-  const vendors = vendorResponse?.data?.items ?? [];
   function setMetadata(patch: Partial<ProductionMetadata>) {
     setValue(v => ({ ...v, productionMetadata: { warehouseId: 0, warehouseName: '', vendorId: 0, vendorName: '', vendorOrigin: 'Internal', ...v.productionMetadata, ...patch } }));
   }
@@ -65,17 +62,19 @@ export default function EventItemEditor({ initial, production, onSave, onClose, 
     {production && <>
       <div className="form-group"><label>{t('sourceUpgrade.warehouse')}</label><SearchableSelect value={metadata?.warehouseId || ''} onChange={id => setMetadata({ warehouseId: Number(id), warehouseName: warehouses.find(w => w.id === Number(id))?.nama ?? '' })} options={warehouses.map(w => ({ value: w.id, label: w.nama }))} placeholder={t('sourceUpgrade.warehouse')} /></div>
       <div className="form-group"><label>{t('sourceUpgrade.origin')}</label><div className="seg-choice">{(['Internal', 'External'] as const).map(origin => <button type="button" key={origin} className={vendorOrigin === origin ? 'active' : ''} onClick={() => setMetadata({ vendorOrigin: origin, vendorId: 0, vendorName: '' })}>{origin}</button>)}</div></div>
-      <div className="form-group"><label>{t('sourceUpgrade.vendor')}</label><SearchableSelect value={metadata?.vendorId || ''} onChange={id => setMetadata({ vendorId: Number(id), vendorName: vendors.find(v => v.id === Number(id))?.name ?? '' })} options={vendors.filter(v => v.origin === (metadata?.vendorOrigin ?? 'Internal')).map(v => ({ value: v.id, label: v.name }))} placeholder={t('sourceUpgrade.vendor')} /></div>
+      <div className="form-group"><label>{t('sourceUpgrade.vendor')}</label><QuickVendorPicker kind="production" origin={vendorOrigin} value={metadata?.vendorId || ''} onChange={(vendorId, vendorName) => setMetadata({ vendorId, vendorName })} placeholder={t('sourceUpgrade.vendor')} /></div>
     </>}
-    {production ? <TextInput label={t('wording.name')} value={value.name} onChange={name => setValue(v => ({ ...v, name }))} isRequired /> : <strong>{value.name}</strong>}
-    <div className="form-group"><label>{t('wording.qty')}</label><input type="number" min="1" step="1" value={value.qty} onChange={e => setValue(v => ({ ...v, qty: Number(e.target.value) }))} /></div>
+    {production ? <div className="form-group"><label>{t('wording.name')} *</label><CatalogItemPicker value={value.name} onChange={name => setValue(v => ({ ...v, name }))} /></div> : <strong>{value.name}</strong>}
+    <div className="form-group"><label>{t('wording.qty')}</label><input type="number" min="1" step="1" value={value.qty} disabled={!qtyEditable} onChange={e => setValue(v => ({ ...v, qty: Number(e.target.value) }))} />
+      {!production && <small className="field-hint">{t(qtyEditable ? 'eventRules.qtyEditable' : 'eventRules.locationOnly')}</small>}
+    </div>
     <div className="form-group"><label>{t('wording.area')}</label><SearchableSelect value={value.areaId ?? ''} onChange={id => { const areaId = Number(id); const first = allSubAreas.find(row => row.area_id === areaId); setValue(v => ({ ...v, areaId, area: areas.find(a => a.id === areaId)?.name ?? '', subAreaId: first?.id, subArea: first?.sub_area_name ?? '' })); }} options={areas.map(a => ({ value: a.id, label: a.name }))} placeholder={t('wording.selectArea')} /></div>
     <div className="form-group"><label>{t('wording.subArea')}</label><SearchableSelect value={value.subAreaId ?? ''} disabled={!value.areaId || subAreas.length === 0} onChange={id => setValue(v => ({ ...v, subAreaId: Number(id), subArea: subAreas.find(a => a.id === Number(id))?.sub_area_name ?? '' }))} options={subAreas.map(a => ({ value: a.id, label: a.sub_area_name }))} placeholder={t('wording.selectSubArea')} /></div>
     {!production && <>
-      <TextInput label="PIC" value={value.pic} onChange={pic => setValue(v => ({ ...v, pic }))} />
-      <fieldset className="form-group ownership-fieldset"><legend>{t('lifecycle.allOwnership')}</legend><div className="ownership-choice-list">{OWNERSHIPS.map(o => <label className="ownership-choice" key={o}><input type="checkbox" checked={value.ownerships.includes(o)} onChange={() => setValue(v => ({ ...v, ownerships: v.ownerships.includes(o) ? v.ownerships.filter(x => x !== o) : [...v.ownerships, o] }))} /><span>{o}</span></label>)}</div></fieldset>
+      <TextInput label="PIC" value={value.pic} disabled={metadataReadOnly} onChange={pic => setValue(v => ({ ...v, pic }))} />
+      <fieldset className="form-group ownership-fieldset"><legend>{t('lifecycle.allOwnership')}</legend><div className="ownership-choice-list">{OWNERSHIPS.map(o => <label className={`ownership-choice${metadataReadOnly ? ' read-only' : ''}`} key={o}><input type="checkbox" disabled={metadataReadOnly} checked={value.ownerships.includes(o)} onChange={() => setValue(v => ({ ...v, ownerships: v.ownerships.includes(o) ? v.ownerships.filter(x => x !== o) : [...v.ownerships, o] }))} /><span>{o}</span></label>)}</div></fieldset>
     </>}
-    <TextInput label={t('wording.notes')} value={value.note} onChange={note => setValue(v => ({ ...v, note }))} />
+    <TextInput label={t('wording.notes')} value={value.note} disabled={!production && metadataReadOnly} onChange={note => setValue(v => ({ ...v, note }))} />
     </>}
   </Modal>;
 }

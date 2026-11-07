@@ -9,6 +9,7 @@ export interface EventStatusItem {
   allow_delete?: boolean;
   borrow_item?: boolean;
   check_ownership?: boolean;
+  outsource_item?: boolean;
   code?: string;
   cutting_stock?: boolean;
   stock_return?: boolean;
