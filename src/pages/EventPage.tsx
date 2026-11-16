@@ -23,6 +23,7 @@ import {
 import useGetEvents, { useGetEventLifecycleCounts } from "../hooks/api/useGetEvents";
 import { useQueryClient } from "react-query";
 import useGetEventStatus from "../hooks/api/useGetEventStatus";
+import useGetLocations from "../hooks/api/useGetLocations";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { utils } from "react-modern-calendar-datepicker";
@@ -179,6 +180,17 @@ export default function EventPage() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const { data: locationsResponse, isLoading: isLoadingLocations } =
+    useGetLocations();
+  const locationOptions = useMemo(
+    () =>
+      (locationsResponse?.data ?? []).map((location) => ({
+        value: location.id,
+        label: location.name,
+      })),
+    [locationsResponse?.data]
+  );
+
   const formik = useFormik<any>({
     initialValues: {
       name: isModify ? event?.name : "",
@@ -192,6 +204,9 @@ export default function EventPage() {
         : utils("en").getToday(),
       PIC: isModify ? event?.PIC : "",
       address: isModify ? event?.address : "",
+      location_id: isModify
+        ? event?.location_id ?? event?.location?.id ?? ""
+        : "",
       files: "",
       is_complete: 0,
       is_finished: 0,
@@ -218,6 +233,10 @@ export default function EventPage() {
       date_event: Yup.string().required(t("wording.required")),
       PIC: Yup.string().required(t("wording.required")),
       address: Yup.string().required(t("wording.required")),
+      location_id: Yup.number()
+        .typeError(t("wording.required"))
+        .moreThan(0, t("wording.required"))
+        .required(t("wording.required")),
       notes: Yup.string().required(t("wording.required")),
       scan_type: Yup.string().required(t("wording.required")),
     }),
@@ -236,6 +255,7 @@ export default function EventPage() {
         status: isModify ? values.status : firstEventStatus?.id,
         files: values.files,
         address: values.address,
+        location_id: Number(values.location_id),
         type: "",
         latitude: "",
         longitude: "",
@@ -246,17 +266,13 @@ export default function EventPage() {
       };
       try {
         if (!isModify && !firstEventStatus) throw new Error(t('lifecycle.noStages'));
-        const images = base64
-          ? base64.split(",")[1]
-          : isModify
-            ? String(event?.images ?? "")
-            : "";
+        const images = base64 ? base64.split(",")[1] : "";
 
         const result = isModify
           ? await InventoryService.editEvent({
               ...payload,
               id: event!.id,
-              images,
+              ...(images ? { images } : {}),
             })
           : await InventoryService.addEvent({ ...payload, images });
 
@@ -1258,6 +1274,21 @@ export default function EventPage() {
             placeholder={t("wording.eventLocationAddress")}
             errorText={formik.errors.address as string}
           />
+          <div className="form-group">
+                  <label>
+                    {t("wording.location")} <span className="required">*</span>
+                  </label>
+                  <SearchableSelect
+                    value={formik.values.location_id}
+                    onChange={(value) =>
+                      formik.setFieldValue("location_id", Number(value))
+                    }
+                    options={locationOptions}
+                    placeholder={t("wording.selectLocation")}
+                    disabled={isLoadingLocations}
+                    errorText={formik.errors.location_id as string}
+                  />
+          </div>
         </div>
 
         {/* ADDITIONAL */}

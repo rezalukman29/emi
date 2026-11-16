@@ -1,5 +1,5 @@
-import { needsInventorySetup } from '../lib/inventorySetup';
-import { fmtNum, formatIDR } from '../lib/format';
+import { needsInventorySetup } from "../lib/inventorySetup";
+import { fmtNum, formatIDR } from "../lib/format";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Pagination from "../components/Pagination";
@@ -18,7 +18,9 @@ import { InventoryService } from "../service/InventoryService";
 import { AiService } from "../service/AiService";
 import { useCategoryController } from "./lib/useCategoryController";
 import moment from "moment";
-import { STORAGE_BOOQABLE, isValidUrl, noImage } from "../utils/function";
+import {
+  getPhotoUrl,
+} from "../utils/function";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { APIResponse } from "../interfaces/BaseApiResponse";
@@ -31,7 +33,6 @@ import SearchableSelect from "../components/SearchableSelect";
 import useGetInventorySummary from "../hooks/api/useGetInventorySummary";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
-
 
 export interface ISelect {
   label: string;
@@ -170,7 +171,9 @@ function ImageViewerModal({ open, name, src, onClose }: any) {
                 <circle cx="8.5" cy="8.5" r="1.5" />
                 <polyline points="21 15 16 10 5 21" />
               </svg>
-              <p style={{ fontSize: 13, fontWeight: 500 }}>{i18n.t("wording.noImageUploaded")}</p>
+              <p style={{ fontSize: 13, fontWeight: 500 }}>
+                {i18n.t("wording.noImageUploaded")}
+              </p>
             </div>
           )}
         </div>
@@ -439,13 +442,22 @@ const stockStatuses: Array<{
 ];
 
 function stockBadge(s: any) {
-  const normalized = String(s || "").trim().toUpperCase().replace(/\s+/g, "_");
+  const normalized = String(s || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "_");
   if (normalized === "AVAILABLE")
-    return <span className="badge badge-green">{i18n.t("wording.available")}</span>;
+    return (
+      <span className="badge badge-green">{i18n.t("wording.available")}</span>
+    );
   if (normalized === "LOW_STOCK")
-    return <span className="badge badge-orange">{i18n.t("wording.lowStock")}</span>;
+    return (
+      <span className="badge badge-orange">{i18n.t("wording.lowStock")}</span>
+    );
   if (normalized === "OUT_OF_STOCK")
-    return <span className="badge badge-red">{i18n.t("wording.outOfStock")}</span>;
+    return (
+      <span className="badge badge-red">{i18n.t("wording.outOfStock")}</span>
+    );
   return <span className="badge badge-gray">{s || "-"}</span>;
 }
 
@@ -465,7 +477,7 @@ export default function InventoryPage() {
   const [imgPopup, setImgPopup] = useState({
     open: false,
     name: "",
-    src: null,
+    src: "",
   });
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -474,7 +486,9 @@ export default function InventoryPage() {
   const [listBarang, setListBarang] = useState<any[]>([]);
   const [setupOnly, setSetupOnly] = useState(false);
   const setupCount = listBarang.filter(needsInventorySetup).length;
-  const setupRows = setupOnly ? listBarang.filter(needsInventorySetup) : listBarang;
+  const setupRows = setupOnly
+    ? listBarang.filter(needsInventorySetup)
+    : listBarang;
   const [sort, setSort] = useState<SortType>("ASC");
   const [sortBy, setSortBy] = useState<string>("name");
   const [searchValue, setSearchValue] = useState<string>("");
@@ -485,10 +499,8 @@ export default function InventoryPage() {
   const [barang, setBarang] = useState<any | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [base64, setBase64] = useState<string>();
-  const {
-    data: inventorySummaryResponse,
-    refetch: refetchInventorySummary,
-  } = useGetInventorySummary();
+  const { data: inventorySummaryResponse, refetch: refetchInventorySummary } =
+    useGetInventorySummary();
   const inventorySummary = inventorySummaryResponse?.data;
 
   const emptyAiEdited = {
@@ -573,20 +585,39 @@ export default function InventoryPage() {
     try {
       setIsLoading(true);
       if (catFilter.length > 1) {
-        const lists = await Promise.all(catFilter.map(async category => {
-          const fetchPage = (page: number) => InventoryService.getInventory({ page, limit: 100, search: query, category: String(category), status: stockFilter || undefined, sort, sortBy });
-          const first = await fetchPage(1);
-          const rows = [...first.data.data];
-          for (let p = 2; p <= first.data.total_pages; p++) rows.push(...(await fetchPage(p)).data.data);
-          return rows;
-        }));
+        const lists = await Promise.all(
+          catFilter.map(async (category) => {
+            const fetchPage = (page: number) =>
+              InventoryService.getInventory({
+                page,
+                limit: 100,
+                search: query,
+                category: String(category),
+                status: stockFilter || undefined,
+                sort,
+                sortBy,
+              });
+            const first = await fetchPage(1);
+            const rows = [...first.data.data];
+            for (let p = 2; p <= first.data.total_pages; p++)
+              rows.push(...(await fetchPage(p)).data.data);
+            return rows;
+          }),
+        );
         if (request !== inventoryRequest.current) return;
-        const rows = [...new Map(lists.flat().map(row => [row.id, row])).values()];
+        const rows = [
+          ...new Map(lists.flat().map((row) => [row.id, row])).values(),
+        ];
         rows.sort((a, b) => {
-          const left = a[sortBy] ?? a.nama ?? '';
-          const right = b[sortBy] ?? b.nama ?? '';
-          const result = typeof left === 'number' && typeof right === 'number' ? left - right : String(left).localeCompare(String(right), 'id', { numeric: true });
-          return sort === 'DESC' ? -result : result;
+          const left = a[sortBy] ?? a.nama ?? "";
+          const right = b[sortBy] ?? b.nama ?? "";
+          const result =
+            typeof left === "number" && typeof right === "number"
+              ? left - right
+              : String(left).localeCompare(String(right), "id", {
+                  numeric: true,
+                });
+          return sort === "DESC" ? -result : result;
         });
         const limit = size ?? 10;
         setListBarang(rows.slice((page - 1) * limit, page * limit));
@@ -718,9 +749,7 @@ export default function InventoryPage() {
   });
 
   const runTuneUp = async (r: any, language: "id" | "en") => {
-    const photoUrl = isValidUrl(r.photo)
-      ? r.photo?.replace("http://66.42.48.163:9000/booqable/", STORAGE_BOOQABLE)
-      : `https://democreation.site/home/public/${r.photo}`;
+    const photoUrl = getPhotoUrl(r.photo);
 
     setAiTuneup((prev) => ({ ...prev, loading: true, language }));
 
@@ -744,9 +773,12 @@ export default function InventoryPage() {
       }));
     } catch (err) {
       setAiTuneup((prev) => ({ ...prev, loading: false }));
-      toast(err instanceof Error ? err.message : t("wording.failedToContactAi"), {
-        type: "error",
-      });
+      toast(
+        err instanceof Error ? err.message : t("wording.failedToContactAi"),
+        {
+          type: "error",
+        },
+      );
     }
   };
 
@@ -838,7 +870,12 @@ export default function InventoryPage() {
       </div>
 
       {/* Stats */}
-      <div className="card oct-toolbar"><strong>{t('october.assetValue')}: {formatIDR(inventorySummary?.total_asset_value)}</strong></div>
+      <div className="card oct-toolbar">
+        <strong>
+          {t("october.assetValue")}:{" "}
+          {formatIDR(inventorySummary?.total_asset_value)}
+        </strong>
+      </div>
       <div
         className="stats-bar"
         style={{ gridTemplateColumns: "repeat(4,1fr)" }}
@@ -905,10 +942,12 @@ export default function InventoryPage() {
                 setPage(1);
               }}
               options={[
-                ...categoryOptions.map((category: { value: string; label: string }) => ({
-                  value: category.label,
-                  label: category.label,
-                })),
+                ...categoryOptions.map(
+                  (category: { value: string; label: string }) => ({
+                    value: category.label,
+                    label: category.label,
+                  }),
+                ),
               ]}
               placeholder={t("wording.allCategories")}
               searchPlaceholder={t("wording.searchCategories")}
@@ -953,7 +992,24 @@ export default function InventoryPage() {
           </div>
         </div>
 
-        {(setupCount > 0 || setupOnly) && <div className="setup-banner"><div><strong>{setupCount} · {t('sourceUpgrade.needsSetup')}</strong><p>{t('sourceUpgrade.setupInfo')}</p></div><label className="ownership-choice"><input type="checkbox" checked={setupOnly} onChange={e => setSetupOnly(e.target.checked)} /><span>{t('sourceUpgrade.setupOnly')}</span></label></div>}
+        {(setupCount > 0 || setupOnly) && (
+          <div className="setup-banner">
+            <div>
+              <strong>
+                {setupCount} · {t("sourceUpgrade.needsSetup")}
+              </strong>
+              <p>{t("sourceUpgrade.setupInfo")}</p>
+            </div>
+            <label className="ownership-choice">
+              <input
+                type="checkbox"
+                checked={setupOnly}
+                onChange={(e) => setSetupOnly(e.target.checked)}
+              />
+              <span>{t("sourceUpgrade.setupOnly")}</span>
+            </label>
+          </div>
+        )}
         <div className="table-wrap">
           <table>
             <thead>
@@ -1028,9 +1084,14 @@ export default function InventoryPage() {
                   style={{ width: 100 }}
                   id="updated_at"
                 />
-                <th style={{ width: 60, textAlign: "center" }}>{t("wording.image")}</th>
-                <th>{t('october.itemValue')}</th><th>{t('october.totalValue')}</th>
-                <th style={{ width: 80, textAlign: "center" }}>{t("wording.action")}</th>
+                <th style={{ width: 60, textAlign: "center" }}>
+                  {t("wording.image")}
+                </th>
+                <th>{t("october.itemValue")}</th>
+                <th>{t("october.totalValue")}</th>
+                <th style={{ width: 80, textAlign: "center" }}>
+                  {t("wording.action")}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -1049,8 +1110,20 @@ export default function InventoryPage() {
                 </tr>
               ) : (
                 setupRows.map((r: any) => (
-                  <tr key={r.id} className={needsInventorySetup(r) ? "row-needs-setup" : undefined}>
-                    <td className="name-cell">{r.nama}{needsInventorySetup(r) && <span className="badge badge-orange needs-setup-chip">{t("sourceUpgrade.needsSetup")}</span>}</td>
+                  <tr
+                    key={r.id}
+                    className={
+                      needsInventorySetup(r) ? "row-needs-setup" : undefined
+                    }
+                  >
+                    <td className="name-cell">
+                      {r.nama}
+                      {needsInventorySetup(r) && (
+                        <span className="badge badge-orange needs-setup-chip">
+                          {t("sourceUpgrade.needsSetup")}
+                        </span>
+                      )}
+                    </td>
                     <td className="id-cell">{r.code}</td>
                     <td>
                       <span
@@ -1096,35 +1169,27 @@ export default function InventoryPage() {
                     </td>
                     <td style={{ textAlign: "center" }}>
                       <ImgCell
-                        src={
-                          isValidUrl(r.photo)
-                            ? r.photo?.replace(
-                                "http://66.42.48.163:9000/booqable/",
-                                STORAGE_BOOQABLE,
-                              )
-                            : r.photo
-                              ? `https://democreation.site/home/public/${r.photo}`
-                              : noImage
-                        }
+                        src={getPhotoUrl(r.photo)}
                         name={r.nama}
                         onClick={() =>
                           setImgPopup({
                             open: true,
                             name: r.nama,
-                            src: isValidUrl(r.photo)
-                              ? r.photo?.replace(
-                                  "http://66.42.48.163:9000/booqable/",
-                                  STORAGE_BOOQABLE,
-                                )
-                              : r.photo
-                                ? `https://democreation.site/home/public/${r.photo}`
-                                : noImage,
+                            src: getPhotoUrl(r.photo),
                           })
                         }
                       />
                     </td>
                     <td>{formatIDR(r.item_value ?? r.itemValue)}</td>
-                    <td>{formatIDR((r.item_value ?? r.itemValue) != null && r.stok_barang != null ? Number(r.item_value ?? r.itemValue) * Number(r.stok_barang) : null)}</td>
+                    <td>
+                      {formatIDR(
+                        (r.item_value ?? r.itemValue) != null &&
+                          r.stok_barang != null
+                          ? Number(r.item_value ?? r.itemValue) *
+                              Number(r.stok_barang)
+                          : null,
+                      )}
+                    </td>
                     <td>
                       <div
                         className="action-btns"
@@ -1170,7 +1235,10 @@ export default function InventoryPage() {
                         >
                           <IconEdit />
                         </button>
-                        <button className="btn-icon delete" title={t("wording.delete")}>
+                        <button
+                          className="btn-icon delete"
+                          title={t("wording.delete")}
+                        >
                           <IconDelete />
                         </button>
                       </div>
@@ -1193,7 +1261,9 @@ export default function InventoryPage() {
       {/* Add / Edit Modal */}
       <Modal
         open={modalOpen}
-        title={isModify ? t("wording.editInventory") : t("wording.newInventory")}
+        title={
+          isModify ? t("wording.editInventory") : t("wording.newInventory")
+        }
         onClose={() => setModalOpen(false)}
         size="xl"
         footer={
@@ -1303,7 +1373,8 @@ export default function InventoryPage() {
           </div>
           <div className="form-group">
             <label>
-              {t("wording.category")} <span style={{ color: "var(--red)" }}>*</span>
+              {t("wording.category")}{" "}
+              <span style={{ color: "var(--red)" }}>*</span>
             </label>
             <SearchableSelect
               value={formik.values.kategori_id}
@@ -1531,7 +1602,9 @@ export default function InventoryPage() {
                     onClick={() => handleAITuneUpLanguageChange(lang)}
                     disabled={aiTuneup.loading || aiTuneup.saving}
                     title={
-                      lang === "id" ? t("wording.bahasaIndonesia") : t("wording.english")
+                      lang === "id"
+                        ? t("wording.bahasaIndonesia")
+                        : t("wording.english")
                     }
                     style={{
                       border: "none",

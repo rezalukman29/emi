@@ -7,8 +7,10 @@ export interface EventStatusPayload {
   name: string;
   code: string;
   cutting_stock: boolean;
+  stock_return: boolean;
   production_item: boolean;
   check_ownership: boolean;
+  allow_add_item: boolean;
   allow_delete: boolean;
   borrow_item: boolean;
   outsource_item: boolean;

@@ -14,7 +14,7 @@ import { toast } from "react-toastify";
 import { useInfiniteQuery, useQueryClient } from "react-query";
 import Modal from "../components/Modal";
 import EventLifecycleModal, { type LifecycleModalMode } from '../components/EventLifecycleModal';
-import { useEventLifecycle, updateEventLifecycle, resolveLifecycle, LIFECYCLE_BADGES, OWNERSHIPS, ownershipClass, type Ownership } from '../lib/eventLifecycle';
+import { useEventLifecycle, updateEventLifecycle, resolveLifecycle, LIFECYCLE_BADGES, ownershipClass, type Ownership } from '../lib/eventLifecycle';
 import Stepper from "../components/Stepper";
 import SearchableSelect from "../components/SearchableSelect";
 import TextInput from "../components/TextInput";
@@ -64,7 +64,7 @@ import useCreatePackage from "../hooks/api/useCreatePackage";
 import useGetEventPackages from "../hooks/api/useGetEventPackages";
 import useGetEventItem, { type EventItem } from "../hooks/api/useGetEventItem";
 import useGetSubArea from "../hooks/api/useGetSubArea";
-import { STORAGE_BOOQABLE, isValidUrl, noImage } from "../utils/function";
+import { getPhotoUrl, noImage } from "../utils/function";
 import { useWarehouseController } from "./lib/useWarehouseController";
 import { useCategoryController } from "./lib/useCategoryController";
 import useGetEventDetail from "../hooks/api/useGetEventDetail";
@@ -330,13 +330,6 @@ function formatApiDate(value: EventItem["scan_in_date"]): string | null {
   });
 }
 
-function getPhotoUrl(photo: string): string {
-  return isValidUrl(photo)
-    ? photo?.replace("http://66.42.48.163:9000/booqable/", STORAGE_BOOQABLE)
-    : photo
-      ? `https://democreation.site/home/public/${photo}`
-      : noImage;
-}
 
 function mapEventItem(
   item: EventItem,
@@ -1136,14 +1129,15 @@ export default function EventDetailPage() {
     if (lifecycle?.stageId === currentStatus.id && lifecycle?.itemCount === lifecycleItems.length && lifecycle?.furthestStageId === eventStatuses[maxReachedIndex]?.id && (returnIndex < 0 || maxReachedIndex < returnIndex || lifecycle?.stockReturnReached)) return;
     try { updateEventLifecycle(eventId, { stageId: currentStatus.id, itemCount: lifecycleItems.length, furthestStageId: eventStatuses[maxReachedIndex]?.id, stockReturnReached: lifecycle?.stockReturnReached || (returnIndex >= 0 && maxReachedIndex >= returnIndex) }); } catch { /* API data remains usable without local storage. */ }
   }, [eventId, eventDetail, eventItemResponse, currentStatus?.id, lifecycleItems.length, lifecycle?.stageId, lifecycle?.itemCount, lifecycle?.furthestStageId, lifecycle?.stockReturnReached, maxReachedIndex, returnIndex, eventStatuses]);
-  const addLocked = Boolean(lifecycle?.stockReturnReached) || (returnIndex >= 0 && maxReachedIndex >= returnIndex) || ['returned-completed', 'transferred'].includes(closingFlag);
-  const productionEnabled = currentStatus?.production_item === true;
+  const addAllowedAtStage = currentStatus?.allow_add_item === true;
+  const addLocked = !addAllowedAtStage || Boolean(lifecycle?.stockReturnReached) || (returnIndex >= 0 && maxReachedIndex >= returnIndex) || ['returned-completed', 'transferred'].includes(closingFlag);
+  const productionEnabled = addAllowedAtStage && currentStatus?.production_item === true;
   const productionTabVisible = hasReachedProductionStatus(
     currentStatus,
     eventStatuses,
   );
-  const loanEnabled = currentStatus?.borrow_item === true;
-  const outsourceEnabled = currentStatus?.outsource_item === true;
+  const loanEnabled = addAllowedAtStage && currentStatus?.borrow_item === true;
+  const outsourceEnabled = addAllowedAtStage && currentStatus?.outsource_item === true;
   const borrowedItems = borrowedItemsResponse?.data?.items ?? [];
   const borrowedTabVisible = loanEnabled || borrowedItems.length > 0;
   const outsourceItems = outsourceItemsResponse?.data?.items ?? [];
@@ -2376,7 +2370,7 @@ export default function EventDetailPage() {
           </div>
         )}
 
-        {(isClosing || addLocked) && <p className="ed-lock-note">{t(isClosing ? 'eventUpgrade.itemsLocked' : 'eventUpgrade.addLocked')}</p>}
+        {(isClosing || addLocked) && <p className="ed-lock-note">{t(isClosing ? 'eventUpgrade.itemsLocked' : !addAllowedAtStage ? 'eventUpgrade.stageAddLocked' : 'eventUpgrade.addLocked')}</p>}
         <div className="ed-toolbar">
           <div className="search-wrap"><IconSearch /><input className="search-input" placeholder={t('wording.keywordSearch')} value={kwSearch} onChange={e => setKwSearch(e.target.value)} /></div>
           <div style={{ flex: 1, minWidth: 190 }}>

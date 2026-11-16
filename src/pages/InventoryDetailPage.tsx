@@ -3,10 +3,9 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import moment from "moment";
 
 import Modal from "../components/Modal";
-import { IconDelete, IconEdit } from "../components/icons";
 import useGetBarangDetail from "../hooks/api/useGetBarangDetail";
 import { BarangDetailI } from "../interfaces/InventoryInterface";
-import { STORAGE_BOOQABLE, isValidUrl } from "../utils/function";
+import { getPhotoUrl } from "../utils/function";
 import { useUnitController } from "./lib/useUnitController";
 import { useCategoryController } from "./lib/useCategoryController";
 import { useTranslation } from "react-i18next";
@@ -48,9 +47,8 @@ function getStockStatus(totalStock: number) {
 function getImageUrl(photo?: string) {
   if (!photo) return "";
 
-  return isValidUrl(photo)
-    ? photo.replace("http://66.42.48.163:9000/booqable/", STORAGE_BOOQABLE)
-    : `https://democreation.site/home/public/${photo}`;
+  return getPhotoUrl(photo)
+
 }
 
 export default function InventoryDetailPage() {
@@ -122,9 +120,8 @@ export default function InventoryDetailPage() {
   const reservedStock = item.stock_summary?.reserved ?? 0;
   const onEventStock = item.stock_summary?.on_event ?? 0;
   const stockStatus = getStockStatus(totalStock);
-  const imageUrl = item?.photo && isValidUrl(item?.photo)
-    ? item?.photo?.replace("http://66.42.48.163:9000/booqable/", STORAGE_BOOQABLE)
-    : `https://democreation.site/home/public/${item?.photo}`;
+  const imageUrl = item?.photo && getPhotoUrl(item?.photo)
+
   const updatedAt = item.updated_at ?? item.created_at;
 
 

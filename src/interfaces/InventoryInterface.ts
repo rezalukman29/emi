@@ -164,6 +164,7 @@ export interface PayloadAddEventI {
   images?: string;
   files: string;
   address: string;
+  location_id?: number;
   type: string;
   latitude: string;
   longitude: string;

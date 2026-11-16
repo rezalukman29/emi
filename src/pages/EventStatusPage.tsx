@@ -20,7 +20,6 @@ import type { EventStatusPayload } from '../hooks/api/usePostEventStatus';
 import usePutEventStatus from "../hooks/api/usePutEventStatus";
 import { InventoryService } from "../service/InventoryService";
 import { useTranslation } from "react-i18next";
-import i18n from "../i18n";
 import { eventStatusFeatures } from '../lib/eventStatusFeatures';
 import { hasExclusiveFlagConflict } from '../lib/eventStageRules';
 import "../eventUpgrade.css";
@@ -38,6 +37,7 @@ interface EventStatusRow {
   productionItem: boolean;
   cuttingStock: boolean;
   checkOwnership: boolean;
+  allowAddItem: boolean;
   allowDelete: boolean;
   borrowItem: boolean;
   outsourceItem: boolean;
@@ -59,6 +59,11 @@ interface EventStatusForm {
   cuttingStock: boolean;
   stockReturn: boolean;
   productionItem: boolean;
+  checkOwnership: boolean;
+  allowAddItem: boolean;
+  allowDelete: boolean;
+  borrowItem: boolean;
+  outsourceItem: boolean;
 }
 
 function emptyForm(order = 1): EventStatusForm {
@@ -68,6 +73,11 @@ function emptyForm(order = 1): EventStatusForm {
     name: "",
     order_data: String(order),
     action: "",
+    checkOwnership: false,
+    allowAddItem: true,
+    allowDelete: true,
+    borrowItem: false,
+    outsourceItem: false,
   };
 }
 
@@ -78,36 +88,18 @@ function normalizeScanAction(action: string): ScanAction {
     : "";
 }
 
-function ScanActionBadge({ action }: { action: string }) {
-  const normalized = normalizeScanAction(action);
-  if (!normalized) return <span>-</span>;
-
-  return (
-    <span className={`badge ${normalized === "SCAN_IN" ? "badge-green" : "badge-orange"}`}>
-      {normalized === "SCAN_IN" ? i18n.t("wording.scanIn") : i18n.t("wording.scanOut")}
-    </span>
-  );
-}
-
 function fmtDate(date: string) {
   if (!date) return "—";
   const [year, month, day] = date.split("-");
   return `${parseInt(day)} ${MONTHS_SHORT[parseInt(month) - 1]} ${year}`;
 }
 
-function ScanBadge({ scan }: { scan: ScanSetting }) {
-  return (
-    <span className={`event-status-scan-badge ${scan === "Scan" ? "scan" : "none"}`}>
-      {scan === "Scan" ? i18n.t("wording.scan") : i18n.t("wording.none")}
-    </span>
-  );
-}
-
 function mapEventStatuses(response: GetEventStatusResponse): EventStatusRow[] {
   return (response.data?.data ?? []).map((status) => ({
     ...eventStatusFeatures(status),
     checkOwnership: status.check_ownership === true,
-    allowDelete: status.allow_delete === true,
+    allowAddItem: status.allow_add_item !== false,
+    allowDelete: status.allow_delete !== false,
     borrowItem: status.borrow_item === true,
     outsourceItem: status.outsource_item === true,
     id: status.id,
@@ -121,12 +113,89 @@ function mapEventStatuses(response: GetEventStatusResponse): EventStatusRow[] {
   }));
 }
 
+type RuleGroupId = 'scan' | 'stock' | 'items' | 'requests';
+type BooleanRuleKey = 'cuttingStock' | 'stockReturn' | 'allowAddItem' | 'allowDelete' | 'checkOwnership' | 'productionItem' | 'borrowItem' | 'outsourceItem';
+interface RuleDefinition {
+  key: 'scan' | BooleanRuleKey;
+  group: RuleGroupId;
+  labelKey: string;
+  chipKey: string;
+  descriptionKey: string;
+  restrictive?: boolean;
+  unique?: boolean;
+}
+
+const RULE_GROUPS: Array<{ id: RuleGroupId; labelKey: string; color: string }> = [
+  { id: 'scan', labelKey: 'eventSettingsRules.groups.scanning', color: 'green' },
+  { id: 'stock', labelKey: 'eventSettingsRules.groups.stock', color: 'orange' },
+  { id: 'items', labelKey: 'eventSettingsRules.groups.items', color: 'blue' },
+  { id: 'requests', labelKey: 'eventSettingsRules.groups.requests', color: 'purple' },
+];
+
+const RULES: RuleDefinition[] = [
+  { key: 'scan', group: 'scan', labelKey: 'eventSettingsRules.scan.label', chipKey: 'eventSettingsRules.scan.chip', descriptionKey: 'eventSettingsRules.scan.description' },
+  { key: 'cuttingStock', group: 'stock', labelKey: 'eventUpgrade.cuttingStock', chipKey: 'eventSettingsRules.cuttingStock.chip', descriptionKey: 'eventSettingsRules.cuttingStock.description', unique: true },
+  { key: 'stockReturn', group: 'stock', labelKey: 'eventUpgrade.stockReturn', chipKey: 'eventSettingsRules.stockReturn.chip', descriptionKey: 'eventSettingsRules.stockReturn.description', unique: true },
+  { key: 'allowAddItem', group: 'items', labelKey: 'eventSettingsRules.allowAddItem.label', chipKey: 'eventSettingsRules.allowAddItem.chip', descriptionKey: 'eventSettingsRules.allowAddItem.description', restrictive: true },
+  { key: 'allowDelete', group: 'items', labelKey: 'sourceUpgrade.allowDelete', chipKey: 'eventSettingsRules.allowDelete.chip', descriptionKey: 'eventSettingsRules.allowDelete.description', restrictive: true },
+  { key: 'checkOwnership', group: 'items', labelKey: 'sourceUpgrade.checkOwnership', chipKey: 'eventSettingsRules.checkOwnership.chip', descriptionKey: 'eventSettingsRules.checkOwnership.description' },
+  { key: 'productionItem', group: 'requests', labelKey: 'eventUpgrade.productionItem', chipKey: 'eventSettingsRules.productionItem.chip', descriptionKey: 'eventSettingsRules.productionItem.description' },
+  { key: 'borrowItem', group: 'requests', labelKey: 'sourceUpgrade.borrowItem', chipKey: 'eventSettingsRules.borrowItem.chip', descriptionKey: 'eventSettingsRules.borrowItem.description' },
+  { key: 'outsourceItem', group: 'requests', labelKey: 'sourceUpgrade.outsourceItem', chipKey: 'eventSettingsRules.outsourceItem.chip', descriptionKey: 'eventSettingsRules.outsourceItem.description' },
+];
+
+function isRuleEnabled(row: EventStatusRow, rule: RuleDefinition) {
+  if (rule.key === 'scan') {
+    const action = normalizeScanAction(row.action);
+    return row.scan === 'Scan' || action === 'SCAN_IN' || action === 'SCAN_OUT';
+  }
+
+  return row[rule.key];
+}
+
+function RuleChips({ row }: { row: EventStatusRow }) {
+  const { t } = useTranslation();
+  const hasScanRule = isRuleEnabled(row, RULES[0]);
+  const hasEnabledStatusRule = [
+    hasScanRule,
+    row.cuttingStock,
+    row.stockReturn,
+    row.productionItem,
+    row.checkOwnership,
+    row.allowDelete,
+    row.allowAddItem,
+    row.borrowItem,
+    row.outsourceItem,
+  ].some(Boolean);
+
+  if (!hasEnabledStatusRule) {
+    return <span className="es-none">{t('eventSettingsRules.noSpecialRules')}</span>;
+  }
+
+  const chips = RULES.filter((rule) => rule.restrictive ? !isRuleEnabled(row, rule) : isRuleEnabled(row, rule));
+  if (!chips.length) return <span className="es-none">{t('eventSettingsRules.noSpecialRules')}</span>;
+  return <div className="es-chips">{chips.map((rule) => {
+    const color = rule.restrictive ? 'red' : RULE_GROUPS.find((group) => group.id === rule.group)?.color ?? 'blue';
+    return <span key={rule.key} className={`es-chip ${color}`} title={t(rule.descriptionKey)}>{t(rule.chipKey)}</span>;
+  })}</div>;
+}
+
+function RuleSwitch({ checked, disabled, label, description, note, onChange }: {
+  checked: boolean;
+  disabled?: boolean;
+  label: string;
+  description: string;
+  note?: string;
+  onChange: (checked: boolean) => void;
+}) {
+  return <label className={`es-switch-row${disabled ? ' disabled' : ''}`}>
+    <span className="es-switch-text"><strong>{label}</strong><span>{description}</span>{note && <em>{note}</em>}</span>
+    <input className="es-switch" type="checkbox" role="switch" checked={checked} disabled={disabled} onChange={(event) => onChange(event.target.checked)} />
+  </label>;
+}
+
 export default function EventStatusPage() {
   const queryClient = useQueryClient();
-  const [checkOwnership, setCheckOwnership] = useState(false);
-  const [allowDelete, setAllowDelete] = useState(false);
-  const [borrowItem, setBorrowItem] = useState(false);
-  const [outsourceItem, setOutsourceItem] = useState(false);
   const { t } = useTranslation();
   const [statuses, setStatuses] = useState<EventStatusRow[]>([]);
   const [searchInput, setSearchInput] = useState("");
@@ -141,6 +210,7 @@ export default function EventStatusPage() {
   const [reorderMode, setReorderMode] = useState(false);
   const [draftStatuses, setDraftStatuses] = useState<EventStatusRow[]>([]);
   const [isSavingOrder, setIsSavingOrder] = useState(false);
+  const [legendOpen, setLegendOpen] = useState(false);
 
   const {
     data: response,
@@ -177,16 +247,10 @@ export default function EventStatusPage() {
     ? mapEventStatuses(orderedResponse).sort((left, right) => left.order - right.order)
     : [...statuses].sort((left, right) => left.order - right.order);
   const displayedStatuses = (reorderMode ? draftStatuses : statuses);
-  const statusStats = [
-    { label: t("wording.totalStatuses"), value: total, color: "var(--brand)", bg: "var(--brand-bg)" },
-    { label: t("wording.scanEnabled"), value: orderedStatuses.filter((status) => status.scan === "Scan").length, color: "var(--green)", bg: "var(--green-bg)" },
-    { label: t("sourceUpgrade.checkOwnership"), value: orderedStatuses.filter((status) => status.checkOwnership).length, color: "var(--green)", bg: "var(--green-bg)" },
-    { label: t("eventUpgrade.productionItem"), value: orderedStatuses.filter((status) => status.productionItem).length, color: "var(--purple)", bg: "var(--purple-bg)" },
-    { label: t("sourceUpgrade.allowDelete"), value: orderedStatuses.filter((status) => status.allowDelete).length, color: "var(--red)", bg: "var(--red-bg)" },
-    { label: t("sourceUpgrade.borrowItem"), value: orderedStatuses.filter((status) => status.borrowItem).length, color: "var(--brand)", bg: "var(--brand-bg)" },
-    { label: t("sourceUpgrade.outsourceItem"), value: orderedStatuses.filter((status) => status.outsourceItem).length, color: "var(--purple)", bg: "var(--purple-bg)" },
-    { label: t("wording.eventsRunning"), value: orderedStatuses.reduce((sum, status) => sum + status.eventRunning, 0), color: "var(--orange)", bg: "var(--orange-bg)" },
-  ];
+  const scanEnabled = orderedStatuses.filter((status) => status.scan === 'Scan').length;
+  const runningTotal = orderedStatuses.reduce((sum, status) => sum + status.eventRunning, 0);
+  const cutStage = orderedStatuses.find((status) => status.cuttingStock);
+  const returnStage = orderedStatuses.find((status) => status.stockReturn);
 
   async function refetchStatusLists() {
     await queryClient.invalidateQueries(['useGetEventStatus'], { refetchActive: false });
@@ -214,11 +278,13 @@ export default function EventStatusPage() {
           name: values.name.trim(),
           code: values.code.trim().toUpperCase(),
           cutting_stock: values.cuttingStock,
+          stock_return: values.stockReturn,
           production_item: values.productionItem,
-          check_ownership: checkOwnership,
-          allow_delete: allowDelete,
-          borrow_item: borrowItem,
-          outsource_item: outsourceItem,
+          check_ownership: values.checkOwnership,
+          allow_add_item: values.allowAddItem,
+          allow_delete: values.allowDelete,
+          borrow_item: values.borrowItem,
+          outsource_item: values.outsourceItem,
           is_show_scan_result: values.action ? 1 : 0,
           order_data: Number(values.order_data),
           action: values.action,
@@ -265,10 +331,6 @@ export default function EventStatusPage() {
   function openNew() {
     if (reorderMode) return;
     setEditingId(null);
-    setCheckOwnership(false);
-    setAllowDelete(false);
-    setBorrowItem(false);
-    setOutsourceItem(false);
     formik.resetForm({ values: emptyForm(total + 1) });
     setStatusModal(true);
   }
@@ -276,10 +338,6 @@ export default function EventStatusPage() {
   function openEdit(row: EventStatusRow) {
     if (reorderMode) return;
     setEditingId(row.id);
-    setCheckOwnership(row.checkOwnership);
-    setAllowDelete(row.allowDelete);
-    setBorrowItem(row.borrowItem);
-    setOutsourceItem(row.outsourceItem);
     formik.resetForm({
       values: {
         cuttingStock: row.cuttingStock,
@@ -289,6 +347,11 @@ export default function EventStatusPage() {
         name: row.status,
         order_data: String(row.order),
         action: normalizeScanAction(row.action),
+        checkOwnership: row.checkOwnership,
+        allowAddItem: row.allowAddItem,
+        allowDelete: row.allowDelete,
+        borrowItem: row.borrowItem,
+        outsourceItem: row.outsourceItem,
       },
     });
     setStatusModal(true);
@@ -347,8 +410,10 @@ export default function EventStatusPage() {
             name: status.status,
             code: status.code,
             cutting_stock: status.cuttingStock,
+            stock_return: status.stockReturn,
             production_item: status.productionItem,
             check_ownership: status.checkOwnership,
+            allow_add_item: status.allowAddItem,
             allow_delete: status.allowDelete,
             borrow_item: status.borrowItem,
             outsource_item: status.outsourceItem,
@@ -402,26 +467,78 @@ export default function EventStatusPage() {
     }
   }
 
+  function formRuleValue(rule: RuleDefinition) {
+    return rule.key === 'scan' ? Boolean(formik.values.action) : formik.values[rule.key];
+  }
+
+  function setFormRule(rule: RuleDefinition, enabled: boolean) {
+    if (rule.key === 'scan') {
+      void formik.setFieldValue('action', enabled ? 'SCAN_IN' : '');
+      return;
+    }
+    void formik.setFieldValue(rule.key, enabled);
+    if (rule.key === 'cuttingStock' && enabled) void formik.setFieldValue('stockReturn', false);
+    if (rule.key === 'stockReturn' && enabled) void formik.setFieldValue('cuttingStock', false);
+  }
+
   return (
     <>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22 }}>
-        <h1 className="page-title" style={{ margin: 0 }}>{t("wording.eventStatus")}</h1>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22, gap: 12 }}>
+        <div>
+          <h1 className="page-title" style={{ margin: 0 }}>{t("wording.eventStatus")}</h1>
+          <p className="es-intro">
+            {t('eventSettingsRules.intro')}{' '}
+            <button type="button" className="link-btn" onClick={() => setLegendOpen((open) => !open)}>
+              {t(legendOpen ? 'eventSettingsRules.hideLegend' : 'eventSettingsRules.showLegend')}
+            </button>
+          </p>
+        </div>
         <button className="btn-new" disabled={reorderMode} onClick={openNew}><IconPlus /> {t("wording.newStatus")}</button>
       </div>
 
-      <p style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: -14, marginBottom: 18 }}>
-        {t("wording.thisListDrivesTheStageStepperOnEvery")}
-      </p>
+      {legendOpen && <div className="card es-legend">
+        {RULE_GROUPS.map((group) => <div className="es-legend-group" key={group.id}>
+          <div className="es-legend-title"><span className={`es-dot ${group.color}`} />{t(group.labelKey)}</div>
+          {RULES.filter((rule) => rule.group === group.id).map((rule) => <div className="es-legend-row" key={rule.key}>
+            <span className={`es-chip ${rule.restrictive ? 'red' : group.color}`}>{t(rule.chipKey)}</span>
+            <span>{t(rule.descriptionKey)}</span>
+          </div>)}
+        </div>)}
+      </div>}
 
-      <div className="stats-bar event-status-stats">
-        {statusStats.map((stat) => (
-          <div key={stat.label} className="stat-card">
-            <div className="stat-icon" style={{ background: stat.bg }}>
-              <span className="stat-value" style={{ color: stat.color }}>{fmtDisplayNumber(stat.value)}</span>
-            </div>
-            <span className="stat-label">{stat.label}</span>
+      <div className="es-summary">
+        <div className="es-kpis">
+          {[
+            { label: t('eventSettingsRules.stages'), value: total, color: 'var(--brand)' },
+            { label: t('eventSettingsRules.scanStages'), value: scanEnabled, color: 'var(--green)' },
+            { label: t('eventSettingsRules.eventsRunning'), value: runningTotal, color: 'var(--orange)' },
+          ].map((stat) => <div className="es-kpi" key={stat.label}>
+            <b style={{ color: stat.color }}>{fmtDisplayNumber(stat.value)}</b><span>{stat.label}</span>
+          </div>)}
+          <div className="es-kpi wide">
+            <span>{t('eventSettingsRules.stockPipeline')}</span>
+            <b className="es-kpi-text">
+              {cutStage
+                ? <>{t('eventSettingsRules.cutAtLabel')} <em>{cutStage.status}</em></>
+                : t('eventSettingsRules.noCutStage')}
+              {' · '}
+              {returnStage
+                ? <>{t('eventSettingsRules.returnAtLabel')} <em>{returnStage.status}</em></>
+                : t('eventSettingsRules.noReturnStage')}
+            </b>
           </div>
-        ))}
+        </div>
+        <ol className="es-pipeline" aria-label={t('eventSettingsRules.stageOrder')}>
+          {orderedStatuses.map((status) => <li key={status.id}>
+            <span className="es-pipe-num">{status.order}</span>
+            <span className="es-pipe-name">{status.status}</span>
+            <span className="es-pipe-icons">
+              {status.scan === 'Scan' && <i className="green" />}
+              {(status.cuttingStock || status.stockReturn) && <i className="orange" />}
+              {!status.allowAddItem && <i className="red" />}
+            </span>
+          </li>)}
+        </ol>
       </div>
 
       <div className="card event-status-table-card">
@@ -447,13 +564,10 @@ export default function EventStatusPage() {
                 <button className="btn-save-modal" disabled={isSavingOrder} onClick={() => void saveReorder()}><IconCheck /> {isSavingOrder ? t("wording.saving") : t("wording.saveOrder")}</button>
               </>
             ) : (
-              <>
-                <button className="btn btn-ghost" disabled={!orderedResponse} onClick={startReorder}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}><polyline points="8 7 12 3 16 7" /><polyline points="16 17 12 21 8 17" /><line x1="12" y1="3" x2="12" y2="21" /></svg>
-                  {t("wording.editOrder")}
-                </button>
-                <button className="btn-new" onClick={openNew}><IconPlus /> {t("wording.new")}</button>
-              </>
+              <button className="btn btn-ghost" disabled={!orderedResponse} onClick={startReorder}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}><polyline points="8 7 12 3 16 7" /><polyline points="16 17 12 21 8 17" /><line x1="12" y1="3" x2="12" y2="21" /></svg>
+                {t("wording.editOrder")}
+              </button>
             )}
           </div>
         </div>
@@ -465,66 +579,47 @@ export default function EventStatusPage() {
         )}
 
         <div className="table-wrap">
-          <table className="event-status-table">
+          <table className="es-table event-status-table">
             <thead>
               <tr>
-                <SortTh label={t("wording.order")} id="order_data" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 70, textAlign: "center" }} />
-                <th style={{ width: 80, textAlign: "center" }}>{t("wording.editOrder")}</th>
-                <SortTh label={t("wording.status")} id="name" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} />
-                <th className="event-status-compact-head">{t('wording.code')}</th>
-                <th className="event-status-compact-head">{t("wording.scan")}</th>
-                <th className="event-status-compact-head">{t("wording.action")}</th>
-                <th className="event-status-flag-head">{t('eventUpgrade.cuttingStock')}</th>
-                <th className="event-status-flag-head">{t('eventUpgrade.productionItem')}</th>
-                <th className="event-status-flag-head">{t("sourceUpgrade.checkOwnership")}</th>
-                <th className="event-status-flag-head">{t('sourceUpgrade.allowDelete')}</th>
-                <th className="event-status-flag-head">{t('sourceUpgrade.borrowItem')}</th>
-                <th className="event-status-flag-head">{t('sourceUpgrade.outsourceItem')}</th>
-                <SortTh label={t("wording.eventRunning")} id="active_event" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 120, textAlign: "right" }} />
-                <SortTh label={t("wording.updatedAt")} id="created_at" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 120 }} />
+                <SortTh label={t("wording.order")} id="order_data" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 100 }} />
+                <SortTh label={t("wording.status")} id="name" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ minWidth: 210 }} />
+                <th style={{ minWidth: 360 }}>{t('eventSettingsRules.rules')}</th>
+                <SortTh label={t("wording.eventRunning")} id="active_event" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 100, textAlign: "right" }} />
+                <SortTh label={t("wording.updatedAt")} id="created_at" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 125 }} />
                 <th style={{ width: 100, textAlign: "center" }}>{t("wording.actions")}</th>
               </tr>
             </thead>
             <tbody>
               {isLoading && statuses.length === 0 ? (
-                <tr><td colSpan={15} style={{ textAlign: "center", padding: 40 }}>{t("wording.loadingEventStatuses")}</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: "center", padding: 40 }}>{t("wording.loadingEventStatuses")}</td></tr>
               ) : isError ? (
-                <tr><td colSpan={15} style={{ textAlign: "center", padding: 40, color: "var(--red)" }}>{t("wording.failedToLoadEventStatuses")}</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: "center", padding: 40, color: "var(--red)" }}>{t("wording.failedToLoadEventStatuses")}</td></tr>
               ) : displayedStatuses.length === 0 ? (
-                <tr><td colSpan={15} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>{t("wording.noStatusesFound")}</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>{t("wording.noStatusesFound")}</td></tr>
               ) : (
                 displayedStatuses.map((row) => {
                   const orderedIndex = displayedStatuses.findIndex((status) => status.id === row.id);
                   return (
                   <tr key={row.id}>
-                    <td style={{ textAlign: "center" }}>
-                      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, background: "var(--brand-bg)", color: "var(--brand)", borderRadius: 6, fontWeight: 700, fontSize: 13 }}>{row.order}</span>
-                    </td>
-                    <td style={{ textAlign: "center" }}>
-                      {reorderMode ? (
-                        <div style={{ display: "inline-flex", flexDirection: "column", gap: 2 }}>
+                    <td>
+                      <div className="es-order">
+                        <span className="es-order-num">{row.order}</span>
+                        {reorderMode && <span className="es-order-arrows">
                           <button className="btn-icon" title={t("wording.moveUp")} style={{ padding: "2px 5px", color: orderedIndex <= 0 ? "var(--border)" : "var(--text-muted)" }} disabled={orderedIndex <= 0 || isSavingOrder} onClick={() => moveOrder(row.id, -1)}>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 12, height: 12 }}><polyline points="18 15 12 9 6 15" /></svg>
                           </button>
                           <button className="btn-icon" title={t("wording.moveDown")} style={{ padding: "2px 5px", color: orderedIndex === displayedStatuses.length - 1 ? "var(--border)" : "var(--text-muted)" }} disabled={orderedIndex === displayedStatuses.length - 1 || isSavingOrder} onClick={() => moveOrder(row.id, 1)}>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 12, height: 12 }}><polyline points="6 9 12 15 18 9" /></svg>
                           </button>
-                        </div>
-                      ) : (
-                        <span style={{ color: "var(--text-muted)", fontSize: 12 }}>—</span>
-                      )}
+                        </span>}
+                      </div>
                     </td>
-                    <td className="name-cell">{row.status}</td>
-                    <td className="event-status-compact-cell">{row.code ? <span className="badge badge-gray">{row.code}</span> : <span className="event-status-empty-value">—</span>}</td>
-                    <td className="event-status-compact-cell"><ScanBadge scan={row.scan} /></td>
-                    <td style={{ textAlign: "center", fontWeight: 600 }}>
-                      <ScanActionBadge action={row.action} />
+                    <td>
+                      <div className="es-name">{row.status}</div>
+                      {row.code && <span className="es-code">{row.code}</span>}
                     </td>
-                    {[row.cuttingStock, row.productionItem, row.checkOwnership, row.allowDelete, row.borrowItem, row.outsourceItem].map((enabled, index) => (
-                      <td className="event-status-flag-cell" key={`${row.id}-flag-${index}`}>
-                        <span className={enabled ? 'badge badge-green' : 'badge badge-gray'}>{t('eventUpgrade.' + (enabled ? 'true' : 'false'))}</span>
-                      </td>
-                    ))}
+                    <td><RuleChips row={row} /></td>
                     <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>
                       <span style={{ color: row.eventRunning > 0 ? "var(--orange)" : "var(--text-muted)" }}>{row.eventRunning}</span>
                     </td>
@@ -549,6 +644,7 @@ export default function EventStatusPage() {
 
       <Modal
         open={statusModal}
+        size="lg"
         title={editingId ? t("wording.editEventStatus") : t("wording.newEventStatus")}
         onClose={closeStatusModal}
         footer={
@@ -558,47 +654,43 @@ export default function EventStatusPage() {
           </>
         }
       >
-        <TextInput
-          value={formik.values.order_data}
-          onChange={(value) => formik.setFieldValue("order_data", value)}
-          isRequired
-          isNumeric
-          label={t("wording.order")}
-          placeholder={t("wording.eG1")}
-          errorText={formik.errors.order_data}
-        />
-        <TextInput
-          value={formik.values.name}
-          onChange={(value) => formik.setFieldValue("name", value)}
-          isRequired
-          label={t("wording.statusName")}
-          placeholder={t("wording.eGEventRunning")}
-          errorText={formik.errors.name}
-        />
-        {(['cuttingStock', 'productionItem'] as const).map(flag => {
-          const owner = flag === 'productionItem' ? undefined : orderedStatuses.find(row => row.id !== editingId && row[flag]);
-          return <div className="form-group" key={flag}><label>{t('eventUpgrade.' + flag)}</label><SearchableSelect value={String(formik.values[flag])} onChange={v => formik.setFieldValue(flag, v === 'true')} options={[
-            { value: 'false', label: t('eventUpgrade.false') },
-            { value: 'true', label: owner ? t('eventUpgrade.exclusive', { name: owner.status }) : t('eventUpgrade.true'), disabled: Boolean(owner) },
-          ]} /></div>;
-        })}
-        <div className="form-group"><label>{t('sourceUpgrade.checkOwnership')}</label><SearchableSelect value={String(checkOwnership)} onChange={v => setCheckOwnership(v === 'true')} options={[{ value: 'false', label: t('eventUpgrade.false') }, { value: 'true', label: t('eventUpgrade.true') }]} /></div>
-        {[{ label: 'allowDelete', value: allowDelete, set: setAllowDelete }, { label: 'borrowItem', value: borrowItem, set: setBorrowItem }, { label: 'outsourceItem', value: outsourceItem, set: setOutsourceItem }].map(field => <div className="form-group" key={field.label}><label>{t(`sourceUpgrade.${field.label}`)}</label><SearchableSelect value={String(field.value)} onChange={value => field.set(value === 'true')} options={[{ value: 'true', label: t('eventUpgrade.true') }, { value: 'false', label: t('eventUpgrade.false') }]} /></div>)}
-        <TextInput label={t('wording.code')} value={formik.values.code} onChange={value => formik.setFieldValue('code', value.toUpperCase())} />
-        <div className="form-group">
-          <label>{t("wording.scan")}</label>
-          <SearchableSelect
-            value={formik.values.action}
-            onChange={(value) => formik.setFieldValue("action", value as ScanAction)}
-            options={[
-              { value: "", label: t("wording.none") },
-              { value: "SCAN_IN", label: t("wording.scanIn") },
-              { value: "SCAN_OUT", label: t("wording.scanOut") },
-            ]}
-            placeholder={t("wording.none")}
-            errorText={formik.errors.action}
-          />
+        <div className="es-form-basics">
+          <TextInput value={formik.values.order_data} onChange={(value) => formik.setFieldValue("order_data", value)} isRequired isNumeric label={t("wording.order")} placeholder={t("wording.eG1")} errorText={formik.errors.order_data} />
+          <TextInput value={formik.values.name} onChange={(value) => formik.setFieldValue("name", value)} isRequired label={t("wording.statusName")} placeholder={t("wording.eGEventRunning")} errorText={formik.errors.name} />
+          <TextInput label={t('wording.code')} value={formik.values.code} onChange={(value) => formik.setFieldValue('code', value.toUpperCase())} />
         </div>
+        {RULE_GROUPS.map((group) => <div className="es-form-group" key={group.id}>
+          <div className="es-legend-title"><span className={`es-dot ${group.color}`} />{t(group.labelKey)}</div>
+          {RULES.filter((rule) => rule.group === group.id).map((rule) => {
+            const owner = rule.key === 'cuttingStock'
+              ? orderedStatuses.find((row) => row.id !== editingId && row.cuttingStock)
+              : rule.key === 'stockReturn'
+                ? orderedStatuses.find((row) => row.id !== editingId && row.stockReturn)
+                : undefined;
+            const enabled = Boolean(formRuleValue(rule));
+            return <div key={rule.key}>
+              <RuleSwitch
+                checked={enabled}
+                disabled={Boolean(owner) && !enabled}
+                label={t(rule.labelKey)}
+                description={t(rule.descriptionKey)}
+                note={owner && !enabled ? t('eventSettingsRules.usedBy', { name: owner.status }) : undefined}
+                onChange={(value) => setFormRule(rule, value)}
+              />
+              {rule.key === 'scan' && enabled && <div className="es-scan-action">
+                <SearchableSelect
+                  value={formik.values.action}
+                  onChange={(value) => formik.setFieldValue('action', value as ScanAction)}
+                  options={[
+                    { value: 'SCAN_IN', label: t('wording.scanIn') },
+                    { value: 'SCAN_OUT', label: t('wording.scanOut') },
+                  ]}
+                  errorText={formik.errors.action}
+                />
+              </div>}
+            </div>;
+          })}
+        </div>)}
       </Modal>
 
       <Modal

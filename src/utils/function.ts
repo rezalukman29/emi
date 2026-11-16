@@ -2,6 +2,7 @@ import moment from "moment";
 import i18n from "../i18n";
 
 export const STORAGE_BOOQABLE = "https://storage-booqable.emi.web.id/booqable/"
+export const STORAGE_DEMOCREATION = "https://democreation.site/home/public/"
 export const noImage =
   "https://upload.wikimedia.org/wikipedia/commons/a/a3/Image-not-found.png";
 
@@ -92,4 +93,21 @@ export const formatLocalDate = (value?: string | null) => {
     month: "short",
     year: "numeric",
   }).format(date);
+};
+
+export const getPhotoUrl = (photo?: string): string => {
+  if (!photo) return noImage;
+
+  if (isValidUrl(photo)) {
+    return photo.replace(
+      "http://66.42.48.163:9000/booqable/",
+      STORAGE_BOOQABLE,
+    );
+  }
+
+  if (photo.includes("users/")) {
+    return `${STORAGE_BOOQABLE}${photo}`;
+  }
+
+  return `${STORAGE_DEMOCREATION}${photo}`;
 };
