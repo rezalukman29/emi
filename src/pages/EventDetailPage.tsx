@@ -70,6 +70,7 @@ import { useCategoryController } from "./lib/useCategoryController";
 import useGetEventDetail from "../hooks/api/useGetEventDetail";
 import useGetEventStatus from "../hooks/api/useGetEventStatus";
 import { prepareEventFile, useDeleteEventFile, useGetEventFiles, useUploadEventFile } from "../hooks/api/useEventFiles";
+import useCheckEventItems, { type EventItemCheckUpdate } from "../hooks/api/useCheckEventItems";
 import { InventoryService } from "../service/InventoryService";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
@@ -241,6 +242,8 @@ interface DisplayItem {
   scanned: boolean;
   groupId: string | null;
   groupName: string | null;
+  checkedStatus?: boolean;
+  checkedNote?: string;
 }
 
 interface PackageGroup {
@@ -301,6 +304,10 @@ interface ItemCardProps {
   onDelete?: (id: number) => void;
   onOpen?: (item: DisplayItem) => void;
   onModify?: (item: DisplayItem) => void;
+  checkingMode?: boolean;
+  isCheckUpdating?: boolean;
+  onToggleChecked?: (item: DisplayItem) => void;
+  onEditCheckNote?: (item: DisplayItem) => void;
 }
 
 interface AreaItem {
@@ -373,6 +380,8 @@ function mapEventItem(
     scanned: Boolean(scanIn || scanOut),
     groupId: groupName ? `api:${groupName}` : null,
     groupName,
+    checkedStatus: Boolean(item.checked_status),
+    checkedNote: item.checked_note ?? "",
     ownerships,
     isReturned: item.is_returned === 1,
     isTransferredToOtherEvent: item.is_transfer_to_other_event === 1,
@@ -470,6 +479,10 @@ function ItemCard({
   onDelete,
   onOpen,
   onModify,
+  checkingMode = false,
+  isCheckUpdating = false,
+  onToggleChecked,
+  onEditCheckNote,
 }: ItemCardProps) {
   return (
     <div className="item-card clickable" role="button" tabIndex={0} onClick={() => onOpen?.(item)} onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onOpen?.(item); } }}>
@@ -532,14 +545,14 @@ function ItemCard({
           </svg>
           {item.pic || "-"}
         </div>
-        <div className="item-indicators">
+        {!checkingMode && <div className="item-indicators">
           <div className="indicator-row">
             <span className={`indicator-box${item.checking ? " checked" : ""}`}>
               {item.checking && <CheckIcon />}
             </span>
             {i18n.t("wording.checking")}
           </div>
-        </div>
+        </div>}
         <div className="scan-rows">
           <div className="scan-row">
             <span className={`scan-badge ${item.scanIn ? "ok" : "fail"}`}>
@@ -565,6 +578,19 @@ function ItemCard({
           </div>
         </div>
         {item.note && <div className="item-note">{item.note}</div>}
+        {checkingMode && item.id > 0 && (
+          <div className="event-item-check" onClick={(event) => event.stopPropagation()}>
+            {item.checkedNote && <div className="event-item-check-note">{item.checkedNote}</div>}
+            <div className="event-item-check-actions">
+              <button type="button" className={`event-item-check-toggle${item.checkedStatus ? " checked" : ""}`} disabled={isCheckUpdating} onClick={() => onToggleChecked?.(item)}>
+                <CheckIcon /> {item.checkedStatus ? "Checked" : "Mark checked"}
+              </button>
+              <button type="button" className="event-item-note-button" disabled={isCheckUpdating} onClick={() => onEditCheckNote?.(item)}>
+                {item.checkedNote ? "Edit note" : "Note"}
+              </button>
+            </div>
+          </div>
+        )}
         {showScanButton && (
           <div className="item-actions">
             <button className={`btn-ia-scan${isScanned ? " scanned" : ""}`} onClick={e => { e.stopPropagation(); onScan(item); }}>
@@ -603,9 +629,10 @@ function StockBadge({ item }: { item: DisplayItem }) {
     : item.stockCut ? <span className="badge badge-orange">{i18n.t('eventUpgrade.stockCut')}</span> : null;
 }
 
-function ItemTable({ items, onOpen, onModify, onDelete, onScan, showScanButton, isScanned }: {
+function ItemTable({ items, onOpen, onModify, onDelete, onScan, showScanButton, isScanned, checkingMode = false, isCheckUpdating = false, onToggleChecked, onEditCheckNote }: {
   items: DisplayItem[]; onOpen: (item: DisplayItem) => void; onModify?: (item: DisplayItem) => void;
   onDelete?: (id: number) => void; onScan: (item: DisplayItem) => void; showScanButton: boolean; isScanned: (item: DisplayItem) => boolean;
+  checkingMode?: boolean; isCheckUpdating?: boolean; onToggleChecked?: (item: DisplayItem) => void; onEditCheckNote?: (item: DisplayItem) => void;
 }) {
   const { t } = useTranslation();
   return <div className="table-wrap item-table-wrap"><table className="item-table"><thead><tr>
@@ -624,7 +651,14 @@ function ItemTable({ items, onOpen, onModify, onDelete, onScan, showScanButton, 
     </div><div className="item-table-note">{item.note}</div></td>
     <td>{item.area}<div className="item-table-sub">{item.subArea}</div></td><td>{fmtDisplayNumber(item.qty)} {item.unit}</td><td>{item.pic || '—'}</td>
     <td>{item.ownerships.map(o => <span key={o} className={'badge ' + ownershipClass(o)}>{o}</span>)}</td>
-    <td>{item.checking ? '✓' : '—'}</td><td>{item.scanIn || '—'}</td><td>{item.scanOut || '—'}</td>
+    <td>{checkingMode && item.id > 0 ? <div className="event-check-table">
+      <span>{item.checkedStatus ? "Checked" : "Not checked"}</span>
+      {item.checkedNote && <small>{item.checkedNote}</small>}
+      <div>
+        <button type="button" className={`event-check-toggle${item.checkedStatus ? " checked" : ""}`} disabled={isCheckUpdating} onClick={event => { event.stopPropagation(); onToggleChecked?.(item); }}><CheckIcon /> {item.checkedStatus ? "Checked" : "Mark checked"}</button>
+        <button type="button" className="event-check-note-button" disabled={isCheckUpdating} onClick={event => { event.stopPropagation(); onEditCheckNote?.(item); }}>{item.checkedNote ? "Edit note" : "Note"}</button>
+      </div>
+    </div> : item.checking ? '✓' : '—'}</td><td>{item.scanIn || '—'}</td><td>{item.scanOut || '—'}</td>
     <td><div className="item-table-actions">
       {showScanButton && item.id > 0 && <button className="btn btn-check" onClick={e => { e.stopPropagation(); onScan(item); }}>{t(isScanned(item) ? 'common.actions.rescan' : 'common.actions.scan')}</button>}
       {onModify && <button className="btn-icon" title={t('eventUpgrade.modify')} onClick={e => { e.stopPropagation(); onModify(item); }}><IconEdit /></button>}
@@ -674,6 +708,17 @@ export default function EventDetailPage() {
     options: { enabled: Boolean(eventId) },
   });
   const eventDetail = eventDetailResponse?.data;
+  const {
+    data: checkingItemsResponse,
+    isLoading: isCheckingItemsLoading,
+    isError: isCheckingItemsError,
+    refetch: refetchCheckingItems,
+  } = useGetEventItem({
+    params: { event_id: eventId, order: "asc" },
+    options: {
+      enabled: Boolean(eventId && eventDetail?.is_complete === 1 && eventDetail.is_finished === 0),
+    },
+  });
   const { data: eventStatusResponse } = useGetEventStatus({
     params: {
       page: 1,
@@ -722,6 +767,10 @@ export default function EventDetailPage() {
   const statusNames = useMemo(
     () => new Map(eventStatuses.map((status) => [status.id, status.name])),
     [eventStatuses],
+  );
+  const checkingEventItems = useMemo(
+    () => (checkingItemsResponse?.data ?? []).map((item) => mapEventItem(item, statusNames)),
+    [checkingItemsResponse?.data, statusNames],
   );
   const eventDate = formatEventDate(
     eventDetail?.date_event?.trim() || eventDetail?.event_start,
@@ -831,8 +880,18 @@ export default function EventDetailPage() {
   }
 
   const [selectedArea, setSelectedArea] = useState("");
-  const [stageFilter, setStageFilter] = useState<"all" | "waiting" | "added" | "grouped" | "production" | "borrowed" | "outsourced">("all");
+  const [stageFilter, setStageFilter] = useState<"all" | "waiting" | "added" | "unchecked" | "checked" | "grouped" | "production" | "borrowed" | "outsourced">("all");
+  const [checkingModeActivated, setCheckingModeActivated] = useState(false);
+  const [startCheckOpen, setStartCheckOpen] = useState(false);
+  const [checkNoteItem, setCheckNoteItem] = useState<DisplayItem | null>(null);
+  const [checkNoteDraft, setCheckNoteDraft] = useState("");
   const [kwSearch, setKwSearch] = useState("");
+  const { mutateAsync: updateEventItemChecks, isLoading: isUpdatingEventItemChecks } = useCheckEventItems();
+  useEffect(() => {
+    setCheckingModeActivated(false);
+    setStartCheckOpen(false);
+    setCheckNoteItem(null);
+  }, [eventId]);
 
   const {
     data: productionItemResponse,
@@ -1332,6 +1391,22 @@ export default function EventDetailPage() {
       scopedItems.filter((item) => !isItemScannedForCurrentStatus(item)),
     [currentScanAction, scopedItems],
   );
+  const checkableEventItems = checkingEventItems.filter((item) => item.id > 0);
+  const checkedCount = checkableEventItems.filter((item) => item.checkedStatus).length;
+  const uncheckedCount = checkableEventItems.length - checkedCount;
+  const backendCheckingEvent = eventDetail?.is_complete === 1 && eventDetail.is_finished === 0;
+  useEffect(() => {
+    if (backendCheckingEvent && checkedCount > 0) setCheckingModeActivated(true);
+  }, [backendCheckingEvent, checkedCount]);
+  const checkingMode = backendCheckingEvent && (checkingModeActivated || checkedCount > 0);
+  const allEventItemsChecked = uncheckedCount === 0;
+  const canStartItemChecking = backendCheckingEvent && !checkingMode && uncheckedCount > 0 && !isCheckingItemsLoading && !isCheckingItemsError;
+  const canReturnEvent = backendCheckingEvent && allEventItemsChecked && !isCheckingItemsLoading && !isCheckingItemsError;
+  const checkableScopedItems = checkableEventItems.filter((item) => {
+    if (selectedArea && item.area !== selectedArea) return false;
+    if (kwSearch && !item.name.toLowerCase().includes(kwSearch.toLowerCase()) && !item.area.toLowerCase().includes(kwSearch.toLowerCase())) return false;
+    return true;
+  });
   const effectiveStageFilter =
     stageFilter === "production" && !productionTabVisible
       ? "all"
@@ -1341,12 +1416,18 @@ export default function EventDetailPage() {
         ? "all"
       : stageFilter === "waiting" && !stageScanEnabled
         ? "all"
+      : (stageFilter === "unchecked" || stageFilter === "checked") && !checkingMode
+        ? "all"
         : stageFilter;
   const displayedItems =
     effectiveStageFilter === "waiting"
       ? waitingScanItems
       : effectiveStageFilter === "added"
         ? currentStageItems
+      : effectiveStageFilter === "unchecked"
+        ? checkableScopedItems.filter((item) => !item.checkedStatus)
+      : effectiveStageFilter === "checked"
+        ? checkableScopedItems.filter((item) => item.checkedStatus)
         : scopedItems;
 
   const areaLabel = selectedArea || "All Place";
@@ -1465,6 +1546,14 @@ export default function EventDetailPage() {
   const crossedStages = pendingStage !== null && pendingStage > currentStageIndex ? eventStatuses.slice(currentStageIndex + 1, pendingStage + 1) : [];
   const willCut = crossedStages.some(s => features[s.id]?.cuttingStock);
   const willReturn = crossedStages.some(s => features[s.id]?.stockReturn);
+  const pendingScanInStage = crossedStages.find(
+    status => status.action?.trim().toUpperCase().replace(/\s+/g, "_") === "SCAN_IN",
+  );
+  const showScanInConfirmation = Boolean(pendingScanInStage) || currentScanAction === "SCAN_IN";
+  const scanInStageName = pendingScanInStage?.name ?? currentStatus?.name ?? "";
+  const pendingCutStage = crossedStages.find(status => features[status.id]?.cuttingStock);
+  const cutPreviewItems = items.filter(item => !item.stockCut);
+  const cutPreviewQty = cutPreviewItems.reduce((sum, item) => sum + item.qty, 0);
   async function changeEventStatus(_step: string, targetIndex: number) {
     if (isChangingEventStatus || isClosing) return;
     if (
@@ -1582,8 +1671,11 @@ export default function EventDetailPage() {
       } catch {
         toast.error(t('lifecycle.saveFailed'));
       }
+      setCheckingModeActivated(true);
+      setStageFilter("unchecked");
       await Promise.all([
         refetchEventDetail(),
+        refetchEventItems(),
         queryClient.invalidateQueries(['events-v2']),
       ]);
       toast.success(response.message || t('lifecycle.checking-inventory'));
@@ -1592,6 +1684,57 @@ export default function EventDetailPage() {
     } finally {
       setIsChangingEventStatus(false);
     }
+  }
+
+  function confirmEnterCheckingMode() {
+    setCheckingModeActivated(true);
+    setStageFilter("unchecked");
+    setStartCheckOpen(false);
+  }
+
+  async function saveEventItemCheck(updates: EventItemCheckUpdate[]) {
+    if (!updates.length || isUpdatingEventItemChecks) return;
+    try {
+      const response = await updateEventItemChecks(updates);
+      await Promise.all([refetchEventItems(), refetchCheckingItems()]);
+      toast.success(response.message || "Item checking updated.");
+      return true;
+    } catch (error) {
+      toast.error(getCheckoutErrorMessage(error));
+      return false;
+    }
+  }
+
+  function toggleEventItemCheck(item: DisplayItem) {
+    void saveEventItemCheck([{
+      id: item.id,
+      checked: !item.checkedStatus,
+      note: item.checkedNote ?? "",
+    }]);
+  }
+
+  function openEventItemCheckNote(item: DisplayItem) {
+    setCheckNoteItem(item);
+    setCheckNoteDraft(item.checkedNote ?? "");
+  }
+
+  async function saveEventItemCheckNote() {
+    if (!checkNoteItem) return;
+    const saved = await saveEventItemCheck([{
+      id: checkNoteItem.id,
+      checked: Boolean(checkNoteItem.checkedStatus),
+      note: checkNoteDraft.trim(),
+    }]);
+    if (saved) setCheckNoteItem(null);
+  }
+
+  function checkAllEventItems() {
+    if (!checkableEventItems.length || !window.confirm("Mark every item as Checked?")) return;
+    void saveEventItemCheck(
+      checkableEventItems
+        .filter((item) => !item.checkedStatus)
+        .map((item) => ({ id: item.id, checked: true, note: item.checkedNote ?? "" })),
+    );
   }
 
   async function refreshAfterFinalize(): Promise<void> {
@@ -2395,7 +2538,11 @@ export default function EventDetailPage() {
             />
           </div>
           {closingFlag === 'ready-to-close' && <button className="btn-next-stage" disabled={isLoading || isError || isChangingEventStatus} onClick={() => void startCheckingInventory()}>{isChangingEventStatus ? t("wording.saving") : t('lifecycle.closeStart')}</button>}
-          {closingFlag === 'checking-inventory' && <button className="btn-next-stage" onClick={() => setLifecycleMode('return')}>{t('lifecycle.readyReturn')}</button>}
+          {canStartItemChecking && <button className="btn-next-stage" onClick={() => setStartCheckOpen(true)}>Start Checking</button>}
+          {backendCheckingEvent && <button className={`btn-next-stage${canReturnEvent ? " ready" : ""}`} disabled={!canReturnEvent} title={canReturnEvent ? "Put the stock back" : `Check every item first (${checkedCount}/${checkableEventItems.length})`} onClick={() => setLifecycleMode('return')}>
+            {isCheckingItemsLoading || canReturnEvent ? "For Return" : `For Return · ${checkedCount}/${checkableEventItems.length} checked`}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+          </button>}
           {!isClosing && hasNextStage && (
             <button
               type="button"
@@ -2414,6 +2561,25 @@ export default function EventDetailPage() {
           )}
         </div>
 
+        {checkingMode && (
+          <div className="event-check-progress">
+            <div className="event-check-progress-head">
+              <strong>Ready for Checking</strong>
+              <span>{checkedCount} of {checkableEventItems.length} items checked</span>
+              {uncheckedCount > 0 && <button type="button" className="event-check-all-link" disabled={isUpdatingEventItemChecks} onClick={checkAllEventItems}>{isUpdatingEventItemChecks ? t("wording.saving") : "Check all"}</button>}
+            </div>
+            <div className="event-check-progress-bar" role="progressbar" aria-valuenow={checkedCount} aria-valuemin={0} aria-valuemax={checkableEventItems.length}>
+              <span style={{ width: `${checkableEventItems.length ? (checkedCount / checkableEventItems.length) * 100 : 100}%` }} />
+            </div>
+            <p>{uncheckedCount === 0
+              ? 'Every item is checked. Click "For Return" to put the stock back.'
+              : "Mark each item Checked and add a note for anything damaged, missing or still at the venue. Nothing can be added to this event any more."}</p>
+          </div>
+        )}
+        {backendCheckingEvent && isCheckingItemsError && (
+          <div className="stepper-error-banner">{t("wording.failedToLoadEventItems")}</div>
+        )}
+
         {stepperError && (
           <div className="stepper-error-banner">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
@@ -2422,7 +2588,7 @@ export default function EventDetailPage() {
           </div>
         )}
 
-        {(isClosing || addLocked) && <p className="ed-lock-note">{t(isClosing ? 'eventUpgrade.itemsLocked' : !addAllowedAtStage ? 'eventUpgrade.stageAddLocked' : 'eventUpgrade.addLocked')}</p>}
+        {!checkingMode && (isClosing || addLocked) && <p className="ed-lock-note">{t(isClosing ? 'eventUpgrade.itemsLocked' : !addAllowedAtStage ? 'eventUpgrade.stageAddLocked' : 'eventUpgrade.addLocked')}</p>}
         <div className="ed-toolbar">
           <div className="search-wrap"><IconSearch /><input className="search-input" placeholder={t('wording.keywordSearch')} value={kwSearch} onChange={e => setKwSearch(e.target.value)} /></div>
           <div style={{ flex: 1, minWidth: 190 }}>
@@ -2461,9 +2627,9 @@ export default function EventDetailPage() {
         </div>
 
         <div className="stage-tabs-row"><div className="stage-tabs">
-          {(['all', 'added', ...(stageScanEnabled ? ['waiting'] : []), 'grouped', ...(productionTabVisible ? ['production'] : []), ...(borrowedTabVisible ? ['borrowed'] : []), ...(outsourceTabVisible ? ['outsourced'] : [])] as const).map(tab => {
-            const labels: Record<string, string> = { all: 'wording.all', added: 'wording.addedNew', waiting: 'wording.waitingScan', grouped: 'wording.grouped', production: 'eventUpgrade.production', borrowed: 'eventBorrow.borrowed', outsourced: 'sourceUpgrade.outsourced' };
-            const counts: Record<string, number> = { all: scopedItems.length, added: currentStageItems.length, waiting: waitingScanItems.length, grouped: packages.length, production: productionRequestsResponse ? apiProductionRequests.length : (productionItemResponse ? backendProductionItems.length : items.filter(item => item.isNewProductionItem).length) + requests.length, borrowed: borrowedItems.length, outsourced: outsourceItems.length };
+          {(['all', 'added', ...(stageScanEnabled ? ['waiting'] : []), ...(checkingMode ? ['unchecked', 'checked'] : []), 'grouped', ...(productionTabVisible ? ['production'] : []), ...(borrowedTabVisible ? ['borrowed'] : []), ...(outsourceTabVisible ? ['outsourced'] : [])] as const).map(tab => {
+            const labels: Record<string, string> = { all: 'wording.all', added: 'wording.addedNew', waiting: 'wording.waitingScan', unchecked: 'Not checked', checked: 'Checked', grouped: 'wording.grouped', production: 'eventUpgrade.production', borrowed: 'eventBorrow.borrowed', outsourced: 'sourceUpgrade.outsourced' };
+            const counts: Record<string, number> = { all: scopedItems.length, added: currentStageItems.length, waiting: waitingScanItems.length, unchecked: uncheckedCount, checked: checkedCount, grouped: packages.length, production: productionRequestsResponse ? apiProductionRequests.length : (productionItemResponse ? backendProductionItems.length : items.filter(item => item.isNewProductionItem).length) + requests.length, borrowed: borrowedItems.length, outsourced: outsourceItems.length };
             return <button key={tab} className={'stage-tab' + (effectiveStageFilter === tab ? ' active' : '')} onClick={() => setStageFilter(tab as typeof stageFilter)}>{t(labels[tab])} <span className="stage-tab-count">{counts[tab]}</span></button>;
           })}
         </div><div className="view-toggle">{(['cards', 'list'] as const).map(mode => <button key={mode} title={t('eventUpgrade.' + mode)} aria-label={t('eventUpgrade.' + mode)} aria-pressed={viewMode === mode} className={viewMode === mode ? 'active' : ''} onClick={() => { setViewMode(mode); try { localStorage.setItem('emi_event_detail_view', mode); } catch { /* Preference is optional. */ } }}>{mode === 'cards' ? '▦' : '☰'}</button>)}</div></div>
@@ -2549,6 +2715,10 @@ export default function EventDetailPage() {
                 onScan={openScanPopup}
                 showScanButton={stageScanEnabled}
                 isScanned={isItemScannedForCurrentStatus}
+                checkingMode={checkingMode}
+                isCheckUpdating={isUpdatingEventItemChecks}
+                onToggleChecked={toggleEventItemCheck}
+                onEditCheckNote={openEventItemCheckNote}
               />
             ) : (
               <div className="items-grid">
@@ -2563,6 +2733,10 @@ export default function EventDetailPage() {
                     onDelete={deleteAllowed ? deleteItem : undefined}
                     onOpen={(selectedItem) => setDetailId(selectedItem.id)}
                     onModify={isClosing ? undefined : setModifyItem}
+                    checkingMode={checkingMode}
+                    isCheckUpdating={isUpdatingEventItemChecks}
+                    onToggleChecked={toggleEventItemCheck}
+                    onEditCheckNote={openEventItemCheckNote}
                   />
                 ))}
               </div>
@@ -2596,7 +2770,7 @@ export default function EventDetailPage() {
                             <button className={`btn-ia-scan${allScanned ? " scanned" : ""}`} onClick={() => openScanPopup(members[0])}>{allScanned ? t("wording.reScanBox") : t("wording.scanBox")}</button>
                           )}
                         </div>
-                        {viewMode === 'list' ? <ItemTable items={members} onOpen={item => setDetailId(item.id)} onModify={isClosing ? undefined : setModifyItem} onDelete={deleteAllowed ? deleteItem : undefined} onScan={openScanPopup} showScanButton={false} isScanned={isItemScannedForCurrentStatus} /> : <div className="items-grid package-items-grid">
+                        {viewMode === 'list' ? <ItemTable items={members} onOpen={item => setDetailId(item.id)} onModify={isClosing ? undefined : setModifyItem} onDelete={deleteAllowed ? deleteItem : undefined} onScan={openScanPopup} showScanButton={false} isScanned={isItemScannedForCurrentStatus} checkingMode={checkingMode} isCheckUpdating={isUpdatingEventItemChecks} onToggleChecked={toggleEventItemCheck} onEditCheckNote={openEventItemCheckNote} /> : <div className="items-grid package-items-grid">
                           {members.map((item) => (
                             <ItemCard
                               key={item.id}
@@ -2607,6 +2781,10 @@ export default function EventDetailPage() {
                               onScan={openScanPopup}
                               onDelete={deleteAllowed ? deleteItem : undefined}
                               onOpen={item => setDetailId(item.id)} onModify={isClosing ? undefined : setModifyItem}
+                              checkingMode={checkingMode}
+                              isCheckUpdating={isUpdatingEventItemChecks}
+                              onToggleChecked={toggleEventItemCheck}
+                              onEditCheckNote={openEventItemCheckNote}
                             />
                           ))}
                         </div>}
@@ -2626,13 +2804,15 @@ export default function EventDetailPage() {
         ) : (
           <>
             <p className="summary-text">
-              {effectiveStageFilter === "waiting" ? (
+              {checkingMode ? (
+                <><strong>{fmtDisplayNumber(displayedItems.length)}</strong> {displayedItems.length === 1 ? "item" : "items"} · {areaLabel}</>
+              ) : effectiveStageFilter === "waiting" ? (
                 <><strong>{fmtDisplayNumber(displayedItems.length)}</strong> {t("wording.itemInline")}{displayedItems.length === 1 ? "" : t("wording.s")} {t("wording.stillNeed")}{displayedItems.length === 1 ? t("wording.s") : ""} {t("wording.scanningAtEventStatus")} <strong>&ldquo;{eventStatus}&rdquo;</strong> {t("wording.inArea")} <strong>&ldquo;{areaLabel}&rdquo;</strong></>
               ) : (
                 <><strong>{fmtDisplayNumber(displayedItems.length)}</strong> {t("wording.itemSWithStatus")} <strong>&ldquo;{eventStatus}&rdquo;</strong> {t("wording.inArea")} <strong>&ldquo;{areaLabel}&rdquo;</strong></>
               )}
             </p>
-            {viewMode === 'list' ? <ItemTable items={displayedItems} onOpen={item => setDetailId(item.id)} onModify={isClosing ? undefined : setModifyItem} onDelete={deleteAllowed ? deleteItem : undefined} onScan={openScanPopup} showScanButton={stageScanEnabled} isScanned={isItemScannedForCurrentStatus} /> : <div className="items-grid">
+            {viewMode === 'list' ? <ItemTable items={displayedItems} onOpen={item => setDetailId(item.id)} onModify={isClosing ? undefined : setModifyItem} onDelete={deleteAllowed ? deleteItem : undefined} onScan={openScanPopup} showScanButton={stageScanEnabled} isScanned={isItemScannedForCurrentStatus} checkingMode={checkingMode} isCheckUpdating={isUpdatingEventItemChecks} onToggleChecked={toggleEventItemCheck} onEditCheckNote={openEventItemCheckNote} /> : <div className="items-grid">
             {displayedItems.map((item) => (
               <ItemCard
                 key={item.id}
@@ -2643,6 +2823,10 @@ export default function EventDetailPage() {
                 onScan={openScanPopup}
                 onDelete={deleteAllowed ? deleteItem : undefined}
                               onOpen={item => setDetailId(item.id)} onModify={isClosing ? undefined : setModifyItem}
+                checkingMode={checkingMode}
+                isCheckUpdating={isUpdatingEventItemChecks}
+                onToggleChecked={toggleEventItemCheck}
+                onEditCheckNote={openEventItemCheckNote}
               />
             ))}
             </div>}
@@ -2671,13 +2855,46 @@ export default function EventDetailPage() {
         <button className="btn-cancel-modal" onClick={cancelStageFlow}>{t('wording.cancel')}</button>
         <button className="btn-save-modal" onClick={() => setFlowStep('confirm')}>{t('eventUpgrade.confirm')}</button>
       </>}><p className="prod-notice prod-notice-warn">{t('sourceUpgrade.brokenWarning')}</p><div className="table-wrap"><table className="broken-table"><tbody>{items.filter(item => item.brokenReport).map(item => <tr key={item.id}><td>{item.name}</td><td>{fmtDisplayNumber(item.brokenReport?.qty)} / {fmtDisplayNumber(item.qty)}</td></tr>)}</tbody></table></div></Modal>
-      <Modal open={pendingStage !== null && flowStep === 'confirm'} title={t('eventUpgrade.confirmStage')} onClose={() => { if (!isChangingEventStatus) setPendingStage(null); }} footer={<>
-        <button className="btn-cancel-modal" disabled={isChangingEventStatus} onClick={() => setPendingStage(null)}>{t('wording.cancel')}</button>
-        <button className="btn-save-modal" disabled={isChangingEventStatus || pendingStage === null} onClick={() => { if (pendingStage !== null) void changeEventStatus(stages[pendingStage], pendingStage); }}>{t(isChangingEventStatus ? 'wording.saving' : willReturn ? 'eventUpgrade.confirmReturn' : willCut ? 'eventUpgrade.confirmCut' : 'eventUpgrade.confirm')}</button>
-      </>}>
+      <Modal
+        open={pendingStage !== null && flowStep === 'confirm'}
+        title={pendingStage !== null && pendingStage > currentStageIndex && showScanInConfirmation ? 'Move to next stage?' : t('eventUpgrade.confirmStage')}
+        onClose={() => { if (!isChangingEventStatus) setPendingStage(null); }}
+        footer={<>
+          <button className="btn-cancel-modal" disabled={isChangingEventStatus} onClick={() => setPendingStage(null)}><IconClose /> {t('wording.cancel')}</button>
+          <button className="btn-save-modal" disabled={isChangingEventStatus || pendingStage === null} onClick={() => { if (pendingStage !== null) void changeEventStatus(stages[pendingStage], pendingStage); }}>
+            <IconCheck /> {isChangingEventStatus
+              ? t('wording.saving')
+              : showScanInConfirmation && willCut
+                ? 'Confirm & Cut Stock'
+                : t(willReturn ? 'eventUpgrade.confirmReturn' : willCut ? 'eventUpgrade.confirmCut' : 'eventUpgrade.confirm')}
+          </button>
+        </>}
+      >
         <div className="stage-confirm-route">{eventStatus} → <strong>{pendingStage !== null ? stages[pendingStage] : ''}</strong></div>
-        {(willCut || willReturn) && <p className="ed-lock-note">{t('eventUpgrade.preview')}</p>}
-        {willCut && <p className="stage-confirm-cut">{t('eventUpgrade.cutWarning', { count: items.filter(i => !i.stockCut).length, qty: items.filter(i => !i.stockCut).reduce((sum, i) => sum + i.qty, 0) })}</p>}
+        {showScanInConfirmation && <p className="confirm-msg">Items must be scanned at this stage before the event can move on.</p>}
+        {(willCut || willReturn) && !showScanInConfirmation && <p className="ed-lock-note">{t('eventUpgrade.preview')}</p>}
+        {willCut && showScanInConfirmation && (
+          <div className="stage-stock-move">
+            <div className="stage-stock-move-art" aria-hidden="true">
+              <div className="stage-stock-move-node">
+                <span className="stage-stock-move-icon"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinejoin="round"><path d="M6 20 24 9l18 11v19a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V20Z" /><rect x="15" y="27" width="18" height="14" rx="1.5" /><path d="M15 32h18M15 37h18" /></svg></span>
+                <small>Warehouse</small>
+              </div>
+              <div className="stage-stock-move-flow">
+                <span className="stage-stock-move-qty">−{fmtDisplayNumber(cutPreviewQty)} pcs</span>
+                <span className="stage-stock-move-dots"><i /><i /><i /></span>
+              </div>
+              <div className="stage-stock-move-node">
+                <span className="stage-stock-move-icon"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><rect x="7" y="11" width="34" height="30" rx="4" /><path d="M7 19h34M16 7v8M32 7v8" /><path d="m19 30 4 4 8-8" strokeWidth="2.6" strokeLinejoin="round" /></svg></span>
+                <small>This event</small>
+              </div>
+            </div>
+            <div className="stage-stock-move-title">Stock will be cut and reserved for this event</div>
+            <p>{pendingCutStage?.name ?? scanInStageName} has <strong>Cutting Stock</strong> on. When confirmed, <strong>{fmtDisplayNumber(cutPreviewItems.length)} items ({fmtDisplayNumber(cutPreviewQty)} pcs)</strong> are marked as stock cut in the preview.</p>
+            <p className="stage-stock-move-foot">{t('eventUpgrade.preview')}</p>
+          </div>
+        )}
+        {willCut && !showScanInConfirmation && <p className="stage-confirm-cut">{t('eventUpgrade.cutWarning', { count: cutPreviewItems.length, qty: cutPreviewQty })}</p>}
         {willReturn && <p className="stage-confirm-cut stage-confirm-return">{t('eventUpgrade.returnWarning')}</p>}
         {pendingStage !== null && pendingStage > currentStageIndex && pendingConverts.length > 0 && <div className="prod-notice prod-notice-warn"><div><p>{t('conversion.warning')}</p><ul>{pendingConverts.map(r => <li key={r.id}>{r.fromQty} × {r.fromName} → {r.toQty} × {r.toName} ({r.fromWarehouse})</li>)}</ul></div></div>}
       </Modal>
@@ -2842,6 +3059,51 @@ export default function EventDetailPage() {
         onClose={() => setProductionOpen(false)}
       />}
       <EventLifecycleModal key={`${eventId}-${lifecycleMode}`} eventId={eventId} eventName={eventName} items={lifecycleItems} stages={eventStatuses} mode={lifecycleMode} onFinalized={refreshAfterFinalize} onOwnershipSaved={() => { setLifecycleMode(null); if (resumeStage !== null) { setPendingStage(resumeStage); setResumeStage(null); afterOwnership(); } }} onClose={() => { setLifecycleMode(null); setResumeStage(null); }} />
+      <Modal
+        open={startCheckOpen}
+        title="Start Checking"
+        onClose={() => setStartCheckOpen(false)}
+        footer={
+          <>
+            <button type="button" className="btn-cancel-m" onClick={() => setStartCheckOpen(false)}>
+              <IconClose /> {t("wording.cancel")}
+            </button>
+            <button type="button" className="btn-save-modal" onClick={confirmEnterCheckingMode}>
+              <IconCheck /> Start Checking
+            </button>
+          </>
+        }
+      >
+        <div className="event-check-confirm">
+          <div className="event-check-confirm-steps">
+            <span className="active">Ready for Checking</span>
+            <span>For Return</span>
+            <span>Returned &amp; Completed</span>
+          </div>
+          <p>Start checking the items returned from this event. Mark each item as checked and add a note if needed.</p>
+          <p className="event-check-warning">Items cannot be added or modified while checking is in progress.</p>
+        </div>
+      </Modal>
+      <Modal
+        open={Boolean(checkNoteItem)}
+        title={checkNoteItem?.checkedNote ? "Edit checking note" : "Add checking note"}
+        onClose={() => setCheckNoteItem(null)}
+        footer={
+          <>
+            <button type="button" className="btn-cancel-m" onClick={() => setCheckNoteItem(null)}>
+              <IconClose /> {t("wording.cancel")}
+            </button>
+            <button type="button" className="btn-save-modal" disabled={isUpdatingEventItemChecks} onClick={() => void saveEventItemCheckNote()}>
+              <IconCheck /> {isUpdatingEventItemChecks ? t("wording.saving") : t("common.actions.save")}
+            </button>
+          </>
+        }
+      >
+        <div className="event-check-note-modal">
+          <strong>{checkNoteItem?.name}</strong>
+          <textarea value={checkNoteDraft} onChange={(event) => setCheckNoteDraft(event.target.value)} rows={4} maxLength={1000} placeholder="Add a note about this item" />
+        </div>
+      </Modal>
       <Modal
         open={atcOpen}
         title={t("wording.addToCart")}

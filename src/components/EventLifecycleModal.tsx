@@ -85,7 +85,14 @@ export default function EventLifecycleModal({ eventId, eventName, items, stages,
   };
   const shown = mode === 'ownership' ? (bulkItemsResponse?.data ?? []) : items;
   const unresolved = items.filter(item => !local?.items?.[item.id]?.resolution);
-  const checked = items.filter(item => local?.items?.[item.id]?.checked).length;
+  const checked = items.filter(item => item.checked_status).length;
+  const totalQty = items.reduce((sum, item) => sum + item.qty, 0);
+  const warehouseReturnQty = items
+    .filter(item => local?.items?.[item.id]?.resolution !== 'transferred')
+    .reduce((sum, item) => sum + item.qty, 0);
+  const returnedCount = items.filter(item => local?.items?.[item.id]?.resolution === 'returned').length;
+  const transferredCount = items.filter(item => local?.items?.[item.id]?.resolution === 'transferred').length;
+  const eventStage = stages.find(stage => stage.id === items[0]?.event_status_id)?.name ?? '—';
   function run(update: Parameters<typeof updateLifecycle>[0], description?: string) {
     try { updateLifecycle(update, description); return true; }
     catch { toast.error(t('lifecycle.saveFailed')); return false; }
@@ -105,6 +112,19 @@ export default function EventLifecycleModal({ eventId, eventName, items, stages,
       delete item.transfer;
     }, `${eventName}: Rollback return/transfer ${id}`);
     if (transferId === id) setTransferId(null);
+  }
+  function markEverythingReturned() {
+    if (!unresolved.length) return;
+    if (run(data => {
+      const event = data.events[eventId] ||= {};
+      event.items ||= {};
+      unresolved.forEach(item => {
+        event.items![item.id] = { ...event.items![item.id], resolution: 'returned' };
+        delete event.items![item.id].transfer;
+      });
+    }, `${eventName}: Mark all items returned`)) {
+      setTransferId(null);
+    }
   }
   async function applyOwnership() {
     const ids = selected;
@@ -195,11 +215,14 @@ export default function EventLifecycleModal({ eventId, eventName, items, stages,
       toast.error(error instanceof Error ? error.message : t('lifecycle.saveFailed'));
     }
   }
-  const title = mode === 'ownership' ? t('lifecycle.bulkOwnership') : mode === 'check' ? t('lifecycle.crossCheck') : t('lifecycle.returnTransfer');
-  return <Modal open={Boolean(mode)} title={title} onClose={onClose} size="xl" footer={<>
-    <button className="btn-cancel-m" onClick={onClose}>{t('common.actions.close')}</button>
+  const title = mode === 'ownership' ? t('lifecycle.bulkOwnership') : mode === 'check' ? t('lifecycle.crossCheck') : 'For Return — put the stock back';
+  return <Modal open={Boolean(mode)} title={title} onClose={onClose} size="xl" bodyClassName={mode === 'return' ? 'lifecycle-return-modal-body' : ''} footer={<>
+    <button className="btn-cancel-m" onClick={onClose}>{mode === 'return' ? 'Cancel' : t('common.actions.close')}</button>
     {mode === 'ownership' && <button className="btn-save-modal" disabled={!selected.length || isAssigningOwnership} onClick={() => void applyOwnership()}>{isAssigningOwnership ? t('wording.saving') : t('lifecycle.assign', { ownership: target, count: selected.length })}</button>}
-    {mode === 'return' && <button className="btn-save-modal" disabled={unresolved.length > 0 || isFinalizing} onClick={() => void finalize()}>{isFinalizing ? t('wording.saving') : t('lifecycle.finalize')}</button>}
+    {mode === 'return' && <>
+      <button className="btn btn-ghost" disabled={!unresolved.length || isFinalizing} onClick={markEverythingReturned}>Everything is back</button>
+      <button className="btn-save-modal" disabled={unresolved.length > 0 || isFinalizing} onClick={() => void finalize()}>{isFinalizing ? t('wording.saving') : 'Confirm return'}</button>
+    </>}
   </>}>
     {/* {mode !== 'ownership' && <p className="stepper-error-banner">{t('lifecycle.preview')}</p>} */}
     {mode === 'ownership' && <>
@@ -213,27 +236,71 @@ export default function EventLifecycleModal({ eventId, eventName, items, stages,
       </div>
       <label className="lifecycle-check-row"><span><input type="checkbox" checked={shown.length > 0 && shown.every(item => selected.includes(item.id))} onChange={() => setSelected(ids => shown.every(item => ids.includes(item.id)) ? ids.filter(id => !shown.some(item => item.id === id)) : [...new Set([...ids, ...shown.map(item => item.id)])])} />{t('lifecycle.selectShown')} ({fmtDisplayNumber(shown.length)})</span><span>{t('lifecycle.selected', { count: fmtDisplayNumber(selected.length) })}</span></label>
     </>}
-    {mode === 'return' && <p>{t('lifecycle.logistics', { checked, total: items.length, missing: items.length - checked })}</p>}
-    <div className="lifecycle-item-list">
+    {mode === 'return' && <>
+      <div className="return-context">
+        <span>Event stage: <strong>{eventStage}</strong></span>
+        <span>Status: <strong>Ready for Checking</strong></span>
+        <span><strong>{fmtDisplayNumber(checked)}/{fmtDisplayNumber(items.length)}</strong> checked</span>
+        <span><strong>{fmtDisplayNumber(totalQty)}</strong> pcs out</span>
+      </div>
+      <div className="lifecycle-return-summary">
+        <div className="lifecycle-return-flow" aria-hidden="true">
+          <div className="lifecycle-return-node">
+            <span className="lifecycle-return-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg></span>
+            <small>This event</small>
+          </div>
+          <div className="lifecycle-return-flow-center">
+            <span>+{fmtDisplayNumber(warehouseReturnQty)} pcs</span>
+            <i><b /><b /><b /></i>
+          </div>
+          <div className="lifecycle-return-node">
+            <span className="lifecycle-return-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10 12 3l9 7v11H3z" /><path d="M9 21v-8h6v8M3 10h18" /></svg></span>
+            <small>Warehouse</small>
+          </div>
+        </div>
+        <strong>{transferredCount > 0 ? 'Returned items go back to warehouses; transferred items move to another event' : 'Reserved stock goes back to the warehouses'}</strong>
+        <p>Choose Return to put an item back, or Transfer to move it to another event. Confirm when every item has been resolved.</p>
+        <div className="lifecycle-return-totals">
+          <span>{fmtDisplayNumber(returnedCount)} to return</span>
+          <span>{fmtDisplayNumber(transferredCount)} transferred</span>
+          <span>{fmtDisplayNumber(unresolved.length)} to resolve</span>
+        </div>
+      </div>
+    </>}
+    <div className={mode === 'return' ? 'lifecycle-return-table' : undefined}>
+      {mode === 'return' && <div className="lifecycle-return-table-head"><span>Item</span><span>Qty</span><span>Ownership</span><span>Action</span></div>}
+      <div className="lifecycle-item-list">
       {mode === 'ownership' && isFetchingBulkItems && <p className="no-data">{t('wording.loading')}</p>}
       {mode === 'ownership' && isBulkItemsError && <p className="no-data">{t('wording.failedToLoadEventItems')}</p>}
       {(mode === 'ownership' ? shown : items).map(item => {
         const state = local?.items?.[item.id];
-        return <div className="lifecycle-item" key={item.id}>
+        return <div className={`lifecycle-item${mode === 'return' ? ' lifecycle-return-item' : ''}`} key={item.id}>
           <div className="lifecycle-item-row">
             {mode !== 'return' && <input type="checkbox" aria-label={item.nama_barang} checked={mode === 'ownership' ? selected.includes(item.id) : Boolean(state?.checked)} onChange={() => mode === 'ownership' ? setSelected(ids => ids.includes(item.id) ? ids.filter(id => id !== item.id) : [...ids, item.id]) : patchItem(item.id, { checked: !state?.checked })} />}
-            <div className="lifecycle-item-info"><strong>{item.nama_barang}</strong><div>{item.area_name} · {fmtDisplayNumber(item.qty)} {item.satuan}</div></div>
-            {ownershipsOf(item).map(value => <span key={value} className={`badge ${ownershipClass(value)}`}>{value}</span>)}
+            <div className="lifecycle-item-info">
+              <strong>{item.nama_barang}</strong>
+              <div>{item.area_name}</div>
+              {mode === 'return' && item.checked_note && <small className="lifecycle-item-check-note">{item.checked_note}</small>}
+            </div>
+            {mode === 'return' ? (
+              <>
+              <span className="lifecycle-return-qty">{fmtDisplayNumber(item.qty)} {item.satuan}</span>
+              <div className="lifecycle-return-ownership">
+                {ownershipsOf(item).map(value => <span key={value} className={`badge ${ownershipClass(value)}`}>{value}</span>)}
+              </div>
+              </>
+            ) : ownershipsOf(item).map(value => <span key={value} className={`badge ${ownershipClass(value)}`}>{value}</span>)}
             {mode === 'ownership' && selected.includes(item.id) && !ownershipsOf(item).includes(target) && <span>→ {target}</span>}
-            {mode === 'return' && (state?.resolution ? <span className="lifecycle-resolution">
+            {mode === 'return' && (state?.resolution ? <div className="lifecycle-return-actions"><span className="lifecycle-resolution">
               <span className="badge badge-green">{t(`lifecycle.${state.resolution}`)}</span>
               <button type="button" className="lifecycle-rollback" title={t('wording.rollback')} aria-label={t('wording.rollback')} onClick={() => rollbackResolution(item.id)}><IconHistory /></button>
-            </span> : <>
+            </span></div> : <div className="lifecycle-return-actions">
               <button className="btn-save-modal" onClick={() => patchItem(item.id, { resolution: 'returned' })}>{t('lifecycle.return')}</button>
               <button className="btn-ia-move" onClick={() => { setTransferId(item.id); setTargetEvent(''); setTargetStage(''); setTargetArea(''); setTargetSubArea(''); }}>{t('lifecycle.transfer')}</button>
-            </>)}
+            </div>)}
           </div>
           {mode === 'return' && transferId === item.id && !state?.resolution && <div className="lifecycle-transfer">
+            <div className="transfer-box-title">Transfer to another event</div>
             <SearchableSelect value={targetEvent} onChange={v => { setTargetEvent(String(v)); setTargetStage(''); }} placeholder={t('lifecycle.targetEvent')} options={candidates.map(e => ({ value: e.id, label: e.name }))} />
             <SearchableSelect value={targetStage} onChange={v => setTargetStage(String(v))} disabled={!targetEvent} placeholder={t('lifecycle.targetStage')} options={targetStages.map(s => ({ value: s.id, label: s.name }))} />
             <SearchableSelect value={targetArea} onChange={v => { setTargetArea(String(v)); setTargetSubArea(''); }} placeholder={t('wording.selectArea')} options={areas.map(area => ({ value: area.id, label: area.name }))} />
@@ -243,6 +310,7 @@ export default function EventLifecycleModal({ eventId, eventName, items, stages,
         </div>;
       })}
       {!isFetchingBulkItems && !isBulkItemsError && (mode === 'ownership' ? shown : items).length === 0 && <p className="no-data">{t('wording.noItemsFound')}</p>}
+      </div>
     </div>
   </Modal>;
 }

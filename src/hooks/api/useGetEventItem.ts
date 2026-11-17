@@ -88,6 +88,8 @@ export interface EventItem {
   is_returned?: number;
   is_transfer_to_other_event?: number;
   is_transfer_from_other_event?: number;
+  checked_status?: boolean;
+  checked_note?: string;
   is_new_production_item: boolean;
   is_converted: boolean;
   converted_qty: number;
