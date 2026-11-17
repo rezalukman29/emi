@@ -10,7 +10,9 @@ const ax = axios.create({
 ax.interceptors.request.use(
   async (configuration: any) => {
     const auth = localStorageService.getAuth("auth");
-    configuration.headers["Content-Type"] = "application/json";
+    if (!(configuration.data instanceof FormData)) {
+      configuration.headers["Content-Type"] = "application/json";
+    }
     if (auth) {
       try {
         const parsedAuth = JSON.parse(auth);

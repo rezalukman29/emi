@@ -5,8 +5,8 @@ import { LIFECYCLE_STATUSES, type LifecycleStatus } from '../../lib/eventLifecyc
 
 export interface EventFilterParams {
   status?: LifecycleStatus;
-  status_id?: number;
-  location?: string;
+  status_id?: number | string;
+  location_id?: string;
   from?: string;
   to?: string;
   items_min?: number;
@@ -31,9 +31,11 @@ export default function useGetEvents(params: EventFilterParams, enabled = true) 
   return useQuery(['events-v2', 'list', params], () => getEvents(params), { enabled });
 }
 
-export function useGetEventLifecycleCounts() {
+export function useGetEventLifecycleCounts(
+  params: Omit<EventFilterParams, "status" | "page" | "limit"> = {},
+) {
   return useQueries(LIFECYCLE_STATUSES.map(status => ({
-    queryKey: ['events-v2', 'count', status],
-    queryFn: () => getEvents({ status, page: 1, limit: 1 }),
+    queryKey: ['events-v2', 'count', status, params],
+    queryFn: () => getEvents({ ...params, status, page: 1, limit: 1 }),
   })));
 }

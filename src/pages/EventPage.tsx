@@ -3,6 +3,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate, type NavigateFunction } from "react-router-dom";
 import { toast } from "react-toastify";
 import Modal from "../components/Modal";
+import Drawer from "../components/Drawer";
 import Pagination from "../components/Pagination";
 import SearchableSelect from "../components/SearchableSelect";
 import TextArea from "../components/TextArea";
@@ -31,6 +32,7 @@ import { InventoryService } from "../service/InventoryService";
 import { useTranslation } from "react-i18next";
 import { getDateLocale } from "../utils/function";
 import { LIFECYCLE_STATUSES, LIFECYCLE_BADGES, type LifecycleStatus } from '../lib/eventLifecycle';
+import "../eventUpgrade.css";
 
 const PAGE_SIZE = 8;
 const monthLabel = (month: number, style: "short" | "long" = "short") =>
@@ -49,6 +51,30 @@ interface PastEventGroup {
   label: string;
   items: EventRecord[];
 }
+
+interface EventListFilters {
+  locationIds: string[];
+  statusIds: string[];
+  from: string;
+  to: string;
+  size: "" | "none" | "small" | "medium" | "large";
+}
+
+const EMPTY_EVENT_FILTERS: EventListFilters = {
+  locationIds: [],
+  statusIds: [],
+  from: "",
+  to: "",
+  size: "",
+};
+
+const EVENT_SIZE_FILTERS = [
+  { value: "", label: "Any size" },
+  { value: "none", label: "No items yet" },
+  { value: "small", label: "Small (1–30 items)" },
+  { value: "medium", label: "Medium (31–150)" },
+  { value: "large", label: "Large (150+ items)" },
+] as const;
 
 function fmtRange(start?: string, finish?: string) {
   if (!start || start === "-") return "—";
@@ -166,7 +192,9 @@ export default function EventPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("upcoming");
-  const [filters, setFilters] = useState({ location: '', statusId: '', from: '', to: '', size: '' });
+  const [filters, setFilters] = useState<EventListFilters>(EMPTY_EVENT_FILTERS);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [draftFilters, setDraftFilters] = useState<EventListFilters>(EMPTY_EVENT_FILTERS);
   const queryClient = useQueryClient();
   const [isModify, setIsModify] = useState(false);
   const [event, setEvent] = useState<EventRecord | null>(null);
@@ -180,13 +208,14 @@ export default function EventPage() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const { data: locationsResponse, isLoading: isLoadingLocations } =
+  const { data: locationsResponse, isLoading: isLoadingLocations, isError: isLocationsError, refetch: refetchLocations } =
     useGetLocations();
   const locationOptions = useMemo(
     () =>
       (locationsResponse?.data ?? []).map((location) => ({
         value: location.id,
         label: location.name,
+        meta: String(location.event_count),
       })),
     [locationsResponse?.data]
   );
@@ -318,39 +347,50 @@ export default function EventPage() {
 
   const search = (activeTab === 'returned-completed' ? pastQuery : upQuery).trim();
   const [debouncedSearch, setDebouncedSearch] = useState(search);
-  const [debouncedLocation, setDebouncedLocation] = useState(filters.location.trim());
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(search), 300);
     return () => window.clearTimeout(timer);
   }, [search]);
-  useEffect(() => {
-    const timer = window.setTimeout(() => setDebouncedLocation(filters.location.trim()), 300);
-    return () => window.clearTimeout(timer);
-  }, [filters.location]);
+  const activeFilterCount =
+    filters.locationIds.length +
+    filters.statusIds.length +
+    Number(Boolean(filters.from)) +
+    Number(Boolean(filters.to)) +
+    Number(Boolean(filters.size));
+  const listFilterParams = {
+    location_id: filters.locationIds.length ? filters.locationIds.join(",") : undefined,
+    status_id: filters.statusIds.length ? filters.statusIds.join(",") : undefined,
+    from: filters.from || undefined,
+    to: filters.to || undefined,
+    ...(filters.size === "none" ? { items_max: 0 } : {}),
+    ...(filters.size === "small" ? { items_min: 1, items_max: 30 } : {}),
+    ...(filters.size === "medium" ? { items_min: 31, items_max: 150 } : {}),
+    ...(filters.size === "large" ? { items_min: 151 } : {}),
+  };
   const { data: eventsResponse, isFetching, isError, error } = useGetEvents({
     status: activeTab === 'invite' ? undefined : activeTab as LifecycleStatus,
     search: debouncedSearch || undefined,
-    location: debouncedLocation || undefined,
-    status_id: filters.statusId ? Number(filters.statusId) : undefined,
-    from: filters.from || undefined,
-    to: filters.to || undefined,
-    items_min: filters.size === 'large' ? 30 : undefined,
-    items_max: filters.size === 'small' ? 29 : undefined,
+    ...listFilterParams,
     page: pastPage, limit: PAGE_SIZE, sort_by: 'date_event', sort: 'DESC',
-  }, activeTab !== 'invite' && search === debouncedSearch && filters.location.trim() === debouncedLocation);
-  const countQueries = useGetEventLifecycleCounts();
+  }, activeTab !== 'invite' && search === debouncedSearch);
+  const countQueries = useGetEventLifecycleCounts(listFilterParams);
   const lifecycleCounts = Object.fromEntries(LIFECYCLE_STATUSES.map((flag, index) => [
     flag, countQueries[index].data?.data.total_records ?? 0,
   ]));
   const events = eventsResponse?.data.data ?? [];
   const totalRecords = eventsResponse?.data.total_records ?? 0;
-  const listLoading = isFetching || search !== debouncedSearch || filters.location.trim() !== debouncedLocation;
+  const listLoading = isFetching || search !== debouncedSearch;
   useEffect(() => {
     const pages = Math.max(1, eventsResponse?.data.total_pages ?? 1);
     if (eventsResponse && pastPage > pages) setPastPage(pages);
   }, [eventsResponse, pastPage]);
 
-  const { data: eventStatus } = useGetEventStatus({
+  const {
+    data: eventStatus,
+    isLoading: isLoadingEventStatuses,
+    isError: isEventStatusesError,
+    refetch: refetchEventStatuses,
+  } = useGetEventStatus({
     params: { page: 1, limit: 9999, sort: 'ASC', sortBy: 'order_data' },
     options: {
       enabled: true,
@@ -358,7 +398,43 @@ export default function EventPage() {
   });
 
   const orderedEventStatuses = [...(eventStatus?.data?.data ?? [])].sort((a, b) => a.order_data - b.order_data);
+  const stageFilterOptions = orderedEventStatuses.map((status) => ({
+    value: status.id,
+    label: status.name,
+  }));
   const firstEventStatus = orderedEventStatuses[0];
+  function openFilters() {
+    setDraftFilters({
+      ...filters,
+      locationIds: [...filters.locationIds],
+      statusIds: [...filters.statusIds],
+    });
+    setFilterOpen(true);
+  }
+  function applyFilters() {
+    setFilters({
+      ...draftFilters,
+      locationIds: [...draftFilters.locationIds],
+      statusIds: [...draftFilters.statusIds],
+    });
+    setPastPage(1);
+    setFilterOpen(false);
+  }
+  function resetDraftFilters() {
+    setDraftFilters({ ...EMPTY_EVENT_FILTERS, locationIds: [], statusIds: [] });
+  }
+  const renderFilterButton = () => (
+    <button
+      type="button"
+      className={`event-list-filter${activeFilterCount ? " active" : ""}`}
+      onClick={openFilters}
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+      </svg>
+      Filter{activeFilterCount > 0 && <span className="event-list-filter-count">{fmtDisplayNumber(activeFilterCount)}</span>}
+    </button>
+  );
   function lifecycleOf(record: EventRecord): LifecycleStatus {
     return LIFECYCLE_STATUSES.includes(record.lifecycle_status)
       ? record.lifecycle_status : activeTab as LifecycleStatus;
@@ -861,8 +937,6 @@ export default function EventPage() {
       </div>
 
       {/* Tab bar */}
-      <div className="oct-toolbar"><input aria-label={t('wording.location', { defaultValue: 'Location' })} placeholder={t('wording.location', { defaultValue: 'Location' })} value={filters.location} onChange={e => { setFilters({ ...filters, location: e.target.value }); setPastPage(1); }} /><SearchableSelect inline value={filters.statusId} onChange={value => { setFilters({ ...filters, statusId: String(value) }); setPastPage(1); }} options={[{ value: '', label: t('wording.allStatus') }, ...(eventStatus?.data.data || []).map(row => ({ value: row.id, label: row.name }))]} /><label>{t('october.from')} <input type="date" value={filters.from} onChange={e => { setFilters({ ...filters, from: e.target.value }); setPastPage(1); }} /></label><label>{t('october.to')} <input type="date" value={filters.to} min={filters.from} onChange={e => { setFilters({ ...filters, to: e.target.value }); setPastPage(1); }} /></label><SearchableSelect inline value={filters.size} onChange={value => { setFilters({ ...filters, size: String(value) }); setPastPage(1); }} options={[{ value: '', label: t('october.all') }, { value: 'small', label: '< 30 items' }, { value: 'large', label: '≥ 30 items' }]} /><button className="btn btn-ghost" onClick={() => { setFilters({ location: '', statusId: '', from: '', to: '', size: '' }); setPastPage(1); }}>{t('wording.clear', { defaultValue: 'Clear' })}</button></div>
-      <p className="ed-lock-note">{t('calendarUi.eventFilterScope')}</p>
       <div
         style={{
           display: "flex",
@@ -940,6 +1014,7 @@ export default function EventPage() {
                 onChange={(e) => { setUpQuery(e.target.value); setPastPage(1); }}
               />
             </div>
+            {renderFilterButton()}
             <button className="btn-print" onClick={() => window.print()}>
               <IconPrint /> {t("wording.print")}
             </button>
@@ -1003,6 +1078,7 @@ export default function EventPage() {
                 }}
               />
             </div>
+            {renderFilterButton()}
             <button className="btn-print" onClick={() => window.print()}>
               <IconPrint /> {t("wording.print")}
             </button>
@@ -1473,6 +1549,89 @@ export default function EventPage() {
           {t("wording.areYouSureYouWantToDeletePrefix")}{delTarget?.name}&rdquo;?
         </p>
       </Modal>
+      <Drawer
+        open={filterOpen}
+        title="Filter events"
+        subtitle="Applies to every tab"
+        onClose={() => setFilterOpen(false)}
+        footer={
+          <>
+            <button type="button" className="btn-cancel-modal" onClick={resetDraftFilters}>Reset</button>
+            <button type="button" className="btn-save-modal" onClick={applyFilters}><IconCheck /> Apply</button>
+          </>
+        }
+      >
+        <div className="form-group">
+          <label>Location</label>
+          <SearchableSelect
+            multiple
+            value={draftFilters.locationIds}
+            onChange={(values) => setDraftFilters((current) => ({ ...current, locationIds: values.map(String) }))}
+            options={locationOptions}
+            placeholder="All locations"
+            searchPlaceholder="Search location..."
+            disabled={isLoadingLocations}
+          />
+          {isLocationsError && (
+            <p className="event-filter-load-error" role="alert">
+              Locations could not be loaded. <button type="button" onClick={() => void refetchLocations()}>Retry</button>
+            </p>
+          )}
+        </div>
+        <div className="form-group">
+          <label>Event status (stage)</label>
+          <SearchableSelect
+            multiple
+            value={draftFilters.statusIds}
+            onChange={(values) => setDraftFilters((current) => ({ ...current, statusIds: values.map(String) }))}
+            options={stageFilterOptions}
+            placeholder="All stages"
+            searchPlaceholder="Search stage..."
+            disabled={isLoadingEventStatuses}
+          />
+          {isEventStatusesError && (
+            <p className="event-filter-load-error" role="alert">
+              Event stages could not be loaded. <button type="button" onClick={() => void refetchEventStatuses()}>Retry</button>
+            </p>
+          )}
+        </div>
+        <div className="form-row">
+          <div className="form-group">
+            <label>Start date from</label>
+            <input
+              type="date"
+              value={draftFilters.from}
+              max={draftFilters.to || undefined}
+              onChange={(event) => setDraftFilters((current) => ({ ...current, from: event.target.value }))}
+            />
+          </div>
+          <div className="form-group">
+            <label>Start date to</label>
+            <input
+              type="date"
+              value={draftFilters.to}
+              min={draftFilters.from || undefined}
+              onChange={(event) => setDraftFilters((current) => ({ ...current, to: event.target.value }))}
+            />
+          </div>
+        </div>
+        <div className="form-group">
+          <label>Number of items</label>
+          <div className="event-filter-radio-list">
+            {EVENT_SIZE_FILTERS.map((option) => (
+              <label key={option.value || "any"} className="pp-check">
+                <input
+                  type="radio"
+                  name="event-size"
+                  checked={option.value !== "" && draftFilters.size === option.value}
+                  onChange={() => setDraftFilters((current) => ({ ...current, size: option.value }))}
+                />
+                {option.label}
+              </label>
+            ))}
+          </div>
+        </div>
+      </Drawer>
     </>
   );
 }

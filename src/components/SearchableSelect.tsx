@@ -73,9 +73,13 @@ export default function SearchableSelect({
     ? selectedValues.some(selectedValue => String(selectedValue) === String(option.value))
     : String(option.value) === String(value ?? "");
   const selected = options.find(isSelected);
+  const selectedLabels = multiple ? options.filter(isSelected).map(option => option.label) : [];
   const selectedLabel = multiple
-    ? options.filter(isSelected).map(option => option.label).join(', ')
+    ? selectedLabels.length > 2
+      ? `${selectedLabels[0]} +${selectedLabels.length - 1}`
+      : selectedLabels.join(", ")
     : selected?.label;
+  const hasValue = multiple ? selectedLabels.length > 0 : Boolean(selected);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -166,7 +170,7 @@ export default function SearchableSelect({
         type="button"
         ref={triggerRef}
         disabled={disabled}
-        className={`ss-trigger${open ? " open" : ""}${!selected ? " placeholder" : ""}`}
+        className={`ss-trigger${open ? " open" : ""}${!hasValue ? " placeholder" : ""}`}
         aria-invalid={Boolean(errorText?.trim())}
         aria-expanded={open}
         onClick={() => !disabled && setOpen((current) => !current)}
@@ -209,16 +213,28 @@ export default function SearchableSelect({
               }}
             />
           </div>
+          {multiple && (
+            <div className="ss-multi-bar">
+              <span>{fmtDisplayNumber(selectedValues.length)} selected</span>
+              <button
+                type="button"
+                disabled={selectedValues.length === 0}
+                onClick={() => (onChange as (values: Array<string | number>) => void)([])}
+              >
+                {t("wording.clear", { defaultValue: "Clear" })}
+              </button>
+            </div>
+          )}
           <div className="ss-list" style={{ maxHeight: position.maxHeight }}>
-            {multiple && selectedValues.length > 0 && <button type="button" className="ss-item" onClick={() => (onChange as (values: Array<string | number>) => void)([])}>{t('wording.clear', { defaultValue: 'Clear' })} ({fmtDisplayNumber(selectedValues.length)})</button>}
             {!filteredOptions.length ? (
               <div className="ss-empty">{emptyText ?? t("select.empty")}</div>
             ) : filteredOptions.map((option) => (
               <div
                 key={String(option.value)}
-                className={`ss-item${isSelected(option) ? " selected" : ""}${option.disabled ? " disabled" : ""}`}
+                className={`ss-item${isSelected(option) ? " selected" : ""}${option.disabled ? " disabled" : ""}${multiple ? " ss-item-multi" : ""}`}
                 onMouseDown={(event) => handleOptionMouseDown(event, option)}
               >
+                {multiple && <span className={`ss-check${isSelected(option) ? " on" : ""}`} aria-hidden="true" />}
                 <span className="ss-item-label">{option.label}</span>
                 {option.meta && <span className="ss-item-meta">{option.meta}</span>}
               </div>

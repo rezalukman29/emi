@@ -69,6 +69,7 @@ import { useWarehouseController } from "./lib/useWarehouseController";
 import { useCategoryController } from "./lib/useCategoryController";
 import useGetEventDetail from "../hooks/api/useGetEventDetail";
 import useGetEventStatus from "../hooks/api/useGetEventStatus";
+import { prepareEventFile, useDeleteEventFile, useGetEventFiles, useUploadEventFile } from "../hooks/api/useEventFiles";
 import { InventoryService } from "../service/InventoryService";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
@@ -766,6 +767,14 @@ export default function EventDetailPage() {
   const [isChangingEventStatus, setIsChangingEventStatus] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [printPlanOpen, setPrintPlanOpen] = useState(false);
+  const [filesOpen, setFilesOpen] = useState(false);
+  const [isUploadingEventFiles, setIsUploadingEventFiles] = useState(false);
+  const [deletingEventFileId, setDeletingEventFileId] = useState<number | null>(null);
+  const eventFileInputRef = useRef<HTMLInputElement | null>(null);
+  const eventFilesQuery = useGetEventFiles(eventId);
+  const { mutateAsync: uploadEventFile } = useUploadEventFile();
+  const { mutateAsync: deleteEventFile } = useDeleteEventFile();
+  const eventFiles = eventFilesQuery.data?.data ?? [];
   const printPlanItems = useGetEventItem({ params: { event_id: eventId, order: 'asc' }, options: { enabled: printPlanOpen && eventId > 0 } });
   const [rentalOpen, setRentalOpen] = useState(false);
   const [borrowOpen, setBorrowOpen] = useState(false);
@@ -781,6 +790,45 @@ export default function EventDetailPage() {
   const [packagingSelection, setPackagingSelection] = useState<number[]>([]);
   const [packagingName, setPackagingName] = useState("");
   const { mutateAsync: createPackageRequest, isLoading: isCreatingPackage } = useCreatePackage();
+
+  async function addEventFiles(files: FileList | File[]) {
+    const selectedFiles = Array.from(files);
+    if (!selectedFiles.length) return;
+
+    setIsUploadingEventFiles(true);
+    let uploadedCount = 0;
+    try {
+      for (const file of selectedFiles) {
+        try {
+          const preparedFile = await prepareEventFile(file);
+          await uploadEventFile({ eventId, file: preparedFile });
+          uploadedCount += 1;
+        } catch (error) {
+          toast.error(getCheckoutErrorMessage(error));
+        }
+      }
+    } finally {
+      setIsUploadingEventFiles(false);
+    }
+    if (uploadedCount > 0) {
+      await eventFilesQuery.refetch();
+      toast.success(`${uploadedCount} file${uploadedCount === 1 ? "" : "s"} uploaded.`);
+    }
+  }
+
+  async function removeEventFile(fileId: number, fileName: string) {
+    if (!window.confirm(`Delete "${fileName}"?`)) return;
+    setDeletingEventFileId(fileId);
+    try {
+      const response = await deleteEventFile(fileId);
+      await eventFilesQuery.refetch();
+      toast.success(response.message || "Event file deleted.");
+    } catch (error) {
+      toast.error(getCheckoutErrorMessage(error));
+    } finally {
+      setDeletingEventFileId(null);
+    }
+  }
 
   const [selectedArea, setSelectedArea] = useState("");
   const [stageFilter, setStageFilter] = useState<"all" | "waiting" | "added" | "grouped" | "production" | "borrowed" | "outsourced">("all");
@@ -2285,6 +2333,10 @@ export default function EventDetailPage() {
             {outsourceEnabled && <button type="button" className="btn btn-ghost btn-request-production" onClick={() => setOutsourceOpen(true)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>{t('sourceUpgrade.outsourceItem')}</button>}
             {loanEnabled && <button className="btn btn-ghost btn-request-production" onClick={() => setBorrowOpen(true)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 3h5v5"/><path d="M21 3l-7 7"/><path d="M8 21H3v-5"/><path d="M3 21l7-7"/></svg>{t('sourceUpgrade.borrowItem')}</button>}
             {productionEnabled && <button className="btn btn-ghost btn-request-production" onClick={() => { setProductionInitial(null); setProductionOpen(true); }}>{t("eventUpgrade.requestProduction")}</button>}
+            <button type="button" className="btn btn-ghost btn-request-production event-files-trigger" onClick={() => setFilesOpen(true)} title="Files attached to this event">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              Files <span className="stage-tab-count">{eventFiles.length}</span>
+            </button>
             <button className="btn-new" disabled={addLocked} onClick={openCart}>
               <IconPlus /> {t("wording.addItem")}
               {cart.length > 0 && <span className="add-item-cart-count"><IconCart /> {fmtDisplayNumber(cart.length)}</span>}
@@ -2662,6 +2714,87 @@ export default function EventDetailPage() {
             {detailItem.isTransferredToOtherEvent && <span className="item-flow-chip transferred">↑ {t('lifecycle.transferred')}</span>}
           </div>
         </>}
+      </Drawer>
+      <Drawer
+        open={filesOpen}
+        title="Event Files"
+        subtitle={`${eventFiles.length} file${eventFiles.length === 1 ? "" : "s"} · floor plans, rundowns, contracts, venue photos`}
+        onClose={() => setFilesOpen(false)}
+        footer={<>
+          <input
+            ref={eventFileInputRef}
+            type="file"
+            multiple
+            hidden
+            onChange={(event) => {
+              void addEventFiles(event.currentTarget.files ?? []);
+              event.currentTarget.value = "";
+            }}
+          />
+          <button
+            type="button"
+            className="btn-save-modal event-files-upload"
+            disabled={isUploadingEventFiles || eventId <= 0}
+            onClick={() => eventFileInputRef.current?.click()}
+          >
+            <IconPlus /> {isUploadingEventFiles ? "Uploading..." : "Upload files"}
+          </button>
+        </>}
+      >
+        <div
+          className="event-files-dropzone"
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={(event) => {
+            event.preventDefault();
+            void addEventFiles(event.dataTransfer.files);
+          }}
+        >
+          <strong>Drop files here or click to upload</strong>
+          <span>Photos are resized automatically. Other files are limited to 2 MB each (PDF, Excel, Word...).</span>
+          <button type="button" onClick={() => eventFileInputRef.current?.click()} disabled={isUploadingEventFiles}>
+            Choose files
+          </button>
+        </div>
+        {eventFilesQuery.isLoading ? (
+          <p className="drawer-empty">{t("wording.loading")}</p>
+        ) : eventFilesQuery.isError ? (
+          <div className="event-files-error">
+            <p>{getCheckoutErrorMessage(eventFilesQuery.error)}</p>
+            <button type="button" className="drawer-link-btn" onClick={() => void eventFilesQuery.refetch()}>Retry</button>
+          </div>
+        ) : eventFiles.length === 0 ? (
+          <p className="drawer-empty">No files yet.</p>
+        ) : (
+          <ul className="event-file-list">
+            {eventFiles.map((file) => (
+              <li key={file.id}>
+                {file.mime_type?.startsWith("image/") ? (
+                  <a href={file.file_url} target="_blank" rel="noreferrer" className="event-file-thumb">
+                    <img src={file.file_url} alt={file.file_name} />
+                  </a>
+                ) : (
+                  <span className="event-file-thumb doc">
+                    {(file.file_name.split(".").pop() || "file").slice(0, 4).toUpperCase()}
+                  </span>
+                )}
+                <div className="event-file-meta">
+                  <a href={file.file_url} target="_blank" rel="noreferrer" className="event-file-name">{file.file_name}</a>
+                  <span>{[file.file_size_readable, file.uploaded_by_name, formatJakartaDateTime(file.created_at)].filter(Boolean).join(" · ")}</span>
+                </div>
+                <button
+                  type="button"
+                  className="event-file-delete"
+                  aria-label={`Delete ${file.file_name}`}
+                  title="Delete file"
+                  disabled={deletingEventFileId === file.id}
+                  onClick={() => void removeEventFile(file.id, file.file_name)}
+                >
+                  <IconDelete />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </Drawer>
       {reportItem && !isClosing && <BrokenItemReport key={reportItem.id} item={reportItem} report={reportItem.brokenReport} onSaved={saveBrokenReport} onClose={() => setReportItem(null)} />}
 {printPlanOpen && (printPlanItems.isLoading || printPlanItems.isError ? <Modal open title={t('october.printPlan')} onClose={() => setPrintPlanOpen(false)}><p>{t(printPlanItems.isError ? 'october.loadError' : 'wording.loading')}</p></Modal> : <PrintPlanModal eventName={eventName} currentStage={eventStatus} stages={stages} items={(printPlanItems.data?.data || []).map(item => mapEventItem(item, statusNames))} printedBy={getLoggedInFullname() || "—"} onClose={() => setPrintPlanOpen(false)} />)}

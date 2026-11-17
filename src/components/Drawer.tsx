@@ -2,8 +2,8 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { IconClose } from './icons';
 
-export default function Drawer({ open, title, onClose, children, footer }: {
-  open: boolean; title: string; onClose: () => void; children: ReactNode; footer?: ReactNode;
+export default function Drawer({ open, title, subtitle, onClose, children, footer }: {
+  open: boolean; title: string; subtitle?: string; onClose: () => void; children: ReactNode; footer?: ReactNode;
 }) {
   const panel = useRef<HTMLElement>(null);
   const close = useRef(onClose);
@@ -30,7 +30,7 @@ export default function Drawer({ open, title, onClose, children, footer }: {
   if (!open) return null;
   return <div className="drawer-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
     <aside className="drawer" ref={panel} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title}>
-      <div className="drawer-header"><h2 className="drawer-title">{title}</h2><button className="modal-close" onClick={onClose} aria-label={t('wording.close')}><IconClose /></button></div>
+      <div className="drawer-header"><div><h2 className="drawer-title">{title}</h2>{subtitle && <div className="drawer-subtitle">{subtitle}</div>}</div><button className="modal-close" onClick={onClose} aria-label={t('wording.close')}><IconClose /></button></div>
       <div className="drawer-body">{children}</div>
       {footer && <div className="drawer-footer">{footer}</div>}
     </aside>

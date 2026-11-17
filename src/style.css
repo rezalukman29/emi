@@ -1952,6 +1952,14 @@ td.id-cell   { color: var(--text-muted); font-size: 12px; }
 .ss-item-meta { font-size: 11px; color: var(--text-muted); flex-shrink: 0; white-space: nowrap; }
 .ss-item.selected .ss-item-meta { color: var(--brand); }
 .ss-empty { padding: 16px 12px; text-align: center; font-size: 12.5px; color: var(--text-muted); }
+.ss-multi-bar { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; border-bottom: 1px solid var(--border); font-size: 11.5px; color: var(--text-muted); }
+.ss-multi-bar button { background: none; border: none; color: var(--brand); font-size: 11.5px; font-weight: 600; cursor: pointer; padding: 2px 4px; }
+.ss-multi-bar button:disabled { color: var(--text-muted); cursor: default; opacity: .6; }
+.ss-item.ss-item-multi { justify-content: flex-start; gap: 9px; }
+.ss-item.ss-item-multi .ss-item-meta { margin-left: auto; }
+.ss-check { width: 15px; height: 15px; border: 1.5px solid var(--border); border-radius: 4px; flex-shrink: 0; position: relative; background: #fff; }
+.ss-check.on { background: var(--brand); border-color: var(--brand); }
+.ss-check.on::after { content: ''; position: absolute; left: 4px; top: 1px; width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
 
 /* Tenant header additions */
 .header-actions { display: flex; align-items: center; gap: 12px; }
