@@ -399,6 +399,8 @@
     "indonesian": "Bahasa Indonesia"
   },
   "navigation": {
+    "menuSearch": "Cari menu…",
+    "noMenuMatches": "Tidak ada menu yang cocok dengan “{{query}}”.",
     "sections": {
       "home": "Beranda",
       "events": "Acara",

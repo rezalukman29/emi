@@ -41,6 +41,15 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+# 2026-11-18 — Sidebar search and responsive Event Settings
+
+- Adapted emi-source commit `687ba556` to the translated, plan-filtered TypeScript sidebar in emi-final. Search matches visible menu/section labels, Enter opens the first result, Escape clears, and `/` focuses the search when the sidebar is visible.
+- On phone widths, Event Settings shows rule chips below each status and hides secondary table columns. The Event Detail return flow already uses a responsive lifecycle layout, so its backend-connected behavior was left unchanged.
+- The Event Detail scan popup now displays a QR code containing `event_item/{id}/{IN|OUT}`; its type follows the same current-stage scan action as the backend scan request.
+- No API calls, backend models, or data sources were replaced.
+
+---
+
 # 2026-11-07 — Outsource vendors and event outsource ordering
 
 - Integrated the dedicated Outsource backend catalogs instead of sharing production or rent vendors: vendor list/detail/create/update/delete use `/v1/outsource-vendors`.

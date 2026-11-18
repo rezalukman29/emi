@@ -9,6 +9,7 @@ import EventOutsourceItemsPanel from '../components/EventOutsourceItemsPanel';
 import { stagePromptStep, type BrokenReport } from '../lib/sourcePreview';
 import { useEffect, useMemo, useRef, useState, type UIEvent as ReactUIEvent } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useQRCode } from "next-qrcode";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { useInfiniteQuery, useQueryClient } from "react-query";
@@ -669,6 +670,7 @@ function ItemTable({ items, onOpen, onModify, onDelete, onScan, showScanButton, 
 
 export default function EventDetailPage() {
   const { t } = useTranslation();
+  const { SVG: QRCodeSvg } = useQRCode();
   const { id: routeEventId } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -2435,6 +2437,10 @@ export default function EventDetailPage() {
     setNewItemOpen(true);
   };
 
+  const scanQrValue = scanningItem
+    ? `event_item/${scanningItem.id}/${getNextScanType(scanningItem)}`
+    : "";
+
   return (
     <>
       <h1 className="page-title">{t("wording.eventDetail")}</h1>
@@ -4030,7 +4036,17 @@ export default function EventDetailPage() {
             )}
             {scanPhase === "ready" && (
               <>
-                <div className="scan-target-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><path d="M14 14h7M14 21h7M14 17.5h3.5" /></svg></div>
+                <div className="scan-target-box scan-qr" role="img" aria-label={scanQrValue}>
+                  <QRCodeSvg
+                    text={scanQrValue}
+                    options={{
+                      errorCorrectionLevel: "M",
+                      margin: 1,
+                      width: 120,
+                      color: { dark: "#111827", light: "#FFFFFF" },
+                    }}
+                  />
+                </div>
                 <button type="button" className="btn-save-modal" onClick={startScan}>{t("wording.startScan")}</button>
               </>
             )}

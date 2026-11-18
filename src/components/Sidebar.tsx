@@ -1,5 +1,6 @@
-import { NavLink, Link } from 'react-router-dom';
+import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useEffect, useRef, useState } from 'react';
 import { version } from '../../package.json';
 import useUserPlanController, {
   type UserPlanFeatureFlags,
@@ -213,6 +214,9 @@ function isTenantAdmin() {
 
 export default function Sidebar({ visible, mobile = false }: { visible: boolean; mobile?: boolean }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const [menuQuery, setMenuQuery] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
   const enabledFeatures = useUserPlanController();
   const sections = SECTIONS.map((section) => {
     if (section.label !== 'Events' || !isTenantAdmin()) return section;
@@ -227,13 +231,79 @@ export default function Sidebar({ visible, mobile = false }: { visible: boolean;
     }))
     .filter((section) => section.items.length > 0);
 
+  const normalizedQuery = menuQuery.trim().toLowerCase();
+  const shownSections = sections
+    .map((section) => {
+      const translatedLabel = t(SECTION_TRANSLATION_KEYS[section.label] ?? section.label);
+      const sectionMatches = translatedLabel.toLowerCase().includes(normalizedQuery);
+      const items = !normalizedQuery || sectionMatches
+        ? section.items
+        : section.items.filter((item) =>
+            t(ITEM_TRANSLATION_KEYS[item.label] ?? item.label)
+              .toLowerCase()
+              .includes(normalizedQuery),
+          );
+      return { ...section, translatedLabel, items };
+    })
+    .filter((section) => section.items.length > 0);
+
+  useEffect(() => {
+    const focusSearch = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (
+        !visible ||
+        event.key !== '/' ||
+        !(target instanceof HTMLElement) ||
+        target.isContentEditable ||
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      searchRef.current?.focus();
+    };
+
+    document.addEventListener('keydown', focusSearch);
+    return () => document.removeEventListener('keydown', focusSearch);
+  }, [visible]);
+
   return (
     <nav className={`sidebar${mobile ? " sidebar-mobile" : ""}`} style={visible ? {} : { display: 'none' }}>
-      {sections.map(section => (
+      <div className="sidebar-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+        <input
+          ref={searchRef}
+          type="search"
+          placeholder={t('navigation.menuSearch')}
+          aria-label={t('navigation.menuSearch')}
+          value={menuQuery}
+          onChange={(event) => setMenuQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && shownSections[0]?.items[0]) {
+              event.preventDefault();
+              navigate(shownSections[0].items[0].to);
+              setMenuQuery('');
+            }
+            if (event.key === 'Escape' && menuQuery) {
+              event.preventDefault();
+              event.stopPropagation();
+              setMenuQuery('');
+            }
+          }}
+        />
+        {!menuQuery && <kbd aria-hidden="true">/</kbd>}
+      </div>
+      {shownSections.length === 0 && (
+        <div className="sidebar-empty">
+          {t('navigation.noMenuMatches', { query: menuQuery })}
+        </div>
+      )}
+      {shownSections.map(section => (
         <div key={section.label} className="sidebar-section">
-          <div className="sidebar-section-label">
-            {t(SECTION_TRANSLATION_KEYS[section.label] ?? section.label)}
-          </div>
+          <div className="sidebar-section-label">{section.translatedLabel}</div>
           {section.items.map(({ to, label, icon }) => (
             <NavLink
               key={to}

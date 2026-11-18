@@ -584,7 +584,7 @@ export default function EventStatusPage() {
               <tr>
                 <SortTh label={t("wording.order")} id="order_data" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 100 }} />
                 <SortTh label={t("wording.status")} id="name" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ minWidth: 210 }} />
-                <th style={{ minWidth: 360 }}>{t('eventSettingsRules.rules')}</th>
+                <th className="es-col-rules" style={{ minWidth: 360 }}>{t('eventSettingsRules.rules')}</th>
                 <SortTh label={t("wording.eventRunning")} id="active_event" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 100, textAlign: "right" }} />
                 <SortTh label={t("wording.updatedAt")} id="created_at" sortCol={sortBy} sortAsc={sort === "ASC"} onSort={handleSort} style={{ width: 125 }} />
                 <th style={{ width: 100, textAlign: "center" }}>{t("wording.actions")}</th>
@@ -618,8 +618,9 @@ export default function EventStatusPage() {
                     <td>
                       <div className="es-name">{row.status}</div>
                       {row.code && <span className="es-code">{row.code}</span>}
+                      <div className="es-rules-mobile"><RuleChips row={row} /></div>
                     </td>
-                    <td><RuleChips row={row} /></td>
+                    <td className="es-col-rules"><RuleChips row={row} /></td>
                     <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>
                       <span style={{ color: row.eventRunning > 0 ? "var(--orange)" : "var(--text-muted)" }}>{row.eventRunning}</span>
                     </td>
