@@ -41,6 +41,22 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+# 2026-11-20 — Event list: cover photos, item count, "Ready for Checking"; dark-mode fixes
+
+- **Event cards** now show the event's **cover photo** (16:9, cropped to fit) when the event has one,
+  and the **number of items** next to the cart icon. Events without a photo look as before.
+- The lifecycle tab, summary card and badges say **Ready for Checking** (ID: *Siap Diperiksa*)
+  instead of "Checking Inventory", matching emi-source and the Event Detail popup. The API status
+  value (`checking-inventory`) is unchanged.
+- **Dark mode fixes:** event cards, inventory/warehouse cards, the loading overlay, tab chips,
+  scan-pending text in Event Detail and the AI Material Analyzer advisories used hard-coded light
+  colours and stayed white in dark mode. They now use `var(--dk-…, <original colour>)`: identical
+  in light mode, themed in dark mode.
+- Ported from emi-source; what was already covered, what still needs the backend (Partial Return,
+  partial transfer) and the open API questions: `docs/source-migration-53aaf50.md`.
+
+---
+
 # 2026-11-20 — Light / dark mode for the tenant app
 
 - **Where:** new **Theme** button in the header, between the user name and the language

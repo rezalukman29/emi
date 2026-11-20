@@ -6,6 +6,15 @@ what happened, its impact, and the rule adopted so it does not happen again. New
 
 ---
 
+## 2026-11-20 — Dark mode shipped with white event cards
+
+- **What:** the dark-mode patch scanned CSS files for hard-coded colours but checked pages only with an
+  **empty** mocked API. Event cards (and inventory/warehouse cards, AI advisories) set `background: "#fff"`
+  inline in TSX, so they stayed white in dark mode. Found while porting the Event list a few hours later.
+- **Impact:** if the first patch is deployed alone, those cards are white in dark mode. Fixed in the next commit.
+- **Rule:** for any theme/colour change, also grep TSX/JSX for inline colours, and verify pages with
+  **filled** mock data (lists, cards, modals), not just empty states.
+
 ## 2026-11-20 — Reported on a stale clone of the branch
 
 - **What:** working from another repo session, the agent cloned `rezalukman29/emi`, then a

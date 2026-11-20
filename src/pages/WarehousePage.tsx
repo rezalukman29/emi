@@ -44,7 +44,7 @@ function ImgCell({ src, name, onClick }: any) {
         cursor: "pointer",
         transition: "background .15s",
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = "#e2e8f0")}
+      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--dk-hover, #e2e8f0)")}
       onMouseLeave={(e) => (e.currentTarget.style.background = "var(--bg)")}
     >
       {src ? (
@@ -95,7 +95,7 @@ function ImageViewerModal({ open, name, src, onClose }: any) {
     >
       <div
         style={{
-          background: "#fff",
+          background: "var(--white)",
           borderRadius: 14,
           maxWidth: 480,
           width: "100%",

@@ -9,6 +9,18 @@ Format: date — change — endpoints/fields touched — impact — action neede
 
 ---
 
+## 2026-11-20 — Event list cards: cover photo + item count
+
+- **Endpoint touched:** `GET /v2/event-filter` — **read-only parsing**, no request change.
+- **Fields read (optional):** `images` (also `image` / `cover_url`) for the card cover; `total_items` for the
+  item count. Missing fields are handled (no cover / no count).
+- **Assumption — please confirm:** does the list return `images`, and as a URL or raw base64 (the create/edit
+  form uploads raw base64)? A URL is preferred for list performance.
+- **Label only:** lifecycle `checking-inventory` is now *displayed* as "Ready for Checking"; the value sent to
+  and read from the API is unchanged.
+- **Not done, needs backend:** `partial-return` lifecycle status and partial transfer (see
+  `docs/source-migration-53aaf50.md`).
+
 ## 2026-11-20 — Light / dark mode
 
 - **Endpoints touched:** none. The theme choice is stored only in the browser

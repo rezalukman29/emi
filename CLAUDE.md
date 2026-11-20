@@ -76,6 +76,10 @@ Write the entries in the same commit as the change. Be honest in the incident lo
   Dark token values live in `src/theme-dark.css`. **New CSS must use the tokens** (`var(--white)`
   for surfaces, `var(--bg)`, `var(--text*)`, `var(--*-bg)` tints); a hard-coded light colour needs
   an override in `theme-dark.css`. Check new screens in both modes. Print always stays light.
+  Inline styles in TSX: use `var(--white)` etc., or `var(--dk-name, #lightColour)` with `--dk-name`
+  defined only in the dark block of `theme-dark.css` (keeps light mode identical).
+- **emi-source** (the browser-state prototype the owner designs in) is the public repo `sandmanzz/emi`.
+  Port its changes with a `docs/source-migration-<commit>.md` note (what was ported, what needs backend).
 - The "Context every dev should know" section at the top of `docs/update-history.md`
   is outdated (it says "no backend / no TypeScript"); trust the code.
 

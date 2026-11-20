@@ -271,7 +271,7 @@
     "upcoming": "Upcoming",
     "on-going": "On Going",
     "ready-to-close": "Ready to Close",
-    "checking-inventory": "Checking Inventory",
+    "checking-inventory": "Ready for Checking",
     "returned-completed": "Returned & Completed",
     "transferred": "Transferred",
     "bulkOwnership": "Bulk Assign Ownership",
@@ -301,7 +301,7 @@
     "noStages": "Load at least one Event Status before creating an event.",
     "codePreview": "Code is saved locally until the backend supports this field.",
     "prdTitle": "Event closing & ownership",
-    "prdBody": "Events move through Upcoming, On Going, Ready to Close, Checking Inventory, Returned & Completed, or Transferred. After the last configured stage, Close & Start Checking opens the closing phase. Use Cross Check Items from the more menu, then Ready for Return to return or transfer each item to another event and stage. Finalize only when every item is resolved: at least one return completes the event; otherwise it is transferred. Ownership (IHC, IHP, Outsource) is editable individually or in bulk at any stage. Group Items is available from the more menu. New event stages start at the first configured Event Status; editing an event preserves its stage."
+    "prdBody": "Events move through Upcoming, On Going, Ready to Close, Ready for Checking, Returned & Completed, or Transferred. After the last configured stage, Close & Start Checking opens the closing phase. Use Cross Check Items from the more menu, then Ready for Return to return or transfer each item to another event and stage. Finalize only when every item is resolved: at least one return completes the event; otherwise it is transferred. Ownership (IHC, IHP, Outsource) is editable individually or in bulk at any stage. Group Items is available from the more menu. New event stages start at the first configured Event Status; editing an event preserves its stage."
   },
   "common": {
     "actions": {

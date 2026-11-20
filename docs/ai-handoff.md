@@ -6,6 +6,27 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-20 — Port from emi-source (Event list) + dark-mode inline colour fixes
+
+- **Sync check:** `daniel-staging-web` = `a25b133` + local dark-mode commit (owner applying the patch);
+  main nothing new.
+- **Source:** `sandmanzz/emi` = emi-source (found by code search; read-only clone, owner confirmed).
+  Unported after the 11–12 Nov migration: `53aaf50` (Round 44) and two docs-only commits. Owner sent a
+  screenshot of the emi-source Event page.
+- **Done:** `EventPage.tsx` — `eventCoverSrc()` + `EventCardCover` (cover from optional `images`/`image`/
+  `cover_url`, tolerant parsing, hides on error), card `overflow: hidden`, item-count badge from
+  `total_items`; `.event-card-cover` in `eventUpgrade.css`; i18n `lifecycle.checking-inventory` →
+  "Ready for Checking"/"Siap Diperiksa" (+ `prdBody`).
+- **Dark-mode follow-up:** inline `#fff`/greys in `EventPage`, `InventoryPage`, `WarehousePage`,
+  `WarehouseInventoryPage`, `EventDetailPage`, `Loading.tsx`, `AiMaterialAnalyzerPage` → `var(--white)` or
+  `var(--dk-…, <original>)`; the `--dk-*` vars exist only in `theme-dark.css` (dark), so light mode is
+  pixel-identical. Pattern documented in `CLAUDE.md`.
+- **Round 44 review + what needs backend:** `docs/source-migration-53aaf50.md`.
+- **Checks:** build OK, tsc 0, lint baseline 12/1. Playwright with mocked `/v2/event-filter` (6 events:
+  2 valid covers, 1 invalid image string, counts 0–174) in light and dark; no page errors.
+  Note: the generic mock must return an **array** for `/v1/location` or `/event` crashes in the mock.
+- **API impact:** response parsing only (reads optional `images`, `total_items`) — see api-impact-log.
+
 ## 2026-11-20 — Light / dark mode (tenant app)
 
 - **Sync check:** fetched `daniel-staging-web` + `main`; local = origin `a25b133`, main has

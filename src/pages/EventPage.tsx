@@ -155,6 +155,34 @@ function IconCal() {
   );
 }
 
+/**
+ * Cover photo for an event card (ported from emi-source 2026-11-11 "card cover").
+ * Reads the optional `images` field of an /v2/event-filter record (also `image` / `cover_url`).
+ * Accepts a URL, a data URL, raw base64 (what the create/edit form uploads) or a Go-style
+ * nullable `{ String, Valid }`. Anything else, or an image that fails to load, shows no cover,
+ * so cards look exactly as before when the API sends no image.
+ */
+function eventCoverSrc(record: Record<string, any>): string {
+  const raw = record.cover_url ?? record.image ?? record.images;
+  const value = typeof raw === "string" ? raw : raw && raw.Valid !== false && raw.valid !== false ? raw.String ?? raw.string : "";
+  const text = typeof value === "string" ? value.trim() : "";
+  if (!text) return "";
+  if (/^(https?:)?\/\//i.test(text) || text.startsWith("/") || text.startsWith("data:image/")) return text;
+  if (text.length > 64 && /^[A-Za-z0-9+/=\s]+$/.test(text)) return `data:image/jpeg;base64,${text.replace(/\s+/g, "")}`;
+  return "";
+}
+
+function EventCardCover({ record }: { record: Record<string, any> }) {
+  const src = eventCoverSrc(record);
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) return null;
+  return (
+    <div className="event-card-cover">
+      <img src={src} alt="" loading="lazy" onError={() => setFailed(true)} />
+    </div>
+  );
+}
+
 function CountdownChip({ days }: { days: number | null }) {
   if (days === null) return null;
   const isUrgent = days <= 7;
@@ -522,12 +550,13 @@ export default function EventPage() {
     return (
       <div
         style={{
-          background: "#fff",
+          background: "var(--white)",
           border: "1px solid var(--border)",
           borderRadius: 10,
           borderTop: `3px solid ${accent}`,
           display: "flex",
           flexDirection: "column",
+          overflow: "hidden",
           transition: "box-shadow .15s, transform .15s",
         }}
         onMouseEnter={(e) => {
@@ -539,6 +568,7 @@ export default function EventPage() {
           e.currentTarget.style.transform = "none";
         }}
       >
+        <EventCardCover record={r} />
         <div style={{ padding: "16px 18px 14px" }}>
           <div
             style={{
@@ -618,7 +648,7 @@ export default function EventPage() {
             padding: "10px 14px",
             display: "flex",
             alignItems: "center",
-            background: "#fafbfc",
+            background: "var(--dk-raise-1, #fafbfc)",
             borderRadius: "0 0 10px 10px",
             gap: 2,
           }}
@@ -630,6 +660,12 @@ export default function EventPage() {
           >
             <IconCart />
           </button>
+          {/* Item count next to the cart (ported from emi-source): `total_items` from /v2/event-filter. */}
+          {Number.isFinite(Number(r.total_items)) && r.total_items !== null && r.total_items !== undefined && (
+            <span className="badge badge-gray" style={{ fontSize: 10.5, padding: "2px 7px" }} title={t("wording.totalItems", { defaultValue: "Total items" })}>
+              {fmtDisplayNumber(Number(r.total_items))}
+            </span>
+          )}
           <button
             className="btn-icon"
             title={t("wording.summary")}
@@ -676,7 +712,7 @@ export default function EventPage() {
     return (
       <div
         style={{
-          background: "#fff",
+          background: "var(--white)",
           border: "1px solid var(--border)",
           borderRadius: 8,
           padding: "12px 16px",
@@ -891,7 +927,7 @@ export default function EventPage() {
           <div
             key={s.label}
             style={{
-              background: "#fff",
+              background: "var(--white)",
               border: "1px solid var(--border)",
               borderRadius: 10,
               padding: "14px 18px",
@@ -981,8 +1017,8 @@ export default function EventPage() {
                   padding: "1px 7px",
                   borderRadius: 20,
                   background:
-                    activeTab === t.id ? "var(--brand-bg)" : "#f1f5f9",
-                  color: activeTab === t.id ? "var(--brand)" : "#64748b",
+                    activeTab === t.id ? "var(--brand-bg)" : "var(--dk-chip-bg, #f1f5f9)",
+                  color: activeTab === t.id ? "var(--brand)" : "var(--dk-chip-text, #64748b)",
                 }}
               >
                 {fmtDisplayNumber(t.count)}
@@ -1136,8 +1172,8 @@ export default function EventPage() {
                         fontSize: 11,
                         padding: "1px 7px",
                         borderRadius: 20,
-                        background: "#f1f5f9",
-                        color: "#64748b",
+                        background: "var(--dk-chip-bg, #f1f5f9)",
+                        color: "var(--dk-chip-text, #64748b)",
                         fontWeight: 600,
                       }}
                     >

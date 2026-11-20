@@ -39,6 +39,28 @@
     --dk-yellow:   #facc15;
     --dk-blue-bg:  rgba(96,165,250,0.14);
     --dk-blue:     #93c5fd;
+    /* Used by inline styles as var(--dk-…, <light colour>): undefined in light mode,
+       so light mode keeps its original colour exactly. */
+    --dk-chip-bg:      rgba(255,255,255,0.08);
+    --dk-chip-text:    var(--text-2);
+    --dk-faint:        #6c7691;
+    --dk-hover:        rgba(255,255,255,0.06);
+    --dk-purple-tint:  var(--purple-bg);
+    --dk-ai-ok-bg:          var(--green-bg);
+    --dk-ai-ok-border:      rgba(52,211,153,0.35);
+    --dk-ai-ok-text:        var(--green);
+    --dk-ai-ok-badgeBg:     rgba(52,211,153,0.2);
+    --dk-ai-ok-badgeText:   var(--green);
+    --dk-ai-warning-bg:         var(--orange-bg);
+    --dk-ai-warning-border:     rgba(251,146,60,0.35);
+    --dk-ai-warning-text:       var(--orange);
+    --dk-ai-warning-badgeBg:    rgba(251,146,60,0.2);
+    --dk-ai-warning-badgeText:  var(--orange);
+    --dk-ai-danger-bg:          var(--red-bg);
+    --dk-ai-danger-border:      rgba(248,113,113,0.35);
+    --dk-ai-danger-text:        var(--red);
+    --dk-ai-danger-badgeBg:     rgba(248,113,113,0.2);
+    --dk-ai-danger-badgeText:   var(--red);
   }
   :root[data-theme="dark"] body { background: var(--bg); color: var(--text); }
 

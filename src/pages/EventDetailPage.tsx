@@ -561,7 +561,7 @@ function ItemCard({
             </span>
             <span
               className="scan-label-text"
-              style={!item.scanIn ? { color: "#9aa0b8" } : {}}
+              style={!item.scanIn ? { color: "var(--dk-faint, #9aa0b8)" } : {}}
             >
               {item.scanIn ? `Scanned In at ${item.scanIn}` : "Scan In"}
             </span>
@@ -572,7 +572,7 @@ function ItemCard({
             </span>
             <span
               className="scan-label-text"
-              style={!item.scanOut ? { color: "#9aa0b8" } : {}}
+              style={!item.scanOut ? { color: "var(--dk-faint, #9aa0b8)" } : {}}
             >
               {item.scanOut ? `Scanned Out at ${item.scanOut}` : "Scan Out"}
             </span>

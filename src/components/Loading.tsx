@@ -14,7 +14,7 @@ export default function Loading({}: Props) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "white",
+        background: "var(--white)",
         opacity: 0.6,
         zIndex: 999,
       }}

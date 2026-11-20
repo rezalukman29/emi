@@ -57,7 +57,7 @@ function ImgCell({ src, name, onClick }: any) {
         cursor: "pointer",
         transition: "background .15s",
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = "#e2e8f0")}
+      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--dk-hover, #e2e8f0)")}
       onMouseLeave={(e) => (e.currentTarget.style.background = "var(--bg)")}
     >
       {src ? (
@@ -108,7 +108,7 @@ function ImageViewerModal({ open, name, src, onClose }: any) {
     >
       <div
         style={{
-          background: "#fff",
+          background: "var(--white)",
           borderRadius: 14,
           maxWidth: 480,
           width: "100%",
@@ -1198,7 +1198,7 @@ export default function InventoryPage() {
                         <button
                           className="btn-icon"
                           title={t("wording.aiTuneUp")}
-                          style={{ color: "#7c3aed" }}
+                          style={{ color: "var(--purple)" }}
                           onClick={() => handleAITuneUp(r)}
                         >
                           <IconMagic />
@@ -1530,7 +1530,7 @@ export default function InventoryPage() {
         >
           <div
             style={{
-              background: "#fff",
+              background: "var(--white)",
               borderRadius: 14,
               width: "100%",
               maxWidth: 560,
@@ -1557,7 +1557,7 @@ export default function InventoryPage() {
                   width: 32,
                   height: 32,
                   borderRadius: 8,
-                  background: "#f3f0ff",
+                  background: "var(--dk-purple-tint, #f3f0ff)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -1661,7 +1661,7 @@ export default function InventoryPage() {
                       width: 44,
                       height: 44,
                       borderRadius: 12,
-                      background: "#f3f0ff",
+                      background: "var(--dk-purple-tint, #f3f0ff)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",

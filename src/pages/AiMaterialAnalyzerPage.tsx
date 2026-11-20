@@ -121,27 +121,27 @@ function SkeletonResult() {
 
 const ADVISORY_CONFIG = {
   ok: {
-    bg: "#f0fdf4",
-    border: "#86efac",
-    text: "#166534",
-    badgeBg: "#dcfce7",
-    badgeText: "#15803d",
+    bg: "var(--dk-ai-ok-bg, #f0fdf4)",
+    border: "var(--dk-ai-ok-border, #86efac)",
+    text: "var(--dk-ai-ok-text, #166534)",
+    badgeBg: "var(--dk-ai-ok-badgeBg, #dcfce7)",
+    badgeText: "var(--dk-ai-ok-badgeText, #15803d)",
     labelKey: "advisory.safe",
   },
   warning: {
-    bg: "#fff7ed",
-    border: "#fdba74",
-    text: "#9a3412",
-    badgeBg: "#ffedd5",
-    badgeText: "#c2410c",
+    bg: "var(--dk-ai-warning-bg, #fff7ed)",
+    border: "var(--dk-ai-warning-border, #fdba74)",
+    text: "var(--dk-ai-warning-text, #9a3412)",
+    badgeBg: "var(--dk-ai-warning-badgeBg, #ffedd5)",
+    badgeText: "var(--dk-ai-warning-badgeText, #c2410c)",
     labelKey: "advisory.attention",
   },
   danger: {
-    bg: "#fef2f2",
-    border: "#fca5a5",
-    text: "#991b1b",
-    badgeBg: "#fee2e2",
-    badgeText: "#b91c1c",
+    bg: "var(--dk-ai-danger-bg, #fef2f2)",
+    border: "var(--dk-ai-danger-border, #fca5a5)",
+    text: "var(--dk-ai-danger-text, #991b1b)",
+    badgeBg: "var(--dk-ai-danger-badgeBg, #fee2e2)",
+    badgeText: "var(--dk-ai-danger-badgeText, #b91c1c)",
     labelKey: "advisory.risk",
   },
 } as const;
@@ -326,9 +326,9 @@ function WeatherTipChip({
   urgent: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const color = urgent ? "#c2410c" : "#4f46e5";
-  const bg = urgent ? "#fff7ed" : "var(--brand-bg)";
-  const border = urgent ? "#fdba74" : "rgba(79,70,229,0.2)";
+  const color = urgent ? "var(--dk-ai-warning-badgeText, #c2410c)" : "var(--brand, #4f46e5)";
+  const bg = urgent ? "var(--dk-ai-warning-bg, #fff7ed)" : "var(--brand-bg)";
+  const border = urgent ? "var(--dk-ai-warning-border, #fdba74)" : "rgba(79,70,229,0.2)";
 
   return (
     <div style={{ marginTop: 5 }}>

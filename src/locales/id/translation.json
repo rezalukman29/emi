@@ -271,7 +271,7 @@
     "upcoming": "Mendatang",
     "on-going": "Berjalan",
     "ready-to-close": "Siap Ditutup",
-    "checking-inventory": "Pemeriksaan Inventaris",
+    "checking-inventory": "Siap Diperiksa",
     "returned-completed": "Dikembalikan & Selesai",
     "transferred": "Dipindahkan",
     "bulkOwnership": "Atur Kepemilikan Massal",
@@ -301,7 +301,7 @@
     "noStages": "Muat minimal satu Status Acara sebelum membuat acara.",
     "codePreview": "Kode disimpan lokal sampai backend mendukung kolom ini.",
     "prdTitle": "Penutupan acara & kepemilikan",
-    "prdBody": "Status acara terdiri dari Mendatang, Berjalan, Siap Ditutup, Pemeriksaan Inventaris, Dikembalikan & Selesai, atau Dipindahkan. Setelah tahap terakhir, pilih Tutup & Mulai Pemeriksaan. Gunakan Periksa Barang dari menu lainnya, lalu Siap Dikembalikan untuk mengembalikan atau memindahkan tiap barang ke acara dan tahap tujuan. Penyelesaian hanya tersedia saat semua barang telah diproses. Jika ada barang dikembalikan, acara selesai; jika seluruhnya dipindahkan, status menjadi Dipindahkan. Kepemilikan IHC, IHP, dan Outsource dapat diubah satu per satu atau massal. Kelompokkan Barang tersedia di menu lainnya. Acara baru dimulai dari Status Acara pertama; edit acara mempertahankan tahapnya."
+    "prdBody": "Status acara terdiri dari Mendatang, Berjalan, Siap Ditutup, Siap Diperiksa, Dikembalikan & Selesai, atau Dipindahkan. Setelah tahap terakhir, pilih Tutup & Mulai Pemeriksaan. Gunakan Periksa Barang dari menu lainnya, lalu Siap Dikembalikan untuk mengembalikan atau memindahkan tiap barang ke acara dan tahap tujuan. Penyelesaian hanya tersedia saat semua barang telah diproses. Jika ada barang dikembalikan, acara selesai; jika seluruhnya dipindahkan, status menjadi Dipindahkan. Kepemilikan IHC, IHP, dan Outsource dapat diubah satu per satu atau massal. Kelompokkan Barang tersedia di menu lainnya. Acara baru dimulai dari Status Acara pertama; edit acara mempertahankan tahapnya."
   },
   "common": {
     "actions": {

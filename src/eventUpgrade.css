@@ -460,3 +460,8 @@
 .ownership-choice:has(input:checked)::before { content: '✓'; display: grid; place-items: center; border-color: var(--brand); background: var(--brand); color: var(--white); font-size: 13px; font-weight: 800; line-height: 1; }
 .ownership-choice:has(input:focus-visible) { outline: 2px solid var(--brand); outline-offset: 2px; }
 .ownership-choice span { position: static; display: block; font-weight: 600; line-height: 1.2; }
+
+/* Event card cover photo (ported from emi-source 2026-11-11): fixed 16:9 box, object-fit cover,
+   so any photo size looks the same and the text below keeps its layout. */
+.event-card-cover { aspect-ratio: 16 / 9; background: var(--bg); overflow: hidden; }
+.event-card-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
