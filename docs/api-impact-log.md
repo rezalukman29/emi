@@ -9,6 +9,11 @@ Format: date — change — endpoints/fields touched — impact — action neede
 
 ---
 
+## 2026-11-20 — Build info in the sidebars
+
+- **Endpoints touched:** none. Data comes from git / Vercel env vars at build time.
+- **Impact:** none.
+
 ## 2026-11-20 — Event Checklist module (NEW endpoints needed)
 
 - **Area:** `src/pages/EventChecklistPage.tsx` (currently mock data, no requests sent).

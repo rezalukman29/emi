@@ -17,6 +17,26 @@ keep the engineering safe (build, lint, no API breakage).
 - Before starting work, check that push works (`git push --dry-run origin daniel-staging-web`).
   If it is refused (403), tell the owner immediately, before doing the work.
 
+### Team flow — ALWAYS sync with `main` before working
+
+The owner's flow: (1) owner pushes to `daniel-staging-web` → (2) the main dev reviews and
+merges it into `main` (possibly with other people's work) → (3) before the next change,
+pull first → (4) work again. So at the **start of every task**:
+
+```
+git fetch --depth=1000 origin daniel-staging-web main   # bounded; the clone is shallow
+git pull --ff-only origin daniel-staging-web             # get the latest branch
+git log --oneline daniel-staging-web..origin/main        # anything on main we don't have?
+```
+
+- If that last command lists commits, **merge `origin/main` into `daniel-staging-web`**
+  (`git merge origin/main`), run build + lint, and tell the owner what came in.
+  On conflicts, stop and report them; do not guess.
+- If it lists nothing, say "main has no new changes" and continue.
+- Never rebase or force-push `daniel-staging-web`; it is shared with the main dev.
+- The sidebar footer shows the branch + commit each build came from (see "Build info"),
+  so the owner can see at a glance which update is deployed.
+
 ## Mandatory logging — every change, every time
 
 | What happened | Where to write it |
@@ -38,6 +58,9 @@ Write the entries in the same commit as the change. Be honest in the incident lo
 - i18n: `src/locales/en/translation.json` and `src/locales/id/translation.json` —
   **every new string goes in both**.
 - App version: `package.json` `version`, shown at the bottom of both sidebars.
+- Build info: `vite.config.js` injects `__BUILD_INFO__` (branch, short commit, commit date,
+  message, author, build time) from Vercel's `VERCEL_GIT_*` env vars or local git;
+  rendered by `src/components/BuildInfo.tsx` in both sidebars (type in `src/types/build-info.d.ts`).
 - Front-end-first modules: when the backend does not exist yet, build the UI on mock data in
   `src/data/*Mock.ts`, show a "Preview · mock data" badge, and write the needed API
   contract as comments + DTO types in `src/hooks/api/*Contract.ts` (example: Event Checklist).

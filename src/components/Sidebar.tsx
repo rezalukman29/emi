@@ -1,7 +1,7 @@
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useRef, useState } from 'react';
-import { version } from '../../package.json';
+import BuildInfo from './BuildInfo';
 import useUserPlanController, {
   type UserPlanFeatureFlags,
 } from '../hooks/useUserPlanController';
@@ -325,7 +325,7 @@ export default function Sidebar({ visible, mobile = false }: { visible: boolean;
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           <span>{t('navigation.sections.ownerPanel')}</span>
         </Link>
-        <div className="sidebar-version">v{version}</div>
+        <BuildInfo />
       </div>
     </nav>
   );

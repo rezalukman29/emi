@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { version } from '../../package.json';
+import BuildInfo from './BuildInfo';
 import { useTranslation } from 'react-i18next';
 import { IconGrid, IconUsers, IconCreditCard, IconTag, IconLayers, IconRuler } from './icons';
 
@@ -59,10 +59,7 @@ export default function SuperAdminSidebar({ visible, mobile = false }) {
           ))}
         </div>
       ))}
-      <div className="sidebar-version">
-        {t('navigation.saasOwner')}
-        <span className="sidebar-version-number">v{version}</span>
-      </div>
+      <BuildInfo label={t('navigation.saasOwner')} />
     </nav>
   );
 }

@@ -6,6 +6,24 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-20 — Build info in the sidebars + "sync with main first" rule
+
+- **Sync check done before this change:** `origin/main` (783b3d5, 3 "first init" commits)
+  is fully contained in `daniel-staging-web` → nothing to merge.
+- **New standing rule** (owner's request) in `CLAUDE.md` → "Team flow": at the start of
+  every task fetch + pull `daniel-staging-web` and merge `origin/main` if it has commits
+  the branch lacks.
+- **Build info:** `vite.config.js` defines `__BUILD_INFO__` (Vercel `VERCEL_GIT_COMMIT_REF/
+  SHA/MESSAGE/AUTHOR_LOGIN` first, then local `git`, then `unknown`; commit date only from
+  git, otherwise the build time is shown as "built …"). `src/components/BuildInfo.tsx`
+  renders version, branch, short commit and date (full details in the hover tooltip);
+  used by `Sidebar.tsx` and `SuperAdminSidebar.jsx`. Type: `src/types/build-info.d.ts`.
+  i18n `buildInfo.*` in en + id. CSS: `.sidebar-build-*` in `src/style.css`.
+  `vite.config.js` imports `process` from `node:process` (ESLint `no-undef` otherwise).
+- **Note:** the info is the commit at **build time**; a deploy shows the commit it was
+  built from, which is the point.
+- **API impact:** none.
+
 ## 2026-11-20 — New module: Event Checklist (UI on mock data)
 
 - **Route/menu:** `/event-checklist`, sidebar Events → "Event Checklist" (after Event),
@@ -60,9 +78,13 @@ Each entry: what changed, files, why, state left behind, open items.
 - `src/style.css`: `.sidebar` is a flex column so the footer/version is pinned to the bottom;
   removed a `margin-top: 16px` that overrode `margin-top: auto` on `.sidebar-version`.
 - `src/components/SuperAdminSidebar.jsx`: shows `v{version}` from `package.json`.
-- Commit `0187b9d`. **Not yet on GitHub**: push was refused (403, GitHub App access).
+- On GitHub as `7bb734f` (pushed by the owner via patch).
 
 ## Open items
 
-- Push to `origin/daniel-staging-web` is blocked by 403 in the session that made the
-  changes above. If those commits are missing on GitHub, re-apply them from this log.
+- Cloud sessions cannot push: the Claude GitHub App is not installed on
+  `rezalukman29/emi` (the owner is only a contributor; connected GitHub account is
+  `sandmanz26`). Workaround used: `git format-patch origin/daniel-staging-web`, send the
+  patch, the owner runs `git am` + `git push` on their Mac. After they push, `git fetch`
+  and `git reset --hard origin/daniel-staging-web` only if `git diff HEAD origin/daniel-staging-web`
+  is empty (git am rewrites hashes). Permanent fix: repo owner installs the app.

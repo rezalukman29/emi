@@ -41,6 +41,19 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+# 2026-11-20 — Sidebar shows which branch and commit is running
+
+- Below the version at the bottom of both sidebars (tenant and SaaS Owner, also on
+  mobile): the **branch** the build came from and the **last commit** (short hash + date).
+  Hover it to see the commit message and author.
+- Values are set at build time in `vite.config.js`: on Vercel from `VERCEL_GIT_*`
+  variables, locally from `git`. If git history is missing the build date is shown
+  ("built …") instead of the commit date.
+- Team flow written down in `CLAUDE.md`: before each change, pull `daniel-staging-web`
+  and merge any new commits from `main`.
+
+---
+
 # 2026-11-20 — New module: Event Checklist (preview on mock data)
 
 - New menu **Events → Event Checklist** (`/event-checklist`), visible when the plan has

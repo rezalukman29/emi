@@ -1834,7 +1834,12 @@ td.id-cell   { color: var(--text-muted); font-size: 12px; }
 .sidebar-owner-link:hover { color: var(--brand); }
 .sidebar-owner-link svg { width: 14px; height: 14px; flex-shrink: 0; }
 .sidebar-footer .sidebar-version { margin: 0; padding: 0; border-top: 0; }
-.sidebar-version-number { display: block; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.sidebar-version { display: flex; flex-direction: column; gap: 2px; cursor: default; }
+.sidebar-version-number { display: block; font-variant-numeric: tabular-nums; }
+.sidebar-build-label { display: block; }
+.sidebar-build-row { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: 10.5px; font-weight: 400; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.sidebar-build-row svg { width: 11px; height: 11px; flex-shrink: 0; }
+.sidebar-build-branch { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 
 .stepper { display: flex; align-items: flex-start; }
 .stepper-item { display: flex; align-items: flex-start; flex: 1; }
