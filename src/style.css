@@ -2516,3 +2516,16 @@ td.id-cell   { color: var(--text-muted); font-size: 12px; }
 .theme-switcher-item { display: flex; align-items: center; gap: 9px; }
 .theme-switcher-item svg { width: 15px; height: 15px; flex-shrink: 0; }
 .theme-switcher-hint { margin-left: auto; font-size: 11px; color: var(--text-muted); }
+
+/* Event Calendar filters (toolbar, active chips) */
+.event-calendar-page .cal-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 12px; }
+.event-calendar-page .cal-search { flex: 1 1 260px; max-width: 420px; }
+.event-calendar-page .cal-search .search-input { width: 100%; }
+.event-calendar-page .cal-active-filters { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: -2px 0 14px; font-size: 12px; }
+.event-calendar-page .cal-filter-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 10px; border-radius: 999px; background: var(--brand-bg); color: var(--brand); font-weight: 600; font-size: 12px; }
+.event-calendar-page .cal-filter-chip button { display: inline-flex; width: 18px; height: 18px; align-items: center; justify-content: center; border: 0; border-radius: 50%; background: transparent; color: inherit; cursor: pointer; padding: 0; }
+.event-calendar-page .cal-filter-chip button:hover { background: rgba(79,70,229,.15); }
+.event-calendar-page .cal-filter-chip svg { width: 11px; height: 11px; }
+.event-calendar-page .cal-filter-clear { border: 0; background: none; color: var(--text-muted); font-size: 12px; font-weight: 600; cursor: pointer; text-decoration: underline; padding: 2px 4px; }
+.event-calendar-page .cal-filter-clear:hover { color: var(--brand); }
+.cal-filter-hint { margin: 6px 0 0; font-size: 12px; color: var(--text-muted); }

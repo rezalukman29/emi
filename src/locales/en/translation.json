@@ -34,7 +34,31 @@
     "shortagesFirst": "item clashes · shortages first",
     "bookedBy": "Booked by",
     "clashLoadError": "Item clashes could not be loaded. Please retry.",
-    "eventFilterScope": "Location, event status, date, and item-count filters are applied by the server."
+    "eventFilterScope": "Location, event status, date, and item-count filters are applied by the server.",
+    "filter": {
+      "button": "Filter",
+      "title": "Filter calendar",
+      "subtitle": "Narrow the events and item clashes shown",
+      "searchPlaceholder": "Search event, location or item…",
+      "location": "Location",
+      "allLocations": "All locations",
+      "searchLocation": "Search location…",
+      "events": "Events",
+      "allEvents": "All events",
+      "searchEvent": "Search event…",
+      "items": "Items",
+      "allItems": "All clashing items",
+      "searchItem": "Search item…",
+      "itemsHint": "Only items booked by two or more events this month can be picked. Picking items keeps the events that book them.",
+      "onlyWithClashes": "Only events with item clashes",
+      "monthScope": "Lists show what is booked in {{month}}. Filters stay when you change month.",
+      "apply": "Apply",
+      "reset": "Reset",
+      "clearAll": "Clear all",
+      "remove": "Remove filter {{label}}",
+      "showing_one": "Showing {{count}} event",
+      "showing_other": "Showing {{count}} events"
+    }
   },
   "productionList": {
     "productionRecords": "Production Records",

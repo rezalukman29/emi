@@ -37,6 +37,16 @@ git log --oneline daniel-staging-web..origin/main        # anything on main we d
 - The sidebar footer shows the branch + commit each build came from (see "Build info"),
   so the owner can see at a glance which update is deployed.
 
+## Needs the API? Stop and ask first (set by the owner, 2026-11-20)
+
+If a request (or part of it) needs a **new or changed backend API** — a new endpoint, a new
+field or query param, a changed payload, or data the current responses do not contain —
+**stop before building that part and tell the owner** what is needed and why, in plain words.
+Build only the part that works with the API as it is today, and say clearly what was left out.
+Record every such case in `docs/api-impact-log.md` with status **"Needs API — waiting for owner
+/ backend"** (what the UI needs, which endpoint, which fields), so the developers can pick it up.
+Do not mock a missing API into a feature that looks finished unless the owner asks for a mock preview.
+
 ## Mandatory logging — every change, every time
 
 | What happened | Where to write it |
@@ -67,6 +77,8 @@ Write the entries in the same commit as the change. Be honest in the incident lo
   Record the new endpoints in `docs/api-impact-log.md` and the product decision in `docs/prd/`.
 - Install deps with `yarn install --frozen-lockfile` (`npm ci` fails: `package-lock.json`
   is out of sync, and npm needs `--legacy-peer-deps` because of react-query 3 + React 19).
+- Unit tests: `node --test tests/*.test.cjs`. **Baseline: 2 pre-existing failures** (tests 19/22 on
+  `a25b133`: Cutting Stock exclusivity, card return/transfer chips) — do not add new ones.
 - Checks: `npm run build` must pass. `npm run lint` has a **pre-existing baseline of
   12 errors + 1 warning** (AreaPage, AreaDetailPage, PrintPlanModal…) — do not add new ones.
 - `.card` gets `padding: 16px 14px` on mobile from `sourceResponsive.css`; use a more

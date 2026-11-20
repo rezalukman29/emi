@@ -1,7 +1,19 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { IconChevronLeft, IconChevronRight } from '../components/icons';
+import { IconCheck, IconChevronLeft, IconChevronRight, IconClose, IconSearch } from '../components/icons';
+import Drawer from '../components/Drawer';
+import SearchableSelect from '../components/SearchableSelect';
+import {
+  EMPTY_CALENDAR_FILTERS,
+  activeFilterCount,
+  filterCalendar,
+  isFiltering,
+  monthEvents,
+  monthItems,
+  monthLocations,
+  type CalendarFilters,
+} from '../lib/calendarFilters';
 import {
   useGetEventCalendar,
   useGetEventCalendarClashes,
@@ -29,7 +41,12 @@ export default function EventCalendarPage() {
   const { t, i18n } = useTranslation();
   const [month, setMonth] = useState(() => todayJakarta().slice(0, 7));
   const [selectedDay, setSelectedDay] = useState('');
-  const [shortagesOnly, setShortagesOnly] = useState(false);
+  // Filters stay when the month changes, so the same view can be followed month by month.
+  const [filters, setFilters] = useState<CalendarFilters>(EMPTY_CALENDAR_FILTERS);
+  const [draft, setDraft] = useState<CalendarFilters>(EMPTY_CALENDAR_FILTERS);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const shortagesOnly = filters.clashView === 'shortages';
+  const setShortagesOnly = (value: boolean) => setFilters(current => ({ ...current, clashView: value ? 'shortages' : 'all' }));
   const eventsQuery = useGetEventCalendar(month);
   const clashesQuery = useGetEventCalendarClashes(month);
   const [year, monthNumber] = month.split('-').map(Number);
@@ -39,20 +56,54 @@ export default function EventCalendarPage() {
   const locale = i18n.resolvedLanguage || i18n.language || 'en';
   const monthLabel = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${first}T00:00:00Z`));
 
-  const eventsByDay = useMemo(() => new Map(
-    (eventsQuery.data?.data.days || []).map(day => [calendarDate(day.date), day.events || []]),
-  ), [eventsQuery.data]);
+  const serverDays = useMemo(() => eventsQuery.data?.data.days || [], [eventsQuery.data]);
+  const allClashes = useMemo(() => clashesQuery.data?.data.clashes || [], [clashesQuery.data]);
+  const filtering = isFiltering(filters);
+  const filtered = useMemo(
+    () => filterCalendar(serverDays, allClashes, filters, month),
+    [serverDays, allClashes, filters, month],
+  );
+  // Without filters the calendar shows the server's numbers exactly as before.
+  const eventsByDay = useMemo(() => filtering ? filtered.eventsByDay : new Map(
+    serverDays.map(day => [calendarDate(day.date), day.events || []]),
+  ), [filtering, filtered, serverDays]);
   const clashDataByDay = useMemo(() => new Map(
     (clashesQuery.data?.data.days || []).map(day => [calendarDate(day.date), day]),
   ), [clashesQuery.data]);
-  const allClashes = clashesQuery.data?.data.clashes || [];
   const isShort = (row: typeof allClashes[number]) => row.shortage > 0;
-  const shownClashes = allClashes.filter(row => !shortagesOnly || isShort(row))
+  const shownClashes = filtered.clashes.slice()
     .sort((a, b) => Number(isShort(b)) - Number(isShort(a)) || a.item_name.localeCompare(b.item_name, locale));
   const selectedEvents = eventsByDay.get(selectedDay) || [];
   const selectedClashes = shownClashes.filter(row => calendarDate(row.from) <= selectedDay && calendarDate(row.to) >= selectedDay);
-  const eventSummary = eventsQuery.data?.data.summary;
-  const clashSummary = clashesQuery.data?.data.summary;
+  const eventSummary = filtering ? { events_this_month: filtered.summary.events } : eventsQuery.data?.data.summary;
+  const clashSummary = filtering ? {
+    days_with_clashes: filtered.summary.daysWithClashes,
+    items_clashing: filtered.summary.itemsClashing,
+    items_short: filtered.summary.itemsShort,
+  } : clashesQuery.data?.data.summary;
+  const filterCount = activeFilterCount(filters);
+  const eventOptions = useMemo(() => monthEvents(serverDays).map(event => ({ value: event.id, label: event.name })), [serverDays]);
+  const locationOptions = useMemo(() => monthLocations(serverDays).map(location => ({ value: location, label: location })), [serverDays]);
+  const itemOptions = useMemo(() => monthItems(allClashes).map(item => ({ value: item.id, label: item.name })), [allClashes]);
+  const eventName = (id: number) => eventOptions.find(option => option.value === id)?.label ?? `#${id}`;
+  const itemName = (id: number) => itemOptions.find(option => option.value === id)?.label ?? `#${id}`;
+  const chips = [
+    ...filters.locations.map(location => ({ key: `l-${location}`, label: location, remove: () => setFilters(current => ({ ...current, locations: current.locations.filter(value => value !== location) })) })),
+    ...filters.eventIds.map(id => ({ key: `e-${id}`, label: eventName(id), remove: () => setFilters(current => ({ ...current, eventIds: current.eventIds.filter(value => value !== id) })) })),
+    ...filters.itemIds.map(id => ({ key: `i-${id}`, label: itemName(id), remove: () => setFilters(current => ({ ...current, itemIds: current.itemIds.filter(value => value !== id) })) })),
+    ...(filters.onlyWithClashes ? [{ key: 'clashing', label: t('calendarUi.filter.onlyWithClashes'), remove: () => setFilters(current => ({ ...current, onlyWithClashes: false })) }] : []),
+  ];
+  function openFilters() {
+    setDraft({ ...filters, locations: [...filters.locations], eventIds: [...filters.eventIds], itemIds: [...filters.itemIds] });
+    setFilterOpen(true);
+  }
+  function applyFilters() {
+    setFilters(current => ({ ...draft, search: current.search, clashView: current.clashView }));
+    setFilterOpen(false);
+  }
+  function clearFilters() {
+    setFilters(current => ({ ...EMPTY_CALENDAR_FILTERS, clashView: current.clashView }));
+  }
 
   const offset = (new Date(Date.UTC(year, monthNumber - 1, 1)).getUTCDay() + 6) % 7;
   const cellCount = Math.ceil((offset + lastDay) / 7) * 7;
@@ -78,10 +129,32 @@ export default function EventCalendarPage() {
         <span className="cal-month">{monthLabel}</span>
         <button type="button" className="cal-nav-btn" onClick={() => changeMonth(1)} aria-label={t('calendarUi.nextMonth')}><IconChevronRight /></button>
         <button type="button" className="btn btn-ghost" onClick={() => { const current = todayJakarta(); setMonth(current.slice(0, 7)); setSelectedDay(current); }}>{t('calendarUi.today')}</button>
-        <label className="pp-check"><input type="checkbox" checked={shortagesOnly} onChange={event => setShortagesOnly(event.target.checked)} />{t('october.shortagesOnly')}</label>
       </div>
     </div>
     <p className="cal-intro">{t('calendarUi.intro')} <span className="cal-chip-key shared">{t('calendarUi.clash')}</span>{t('calendarUi.introMiddle')} <span className="cal-chip-key shortage">{t('calendarUi.shortage')}</span>. {t('calendarUi.introEnd')}</p>
+    <div className="cal-toolbar">
+      <div className="search-wrap cal-search">
+        <IconSearch />
+        <input className="search-input" value={filters.search} placeholder={t('calendarUi.filter.searchPlaceholder')}
+          aria-label={t('calendarUi.filter.searchPlaceholder')}
+          onChange={event => setFilters(current => ({ ...current, search: event.target.value }))} />
+      </div>
+      <button type="button" className={`event-list-filter${filterCount ? ' active' : ''}`} onClick={openFilters}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+        </svg>
+        {t('calendarUi.filter.button')}{filterCount > 0 && <span className="event-list-filter-count">{fmtNum(filterCount)}</span>}
+      </button>
+      <label className="pp-check"><input type="checkbox" checked={shortagesOnly} onChange={event => setShortagesOnly(event.target.checked)} />{t('october.shortagesOnly')}</label>
+    </div>
+    {(chips.length > 0 || filters.search.trim()) && <div className="cal-active-filters">
+      <span className="cal-muted">{t('calendarUi.filter.showing', { count: filtered.summary.events })}</span>
+      {chips.map(chip => <span className="cal-filter-chip" key={chip.key}>
+        {chip.label}
+        <button type="button" onClick={chip.remove} aria-label={t('calendarUi.filter.remove', { label: chip.label })}><IconClose /></button>
+      </span>)}
+      <button type="button" className="cal-filter-clear" onClick={() => { clearFilters(); setFilters(current => ({ ...current, search: '' })); }}>{t('calendarUi.filter.clearAll')}</button>
+    </div>}
     {eventsQuery.isError && <p role="alert">{t('october.loadError')}</p>}
     {clashesQuery.isError && <p role="alert">{t('calendarUi.clashLoadError')}</p>}
 
@@ -104,8 +177,11 @@ export default function EventCalendarPage() {
           {cells.map(cell => {
             const dayEvents = cell.inMonth ? eventsByDay.get(cell.iso) || [] : [];
             const dayClashData = cell.inMonth ? clashDataByDay.get(cell.iso) : undefined;
-            const dayClashCount = shortagesOnly ? dayClashData?.item_short_count || 0 : dayClashData?.item_clash_count || 0;
-            const hasShortage = Boolean(dayClashData?.item_short_count);
+            const localCounts = filtering && cell.inMonth ? filtered.clashCountByDay.get(cell.iso) : undefined;
+            const shortCount = filtering ? localCounts?.short || 0 : dayClashData?.item_short_count || 0;
+            const clashCount = filtering ? localCounts?.clash || 0 : dayClashData?.item_clash_count || 0;
+            const dayClashCount = shortagesOnly ? shortCount : clashCount;
+            const hasShortage = Boolean(shortCount);
             return <button type="button" key={cell.iso}
               className={`cal-cell${cell.inMonth ? '' : ' out'}${cell.iso === today ? ' today' : ''}${cell.iso === selectedDay ? ' selected' : ''}${dayClashCount ? hasShortage ? ' has-shortage' : ' has-clash' : ''}`}
               onClick={() => setSelectedDay(cell.iso)} disabled={!cell.inMonth}
@@ -165,5 +241,41 @@ export default function EventCalendarPage() {
         }
       </tbody></table></div>
     </section>
+
+    <Drawer
+      open={filterOpen}
+      title={t('calendarUi.filter.title')}
+      subtitle={t('calendarUi.filter.subtitle')}
+      onClose={() => setFilterOpen(false)}
+      footer={<>
+        <button type="button" className="btn-cancel-modal" onClick={() => setDraft(current => ({ ...EMPTY_CALENDAR_FILTERS, search: current.search, clashView: current.clashView }))}>{t('calendarUi.filter.reset')}</button>
+        <button type="button" className="btn-save-modal" onClick={applyFilters}><IconCheck /> {t('calendarUi.filter.apply')}</button>
+      </>}
+    >
+      <div className="form-group">
+        <label>{t('calendarUi.filter.location')}</label>
+        <SearchableSelect multiple value={draft.locations}
+          onChange={values => setDraft(current => ({ ...current, locations: values.map(String) }))}
+          options={locationOptions} placeholder={t('calendarUi.filter.allLocations')} searchPlaceholder={t('calendarUi.filter.searchLocation')} />
+      </div>
+      <div className="form-group">
+        <label>{t('calendarUi.filter.events')}</label>
+        <SearchableSelect multiple value={draft.eventIds}
+          onChange={values => setDraft(current => ({ ...current, eventIds: values.map(Number) }))}
+          options={eventOptions} placeholder={t('calendarUi.filter.allEvents')} searchPlaceholder={t('calendarUi.filter.searchEvent')} />
+      </div>
+      <div className="form-group">
+        <label>{t('calendarUi.filter.items')}</label>
+        <SearchableSelect multiple value={draft.itemIds}
+          onChange={values => setDraft(current => ({ ...current, itemIds: values.map(Number) }))}
+          options={itemOptions} placeholder={t('calendarUi.filter.allItems')} searchPlaceholder={t('calendarUi.filter.searchItem')} />
+        <p className="cal-muted cal-filter-hint">{t('calendarUi.filter.itemsHint')}</p>
+      </div>
+      <label className="pp-check">
+        <input type="checkbox" checked={draft.onlyWithClashes} onChange={event => setDraft(current => ({ ...current, onlyWithClashes: event.target.checked }))} />
+        {t('calendarUi.filter.onlyWithClashes')}
+      </label>
+      <p className="cal-muted cal-filter-hint">{t('calendarUi.filter.monthScope', { month: monthLabel })}</p>
+    </Drawer>
   </div>;
 }

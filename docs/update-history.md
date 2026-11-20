@@ -41,6 +41,26 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+# 2026-11-20 — Event Calendar: search and filters
+
+- **Toolbar** under the intro: a search box (event name, location or clashing item), a **Filter**
+  button with the number of active filters, and **Shortages only** (moved here from the header).
+- **Filter panel:** Location (multi), Events (multi), Items (multi, only items that clash this month;
+  picking items keeps the events that book them) and *Only events with item clashes*.
+- Active filters show as removable chips with "Showing N events" and **Clear all**. The calendar
+  cells, the four summary cards, the day panel and the clash table all follow the filters.
+  Without filters the numbers are the server's, exactly as before. Filters stay when you change month.
+- Works on the data the calendar already loads: **no API change.** Filters that would need new API
+  data (stage, lifecycle status, PIC, warehouse, item category) were not built; they are listed in
+  `docs/api-impact-log.md` as "Needs API".
+- **Files:** `src/lib/calendarFilters.ts` (pure filter logic), `src/pages/EventCalendarPage.tsx`,
+  `src/style.css` (`.cal-toolbar`, `.cal-active-filters`, `.cal-filter-*`),
+  `src/locales/{en,id}/translation.json` (`calendarUi.filter.*`), `tests/calendarFilters.test.cjs`.
+- **New team rule** (`CLAUDE.md`): when a request needs the API, the AI stops and asks the owner first,
+  and records it in the API impact log.
+
+---
+
 # 2026-11-20 — Event list: cover photos, item count, "Ready for Checking"; dark-mode fixes
 
 - **Event cards** now show the event's **cover photo** (16:9, cropped to fit) when the event has one,

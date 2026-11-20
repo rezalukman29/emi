@@ -9,6 +9,28 @@ Format: date — change — endpoints/fields touched — impact — action neede
 
 ---
 
+## 2026-11-20 — Event Calendar filters
+
+- **Endpoints touched:** none. Filters run in the browser on the existing responses of
+  `GET /v1/event-calendar?month=` and `GET /v1/event-calendar/clashes?month=`.
+- **Impact:** none.
+
+### Needs API — waiting for owner / backend
+
+Filters the owner may expect on the calendar but which the current responses cannot support:
+
+| Filter | Needed in `/v1/event-calendar` → `days[].events[]` (or as query params) |
+|---|---|
+| Event stage (Event Status) | `status_id` (and name) per event; or `?status_id=` param |
+| Lifecycle (On Going / Ready for Checking / …) | `lifecycle_status` per event; or `?lifecycle=` param |
+| PIC | `pic` per event |
+| Warehouse | warehouse(s) the event's items come from |
+| Item category (clash table) | `category_id` / `category_name` per clash row in `/clashes` |
+
+Option A (smallest): add the fields to each event / clash row, filtering stays in the browser.
+Option B: accept the same params as `/v2/event-filter` (`status_id`, `location_id`, `status`) on both
+calendar endpoints so the server filters and the summary counts stay server-side.
+
 ## 2026-11-20 — Event list cards: cover photo + item count
 
 - **Endpoint touched:** `GET /v2/event-filter` — **read-only parsing**, no request change.

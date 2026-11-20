@@ -34,7 +34,31 @@
     "shortagesFirst": "barang bentrok · kekurangan di atas",
     "bookedBy": "Dipesan oleh",
     "clashLoadError": "Bentrok barang gagal dimuat. Silakan coba lagi.",
-    "eventFilterScope": "Filter lokasi, status event, tanggal, dan jumlah barang diterapkan oleh server."
+    "eventFilterScope": "Filter lokasi, status event, tanggal, dan jumlah barang diterapkan oleh server.",
+    "filter": {
+      "button": "Filter",
+      "title": "Filter kalender",
+      "subtitle": "Persempit acara dan bentrok barang yang ditampilkan",
+      "searchPlaceholder": "Cari acara, lokasi atau barang…",
+      "location": "Lokasi",
+      "allLocations": "Semua lokasi",
+      "searchLocation": "Cari lokasi…",
+      "events": "Acara",
+      "allEvents": "Semua acara",
+      "searchEvent": "Cari acara…",
+      "items": "Barang",
+      "allItems": "Semua barang yang bentrok",
+      "searchItem": "Cari barang…",
+      "itemsHint": "Hanya barang yang dipesan dua acara atau lebih di bulan ini yang bisa dipilih. Memilih barang akan menampilkan acara yang memesannya.",
+      "onlyWithClashes": "Hanya acara yang punya bentrok barang",
+      "monthScope": "Daftar berisi yang dipesan pada {{month}}. Filter tetap berlaku saat ganti bulan.",
+      "apply": "Terapkan",
+      "reset": "Atur ulang",
+      "clearAll": "Hapus semua",
+      "remove": "Hapus filter {{label}}",
+      "showing_one": "Menampilkan {{count}} acara",
+      "showing_other": "Menampilkan {{count}} acara"
+    }
   },
   "productionList": {
     "productionRecords": "Data Produksi",

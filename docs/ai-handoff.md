@@ -6,6 +6,29 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-20 — Event Calendar filters + "stop when it needs the API" rule
+
+- **Sync check:** origin `a25b133` (owner has not pushed the two patches yet); main nothing new.
+- **Owner asked:** features for Event Calendar, "make sure there is a filter"; and a standing rule:
+  if a request needs the API, stop and tell the owner first, and write it down for the devs.
+  Rule added to `CLAUDE.md` (also in the `tendersystem` repo's CLAUDE.md).
+- **API check first:** `/v1/event-calendar` returns per event only `id, name, location, booking_from,
+  booking_to`; `/clashes` returns item rows (item, from/to, demand, stock, shortage, events). So
+  search / location / events / items / only-with-clashes / shortages are client-side; stage, lifecycle,
+  PIC, warehouse, category filters need API fields → **not built**, logged as "Needs API".
+- **Code:** `src/lib/calendarFilters.ts` — `filterCalendar(days, clashes, filters, month)` returns kept
+  event ids, kept clash rows, events per day, distinct clash/short items per day (expanded from row
+  from/to within the month) and a summary. Search rule: if the text matches an item name, only those
+  item rows are kept; otherwise rows of the matched events. Page uses server numbers when no filter
+  is active (`isFiltering`), local numbers otherwise. Drawer reuses `Drawer` + `SearchableSelect multiple`
+  + `.event-list-filter` button like the Event page; all strings i18n (en + id).
+- **Tests:** `tests/calendarFilters.test.cjs` (6, pass). `node --test tests/*.test.cjs` = 38/40; the 2 failures
+  are pre-existing on `a25b133` (checked in a clean worktree). vm-context objects need a JSON copy
+  before `deepStrictEqual`.
+- **Checks:** build OK, tsc 0, lint baseline 12/1. Playwright (mocked calendar API, 5 events, 3 clash rows):
+  defaults match server numbers; Location Bali → 2/2/2/1; search "led par" → 1 clash row; dark + 390px OK.
+- **API impact:** none (see api-impact-log for the "Needs API" list).
+
 ## 2026-11-20 — Port from emi-source (Event list) + dark-mode inline colour fixes
 
 - **Sync check:** `daniel-staging-web` = `a25b133` + local dark-mode commit (owner applying the patch);
