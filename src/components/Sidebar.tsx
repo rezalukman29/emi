@@ -17,6 +17,7 @@ export const ROUTE_FEATURES: Partial<Record<string, keyof UserPlanFeatureFlags>>
   '/dashboard': 'reports_dashboard_price',
   '/event': 'event_management_price',
   '/event-checklist': 'event_management_price',
+  '/event-checklist-settings': 'event_management_price',
   '/event-detail': 'event_management_price',
   '/event-summary': 'event_management_price',
   '/event-status': 'event_management_price',
@@ -165,6 +166,12 @@ const EVENT_SETTINGS_ITEM = {
   icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15z"/></svg>,
 };
 
+const CHECKLIST_SETTINGS_ITEM = {
+  to: '/event-checklist-settings',
+  label: 'Checklist Settings',
+  icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>,
+};
+
 const SECTION_TRANSLATION_KEYS: Record<string, string> = {
   Home: 'navigation.sections.home',
   Events: 'navigation.sections.events',
@@ -186,6 +193,7 @@ const ITEM_TRANSLATION_KEYS: Record<string, string> = {
   Event: 'navigation.items.event',
   'Event Settings': 'navigation.items.eventSettings',
   'Event Checklist': 'navigation.items.eventChecklist',
+  'Checklist Settings': 'navigation.items.checklistSettings',
   Inventory: 'navigation.items.inventory',
   Warehouse: 'navigation.items.warehouse',
   'Warehouse Inventory': 'navigation.items.warehouseInventory',
@@ -224,7 +232,7 @@ export default function Sidebar({ visible, mobile = false }: { visible: boolean;
   const enabledFeatures = useUserPlanController();
   const sections = SECTIONS.map((section) => {
     if (section.label !== 'Events' || !isTenantAdmin()) return section;
-    return { ...section, items: [...section.items, EVENT_SETTINGS_ITEM] };
+    return { ...section, items: [...section.items, EVENT_SETTINGS_ITEM, CHECKLIST_SETTINGS_ITEM] };
   })
     .map((section) => ({
       ...section,

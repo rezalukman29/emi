@@ -9,6 +9,24 @@ Format: date — change — endpoints/fields touched — impact — action neede
 
 ---
 
+## 2026-11-20 — Event Checklist v2 (more NEW endpoints/fields)
+
+- **Existing endpoints changed:** none (still mock data, no requests).
+- **Changed in the proposed contract** (`src/hooks/api/eventChecklistContract.ts`), on top of the
+  2026-11-20 checklist entry below:
+  - Item: `is_done`/`done_by_name`/`done_at` replaced by `status` (`open|done|na|issue`),
+    `status_by_name`, `status_at`; new `note`, `requires_photo`, `photos[]`.
+  - Template: new `requires_photo`.
+  - New: `POST/DELETE /v1/events/{eventId}/checklist/items/{itemId}/photos[/{photoId}]` (multipart),
+    `GET …/items/{itemId}/activity`,
+    `POST/DELETE /v1/events/{eventId}/checklist/stages/{eventStatusId}/sign-offs`,
+    `GET/PUT /v1/event-checklist-settings`.
+  - Summary: `done_items` → `resolved_items`, new `open_issues`.
+  - Requested gate on the existing event status-change endpoint now also returns
+    `open_issues` and `missing_sign_off_roles`.
+- **Backend action:** file storage for photos (size limit, compression, retention, EXIF/GPS policy),
+  signature images, lock rule (423 when a signed-off stage is edited), settings table per tenant.
+
 ## 2026-11-20 — Build info in the sidebars
 
 - **Endpoints touched:** none. Data comes from git / Vercel env vars at build time.

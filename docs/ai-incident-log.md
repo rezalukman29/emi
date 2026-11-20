@@ -6,6 +6,24 @@ what happened, its impact, and the rule adopted so it does not happen again. New
 
 ---
 
+## 2026-11-20 — `*/` inside a block comment in the API contract
+
+- **What:** while extending `eventChecklistContract.ts` the agent wrote
+  `signature?: string /* PNG data URL … */` inside the big `/** … */` contract comment. The inner
+  `*/` would have closed the comment early and broken the file.
+- **Impact:** none — caught by re-reading the diff before running the checks; fixed before commit.
+- **Rule:** never write `/*` or `*/` inside a block comment; use parentheses. After editing a
+  comment-only contract file, run `npx tsc --noEmit -p .`.
+
+## 2026-11-20 — Checklist v1 shipped without field requirements
+
+- **What:** the first Event Checklist only supported a tick per task. The owner had to point out
+  that field teams need photo proof and sign-off. The agent should have asked "how is this used
+  on site?" before designing v1.
+- **Impact:** a second round of design and code (v2) on the same day.
+- **Rule:** for any operational feature, list the on-site scenarios (proof, exceptions,
+  handover, offline, phone use) in the PRD before building the UI.
+
 ## 2026-11-20 — Unstyled class shipped earlier (found during redesign)
 
 - **What:** the Event Settings header used `className="link-btn"`, a class that does not

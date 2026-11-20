@@ -6,6 +6,36 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-20 — Event Checklist v2: field features + Checklist Settings
+
+- **Sync check:** fetched `daniel-staging-web` + `main`; main had nothing new. Local branch was
+  1 commit ahead (build-info commit `5715e8b`, not pushed yet by the owner) — this work sits on top.
+- **Why:** owner asked to "roast" the checklist for field use (photos, sign-off) and to make every
+  feature controllable from a settings menu. Roast table + open items: `docs/prd/event-checklist.md` (Round 2).
+- **New files:**
+  - `src/lib/checklistSettings.ts` — settings type, defaults, store (`useSyncExternalStore`,
+    persisted to `localStorage` key `emi.checklistSettings.v1`, wrapped in try/catch).
+  - `src/lib/tenantUser.ts` — `isTenantAdminUser()`, `currentUserName()` from `localStorage.auth`.
+  - `src/pages/EventChecklistSettingsPage.tsx` — `/event-checklist-settings`, admin only, grouped
+    switches, sticky save bar (Save / Discard), reset to defaults.
+  - `src/components/checklist/ChecklistItemDrawer.tsx` — task view (status picker, photos with
+    lightbox, note, history); validation: Done needs a photo when `requiresPhoto`; N/A / Issue need a note.
+  - `src/components/checklist/SignOffModal.tsx` + `SignaturePad.tsx` (pointer events, PNG data URL).
+- **Changed:** `EventChecklistPage.tsx` (statuses, photos, notes, sign-off, lock, settings-driven
+  UI, Settings link for admins), `src/data/eventChecklistMock.ts` (status/photos/notes/activity,
+  `requiresPhoto` on templates, `INITIAL_SIGNOFFS`, placeholder photo + signature SVGs),
+  `src/eventChecklist.css`, `Sidebar.tsx` (admin-only "Checklist Settings" under Events),
+  `App.tsx` (route), i18n `eventChecklist.*` + `checklistSettings.*` + nav key (en + id),
+  `src/hooks/api/eventChecklistContract.ts` (statuses, photos, activity, sign-offs, settings).
+- **Rules implemented in the UI** (must be mirrored by the backend): resolved = done | na;
+  sign-off only when required items are resolved and no Issue is open; lock after sign-off;
+  admin reopen removes all sign-offs of that stage.
+- **Checks:** build OK, `tsc` 0 errors, lint at baseline 12/1, no page errors. Playwright flow
+  tested: Issue without note blocked → with note OK; quick tick on photo-required task opens the
+  drawer; upload photo → Done; sign-off with drawn signature → stage locked; settings saved
+  (signer = both); mobile drawer.
+- **API impact:** new endpoints/fields only (see `docs/api-impact-log.md`).
+
 ## 2026-11-20 — Build info in the sidebars + "sync with main first" rule
 
 - **Sync check done before this change:** `origin/main` (783b3d5, 3 "first init" commits)

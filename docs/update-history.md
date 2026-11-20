@@ -41,6 +41,25 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+# 2026-11-20 — Event Checklist v2: photos, statuses, notes, sign-off + Checklist Settings
+
+- **Tap a task** to open its full view: status (To do, Done, N/A, Issue), photos (camera or
+  gallery, tap to enlarge), a note, and the full history (who did what, when).
+- **Photo proof:** template tasks can require a photo; such a task cannot be marked Done
+  without one (the quick checkbox opens the task instead).
+- **N/A and Issue** need a note explaining why. Open issues are counted on the event list and
+  block the stage sign-off.
+- **Stage sign-off:** when required tasks are resolved and no issue is open, a supervisor and/or
+  the client signs (name + drawn signature + optional note). The stage is then locked; admins
+  can reopen it.
+- **New page Events → Checklist Settings** (admins only): turn each feature on or off — photos
+  (max per task, camera only), notes, N/A, issues, sign-off (who signs, signature, lock, stage
+  gate), due dates, assignees, adding extra tasks, who may delete tasks.
+- Still mock data: settings are saved in the browser for now. Backend contract:
+  `src/hooks/api/eventChecklistContract.ts`; review and open questions: `docs/prd/event-checklist.md`.
+
+---
+
 # 2026-11-20 — Sidebar shows which branch and commit is running
 
 - Below the version at the bottom of both sidebars (tenant and SaaS Owner, also on
