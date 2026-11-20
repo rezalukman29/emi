@@ -38,6 +38,10 @@ Write the entries in the same commit as the change. Be honest in the incident lo
 - i18n: `src/locales/en/translation.json` and `src/locales/id/translation.json` —
   **every new string goes in both**.
 - App version: `package.json` `version`, shown at the bottom of both sidebars.
+- Front-end-first modules: when the backend does not exist yet, build the UI on mock data in
+  `src/data/*Mock.ts`, show a "Preview · mock data" badge, and write the needed API
+  contract as comments + DTO types in `src/hooks/api/*Contract.ts` (example: Event Checklist).
+  Record the new endpoints in `docs/api-impact-log.md` and the product decision in `docs/prd/`.
 - Install deps with `yarn install --frozen-lockfile` (`npm ci` fails: `package-lock.json`
   is out of sync, and npm needs `--legacy-peer-deps` because of react-query 3 + React 19).
 - Checks: `npm run build` must pass. `npm run lint` has a **pre-existing baseline of

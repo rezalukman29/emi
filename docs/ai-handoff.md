@@ -6,6 +6,32 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-20 — New module: Event Checklist (UI on mock data)
+
+- **Route/menu:** `/event-checklist`, sidebar Events → "Event Checklist" (after Event),
+  gated by `event_management_price` in `ROUTE_FEATURES` (`src/components/Sidebar.tsx`),
+  route in `src/App.tsx`.
+- **Decision:** one checklist per event, grouped by stage, generated from per-stage
+  templates; required items will block leaving a stage. Full reasoning and open questions:
+  `docs/prd/event-checklist.md`.
+- **Files:**
+  - `src/pages/EventChecklistPage.tsx` — two tabs: *Event checklists* (event list with
+    progress/overdue/blocking + detail grouped by stage, tick, add, delete with Undo
+    toast, current/all stages, hide completed; mobile = list → detail with back button)
+    and *Stage templates* (per stage: add, required toggle, delete with Undo).
+  - `src/eventChecklist.css` — all `.ck-*` styles (separate file, imported by the page).
+  - `src/data/eventChecklistMock.ts` — stages, templates, events, items. Dates are
+    relative to today. State lives in `useState`; reload resets it.
+  - `src/hooks/api/eventChecklistContract.ts` — **contract only** (comments + DTO types),
+    no requests. Implement hooks from it when the backend exists.
+  - i18n: `eventChecklist.*` and `navigation.items.eventChecklist` in en + id
+    (plural keys use i18next `_one` / `_other`).
+- **Mock stages are hard-coded** (`CHECKLIST_STAGES`). When wiring the API, take stages from
+  `/v1/event-status/get-all` instead.
+- **API impact:** new endpoints required (see `docs/api-impact-log.md`); nothing existing changed.
+- **Checks:** build OK, lint at baseline (12/1), no console errors; screenshots at 1440px
+  and 390px (list, detail, all stages, templates, add form).
+
 ## 2026-11-20 — Event Settings rule guide redesign
 
 - **Why:** owner said the "What do the rules mean?" button (an unstyled native button, class

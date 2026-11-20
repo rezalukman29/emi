@@ -41,6 +41,26 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+# 2026-11-20 — New module: Event Checklist (preview on mock data)
+
+- New menu **Events → Event Checklist** (`/event-checklist`), visible when the plan has
+  Event Management.
+- **Event checklists tab:** left, every event with its progress, current stage, overdue
+  and "blocking" counts (required tasks open in the current stage), plus search and an
+  "only events that need attention" filter. Right, the selected event's checklist grouped
+  by stage: tick tasks (records who/when), add a task to any stage, delete with Undo.
+  Shows the current stage by default; "All stages" shows the whole flow with finished
+  stages collapsed. A warning lists open required tasks in the current stage.
+  On phones the list and the detail are two screens with an "All events" back button.
+- **Stage templates tab:** default tasks per stage (required/optional, due as days from
+  the event start, role). New events will get these automatically.
+- **Data:** mock only (`src/data/eventChecklistMock.ts`); a "Preview · mock data" badge
+  is shown and changes reset on reload. The backend contract is written as comments in
+  `src/hooks/api/eventChecklistContract.ts`; the product reasoning is in
+  `docs/prd/event-checklist.md`.
+
+---
+
 # 2026-11-20 — Event Settings: redesigned rule guide
 
 - **Button:** the old "What do the rules mean?" control used a class with no CSS, so it

@@ -9,6 +9,25 @@ Format: date — change — endpoints/fields touched — impact — action neede
 
 ---
 
+## 2026-11-20 — Event Checklist module (NEW endpoints needed)
+
+- **Area:** `src/pages/EventChecklistPage.tsx` (currently mock data, no requests sent).
+- **Existing endpoints changed:** none.
+- **New endpoints the backend must build** (full contract with DTOs:
+  `src/hooks/api/eventChecklistContract.ts`):
+  - Templates per stage: `GET/POST /v1/event-checklist-templates`,
+    `PUT/DELETE /v1/event-checklist-templates/{id}`, `PUT /v1/event-checklist-templates/reorder`.
+  - Checklist of an event: `GET /v1/events/{eventId}/checklist`,
+    `POST /v1/events/{eventId}/checklist/items`,
+    `PUT/DELETE /v1/events/{eventId}/checklist/items/{itemId}`,
+    `POST /v1/events/{eventId}/checklist/sync-templates`.
+  - Overview: `GET /v1/event-checklists/summary` (paginated, progress per event).
+- **Behavior change requested on an existing endpoint (later):** the event status-change
+  endpoint should refuse leaving a stage while required checklist items of that stage are
+  open (HTTP 422 with `data.open_required_items`). Not wired in the front end yet.
+- **Backend action:** build the endpoints above; on event creation, copy templates into the
+  event checklist (`due_date = start_date + due_offset_days`).
+
 ## 2026-11-20 — Event Settings rule guide redesign
 
 - **Area:** `src/pages/EventStatusPage.tsx` (Event Status / Event Settings page).

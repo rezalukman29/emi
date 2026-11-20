@@ -24,6 +24,7 @@ import EventDetailPage from "./pages/EventDetailPage";
 import EventInventoryPage from "./pages/EventInventoryPage";
 import EventPage from "./pages/EventPage";
 import EventStatusPage from "./pages/EventStatusPage";
+import EventChecklistPage from "./pages/EventChecklistPage";
 import EventSummaryPage from "./pages/EventSummaryPage";
 import InventoryDetailPage from "./pages/InventoryDetailPage";
 import InventoryPage from "./pages/InventoryPage";
@@ -138,6 +139,7 @@ export default function App() {
               <Route path="area-detail" element={<AreaDetailPage />} />
               <Route path="sub-area" element={<SubAreaPage />} />
               <Route path="event-status" element={<EventStatusPage />} />
+              <Route path="event-checklist" element={<EventChecklistPage />} />
               <Route path="category" element={<CategoryPage />} />
               <Route path="category-detail" element={<CategoryDetailPage />} />
               <Route path="unit" element={<UnitPage />} />
