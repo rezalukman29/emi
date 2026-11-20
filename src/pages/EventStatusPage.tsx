@@ -5,7 +5,7 @@ import { useFormik } from "formik";
 import { toast } from "react-toastify";
 import * as Yup from "yup";
 
-import { IconCheck, IconClose, IconDelete, IconEdit, IconPlus, IconSearch } from "../components/icons";
+import { IconCheck, IconChevronDown, IconClose, IconDelete, IconEdit, IconPlus, IconSearch } from "../components/icons";
 import Modal from "../components/Modal";
 import Pagination from "../components/Pagination";
 import SortTh from "../components/SortTh";
@@ -483,28 +483,60 @@ export default function EventStatusPage() {
 
   return (
     <>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22, gap: 12 }}>
-        <div>
+      <div className="es-header">
+        <div className="es-header-text">
           <h1 className="page-title" style={{ margin: 0 }}>{t("wording.eventStatus")}</h1>
-          <p className="es-intro">
-            {t('eventSettingsRules.intro')}{' '}
-            <button type="button" className="link-btn" onClick={() => setLegendOpen((open) => !open)}>
-              {t(legendOpen ? 'eventSettingsRules.hideLegend' : 'eventSettingsRules.showLegend')}
-            </button>
-          </p>
+          <p className="es-intro">{t('eventSettingsRules.intro')}</p>
         </div>
-        <button className="btn-new" disabled={reorderMode} onClick={openNew}><IconPlus /> {t("wording.newStatus")}</button>
+        <div className="es-header-actions">
+          <button
+            type="button"
+            className={`es-guide-toggle${legendOpen ? ' open' : ''}`}
+            aria-expanded={legendOpen}
+            aria-controls="es-rule-guide"
+            onClick={() => setLegendOpen((open) => !open)}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></svg>
+            <span>{t('eventSettingsRules.guide.toggle')}</span>
+            <span className="es-guide-chevron" aria-hidden="true"><IconChevronDown /></span>
+          </button>
+          <button className="btn-new" disabled={reorderMode} onClick={openNew}><IconPlus /> {t("wording.newStatus")}</button>
+        </div>
       </div>
 
-      {legendOpen && <div className="card es-legend">
-        {RULE_GROUPS.map((group) => <div className="es-legend-group" key={group.id}>
-          <div className="es-legend-title"><span className={`es-dot ${group.color}`} />{t(group.labelKey)}</div>
-          {RULES.filter((rule) => rule.group === group.id).map((rule) => <div className="es-legend-row" key={rule.key}>
-            <span className={`es-chip ${rule.restrictive ? 'red' : group.color}`}>{t(rule.chipKey)}</span>
-            <span>{t(rule.descriptionKey)}</span>
+      {legendOpen && <section id="es-rule-guide" className="card es-guide" aria-labelledby="es-guide-title">
+        <header className="es-guide-head">
+          <div>
+            <h2 id="es-guide-title">{t('eventSettingsRules.guide.title')}</h2>
+            <p>{t('eventSettingsRules.guide.subtitle')}</p>
+          </div>
+          <button type="button" className="btn-icon" aria-label={t('eventSettingsRules.hideLegend')} title={t('eventSettingsRules.hideLegend')} onClick={() => setLegendOpen(false)}>
+            <IconClose />
+          </button>
+        </header>
+        <div className="es-guide-grid">
+          {RULE_GROUPS.map((group) => <div className={`es-guide-group ${group.color}`} key={group.id}>
+            <div className="es-legend-title"><span className={`es-dot ${group.color}`} />{t(group.labelKey)}</div>
+            <p className="es-guide-hint">{t(`eventSettingsRules.guide.groupHints.${group.id}`)}</p>
+            <ul className="es-guide-list">
+              {RULES.filter((rule) => rule.group === group.id).map((rule) => <li key={rule.key}>
+                <div className="es-guide-rule-head">
+                  <span className={`es-chip ${rule.restrictive ? 'red' : group.color}`}>{t(rule.chipKey)}</span>
+                  {rule.unique && <span className="es-guide-tag">{t('eventSettingsRules.guide.oneStageOnly')}</span>}
+                  {rule.restrictive && <span className="es-guide-tag">{t('eventSettingsRules.guide.shownWhenOff')}</span>}
+                </div>
+                <p>{t(`eventSettingsRules.guide.rules.${rule.key}`)}</p>
+              </li>)}
+            </ul>
           </div>)}
-        </div>)}
-      </div>}
+        </div>
+        <footer className="es-guide-foot">
+          <span className="es-guide-foot-label">{t('eventSettingsRules.guide.dotsLabel')}</span>
+          <span className="es-guide-dot"><i className="green" />{t('eventSettingsRules.guide.dotScan')}</span>
+          <span className="es-guide-dot"><i className="orange" />{t('eventSettingsRules.guide.dotStock')}</span>
+          <span className="es-guide-dot"><i className="red" />{t('eventSettingsRules.guide.dotLocked')}</span>
+        </footer>
+      </section>}
 
       <div className="es-summary">
         <div className="es-kpis">

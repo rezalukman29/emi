@@ -41,6 +41,28 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+# 2026-11-20 — Event Settings: redesigned rule guide
+
+- **Button:** the old "What do the rules mean?" control used a class with no CSS, so it
+  rendered as a raw browser button. It is now a **Rule guide** button (info icon, chevron,
+  active state) next to **New Status** in the page header; on phones both buttons sit on
+  one row under the title.
+- **Guide panel:** title + one-line explanation, close button, four group cards
+  (Scanning, Stock, Items, Requests) with a short hint each. Every rule shows its chip,
+  a tag where it matters (*1 stage only* for Cut/Return stock, *Shown when off* for
+  No adding/No deleting) and a shorter, plainer description. A footer explains the
+  colored dots in the stage bar. Layout: 4 columns → 2 (≤1100px) → 1 (≤640px).
+- **Files:** `src/pages/EventStatusPage.tsx`, `src/style.css` (`.es-header*`, `.es-guide*`;
+  removed unused `.es-legend`, `.es-legend-row`), `src/locales/{en,id}/translation.json`
+  (new `eventSettingsRules.guide.*` keys; existing description keys unchanged because
+  the New/Edit Status modal still uses them).
+- **API:** no change (see `docs/api-impact-log.md`).
+- **New docs for every future change:** `CLAUDE.md` (standing AI rules),
+  `docs/ai-handoff.md` (AI hand-off log), `docs/api-impact-log.md` (API impact log),
+  `docs/ai-incident-log.md` (AI lapses). This file stays the developer changelog.
+
+---
+
 # 2026-11-20 — App version pinned to the bottom of the sidebar
 
 - The tenant sidebar already rendered `v{version}` from `package.json` (single source of truth; Vite bundles only the `version` field). It now sits at the very bottom: `.sidebar` is a flex column so the footer's `margin-top: auto` works, and the duplicate border/margin on `.sidebar-version` inside `.sidebar-footer` was removed.
