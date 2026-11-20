@@ -6,6 +6,42 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-20 — Light / dark mode (tenant app)
+
+- **Sync check:** fetched `daniel-staging-web` + `main`; local = origin `a25b133`, main has
+  nothing new.
+- **Why:** owner asked to bring the mobile app's light/dark mode (built today in the
+  `tendersystem` repo, branch `daniel-staging`, React Native) to the web as today's update.
+  There is no general Settings page on the web, so the switcher sits in the header next to
+  the language switcher (the existing place for per-user preferences). Options and default
+  match mobile: Light / Dark / System, default Light.
+- **How it works:**
+  - `index.html` sets `html[data-theme]` before first paint from `localStorage['emi.theme.v1']`.
+  - `src/lib/theme.ts`: module store + `useTheme()` (`useSyncExternalStore`), writes the
+    attribute, listens to `prefers-color-scheme` (only while "system") and `storage` (other tabs).
+    Imported in `main.jsx`.
+  - `src/theme-dark.css` (imported last in `main.jsx`): `:root[data-theme="dark"]` token
+    values copied from `.sa-theme`, wrapped in `@media screen` so print stays light; then
+    ~80 selector fixes for hard-coded light colours found by scanning all CSS files
+    (`#fff` surfaces → `var(--white)`, grey hovers → white alpha, tints → `--*-bg`, solid
+    buttons with white text keep the light-mode 600 shades for contrast).
+  - `ThemeSwitcher.tsx` reuses the `.lang-switcher*` dropdown classes + `.theme-switcher-*`
+    (end of `style.css`).
+- **Not covered:** `Login.tsx` (24 inline colours; stays light, readable), inline hex in
+  `AiMaterialAnalyzerPage`, `InventoryPage`, `EventPage`, `PrintPlanModal` (print) — checked
+  the analyzer and event pages in dark, they read fine with empty data. Pages were checked
+  with mocked **empty** API data; tables with rows, modals and drawers with real data still
+  need a look in dark mode.
+- **Gotcha:** `src/index.css` (Vite template leftovers, pulled in by `Loading.tsx`) has its
+  own `prefers-color-scheme: dark` block and `color-scheme: light dark`. Checked: with OS dark
+  and theme Light, the app still renders light. Not touched; candidate for cleanup.
+- **Checks:** `npm run build` OK, `npx tsc --noEmit -p .` 0 errors, lint at baseline 12/1.
+  Playwright: pick Dark from the menu → applied + saved, survives reload; System follows
+  OS dark/light live; print media → body white/dark text; screenshots in dark at 1440px
+  (Event Checklist, Event Settings, Dashboard, Calendar, Inventory, Loan, Material Analyzer,
+  Event) and 390px (Event Checklist, Event Settings); Owner panel unaffected.
+- **API impact:** none.
+
 ## 2026-11-20 — Sidebar redesign (minimal)
 
 - **Sync check:** main had nothing new; branch still 2 commits ahead of origin (owner has not

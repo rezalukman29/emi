@@ -2511,3 +2511,8 @@ td.id-cell   { color: var(--text-muted); font-size: 12px; }
 }
 
 .ownership-choice.read-only { cursor: default; }
+
+/* Theme switcher (header): same dropdown as the language switcher, with icons */
+.theme-switcher-item { display: flex; align-items: center; gap: 9px; }
+.theme-switcher-item svg { width: 15px; height: 15px; flex-shrink: 0; }
+.theme-switcher-hint { margin-left: auto; font-size: 11px; color: var(--text-muted); }

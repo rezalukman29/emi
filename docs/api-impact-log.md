@@ -9,6 +9,14 @@ Format: date — change — endpoints/fields touched — impact — action neede
 
 ---
 
+## 2026-11-20 — Light / dark mode
+
+- **Endpoints touched:** none. The theme choice is stored only in the browser
+  (`localStorage` key `emi.theme.v1`: `light` | `dark` | `system`); nothing is sent to or
+  read from the backend, and it is not part of the user/account data.
+- **Impact:** none. If the theme should later follow the account across devices, that
+  needs a new user-preference field/endpoint (not requested).
+
 ## 2026-11-20 — Sidebar redesign
 
 - **Endpoints touched:** none. CSS, icons and markup only.

@@ -6,6 +6,16 @@ what happened, its impact, and the rule adopted so it does not happen again. New
 
 ---
 
+## 2026-11-20 — Reported on a stale clone of the branch
+
+- **What:** working from another repo session, the agent cloned `rezalukman29/emi`, then a
+  little later told the owner that `daniel-staging-web` was "identical to `staging`"
+  (`5a4f489`) without fetching again. Meanwhile six commits (build info, Event Checklist,
+  sidebar redesign…) had been pushed. The owner noticed the report was out of date.
+- **Impact:** a wrong status report; no code was changed on the stale base.
+- **Rule:** fetch (`git fetch origin daniel-staging-web main`) immediately before any
+  statement about branch state, and quote the commit hash and time the statement is based on.
+
 ## 2026-11-20 — `*/` inside a block comment in the API contract
 
 - **What:** while extending `eventChecklistContract.ts` the agent wrote

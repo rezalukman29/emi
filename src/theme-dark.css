@@ -1,0 +1,162 @@
+/* =========================================================
+   TENANT DARK MODE  —  html[data-theme="dark"]
+   Chosen in the header (Theme: Light / Dark / System), see src/lib/theme.ts.
+   Token values are the same as the owner panel's dark theme (.sa-theme in
+   superadmin.css), so both panels look like one product.
+   Screen only: printed pages and PDFs always stay light.
+   Rules below the tokens fix places that use hard-coded light colours
+   instead of tokens. New CSS should use the tokens so it needs no entry here.
+   ========================================================= */
+@media screen {
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg:          #0b1120;
+    --white:       #131b2e;
+    --border:      #262f45;
+    --border-2:    #1c2438;
+    --text:        #e7ebf5;
+    --text-2:      #aab2c8;
+    --text-muted:  #7a84a0;
+    --brand:       #6366f1;
+    --brand-bg:    rgba(99,102,241,0.16);
+    --brand-dark:  #4f46e5;
+    --green:       #34d399;
+    --green-bg:    rgba(52,211,153,0.14);
+    --red:         #f87171;
+    --red-bg:      rgba(248,113,113,0.14);
+    --orange:      #fb923c;
+    --orange-bg:   rgba(251,146,60,0.14);
+    --purple:      #c084fc;
+    --purple-bg:   rgba(192,132,252,0.14);
+    --shadow-sm:   0 1px 2px rgba(0,0,0,0.3);
+    --shadow:      0 6px 24px rgba(0,0,0,0.45);
+    --shadow-lg:   0 20px 60px rgba(0,0,0,0.55);
+    /* local helpers for the fixes below */
+    --dk-raise-1:  rgba(255,255,255,0.03);
+    --dk-raise-2:  rgba(255,255,255,0.06);
+    --dk-raise-3:  rgba(255,255,255,0.10);
+    --dk-yellow-bg: rgba(250,204,21,0.12);
+    --dk-yellow:   #facc15;
+    --dk-blue-bg:  rgba(96,165,250,0.14);
+    --dk-blue:     #93c5fd;
+  }
+  :root[data-theme="dark"] body { background: var(--bg); color: var(--text); }
+
+  /* ---- Surfaces that were #fff ---- */
+  [data-theme="dark"] .inventory-item-card,
+  [data-theme="dark"] .ai-image-item,
+  [data-theme="dark"] .ai-image-item button,
+  [data-theme="dark"] .ai-editor-toolbar button,
+  [data-theme="dark"] .ai-table-wrap td:first-child,
+  [data-theme="dark"] .ai-detail-drawer,
+  [data-theme="dark"] .cart-item-location-button,
+  [data-theme="dark"] .action-icon-badge,
+  [data-theme="dark"] .add-item-cart-count,
+  [data-theme="dark"] .ss-check,
+  [data-theme="dark"] .lang-switcher-menu { background: var(--white); }
+
+  /* ---- Light greys used for headers, hovers, empty boxes ---- */
+  [data-theme="dark"] th,
+  [data-theme="dark"] .modal-footer,
+  [data-theme="dark"] .inventory-search-empty,
+  [data-theme="dark"] .ai-upload-box,
+  [data-theme="dark"] .ai-editor-toolbar,
+  [data-theme="dark"] .ai-loading,
+  [data-theme="dark"] .ai-table-wrap th:first-child,
+  [data-theme="dark"] .es-guide-group,
+  [data-theme="dark"] .ck-signature-canvas { background: var(--dk-raise-1); }
+  [data-theme="dark"] tbody tr:hover,
+  [data-theme="dark"] .btn-ghost:hover,
+  [data-theme="dark"] .inventory-item-card:hover,
+  [data-theme="dark"] .ck-item:hover,
+  [data-theme="dark"] .ck-event.active { background: var(--dk-raise-2); }
+  [data-theme="dark"] .ai-table-wrap th:first-child { background: var(--white); }
+  [data-theme="dark"] .nav-item:hover { background: rgba(255,255,255,0.045); }
+  [data-theme="dark"] ::-webkit-scrollbar-thumb { background: #303a54; }
+
+  /* ---- Neutral badges and controls ---- */
+  [data-theme="dark"] .badge-gray,
+  [data-theme="dark"] .scan-badge.fail { background: var(--dk-raise-3); color: var(--text-2); }
+  [data-theme="dark"] .ck-status-icon.na { background: var(--dk-raise-3); color: var(--text-2); }
+  [data-theme="dark"] .ck-status-option.active.na { background: var(--dk-raise-3); border-color: var(--text-muted); color: var(--text); }
+  [data-theme="dark"] .es-switch { background: #39435c; }
+  [data-theme="dark"] .es-switch::after { background: #e7ebf5; }
+  [data-theme="dark"] .inventory-item-name { color: var(--text-2); }
+  [data-theme="dark"] .inventory-item-stock { color: var(--text-muted); }
+
+  /* ---- Tinted backgrounds: red / green / orange / yellow / brand / purple / blue ---- */
+  [data-theme="dark"] .btn-soft-red,
+  [data-theme="dark"] .btn-cancel,
+  [data-theme="dark"] .btn-cancel-modal,
+  [data-theme="dark"] .btn-cancel-m,
+  [data-theme="dark"] .event-calendar-page .cal-cell.has-shortage,
+  [data-theme="dark"] .ck-item.status-issue { background: var(--red-bg); }
+  [data-theme="dark"] .btn-soft-red:hover,
+  [data-theme="dark"] .btn-cancel:hover,
+  [data-theme="dark"] .btn-cancel-modal:hover,
+  [data-theme="dark"] .btn-cancel-m:hover { background: rgba(248,113,113,0.24); }
+
+  [data-theme="dark"] .lifecycle-return-summary { background: var(--green-bg); border-color: rgba(52,211,153,0.35); }
+  [data-theme="dark"] .lifecycle-return-flow-center > span { border-color: rgba(52,211,153,0.35); }
+  [data-theme="dark"] .ck-signoff.signed { background: var(--green-bg); border-color: rgba(52,211,153,0.35); }
+  [data-theme="dark"] .ck-locked-note { background: var(--green-bg); border-color: rgba(52,211,153,0.35); color: var(--green); }
+  [data-theme="dark"] .area-badge.reception,
+  [data-theme="dark"] .inv-stock-badge.available { background: var(--green-bg); color: var(--green); }
+
+  [data-theme="dark"] .stage-stock-move { background: var(--orange-bg); border-color: rgba(251,146,60,0.35); }
+  [data-theme="dark"] .stage-stock-move-qty,
+  [data-theme="dark"] .ck-preview-badge,
+  [data-theme="dark"] .ck-blocking { border-color: rgba(251,146,60,0.35); }
+  [data-theme="dark"] .ck-blocking { color: var(--orange); }
+  [data-theme="dark"] .area-badge.guest,
+  [data-theme="dark"] .inv-stock-badge.low { background: var(--orange-bg); color: var(--orange); }
+  [data-theme="dark"] .row-needs-setup td { background: var(--orange-bg); }
+
+  [data-theme="dark"] .event-item-check-note,
+  [data-theme="dark"] .event-calendar-page .cal-cell.has-clash { background: var(--dk-yellow-bg); border-color: rgba(250,204,21,0.3); }
+  [data-theme="dark"] .area-badge.photobooth { background: var(--dk-yellow-bg); color: var(--dk-yellow); }
+  [data-theme="dark"] .lifecycle-item-check-note { color: var(--dk-yellow); }
+
+  [data-theme="dark"] .ai-row-highlight td { background: var(--brand-bg) !important; }
+  [data-theme="dark"] .ss-create:hover { background: var(--brand-bg); }
+  [data-theme="dark"] .es-guide-toggle:hover { border-color: var(--text-muted); }
+  [data-theme="dark"] .es-guide-toggle.open,
+  [data-theme="dark"] .event-check-progress,
+  [data-theme="dark"] .ck-event:hover,
+  [data-theme="dark"] .ck-stage.current,
+  [data-theme="dark"] .ck-template-note { border-color: rgba(99,102,241,0.45); }
+
+  [data-theme="dark"] .lifecycle-transfer,
+  [data-theme="dark"] .area-badge.ceremony { background: var(--purple-bg); }
+  [data-theme="dark"] .area-badge.ceremony { color: var(--purple); }
+  [data-theme="dark"] .ck-flag-toggle.on.photo { border-color: rgba(192,132,252,0.45); }
+  [data-theme="dark"] .ck-tag.required,
+  [data-theme="dark"] .ck-required-toggle.on,
+  [data-theme="dark"] .ck-flag-toggle.on { border-color: rgba(248,113,113,0.4); }
+
+  [data-theme="dark"] .area-badge.entrance { background: var(--dk-blue-bg); color: var(--dk-blue); }
+
+  /* ---- Solid fills with white text keep the deeper light-mode colours,
+          otherwise white on the brighter dark-mode tokens is hard to read ---- */
+  [data-theme="dark"] .btn-success,
+  [data-theme="dark"] .btn-new,
+  [data-theme="dark"] .btn-save,
+  [data-theme="dark"] .btn-save-modal,
+  [data-theme="dark"] .btn-add-cart,
+  [data-theme="dark"] .btn-checkout,
+  [data-theme="dark"] .btn-next-stage.ready,
+  [data-theme="dark"] .condition-btn.good.active { background: #059669; }
+  [data-theme="dark"] .event-item-check-toggle.checked,
+  [data-theme="dark"] .status-menu-item.done .status-menu-num,
+  [data-theme="dark"] .stepper-dot.done { background: #059669; border-color: #059669; }
+  [data-theme="dark"] .btn-danger,
+  [data-theme="dark"] .btn-del-confirm,
+  [data-theme="dark"] .btn-del-ok,
+  [data-theme="dark"] .condition-btn.poor.active,
+  [data-theme="dark"] .ck-status-icon.issue { background: #dc2626; }
+  [data-theme="dark"] .ck-tag.issue { background: #dc2626; border-color: #dc2626; }
+  [data-theme="dark"] .btn-orange,
+  [data-theme="dark"] .btn-pkg { background: #ea580c; }
+  [data-theme="dark"] .btn-purple,
+  [data-theme="dark"] .btn-print { background: #7c3aed; }
+}

@@ -21,6 +21,7 @@ import {
 import useGetUserPlan from "../hooks/api/useGetUserPlan";
 import GlobalSearch from "./GlobalSearch";
 import LanguageSwitcher from "./LanguageSwitcher";
+import ThemeSwitcher from "./ThemeSwitcher";
 import UpgradeCTA from "./UpgradeCTA";
 import useUserPlanController from "../hooks/useUserPlanController";
 import { useTranslation } from "react-i18next";
@@ -145,6 +146,7 @@ export default function Layout() {
               <span> · {currentUser.user_type || t("common.employee")}</span>
             </span>
           )}
+          <ThemeSwitcher />
           <LanguageSwitcher />
           <button className="header-btn" title={t("header.logout")} onClick={onSignOut}>
             <IconLogout />

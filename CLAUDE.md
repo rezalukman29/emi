@@ -71,6 +71,11 @@ Write the entries in the same commit as the change. Be honest in the incident lo
   12 errors + 1 warning** (AreaPage, AreaDetailPage, PrintPlanModal…) — do not add new ones.
 - `.card` gets `padding: 16px 14px` on mobile from `sourceResponsive.css`; use a more
   specific selector (`.card.your-class`) when a card needs its own padding.
+- **Light / dark mode:** `html[data-theme="light|dark"]`, chosen in the header Theme menu
+  (`src/lib/theme.ts`, `src/components/ThemeSwitcher.tsx`; localStorage `emi.theme.v1`).
+  Dark token values live in `src/theme-dark.css`. **New CSS must use the tokens** (`var(--white)`
+  for surfaces, `var(--bg)`, `var(--text*)`, `var(--*-bg)` tints); a hard-coded light colour needs
+  an override in `theme-dark.css`. Check new screens in both modes. Print always stays light.
 - The "Context every dev should know" section at the top of `docs/update-history.md`
   is outdated (it says "no backend / no TypeScript"); trust the code.
 

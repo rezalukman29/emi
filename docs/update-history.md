@@ -41,6 +41,32 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+# 2026-11-20 — Light / dark mode for the tenant app
+
+- **Where:** new **Theme** button in the header, between the user name and the language
+  switcher. It shows a sun or a moon (what is on screen now) and opens a menu with
+  **Light**, **Dark** and **System** (follows the computer/phone; the menu shows
+  "now light/dark"). Labels in English and Indonesian.
+- **Default is Light**, so nothing changes until a user picks Dark or System.
+- The choice is saved **per browser** (`localStorage` key `emi.theme.v1`), not per account,
+  and is applied before the page draws (script in `index.html`), so there is no white flash.
+  It also syncs between open tabs and follows the OS live while System is selected.
+- **Dark colours** are the same as the SaaS Owner panel's dark theme, so both panels match.
+  The Owner panel itself is unchanged (it was already dark).
+- **Not themed (by design or for later):** the tenant Login page stays light (its colours
+  are inline in `Login.tsx`); printed pages and PDFs always stay light.
+- **Files:** `src/lib/theme.ts` (store + hook), `src/components/ThemeSwitcher.tsx`,
+  `src/components/Layout.tsx`, `src/components/icons.tsx` (sun, moon, monitor),
+  `src/theme-dark.css` (dark tokens + fixes for hard-coded colours), `src/main.jsx`,
+  `index.html`, `src/style.css` (switcher menu items), `src/locales/{en,id}/translation.json`
+  (`theme.*`).
+- **For developers:** new CSS should use the tokens (`var(--white)`, `var(--bg)`,
+  `var(--text)`, …). A hard-coded light colour stays light in dark mode and needs a fix
+  in `src/theme-dark.css`.
+- **API:** no change.
+
+---
+
 # 2026-11-20 — Cleaner, more modern sidebar
 
 - No more divider lines between menu groups; spacing separates them.

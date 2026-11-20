@@ -402,6 +402,14 @@
     "english": "English",
     "indonesian": "Bahasa Indonesia"
   },
+  "theme": {
+    "label": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "nowLight": "now light",
+    "nowDark": "now dark"
+  },
   "navigation": {
     "menuSearch": "Search menu…",
     "noMenuMatches": "No menu matches “{{query}}”.",
