@@ -41,6 +41,14 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+# 2026-11-20 — App version pinned to the bottom of the sidebar
+
+- The tenant sidebar already rendered `v{version}` from `package.json` (single source of truth; Vite bundles only the `version` field). It now sits at the very bottom: `.sidebar` is a flex column so the footer's `margin-top: auto` works, and the duplicate border/margin on `.sidebar-version` inside `.sidebar-footer` was removed.
+- The SaaS Owner sidebar (`SuperAdminSidebar.jsx`) now shows the same version under the "SaaS Owner" label, also pinned to the bottom.
+- Both sidebars share one component for desktop and the mobile slide-over, so the version is visible in both. To release a new version, bump `version` in `package.json`.
+
+---
+
 # 2026-11-18 — Sidebar search and responsive Event Settings
 
 - Adapted emi-source commit `687ba556` to the translated, plan-filtered TypeScript sidebar in emi-final. Search matches visible menu/section labels, Enter opens the first result, Escape clears, and `/` focuses the search when the sidebar is visible.
