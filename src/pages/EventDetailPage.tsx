@@ -8,7 +8,7 @@ import EventOutsourceItemModal from '../components/EventOutsourceItemModal';
 import EventOutsourceItemsPanel from '../components/EventOutsourceItemsPanel';
 import { stagePromptStep, type BrokenReport } from '../lib/sourcePreview';
 import { useEffect, useMemo, useRef, useState, type UIEvent as ReactUIEvent } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useQRCode } from "next-qrcode";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -70,6 +70,16 @@ import { useWarehouseController } from "./lib/useWarehouseController";
 import { useCategoryController } from "./lib/useCategoryController";
 import useGetEventDetail from "../hooks/api/useGetEventDetail";
 import useGetEventStatus from "../hooks/api/useGetEventStatus";
+import EventChecklistPanel from "../components/checklist/EventChecklistPanel";
+import { todayIso } from "../data/eventChecklistMock";
+import {
+  ensureEventChecklist,
+  seedTemplates,
+  summarizeEvent,
+  toChecklistStages,
+  useChecklistStore,
+  type ChecklistEventRef,
+} from "../lib/checklistStore";
 import { prepareEventFile, useDeleteEventFile, useGetEventFiles, useUploadEventFile } from "../hooks/api/useEventFiles";
 import useCheckEventItems, { type EventItemCheckUpdate } from "../hooks/api/useCheckEventItems";
 import { InventoryService } from "../service/InventoryService";
@@ -672,7 +682,7 @@ export default function EventDetailPage() {
   const { t } = useTranslation();
   const { SVG: QRCodeSvg } = useQRCode();
   const { id: routeEventId } = useParams<{ id: string }>();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const eventId = Number(routeEventId ?? searchParams.get("id"));
@@ -982,7 +992,9 @@ export default function EventDetailPage() {
   }, [moreMenuOpen]);
 
   useEffect(() => {
-    if (!eventStatuses.length || currentStatusId !== null) return;
+    // Wait for the event itself: when the status list arrives first (cached, or simply a faster
+    // response), deciding now falls back to the first stage and locks it (bug found 2026-11-20).
+    if (!eventStatuses.length || !eventDetail || currentStatusId !== null) return;
 
     const eventRunningId = Number(eventDetail?.event_running);
     const directId = [eventDetail?.status, eventRunningId].find(
@@ -1229,6 +1241,35 @@ export default function EventDetailPage() {
   const eventStatus = currentStatus?.name ?? stages[currentStageIndex] ?? stages[0];
   const closingFlag = resolveLifecycle({ id: eventId, status: currentStatus?.id, is_complete: eventDetail?.is_complete, is_finished: eventDetail?.is_finished, total_items: lifecycleItems.length }, { ...lifecycle, stageId: currentStatus?.id, itemCount: lifecycleItems.length }, eventStatuses[eventStatuses.length - 1]?.id);
   const isClosing = ['checking-inventory', 'returned-completed', 'transferred'].includes(closingFlag);
+
+  // Event Checklist inside the event (preview on mock data, owner 2026-11-20): same checklist as
+  // the Event Checklist page, kept in this browser by src/lib/checklistStore.ts. ?view=checklist opens it.
+  const detailView: 'items' | 'checklist' = searchParams.get('view') === 'checklist' ? 'checklist' : 'items';
+  const setDetailView = (view: 'items' | 'checklist') =>
+    setSearchParams((params) => {
+      if (view === 'checklist') params.set('view', 'checklist'); else params.delete('view');
+      return params;
+    }, { replace: true });
+  const checklistStore = useChecklistStore();
+  const checklistStages = useMemo(() => toChecklistStages(eventStatuses), [eventStatuses]);
+  const checklistEvent = useMemo<ChecklistEventRef | null>(() => {
+    if (!eventId || !eventDetail) return null;
+    const start = String(eventDetail.event_start || eventDetail.date_event || '').slice(0, 10);
+    return {
+      id: eventId,
+      name: eventDetail.name?.trim() || `#${eventId}`,
+      venue: eventDetail.address || '',
+      startDate: /^\d{4}-\d{2}-\d{2}$/.test(start) ? start : '',
+      currentStageId: currentStatus?.id ?? null,
+    };
+  }, [eventId, eventDetail, currentStatus?.id]);
+  useEffect(() => { seedTemplates(checklistStages); }, [checklistStages]);
+  useEffect(() => {
+    if (checklistEvent && checklistStore.templatesSeeded) ensureEventChecklist(checklistEvent, checklistStages);
+  }, [checklistEvent, checklistStages, checklistStore.templatesSeeded]);
+  const checklistSummary = checklistEvent
+    ? summarizeEvent(checklistEvent.id, checklistEvent.currentStageId, checklistStore.items, todayIso())
+    : null;
   const deleteAllowed = currentStatus?.allow_delete === true && !isClosing;
   const features = Object.fromEntries(eventStatuses.map(status => [status.id, eventStatusFeatures(status)]));
   const maxReachedIndex = Math.max(currentStageIndex, eventStatuses.findIndex(s => s.id === lifecycle?.furthestStageId));
@@ -2594,6 +2635,26 @@ export default function EventDetailPage() {
           </div>
         )}
 
+        <div className="ed-view-switch" role="tablist" aria-label={t("eventChecklist.viewLabel")}>
+          <button type="button" role="tab" aria-selected={detailView === 'items'} className={detailView === 'items' ? 'active' : ''} onClick={() => setDetailView('items')}>
+            {t("eventChecklist.viewItems")} <span className="stage-tab-count">{fmtDisplayNumber(items.length)}</span>
+          </button>
+          <button type="button" role="tab" aria-selected={detailView === 'checklist'} className={detailView === 'checklist' ? 'active' : ''} onClick={() => setDetailView('checklist')}>
+            {t("navigation.items.eventChecklist")}
+            {checklistSummary && checklistSummary.total > 0 && <span className="stage-tab-count">{fmtDisplayNumber(checklistSummary.resolved)}/{fmtDisplayNumber(checklistSummary.total)}</span>}
+            {checklistSummary && checklistSummary.blocking > 0 && <span className="badge badge-orange ed-view-blocking">{t('eventChecklist.blockingCount', { count: checklistSummary.blocking })}</span>}
+          </button>
+        </div>
+
+        {detailView === 'checklist' ? (
+          <div className="ed-checklist">
+            <p className="ed-checklist-preview"><span className="ck-preview-badge">{t('eventChecklist.preview')}</span> {t('eventChecklist.previewHint')}</p>
+            {checklistEvent
+              ? <EventChecklistPanel key={checklistEvent.id} event={checklistEvent} stages={checklistStages} showTitle={false}
+                  headerActions={<Link className="btn btn-ghost" to={`/event-checklist?event=${checklistEvent.id}`}>{t('eventChecklist.allChecklists')}</Link>} />
+              : <p className="no-data">{t('wording.loading')}</p>}
+          </div>
+        ) : (<>
         {!checkingMode && (isClosing || addLocked) && <p className="ed-lock-note">{t(isClosing ? 'eventUpgrade.itemsLocked' : !addAllowedAtStage ? 'eventUpgrade.stageAddLocked' : 'eventUpgrade.addLocked')}</p>}
         <div className="ed-toolbar">
           <div className="search-wrap"><IconSearch /><input className="search-input" placeholder={t('wording.keywordSearch')} value={kwSearch} onChange={e => setKwSearch(e.target.value)} /></div>
@@ -2838,6 +2899,7 @@ export default function EventDetailPage() {
             </div>}
           </>
         )}
+        </>)}
       </div>
 
       <Modal open={pendingStage !== null && flowStep === 'ownership'} title={t('sourceUpgrade.checkOwnership')} onClose={cancelStageFlow} footer={<>

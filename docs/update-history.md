@@ -41,6 +41,31 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+# 2026-11-20 — Event Checklist inside every event (preview on mock data)
+
+- **Event Detail** has a new switch under the stage bar: **Items | Event Checklist**. The Checklist
+  view shows that event's checklist (progress, current stage, tasks, photos, notes, sign-off); the
+  switch shows progress (e.g. 1/15) and how many required tasks block the stage. Link:
+  `/event-detail?id=<id>&view=checklist`. "All checklists" goes back to the overview.
+- **Event Checklist menu** stays as the overview, now with the **real events** (upcoming, on-going,
+  ready to close, ready for checking) instead of sample events, and an **Open in event** button.
+  Both places show the same checklist.
+- **Stage templates** now use the **real stages from Event Settings**. The sample tasks are copied
+  onto them once (matched by stage name, else by position). A new event gets a copy of the templates
+  the first time it is opened.
+- **Still a preview (owner approved mock data):** tasks, ticks, photos and sign-offs are saved in
+  **this browser only** (`localStorage` `emi.checklist.v1`), not on the server; other users and devices
+  do not see them. The badge says so. Backend contract: `src/hooks/api/eventChecklistContract.ts`.
+- **Bug fix (Event Detail stage):** when the stage list arrived before the event's own data (cache or a
+  faster response), the page picked the first stage ("Created by admin, step 1") and kept it, so the
+  stage bar and *Next* could be wrong. It now waits for the event data. No API change.
+- **Files:** `src/lib/checklistStore.ts` (shared store), `src/components/checklist/EventChecklistPanel.tsx`
+  (one event's checklist), `src/pages/EventChecklistPage.tsx` (overview, real events/stages),
+  `src/pages/EventDetailPage.tsx` (switch, checklist view, stage fix), `src/eventChecklist.css`,
+  `src/locales/{en,id}/translation.json` (`eventChecklist.*`).
+
+---
+
 # 2026-11-20 — Event Calendar: search and filters
 
 - **Toolbar** under the intro: a search box (event name, location or clashing item), a **Filter**

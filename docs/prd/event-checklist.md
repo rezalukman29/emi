@@ -55,6 +55,22 @@ before building the backend (questions below).
 
 ---
 
+# Round 3 — Checklist inside every event (2026-11-20)
+
+> Owner: "event checklist oke ada di luar tapi juga harus ada di setiap event … harus bisa diakses
+> juga lewat event detail". Needs the backend → owner chose a **mock preview** first.
+
+- **Where the work happens:** Event Detail → switch **Items | Event Checklist**. The menu page is the
+  **overview** across active events (progress, overdue, blocking, needs attention) with *Open in event*.
+  One checklist, two entry points; both read the same data.
+- **Real events and stages:** the overview lists real events; templates sit on the real Event Settings
+  stages; an event gets its copy of the templates when first opened (backend: on event creation).
+- **Preview limits:** stored per browser (no sharing between users/devices, lost if the browser data
+  is cleared). Not for operational use until the API exists.
+- **Open question (answer #4 above):** yes, progress is shown in Event Detail (switch badge + summary).
+
+---
+
 # Round 2 — Field review ("roast") and fixes (2026-11-20)
 
 Status: built on mock data; every feature can be switched in **Events → Checklist Settings**

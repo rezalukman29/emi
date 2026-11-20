@@ -9,6 +9,20 @@ Format: date — change — endpoints/fields touched — impact — action neede
 
 ---
 
+## 2026-11-20 — Event Checklist in Event Detail (mock) + stage fix
+
+- **Endpoints touched:** none changed. Read-only reuse of `/v2/event-filter` (overview list),
+  `/v1/event/{id}` and `/v1/event-status/get-all` (stages). The Event Detail stage fix only waits for
+  `/v1/event/{id}` before choosing the current stage; no request or parsing change.
+- **Needs API — waiting for backend (owner chose a mock preview for now, 2026-11-20):** the whole
+  checklist (templates per stage, items per event, status/photos/notes, sign-offs, settings) as written in
+  `src/hooks/api/eventChecklistContract.ts`. Today it is stored per browser in
+  `localStorage['emi.checklist.v1']`. Priority endpoints for "checklist inside every event":
+  `GET /v1/events/{eventId}/checklist`, `PATCH …/checklist/items/{itemId}` (status, note),
+  `POST …/items/{itemId}/photos`, `POST/DELETE …/stages/{eventStatusId}/sign-offs`,
+  `GET/POST/PATCH/DELETE /v1/checklist-templates` (keyed by **real** `event_status_id`).
+  Template ids and stage ids in the preview are local; they cannot be migrated to the server as-is.
+
 ## 2026-11-20 — Event Calendar filters
 
 - **Endpoints touched:** none. Filters run in the browser on the existing responses of

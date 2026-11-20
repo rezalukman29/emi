@@ -6,6 +6,33 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-20 — Event Checklist reachable from Event Detail (mock store) + stage race fix
+
+- **Owner:** "event checklist ok outside, but it must also be in every event / accessible from event
+  detail". Needed the checklist API (not built) → asked first; owner chose **mock data for now**.
+- **Store:** `src/lib/checklistStore.ts` — module store + `useSyncExternalStore`, persisted to
+  `localStorage['emi.checklist.v1']` (`{version, templates, items, signOffs, nextId, templatesSeeded}`),
+  `storage` event sync between tabs, `storageFull` flag on quota errors. `seedTemplates(stages)` copies
+  the sample templates (`eventChecklistMock.ts`) onto the real stages once (name match → partial name →
+  relative position). `ensureEventChecklist(event, stages)` copies templates for an event the first time
+  (status open, due from the event start). Photos are downscaled JPEG data URLs (`photoToDataUrl`).
+  `INITIAL_EVENTS / INITIAL_ITEMS / INITIAL_SIGNOFFS` in the mock file are no longer used.
+- **UI:** `EventChecklistPanel` (moved out of the page; mount with `key={event.id}`) is used by the
+  overview page (right side) and by Event Detail (`?view=checklist`, switch `.ed-view-switch` inserted
+  before the item toolbar; the item area is wrapped in `detailView === 'items'`). Overview list = real
+  events from `/v2/event-filter` for 4 lifecycles (limit 100 each), `?event=<id>` selects one.
+- **Stage race (pre-existing):** the current-status effect in `EventDetailPage` ran when statuses were
+  present but `eventDetail` was not yet, fell back to the first stage and locked (`currentStatusId !== null`).
+  Reproduced with a 400 ms slower `/v1/event/{id}`; fixed with `!eventDetail` in the guard.
+- **Checks:** build OK, tsc 0, lint baseline 12/1, node tests 38/40 (same 2 pre-existing). Playwright
+  (mocked API): overview lists real events; tick a task → *Open in event* → same task ticked, 1/15 in the
+  switch, survives reload; Items view unchanged; *All checklists* returns with the event selected;
+  templates on the 7 real stages; 390px dark OK; stage shows step 2 with the slow detail response.
+- **Mock gotcha:** Event Detail needs arrays from `/v2/package`, `/v3/production-requests`,
+  `/v1/events/{id}/borrowed-items|outsource-items`, `/v1/kategori-barang-all`, `/v1/event-files`, and
+  items need `sub_list_id`, `is_checking`, `is_ware_house_item` as `{…, Valid}` objects.
+- **API impact:** none (checklist still needs its backend — see api-impact-log).
+
 ## 2026-11-20 — Event Calendar filters + "stop when it needs the API" rule
 
 - **Sync check:** origin `a25b133` (owner has not pushed the two patches yet); main nothing new.
