@@ -9,6 +9,11 @@ Format: date — change — endpoints/fields touched — impact — action neede
 
 ---
 
+## 2026-11-20 — Sidebar redesign
+
+- **Endpoints touched:** none. CSS, icons and markup only.
+- **Impact:** none.
+
 ## 2026-11-20 — Event Checklist v2 (more NEW endpoints/fields)
 
 - **Existing endpoints changed:** none (still mock data, no requests).

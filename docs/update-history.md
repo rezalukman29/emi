@@ -41,6 +41,19 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+# 2026-11-20 — Cleaner, more modern sidebar
+
+- No more divider lines between menu groups; spacing separates them.
+- Menu items are rounded with softer gray icons; the active page gets a light brand-colored
+  background (no thick left border). Hover and keyboard focus are clearer.
+- Event Calendar, Event Report and Stock Opname Report now have real icons (they used text
+  symbols before).
+- The menu search is a soft filled field; the scrollbar only appears on hover.
+- Bottom: "Owner Panel" looks like a menu item; version, branch and commit sit in one small card.
+- Same look in the SaaS Owner panel (dark) and in the mobile slide-over menu.
+
+---
+
 # 2026-11-20 — Event Checklist v2: photos, statuses, notes, sign-off + Checklist Settings
 
 - **Tap a task** to open its full view: status (To do, Done, N/A, Issue), photos (camera or

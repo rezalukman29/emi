@@ -6,6 +6,25 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-20 — Sidebar redesign (minimal)
+
+- **Sync check:** main had nothing new; branch still 2 commits ahead of origin (owner has not
+  pushed the build-info + checklist v2 patch yet).
+- **CSS (`src/style.css`, SIDEBAR block + `.sidebar-search*` + `.sidebar-footer`/build-info block):**
+  width 240px, padding on the sidebar (10px) instead of on items; no divider lines between
+  sections (14px spacing instead); nav items are rounded pills (8px radius, 7px 10px),
+  weight 500; icons 16px in `--text-muted`, brand color when active; active = `--brand-bg`
+  background without the old left border; hover = `--bg`; focus-visible outline; long labels
+  ellipsis; thin scrollbar that only shows on hover. Search is a borderless filled pill.
+  Footer: Owner Panel is now a `.nav-item` (muted); build info is one small card
+  (`--bg`, radius 8px) with version on top (+ label on the right in the owner panel).
+  Only design tokens are used, so the dark `.sa-theme` works without changes.
+- **`Sidebar.tsx`:** Event Calendar, Event Report and Stock Opname Report used text glyphs
+  (▦ ▤) as icons — replaced with SVGs like the other items. Owner link gets `nav-item`.
+- **`BuildInfo.tsx`:** version + optional label in one row (`.sidebar-version-top`).
+- **API impact:** none. **Checks:** build OK, tsc 0, lint baseline 12/1; screenshots tenant
+  desktop, owner (dark), mobile slide-over.
+
 ## 2026-11-20 — Event Checklist v2: field features + Checklist Settings
 
 - **Sync check:** fetched `daniel-staging-web` + `main`; main had nothing new. Local branch was
