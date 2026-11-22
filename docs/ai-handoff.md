@@ -6,6 +6,26 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-22 — Event Detail layout B + floating A/B switcher
+
+- **Base:** `origin/daniel-staging-web` `e9fe796` (owner pushed patches 0001–0007). Local branch `ab-version`.
+- **Owner asked:** floating draggable switcher to test version A/B, and a cleaner B for Event Detail with
+  every feature kept ("think as head of design").
+- **Pattern (reuse for other pages):** `useUiVariant()` from `src/lib/uiVariant.ts` (localStorage
+  `emi.ui.variant.v1`, `useSyncExternalStore`, cross-tab `storage` sync). In the page: `const isB = useUiVariant() === 'B'`,
+  add a scope class (`ed-b`) and put B-only CSS in a scoped file (`src/edLayoutB.css`, imported in `main.jsx`
+  before `theme-dark.css`). Keep JSX branches minimal (`{!isB && …}`) so A is untouched.
+  `<VariantSwitcher label="…" />` is mounted in `Layout.tsx` for admins on `/event-detail`; extend that
+  condition for more pages. Switcher keys: `emi.ui.variantSwitcher.pos.v1`, `emi.ui.variantSwitcher.hidden.v1`
+  (`?ab=1` un-hides).
+- **EventDetailPage B changes:** `requestMenuOpen`/`requestMenuRef` (Request ▾ dropdown calling the same
+  setters as A's buttons), Files icon button, ownership `onChange` also sets `appliedOwnershipFilter`,
+  refresh icon → `refetchEventItems()`, zero-count stage chips hidden in B.
+- **Checks:** build OK, tsc 0, lint 12/1, node tests 38/40 (same 2). Playwright (mocked API): B header =
+  Request / Files / Add Item / ⋯; Request menu opens each modal; switcher toggles live; drag persists after
+  reload; staff do not see the switcher; dark + 390 px screenshots OK; no page errors.
+- **API impact:** none. **Open:** owner to pick A or B after testing; then remove the losing branch + switcher.
+
 ## 2026-11-22 — Event Detail menu/print chooser, item drawer, PIC users, assistant hidden
 
 - **Sync check:** origin still `a25b133`; main nothing new. Patch 0007 on top of local `9be82db`.

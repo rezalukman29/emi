@@ -462,6 +462,17 @@
     "note": "Catatan",
     "notYet": "Belum"
   },
+  "edB": {
+    "request": "Permintaan",
+    "refresh": "Muat ulang barang"
+  },
+  "abSwitcher": {
+    "label": "Versi tampilan {{name}}",
+    "version": "Versi tampilan",
+    "drag": "Seret untuk memindahkan",
+    "hide": "Sembunyikan switcher",
+    "hideHint": "Sembunyikan (tambahkan ?ab=1 di URL untuk menampilkan lagi)"
+  },
   "navigation": {
     "menuSearch": "Cari menu…",
     "noMenuMatches": "Tidak ada menu yang cocok dengan “{{query}}”.",

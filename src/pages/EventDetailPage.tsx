@@ -73,6 +73,7 @@ import { useCategoryController } from "./lib/useCategoryController";
 import useGetEventDetail from "../hooks/api/useGetEventDetail";
 import useGetEventStatus from "../hooks/api/useGetEventStatus";
 import EventChecklistPanel from "../components/checklist/EventChecklistPanel";
+import { useUiVariant } from "../lib/uiVariant";
 import { todayIso } from "../data/eventChecklistMock";
 import {
   ensureEventChecklist,
@@ -832,6 +833,18 @@ export default function EventDetailPage() {
   const [printPlanOpen, setPrintPlanOpen] = useState(false);
   const [printChooserOpen, setPrintChooserOpen] = useState(false);
   const [drawerMenuOpen, setDrawerMenuOpen] = useState(false);
+  // Layout B (A/B test, owner 2026-11-22): same state and actions, cleaner arrangement.
+  const isB = useUiVariant() === 'B';
+  const [requestMenuOpen, setRequestMenuOpen] = useState(false);
+  const requestMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!requestMenuOpen) return;
+    const close = (event: MouseEvent) => { if (!requestMenuRef.current?.contains(event.target as Node)) setRequestMenuOpen(false); };
+    const esc = (event: KeyboardEvent) => { if (event.key === 'Escape') setRequestMenuOpen(false); };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc); };
+  }, [requestMenuOpen]);
   const [filesOpen, setFilesOpen] = useState(false);
   const [isUploadingEventFiles, setIsUploadingEventFiles] = useState(false);
   const [deletingEventFileId, setDeletingEventFileId] = useState<number | null>(null);
@@ -2488,8 +2501,8 @@ export default function EventDetailPage() {
 
   return (
     <>
-      <h1 className="page-title">{t("wording.eventDetail")}</h1>
-      <div className="card">
+      <h1 className={`page-title${isB ? ' ed-b-page-title' : ''}`}>{t("wording.eventDetail")}</h1>
+      <div className={`card${isB ? ' ed-b' : ''}`}>
         <div style={{ marginBottom: 14 }}>
           <button
             onClick={() => navigate("/event")}
@@ -2524,6 +2537,7 @@ export default function EventDetailPage() {
           <div className="event-title-wrap"><div className="event-heading">{eventName}</div><span className={`badge ${LIFECYCLE_BADGES[closingFlag]}`}>{t(`lifecycle.${closingFlag}`)}</span></div>
 
           <div className="event-actions-bar">
+            {!isB && <>
             {outsourceEnabled && <button type="button" className="btn btn-ghost btn-request-production" onClick={() => setOutsourceOpen(true)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>{t('sourceUpgrade.outsourceItem')}</button>}
             {loanEnabled && <button className="btn btn-ghost btn-request-production" onClick={() => setBorrowOpen(true)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 3h5v5"/><path d="M21 3l-7 7"/><path d="M8 21H3v-5"/><path d="M3 21l7-7"/></svg>{t('sourceUpgrade.borrowItem')}</button>}
             {productionEnabled && <button className="btn btn-ghost btn-request-production" onClick={() => { setProductionInitial(null); setProductionOpen(true); }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v11h16V9"/><path d="M9 20v-6h6v6"/><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/></svg>{t("eventUpgrade.requestProduction")}</button>}
@@ -2531,6 +2545,24 @@ export default function EventDetailPage() {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
               Files <span className="stage-tab-count">{eventFiles.length}</span>
             </button>
+            </>}
+            {isB && (outsourceEnabled || loanEnabled || productionEnabled) && (
+              <div className="more-menu-wrap" ref={requestMenuRef}>
+                <button type="button" className="btn btn-ghost ed-b-request" aria-haspopup="menu" aria-expanded={requestMenuOpen} onClick={() => setRequestMenuOpen((open) => !open)}>
+                  {t('edB.request')}
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9" /></svg>
+                </button>
+                {requestMenuOpen && <div className="more-menu-dropdown" role="menu">
+                  {outsourceEnabled && <button type="button" role="menuitem" className="more-menu-item" onClick={() => { setRequestMenuOpen(false); setOutsourceOpen(true); }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>{t('sourceUpgrade.outsourceItem')}</button>}
+                  {loanEnabled && <button type="button" role="menuitem" className="more-menu-item" onClick={() => { setRequestMenuOpen(false); setBorrowOpen(true); }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 3h5v5"/><path d="M21 3l-7 7"/><path d="M8 21H3v-5"/><path d="M3 21l7-7"/></svg>{t('sourceUpgrade.borrowItem')}</button>}
+                  {productionEnabled && <button type="button" role="menuitem" className="more-menu-item" onClick={() => { setRequestMenuOpen(false); setProductionInitial(null); setProductionOpen(true); }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v11h16V9"/><path d="M9 20v-6h6v6"/><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/></svg>{t("eventUpgrade.requestProduction")}</button>}
+                </div>}
+              </div>
+            )}
+            {isB && <button type="button" className="btn btn-ghost ed-b-icon-btn" onClick={() => setFilesOpen(true)} aria-label={`Files (${eventFiles.length})`} data-tip={`Files · ${eventFiles.length}`} data-tip-align="end">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              {eventFiles.length > 0 && <span className="ed-b-dot">{fmtDisplayNumber(eventFiles.length)}</span>}
+            </button>}
             <button className="btn-new" disabled={addLocked} onClick={openCart}>
               <IconPlus /> {t("wording.addItem")}
               {cart.length > 0 && <span className="add-item-cart-count"><IconCart /> {fmtDisplayNumber(cart.length)}</span>}
@@ -2672,8 +2704,10 @@ export default function EventDetailPage() {
           </div>
 
           <div className="filter-row-right">
-            <SearchableSelect value={ownershipFilter} onChange={value => setOwnershipFilter(String(value))} options={[{ value: '', label: t('lifecycle.allOwnership') }, ...OWNERSHIP_OPTIONS.map(value => ({ value, label: `${value} (${items.filter(item => item.ownerships.includes(value)).length})` }))]} />
-            <button
+            <SearchableSelect value={ownershipFilter} onChange={value => { setOwnershipFilter(String(value)); if (isB) setAppliedOwnershipFilter(String(value)); }} options={[{ value: '', label: t('lifecycle.allOwnership') }, ...OWNERSHIP_OPTIONS.map(value => ({ value, label: `${value} (${items.filter(item => item.ownerships.includes(value)).length})` }))]} />
+            {isB ? <button type="button" className="btn btn-ghost ed-b-icon-btn" aria-label={t('edB.refresh')} data-tip={t('edB.refresh')} data-tip-align="end" onClick={() => void refetchEventItems()}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            </button> : <button
               className="btn btn-check"
               onClick={() => {
                 if (ownershipFilter === appliedOwnershipFilter) {
@@ -2684,7 +2718,7 @@ export default function EventDetailPage() {
               }}
             >
               <IconSearch /> {t("wording.check")}
-            </button>
+            </button>}
           </div>
         </div>
 
@@ -2692,6 +2726,7 @@ export default function EventDetailPage() {
           {(['all', 'added', ...(stageScanEnabled ? ['waiting'] : []), ...(checkingMode ? ['unchecked', 'checked'] : []), 'grouped', ...(productionTabVisible ? ['production'] : []), ...(borrowedTabVisible ? ['borrowed'] : []), ...(outsourceTabVisible ? ['outsourced'] : [])] as const).map(tab => {
             const labels: Record<string, string> = { all: 'wording.all', added: 'wording.addedNew', waiting: 'wording.waitingScan', unchecked: 'Not checked', checked: 'Checked', grouped: 'wording.grouped', production: 'eventUpgrade.production', borrowed: 'eventBorrow.borrowed', outsourced: 'sourceUpgrade.outsourced' };
             const counts: Record<string, number> = { all: scopedItems.length, added: currentStageItems.length, waiting: waitingScanItems.length, unchecked: uncheckedCount, checked: checkedCount, grouped: packages.length, production: productionRequestsResponse ? apiProductionRequests.length : (productionItemResponse ? backendProductionItems.length : items.filter(item => item.isNewProductionItem).length) + requests.length, borrowed: borrowedItems.length, outsourced: outsourceItems.length };
+            if (isB && tab !== 'all' && effectiveStageFilter !== tab && !counts[tab]) return null;
             return <button key={tab} className={'stage-tab' + (effectiveStageFilter === tab ? ' active' : '')} onClick={() => setStageFilter(tab as typeof stageFilter)}>{t(labels[tab])} <span className="stage-tab-count">{counts[tab]}</span></button>;
           })}
         </div><div className="view-toggle">{(['cards', 'list'] as const).map(mode => <button key={mode} title={t('eventUpgrade.' + mode)} aria-label={t('eventUpgrade.' + mode)} aria-pressed={viewMode === mode} className={viewMode === mode ? 'active' : ''} onClick={() => { setViewMode(mode); try { localStorage.setItem('emi_event_detail_view', mode); } catch { /* Preference is optional. */ } }}>{mode === 'cards' ? '▦' : '☰'}</button>)}</div></div>

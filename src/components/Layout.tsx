@@ -11,6 +11,8 @@ import { useDispatch } from "react-redux";
 import { useQueryClient } from "react-query";
 import { useNavigate } from "react-router-dom";
 import ChatBot from "./ChatBot";
+import VariantSwitcher from "./VariantSwitcher";
+import { isTenantAdminUser } from "../lib/tenantUser";
 
 const SHOW_ASSISTANT = false;
 import { setProfile } from "../store/profile";
@@ -164,6 +166,8 @@ export default function Layout() {
       </div>
       {/* EMI Assistant chatbot hidden for now (owner 2026-11-22). Set SHOW_ASSISTANT to true to bring it back. */}
       {SHOW_ASSISTANT && <ChatBot />}
+      {/* A/B layout switcher: admins only, on pages that have a B layout (owner 2026-11-22). */}
+      {isTenantAdminUser() && location.pathname.startsWith("/event-detail") && <VariantSwitcher label="Event Detail" />}
     </>
   );
 }

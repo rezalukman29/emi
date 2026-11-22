@@ -462,6 +462,17 @@
     "note": "Note",
     "notYet": "Not yet"
   },
+  "edB": {
+    "request": "Request",
+    "refresh": "Refresh items"
+  },
+  "abSwitcher": {
+    "label": "{{name}} layout version",
+    "version": "Layout version",
+    "drag": "Drag to move",
+    "hide": "Hide switcher",
+    "hideHint": "Hide (add ?ab=1 to the URL to show it again)"
+  },
   "navigation": {
     "menuSearch": "Search menu…",
     "noMenuMatches": "No menu matches “{{query}}”.",

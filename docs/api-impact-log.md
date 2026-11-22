@@ -9,6 +9,12 @@ Format: date — change — endpoints/fields touched — impact — action neede
 
 ---
 
+## 2026-11-22 — Event Detail layout B + A/B switcher
+
+- **Endpoints touched:** none. Same queries and mutations in both layouts; B's refresh icon calls the existing
+  `refetchEventItems()` and the ownership filter applies on change instead of on *Check* (same request params).
+  Only new local state: localStorage `emi.ui.variant.v1`, `emi.ui.variantSwitcher.pos.v1`, `emi.ui.variantSwitcher.hidden.v1`.
+
 ## 2026-11-22 — PIC from users, Event Detail menu, item drawer, assistant hidden
 
 - **Endpoints touched:** read-only reuse of `GET /v1/get-all-user` (page 1, limit 100, `search`) for the

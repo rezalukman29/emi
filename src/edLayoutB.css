@@ -1,0 +1,90 @@
+/* =========================================================
+   EVENT DETAIL — LAYOUT B (A/B test, owner 2026-11-22)
+   Same markup, data and actions as layout A; only the arrangement and visual weight change.
+   Everything is scoped to .ed-b so layout A is untouched.
+   Principles: one primary action (Add Item); secondary actions grouped; stage as a light
+   progress row; tabs as underline; one toolbar row; hide empty filter chips; calmer cards.
+   ========================================================= */
+
+.ed-b-page-title { display: none; }
+.card.ed-b { padding: 20px 24px 24px; }
+
+/* Back link: a quiet breadcrumb */
+.card.ed-b > div:first-child { margin-bottom: 6px !important; }
+.card.ed-b > div:first-child > button { color: var(--text-muted) !important; font-weight: 500 !important; }
+.card.ed-b > div:first-child > button:hover { color: var(--brand) !important; }
+
+/* Header: bigger title, one primary button */
+.ed-b .event-header-row { align-items: center; margin-bottom: 18px; gap: 12px; }
+.ed-b .event-heading { font-size: 20px; letter-spacing: -.02em; }
+.ed-b .event-title-wrap { gap: 10px; }
+.ed-b .event-actions-bar { gap: 6px; }
+.ed-b .event-actions-bar .btn, .ed-b .event-actions-bar .btn-new { height: 36px; }
+.ed-b-request { display: inline-flex; align-items: center; gap: 6px; }
+.ed-b-request svg { width: 14px; height: 14px; color: var(--text-muted); }
+.ed-b .event-actions-bar .more-menu-wrap .more-menu-dropdown { min-width: 200px; }
+.ed-b-icon-btn { position: relative; width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+.ed-b-icon-btn svg { width: 16px; height: 16px; }
+.ed-b-dot { position: absolute; top: -4px; right: -4px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--brand); color: #fff; font-size: 10px; font-weight: 700; line-height: 16px; text-align: center; }
+
+/* Stage: a light row instead of a grey panel */
+.ed-b .event-status-section { background: none; border: 0; border-top: 1px solid var(--border-2); border-bottom: 1px solid var(--border-2); border-radius: 0; padding: 12px 0; margin-bottom: 4px; gap: 14px; }
+.ed-b .event-status-section-label { display: none; }
+.ed-b .btn-next-stage { padding: 8px 14px; border-radius: var(--r); font-size: 12.5px; }
+
+/* Items | Checklist as underline tabs */
+.ed-b .ed-view-switch { display: flex; gap: 22px; padding: 0; margin: 0 0 16px; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: none; }
+.ed-b .ed-view-switch button { padding: 12px 2px 11px; border-radius: 0; background: none; border-bottom: 2px solid transparent; margin-bottom: -1px; color: var(--text-muted); }
+.ed-b .ed-view-switch button:hover { background: none; color: var(--text); }
+.ed-b .ed-view-switch button.active { background: none; color: var(--text); border-bottom-color: var(--brand); }
+
+/* One toolbar row: search grows, selects stay compact */
+.ed-b .ed-toolbar { gap: 8px; margin-bottom: 10px; flex-wrap: nowrap; }
+.ed-b .ed-toolbar .search-wrap { flex: 1 1 auto; min-width: 0; }
+.ed-b .ed-toolbar > div[style] { flex: 0 1 220px !important; min-width: 150px !important; }
+.ed-b .ed-toolbar .filter-row-right { flex: 0 0 auto; display: flex; gap: 8px; align-items: center; margin-left: 0 !important; }
+.ed-b .ed-toolbar .filter-row-right > *:first-child { min-width: 170px; }
+
+/* Filter chips as quiet text tabs; zero-count chips are not rendered in B */
+.ed-b .stage-tabs-row { align-items: center; margin-bottom: 4px; }
+.ed-b .stage-tabs { gap: 4px; margin-bottom: 8px; }
+.ed-b .stage-tab { border-color: transparent; background: none; padding: 6px 10px; color: var(--text-muted); }
+.ed-b .stage-tab:hover { color: var(--text); background: var(--bg); }
+.ed-b .stage-tab.active { background: var(--brand-bg); border-color: transparent; color: var(--brand); }
+.ed-b .stage-tab.active .stage-tab-count { background: none; color: var(--brand); }
+
+/* Calmer item cards: shorter image area */
+.ed-b .item-img-placeholder { height: 84px; }
+.ed-b .item-card { border-color: var(--border-2); }
+.ed-b .item-card:hover { border-color: var(--border); box-shadow: var(--shadow-sm); }
+
+@media (max-width: 900px) {
+  .card.ed-b { padding: 16px; }
+  .ed-b .ed-toolbar { flex-wrap: wrap; }
+  .ed-b .ed-toolbar .search-wrap { flex-basis: 100%; }
+  .ed-b .ed-toolbar > div[style] { flex: 1 1 150px !important; }
+  .ed-b .ed-view-switch { gap: 16px; overflow-x: auto; }
+}
+
+/* Floating A/B switcher */
+.ab-switcher {
+  position: fixed; z-index: 300; display: flex; align-items: center; gap: 8px;
+  height: 44px; padding: 0 6px 0 4px; border-radius: 22px; touch-action: none; user-select: none;
+  background: #111827; color: #fff; box-shadow: 0 10px 30px rgba(15, 23, 42, .28); cursor: grab;
+}
+.ab-switcher:active { cursor: grabbing; }
+.ab-grip { display: inline-flex; width: 22px; height: 30px; align-items: center; justify-content: center; color: rgba(255,255,255,.55); }
+.ab-grip svg { width: 14px; height: 14px; }
+.ab-label { font-size: 12px; font-weight: 600; color: rgba(255,255,255,.75); white-space: nowrap; }
+.ab-toggle { display: inline-flex; padding: 3px; border-radius: 16px; background: rgba(255,255,255,.12); }
+.ab-toggle button { min-width: 30px; height: 26px; border: 0; border-radius: 13px; background: none; color: rgba(255,255,255,.75); font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; }
+.ab-toggle button.active { background: #fff; color: #111827; }
+.ab-toggle button:focus-visible, .ab-close:focus-visible { outline: 2px solid #818cf8; outline-offset: 1px; }
+.ab-close { width: 26px; height: 26px; border: 0; border-radius: 13px; background: none; color: rgba(255,255,255,.6); font-size: 17px; line-height: 1; cursor: pointer; }
+.ab-close:hover { background: rgba(255,255,255,.12); color: #fff; }
+:root[data-theme="dark"] .ab-switcher { background: #e7ebf5; color: #111827; }
+:root[data-theme="dark"] .ab-grip, :root[data-theme="dark"] .ab-label, :root[data-theme="dark"] .ab-close { color: rgba(17,24,39,.65); }
+:root[data-theme="dark"] .ab-toggle { background: rgba(17,24,39,.1); }
+:root[data-theme="dark"] .ab-toggle button { color: rgba(17,24,39,.7); }
+:root[data-theme="dark"] .ab-toggle button.active { background: #111827; color: #fff; }
+@media print { .ab-switcher { display: none; } }

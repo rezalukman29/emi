@@ -41,6 +41,29 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+# 2026-11-22 — Event Detail layout B + floating A/B switcher
+
+- **What:** a second, calmer layout ("B") for **Event Detail**, and a floating **A / B switcher** so the owner
+  can compare both on real data. A stays exactly as before and is the default.
+- **Switcher:** small dark pill (bottom right) with *Event Detail · A | B* and ×. Drag it by the grip
+  anywhere; the position is remembered. × hides it; open any page with `?ab=1` to bring it back.
+  Shown only to **tenant admins** and only on `/event-detail`. The chosen version is per browser
+  (localStorage), not per account.
+- **Layout B (same features, less noise):**
+  - Header: one **Request ▾** menu (Outsource Item / Rent Item / Request Production) instead of three
+    buttons; Files is an icon button with a count dot; *Add Item* and *⋯* unchanged.
+  - Stage block is a light row (no grey box, no "Stage" caption); progress bar and *Next* button unchanged.
+  - Items / Event Checklist switch as underline tabs.
+  - Filters in one row: keyword, area, ownership (applies immediately) and a refresh icon instead of *Check*.
+  - Stage chips show only stages that have items (plus *All* and the selected one) as quiet text chips.
+  - Smaller page title area, smaller image placeholder; mobile wraps at ≤ 900 px. Works in dark mode.
+- **Not changed:** data, actions, modals, permissions and API calls are the same in A and B.
+- **Files:** new `src/lib/uiVariant.ts`, `src/components/VariantSwitcher.tsx`, `src/edLayoutB.css`;
+  changed `src/pages/EventDetailPage.tsx`, `src/components/Layout.tsx`, `src/main.jsx`,
+  `src/locales/{en,id}/translation.json` (`edB.*`, `abSwitcher.*`).
+
+---
+
 # 2026-11-22 — Event Detail menu + print chooser, Item details drawer, PIC from users, assistant hidden
 
 - **"⋯" menu (Event Detail):** every entry has an icon and fits on one line; grouped with thin separators
