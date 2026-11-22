@@ -41,6 +41,28 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+# 2026-11-22 — Event Detail menu + print chooser, Item details drawer, PIC from users, assistant hidden
+
+- **"⋯" menu (Event Detail):** every entry has an icon and fits on one line; grouped with thin separators
+  (Summary, Rentals | Group Items, Bulk Assign Ownership, Cross Check | Print…). *Print Plan* and *Print*
+  are now one **Print…** entry that opens a small chooser: *Print Plan* (packing list) or *This page*.
+  *Request Production* in the header got an icon like the other buttons; header labels stay on one line.
+- **Item details drawer:** compact header (small photo, name, SKU · category, badges), a Qty / Status /
+  Ownership strip, *Location* (area, sub area, warehouse, PIC), *Progress* (Checking, Scan In, Scan Out as
+  ✓/○ chips with the scan time as tooltip), and the note only when there is one (the empty orange "—"
+  box is gone). Footer: **Remove** and **Go to item detail** (opens `/inventory-detail?id=<item>`).
+  *Modify item*, *Report broken item*, *Create production* and *Scan* moved into the footer's **⋯** menu,
+  because the drawer is the only place for them.
+- **PIC (New / Edit Event):** chosen from the tenant's users (`/v1/get-all-user`, searchable). Saved as the
+  user's name in the same `PIC` field, so the API is unchanged; an older PIC that is not a user stays
+  selectable ("not a user"). If the user list cannot load, PIC falls back to free text.
+- **EMI Assistant** chatbot is hidden (`SHOW_ASSISTANT = false` in `Layout.tsx`).
+- **Not done, waiting for a decision:** rich text for Description / Note (see api-impact-log).
+- **Files:** `src/pages/EventDetailPage.tsx`, `src/pages/EventPage.tsx`, `src/components/Layout.tsx`,
+  `src/eventUpgrade.css`, `src/locales/{en,id}/translation.json` (`eventForm.*`, `eventDetailMenu.*`, `itemDrawer.*`).
+
+---
+
 # 2026-11-22 — Event list: clickable cards, Overdue chip, instant tooltips; Events open by default
 
 - **Sidebar:** the *Events* group is open by default (until the user folds it), even when the current

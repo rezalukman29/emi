@@ -6,6 +6,27 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-22 — Event Detail menu/print chooser, item drawer, PIC users, assistant hidden
+
+- **Sync check:** origin still `a25b133`; main nothing new. Patch 0007 on top of local `9be82db`.
+- **Owner asked 6 things:** (1) rich text editor for Description and Note → **stopped** (changes the content
+  format of existing API fields; mobile, cards, print and summary would show raw HTML; needs sanitising and a
+  new dependency) — waiting for the owner; (2) PIC from users → `useGetUsers` (`/v1/get-all-user`, limit 100,
+  server search via `SearchableSelect.onSearchChange`), value = fullname (string, same field); fallback
+  `TextInput` on error; (3) "⋯" menu rebuilt (icons, `white-space: nowrap`, separators `.more-menu-sep`),
+  `printChooserOpen` modal (Print Plan → `setPrintPlanOpen`, This page → `window.print()` after the modal
+  closes); Request Production icon; (4) drawer rebuilt with `.idr-*` classes; (5) `SHOW_ASSISTANT = false`;
+  (6) drawer footer = Remove + Go to item detail (`/inventory-detail?id=barangId`, hidden when no barangId);
+  other actions in `drawerMenuOpen` dropdown (`.idr-more-menu`, opens upwards) — **not removed**, since
+  Modify / Report broken have no other entry point.
+- **Checks:** build OK, tsc 0, lint 12/1, node tests 38/40 (same 2). Playwright: menu entries all 32 px high
+  (one line); chooser shows Print Plan / This page; drawer footer Remove · ⋯ · Go to item detail, ⋯ = Modify
+  item, Report broken item; Go to item → /inventory-detail?id=77 renders; PIC lists users and selects
+  "Anto Wijaya"; no chatbot; 390px drawer OK; no page errors.
+- **Mock gotcha:** `/inventory-detail` needs arrays from `/v1/kategori-barang-all` and `/v1/satuan`, and
+  `/v1/barang/{id}` as an object.
+- **API impact:** none (rich text = decision pending).
+
 ## 2026-11-22 — Event list: clickable cards, Overdue chip, tooltips, Events default-open
 
 - **Sync check:** origin still `a25b133`, main nothing new. Patch 0006 on top of local `d569d55`.

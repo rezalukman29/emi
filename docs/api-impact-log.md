@@ -9,6 +9,19 @@ Format: date — change — endpoints/fields touched — impact — action neede
 
 ---
 
+## 2026-11-22 — PIC from users, Event Detail menu, item drawer, assistant hidden
+
+- **Endpoints touched:** read-only reuse of `GET /v1/get-all-user` (page 1, limit 100, `search`) for the
+  PIC picker. The event create/edit payload is unchanged: `PIC` is still a string (the user's full name).
+  If PIC should later be a user id (to follow renames or filter "my events"), that needs a new field.
+- Menu, print chooser, drawer and hiding the assistant: no API impact.
+- **Waiting for owner / backend — rich text for Description and Note:** the fields stay the same but their
+  content would become formatted text (HTML or Markdown). Everything that reads them as plain text
+  (mobile app, event cards, print plan, summary, search) would show the markup unless it is changed too,
+  and the backend should sanitise stored HTML (XSS). Options: (A) HTML + sanitising on the server + a
+  renderer everywhere; (B) Markdown (stays readable as plain text in old clients); (C) keep plain text with
+  line breaks. Needs a new editor dependency on the web.
+
 ## 2026-11-22 — Event list: Overdue chip, clickable cards, tooltips
 
 - **Endpoints touched:** none. The Overdue chip reads the existing `event_start` / `event_end` /

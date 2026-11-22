@@ -440,6 +440,28 @@
     "overdueHint": "Selesai pada {{date}} tetapi belum ditutup",
     "inProgress": "Sedang berjalan"
   },
+  "eventForm": {
+    "picPlaceholder": "Pilih pengguna",
+    "picSearch": "Cari pengguna…",
+    "picEmpty": "Pengguna tidak ditemukan",
+    "picNotAUser": "bukan pengguna"
+  },
+  "eventDetailMenu": {
+    "print": "Cetak…",
+    "printTitle": "Apa yang ingin dicetak?",
+    "printPlanHint": "Daftar barang per area dan stage, untuk kru",
+    "printPage": "Halaman ini",
+    "printPageHint": "Detail acara seperti di layar"
+  },
+  "itemDrawer": {
+    "remove": "Hapus",
+    "goToItem": "Lihat detail barang",
+    "moreActions": "Aksi lainnya",
+    "location": "Lokasi",
+    "progress": "Progres",
+    "note": "Catatan",
+    "notYet": "Belum"
+  },
   "navigation": {
     "menuSearch": "Cari menu…",
     "noMenuMatches": "Tidak ada menu yang cocok dengan “{{query}}”.",

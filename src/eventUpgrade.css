@@ -500,3 +500,53 @@
 :root[data-theme="dark"] [data-tip]::after { background: #e7ebf5; color: #111827; }
 @media (hover: none) { [data-tip]:hover::after { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { [data-tip]::after { transition: none; } }
+
+/* Event Detail header + "⋯" menu: icons everywhere, one line per entry (2026-11-22) */
+.event-actions-bar .btn, .event-actions-bar .btn-new { white-space: nowrap; }
+.more-menu-dropdown { min-width: 220px; }
+.more-menu-item { white-space: nowrap; }
+.more-menu-item:disabled { opacity: .5; cursor: not-allowed; }
+.more-menu-sep { height: 1px; margin: 4px 6px; background: var(--border-2); }
+
+/* Print chooser */
+.print-chooser { display: grid; gap: 10px; }
+.print-choice { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--white); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.print-choice:hover, .print-choice:focus-visible { border-color: var(--brand); background: var(--brand-bg); }
+.print-choice svg { width: 20px; height: 20px; flex-shrink: 0; color: var(--brand); }
+.print-choice strong { display: block; font-size: 14px; }
+.print-choice small { display: block; margin-top: 2px; color: var(--text-muted); font-size: 12px; }
+
+/* Item details drawer (idr) */
+.idr { display: flex; flex-direction: column; gap: 16px; }
+.idr-head { display: flex; gap: 14px; align-items: flex-start; }
+.idr-thumb { width: 84px; height: 84px; flex-shrink: 0; border-radius: var(--r-lg); overflow: hidden; background: var(--bg); border: 1px solid var(--border-2); }
+.idr-thumb img, .idr-thumb > * { width: 100%; height: 100%; object-fit: cover; }
+.idr-title { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.idr-title h3 { margin: 0; font-size: 17px; line-height: 1.3; color: var(--text); }
+.idr-sub { font-size: 12.5px; color: var(--text-muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.idr-badges { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 2px; }
+.idr-badges:empty { display: none; }
+.idr-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--border-2); border-radius: var(--r-lg); }
+.idr-stats > div { padding: 10px 12px; min-width: 0; }
+.idr-stats > div + div { border-left: 1px solid var(--border-2); }
+.idr-stats span { display: block; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); }
+.idr-stats strong { display: block; margin-top: 4px; font-size: 15px; color: var(--text); overflow-wrap: anywhere; }
+.idr-stats strong small { font-size: 12px; font-weight: 500; color: var(--text-muted); }
+.idr-stage { font-size: 13px !important; }
+.idr-stage::first-letter { text-transform: uppercase; }
+.idr-chips { display: flex !important; flex-wrap: wrap; gap: 4px; font-size: 13px !important; }
+.idr-section h4 { margin: 0 0 8px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
+.idr-section .drawer-dl { margin: 0; }
+.idr .drawer-dl-row dd { overflow-wrap: anywhere; }
+.idr .drawer-dl-row dd.idr-empty { color: var(--text-muted); font-weight: 400; }
+.idr-progress { display: flex; flex-wrap: wrap; gap: 8px; }
+.idr-step { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 999px; font-size: 12.5px; font-weight: 600; color: var(--text-muted); }
+.idr-step.done { color: var(--green); border-color: transparent; background: var(--green-bg); }
+.idr-note { margin: 0; padding: 10px 12px; border-radius: var(--r-lg); background: var(--bg); font-size: 13px; line-height: 1.5; color: var(--text-2); white-space: pre-wrap; }
+.idr-footer { display: flex; align-items: center; gap: 8px; width: 100%; }
+.idr-footer-spacer { flex: 1; }
+.idr-more { position: relative; }
+.idr-more-btn { width: 38px; height: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+.idr-more-btn svg { width: 16px; height: 16px; }
+.idr-more-menu { top: auto; bottom: calc(100% + 6px); right: 0; min-width: 200px; }
+@media (max-width: 420px) { .idr-stats { grid-template-columns: 1fr 1fr; } .idr-stats > div:nth-child(3) { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--border-2); } }

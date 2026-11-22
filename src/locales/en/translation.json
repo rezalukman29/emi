@@ -440,6 +440,28 @@
     "overdueHint": "Ended on {{date}} but not closed yet",
     "inProgress": "In progress"
   },
+  "eventForm": {
+    "picPlaceholder": "Select a user",
+    "picSearch": "Search user…",
+    "picEmpty": "No user found",
+    "picNotAUser": "not a user"
+  },
+  "eventDetailMenu": {
+    "print": "Print…",
+    "printTitle": "What do you want to print?",
+    "printPlanHint": "Packing list per area and stage, for the crew",
+    "printPage": "This page",
+    "printPageHint": "The event detail as it is on screen"
+  },
+  "itemDrawer": {
+    "remove": "Remove",
+    "goToItem": "Go to item detail",
+    "moreActions": "More actions",
+    "location": "Location",
+    "progress": "Progress",
+    "note": "Note",
+    "notYet": "Not yet"
+  },
   "navigation": {
     "menuSearch": "Search menu…",
     "noMenuMatches": "No menu matches “{{query}}”.",

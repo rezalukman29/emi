@@ -11,6 +11,8 @@ import { useDispatch } from "react-redux";
 import { useQueryClient } from "react-query";
 import { useNavigate } from "react-router-dom";
 import ChatBot from "./ChatBot";
+
+const SHOW_ASSISTANT = false;
 import { setProfile } from "../store/profile";
 import {
   clearUserPlan,
@@ -160,7 +162,8 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
-      <ChatBot />
+      {/* EMI Assistant chatbot hidden for now (owner 2026-11-22). Set SHOW_ASSISTANT to true to bring it back. */}
+      {SHOW_ASSISTANT && <ChatBot />}
     </>
   );
 }

@@ -6,6 +6,7 @@ import Modal from "../components/Modal";
 import Drawer from "../components/Drawer";
 import Pagination from "../components/Pagination";
 import SearchableSelect from "../components/SearchableSelect";
+import useGetUsers from "../hooks/api/useGetUsers";
 import TextArea from "../components/TextArea";
 import TextInput from "../components/TextInput";
 import moment from "moment";
@@ -280,6 +281,13 @@ export default function EventPage() {
   const [upQuery, setUpQuery] = useState("");
   const [base64, setBase64] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
+  // PIC is picked from the tenant's users (owner 2026-11-22). Saved as the user's name in the same
+  // PIC text field, so the API is unchanged; if the user list cannot load, PIC falls back to free text.
+  const [picSearch, setPicSearch] = useState("");
+  const picUsersQuery = useGetUsers({
+    params: { page: 1, limit: 100, search: picSearch, sort_dir: "asc", sort_by: "created_at" },
+    options: { enabled: modalOpen, keepPreviousData: true },
+  });
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -1407,14 +1415,41 @@ export default function EventPage() {
           <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
         </div>
         <div className="form-row">
-          <TextInput
-            value={formik.values.PIC}
-            onChange={(value) => formik.setFieldValue("PIC", value)}
-            isRequired
-            label={t("wording.pic")}
-            placeholder={t("wording.personInCharge")}
-            errorText={formik.errors.PIC as string}
-          />
+          {picUsersQuery.isError ? (
+            <TextInput
+              value={formik.values.PIC}
+              onChange={(value) => formik.setFieldValue("PIC", value)}
+              isRequired
+              label={t("wording.pic")}
+              placeholder={t("wording.personInCharge")}
+              errorText={formik.errors.PIC as string}
+            />
+          ) : (
+            <div className="form-group">
+              <label>
+                {t("wording.pic")} <span style={{ color: "var(--red)" }}>*</span>
+              </label>
+              <SearchableSelect
+                value={formik.values.PIC || ""}
+                onChange={(value) => formik.setFieldValue("PIC", String(value))}
+                onSearchChange={setPicSearch}
+                options={(() => {
+                  const users = picUsersQuery.data?.data?.users ?? [];
+                  const options = users
+                    .map((user) => ({ value: (user.fullname || user.email || "").trim(), label: (user.fullname || user.email || "").trim(), meta: user.email && user.fullname ? user.email : undefined }))
+                    .filter((option, index, list) => option.value && list.findIndex((other) => other.value === option.value) === index);
+                  const current = (formik.values.PIC || "").trim();
+                  // Events saved before this change may have a PIC that is not a user name: keep it selectable.
+                  if (current && !options.some((option) => option.value === current)) options.unshift({ value: current, label: current, meta: t("eventForm.picNotAUser") });
+                  return options;
+                })()}
+                placeholder={picUsersQuery.isLoading ? t("wording.loading") : t("eventForm.picPlaceholder")}
+                searchPlaceholder={t("eventForm.picSearch")}
+                emptyText={t("eventForm.picEmpty")}
+                errorText={formik.touched.PIC || formik.submitCount > 0 ? (formik.errors.PIC as string) : undefined}
+              />
+            </div>
+          )}
           <div className="form-group">
             <label>
               {t("wording.qrType")} <span style={{ color: "var(--red)" }}>*</span>

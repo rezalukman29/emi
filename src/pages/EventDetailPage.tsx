@@ -32,6 +32,8 @@ import {
   IconNotes,
   IconUser,
   IconTag,
+  IconLayers,
+  IconUsers,
 } from "../components/icons";
 import {
   getBarangGudangV2,
@@ -828,6 +830,8 @@ export default function EventDetailPage() {
   const [isChangingEventStatus, setIsChangingEventStatus] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [printPlanOpen, setPrintPlanOpen] = useState(false);
+  const [printChooserOpen, setPrintChooserOpen] = useState(false);
+  const [drawerMenuOpen, setDrawerMenuOpen] = useState(false);
   const [filesOpen, setFilesOpen] = useState(false);
   const [isUploadingEventFiles, setIsUploadingEventFiles] = useState(false);
   const [deletingEventFileId, setDeletingEventFileId] = useState<number | null>(null);
@@ -2522,7 +2526,7 @@ export default function EventDetailPage() {
           <div className="event-actions-bar">
             {outsourceEnabled && <button type="button" className="btn btn-ghost btn-request-production" onClick={() => setOutsourceOpen(true)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>{t('sourceUpgrade.outsourceItem')}</button>}
             {loanEnabled && <button className="btn btn-ghost btn-request-production" onClick={() => setBorrowOpen(true)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 3h5v5"/><path d="M21 3l-7 7"/><path d="M8 21H3v-5"/><path d="M3 21l7-7"/></svg>{t('sourceUpgrade.borrowItem')}</button>}
-            {productionEnabled && <button className="btn btn-ghost btn-request-production" onClick={() => { setProductionInitial(null); setProductionOpen(true); }}>{t("eventUpgrade.requestProduction")}</button>}
+            {productionEnabled && <button className="btn btn-ghost btn-request-production" onClick={() => { setProductionInitial(null); setProductionOpen(true); }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v11h16V9"/><path d="M9 20v-6h6v6"/><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/></svg>{t("eventUpgrade.requestProduction")}</button>}
             <button type="button" className="btn btn-ghost btn-request-production event-files-trigger" onClick={() => setFilesOpen(true)} title="Files attached to this event">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
               Files <span className="stage-tab-count">{eventFiles.length}</span>
@@ -2542,31 +2546,22 @@ export default function EventDetailPage() {
                 <IconMoreVertical />
               </button>
               {moreMenuOpen && (
-                <div className="more-menu-dropdown">
-                  <button className="more-menu-item" onClick={() => { setRentalOpen(true); setMoreMenuOpen(false); }}>{t('october.rentals')}</button>
-                  <button className="more-menu-item" onClick={() => { setPrintPlanOpen(true); setMoreMenuOpen(false); }}><IconPrint /> {t('october.printPlan')}</button>
-                  {!isClosing && <button className="more-menu-item" onClick={() => { openPackagingModal(); setMoreMenuOpen(false); }}>{t('lifecycle.groupItems')}</button>}
-                  {!isClosing && <button className="more-menu-item" onClick={() => { setLifecycleMode('ownership'); setMoreMenuOpen(false); }}>{t('lifecycle.bulkOwnership')}</button>}
-                  {closingFlag === 'checking-inventory' && <button className="more-menu-item" onClick={() => { setLifecycleMode('check'); setMoreMenuOpen(false); }}>{t('lifecycle.crossCheck')}</button>}
-                  <button
-                    type="button"
-                    className="more-menu-item"
-                    onClick={() => {
-                      setSummaryOpen(true);
-                      setMoreMenuOpen(false);
-                    }}
-                  >
+                <div className="more-menu-dropdown" role="menu">
+                  {/* Grouped, every entry with an icon, one line each (owner 2026-11-22). */}
+                  <button type="button" role="menuitem" className="more-menu-item" onClick={() => { setSummaryOpen(true); setMoreMenuOpen(false); }}>
                     <IconBarChart /> {t("wording.summary")}
                   </button>
-                  <button
-                    type="button"
-                    className="more-menu-item"
-                    onClick={() => {
-                      window.print();
-                      setMoreMenuOpen(false);
-                    }}
-                  >
-                    <IconPrint /> {t("wording.print")}
+                  <button type="button" role="menuitem" className="more-menu-item" onClick={() => { setRentalOpen(true); setMoreMenuOpen(false); }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 3h5v5"/><path d="M21 3l-7 7"/><path d="M8 21H3v-5"/><path d="M3 21l7-7"/></svg>
+                    {t('october.rentals')}
+                  </button>
+                  {(!isClosing || closingFlag === 'checking-inventory') && <div className="more-menu-sep" role="separator" />}
+                  {!isClosing && <button type="button" role="menuitem" className="more-menu-item" onClick={() => { openPackagingModal(); setMoreMenuOpen(false); }}><IconLayers /> {t('lifecycle.groupItems')}</button>}
+                  {!isClosing && <button type="button" role="menuitem" className="more-menu-item" onClick={() => { setLifecycleMode('ownership'); setMoreMenuOpen(false); }}><IconUsers /> {t('lifecycle.bulkOwnership')}</button>}
+                  {closingFlag === 'checking-inventory' && <button type="button" role="menuitem" className="more-menu-item" onClick={() => { setLifecycleMode('check'); setMoreMenuOpen(false); }}><IconCheck /> {t('lifecycle.crossCheck')}</button>}
+                  <div className="more-menu-sep" role="separator" />
+                  <button type="button" role="menuitem" className="more-menu-item" onClick={() => { setPrintChooserOpen(true); setMoreMenuOpen(false); }}>
+                    <IconPrint /> {t('eventDetailMenu.print')}
                   </button>
                 </div>
               )}
@@ -2966,39 +2961,82 @@ export default function EventDetailPage() {
         {willReturn && <p className="stage-confirm-cut stage-confirm-return">{t('eventUpgrade.returnWarning')}</p>}
         {pendingStage !== null && pendingStage > currentStageIndex && pendingConverts.length > 0 && <div className="prod-notice prod-notice-warn"><div><p>{t('conversion.warning')}</p><ul>{pendingConverts.map(r => <li key={r.id}>{r.fromQty} × {r.fromName} → {r.toQty} × {r.toName} ({r.fromWarehouse})</li>)}</ul></div></div>}
       </Modal>
-      <Drawer open={Boolean(detailItem)} title={t('eventUpgrade.detail')} onClose={() => setDetailId(null)} footer={detailItem && <>
-        {isClosing ? <span className="drawer-lock-note">{t('eventUpgrade.readOnly')}</span> : <>
-          {deleteAllowed && <button className="btn-cancel-modal" onClick={() => void deleteItem(detailItem.id)}>{t('wording.delete')}</button>}
-          <button className="btn-save-modal" onClick={() => setModifyItem(detailItem)}>{t('eventUpgrade.modify')}</button>
-          {!detailItem.isNewProductionItem && detailItem.id > 0 && detailItem.qty > 0 && <button className="btn btn-ghost" onClick={() => setReportItem(detailItem)}>{t(detailItem.brokenReport ? 'sourceUpgrade.editReport' : 'sourceUpgrade.report')}</button>}
-          {detailItem.brokenReport && <button className="btn btn-ghost btn-create-production" disabled={!productionEnabled} onClick={() => replaceBrokenItem(detailItem)}>{t('sourceUpgrade.createProduction')}</button>}
-        </>}
-        {stageScanEnabled && detailItem.id > 0 && <button className="btn btn-check" onClick={() => openScanPopup(detailItem)}>{t('wording.scan')}</button>}
-      </>}>
-        {detailItem && <>
-          <div className="drawer-img"><ImagePlaceholder src={detailItem.photo} alt={detailItem.name} /></div>
-          <h3>{detailItem.name}</h3><StockBadge item={detailItem} />
-          {detailItem.isNewProductionItem && <span className="badge badge-purple">{t('eventUpgrade.productionItem')}</span>}
-          {detailItem.fromConvert && <span className="badge badge-blue">{t('conversion.converted')}</span>}
-          {detailItem.isConverted && <span className="badge badge-blue">{t('conversion.convertedQty', { count: detailItem.convertedQty })}</span>}
-          <dl className="drawer-dl">{[
-            [t('wording.qty'), `${detailItem.qty} ${detailItem.unit ?? ''}`], [t('wording.area'), detailItem.area], [t('wording.subArea'), detailItem.subArea],
-            [t('wording.category'), detailItem.category], ['SKU', detailItem.sku], [t('wording.warehouse'), detailItem.warehouses],
-            ['PIC', detailItem.pic], [t('wording.ownerships'), detailItem.ownerships.join(', ')], [t('wording.status'), detailItem.stage],
-            [t('wording.checking'), detailItem.checking ? '✓' : '—'], [t('wording.scanIn'), detailItem.scanIn], [t('wording.scanOut'), detailItem.scanOut],
-          ].map(([key, value]) => <div className="drawer-dl-row" key={key}><dt>{key}</dt><dd>{value || '—'}</dd></div>)}</dl>
+      <Drawer open={Boolean(detailItem)} title={t('eventUpgrade.detail')} onClose={() => { setDetailId(null); setDrawerMenuOpen(false); }} footer={detailItem && <div className="idr-footer">
+        {/* Footer = Remove + Go to item detail (owner 2026-11-22). The other actions stay available under "⋯"
+            because the drawer is the only place to modify an item or report it broken. */}
+        {isClosing
+          ? <span className="drawer-lock-note">{t('eventUpgrade.readOnly')}</span>
+          : deleteAllowed && <button type="button" className="btn-cancel-modal" onClick={() => void deleteItem(detailItem.id)}>{t('itemDrawer.remove')}</button>}
+        <span className="idr-footer-spacer" />
+        {(() => {
+          const actions: Array<{ key: string; label: string; onClick: () => void; disabled?: boolean }> = [];
+          if (!isClosing) {
+            actions.push({ key: 'modify', label: t('eventUpgrade.modify'), onClick: () => setModifyItem(detailItem) });
+            if (!detailItem.isNewProductionItem && detailItem.id > 0 && detailItem.qty > 0) actions.push({ key: 'report', label: t(detailItem.brokenReport ? 'sourceUpgrade.editReport' : 'sourceUpgrade.report'), onClick: () => setReportItem(detailItem) });
+            if (detailItem.brokenReport) actions.push({ key: 'production', label: t('sourceUpgrade.createProduction'), onClick: () => replaceBrokenItem(detailItem), disabled: !productionEnabled });
+          }
+          if (stageScanEnabled && detailItem.id > 0) actions.push({ key: 'scan', label: t('wording.scan'), onClick: () => openScanPopup(detailItem) });
+          if (!actions.length) return null;
+          return <div className="idr-more">
+            <button type="button" className="btn btn-ghost idr-more-btn" aria-haspopup="menu" aria-expanded={drawerMenuOpen} aria-label={t('itemDrawer.moreActions')} data-tip={t('itemDrawer.moreActions')} data-tip-align="end" onClick={() => setDrawerMenuOpen((open) => !open)}><IconMoreVertical /></button>
+            {drawerMenuOpen && <div className="more-menu-dropdown idr-more-menu" role="menu">
+              {actions.map((action) => <button key={action.key} type="button" role="menuitem" className="more-menu-item" disabled={action.disabled} onClick={() => { setDrawerMenuOpen(false); action.onClick(); }}>{action.label}</button>)}
+            </div>}
+          </div>;
+        })()}
+        {detailItem.barangId ? <button type="button" className="btn-save-modal" onClick={() => navigate(`/inventory-detail?id=${detailItem.barangId}`)}>{t('itemDrawer.goToItem')}</button> : null}
+      </div>}>
+        {detailItem && <div className="idr">
+          <div className="idr-head">
+            <div className="idr-thumb"><ImagePlaceholder src={detailItem.photo} alt={detailItem.name} /></div>
+            <div className="idr-title">
+              <h3>{detailItem.name}</h3>
+              <div className="idr-sub">{[detailItem.sku, detailItem.category].filter(Boolean).join(' · ') || '—'}</div>
+              <div className="idr-badges">
+                <StockBadge item={detailItem} />
+                {detailItem.isNewProductionItem && <span className="badge badge-purple">{t('eventUpgrade.productionItem')}</span>}
+                {detailItem.fromConvert && <span className="badge badge-blue">{t('conversion.converted')}</span>}
+                {detailItem.isConverted && <span className="badge badge-blue">{t('conversion.convertedQty', { count: detailItem.convertedQty })}</span>}
+                {detailItem.isReturned && <span className="item-flow-chip returned">✓ {t('lifecycle.returned')}</span>}
+                {detailItem.isTransferredFromOtherEvent && <span className="item-flow-chip transferred">↓ {t('lifecycle.transferred')}</span>}
+                {detailItem.isTransferredToOtherEvent && <span className="item-flow-chip transferred">↑ {t('lifecycle.transferred')}</span>}
+              </div>
+            </div>
+          </div>
+
+          <div className="idr-stats">
+            <div><span>{t('wording.qty')}</span><strong>{fmtDisplayNumber(detailItem.qty)} <small>{detailItem.unit ?? ''}</small></strong></div>
+            <div><span>{t('wording.status')}</span><strong className="idr-stage">{detailItem.stage || '—'}</strong></div>
+            <div><span>{t('wording.ownerships')}</span><strong className="idr-chips">{detailItem.ownerships.length ? detailItem.ownerships.map((value) => <span key={value} className={`badge ${ownershipClass(value)}`}>{value}</span>) : '—'}</strong></div>
+          </div>
+
           {detailItem.brokenReport && <div className="drawer-broken">
             <div className="drawer-broken-head"><strong>{t('sourceUpgrade.broken', { qty: detailItem.brokenReport.qty })}</strong>{!isClosing && <button className="drawer-link-btn" disabled={isDeletingBrokenReport} onClick={() => void removeReport(detailItem)}>{t('sourceUpgrade.removeReport')}</button>}</div>
             {detailItem.brokenReport.note && <p>{detailItem.brokenReport.note}</p>}
             {(detailItem.brokenReport.by || detailItem.brokenReport.at) && <div className="drawer-broken-meta">{t('sourceUpgrade.reportBy', { name: detailItem.brokenReport.by || '—', date: detailItem.brokenReport.at ? formatJakartaDateTime(detailItem.brokenReport.at) : '—' })}</div>}
           </div>}
-          <p className="item-note">{detailItem.note || '—'}</p>
-          <div className="item-flow-flags">
-            {detailItem.isReturned && <span className="item-flow-chip returned">✓ {t('lifecycle.returned')}</span>}
-            {detailItem.isTransferredFromOtherEvent && <span className="item-flow-chip transferred">↓ {t('lifecycle.transferred')}</span>}
-            {detailItem.isTransferredToOtherEvent && <span className="item-flow-chip transferred">↑ {t('lifecycle.transferred')}</span>}
-          </div>
-        </>}
+
+          <section className="idr-section">
+            <h4>{t('itemDrawer.location')}</h4>
+            <dl className="drawer-dl">{[
+              [t('wording.area'), detailItem.area], [t('wording.subArea'), detailItem.subArea], [t('wording.warehouse'), detailItem.warehouses], ['PIC', detailItem.pic],
+            ].map(([key, value]) => <div className="drawer-dl-row" key={key}><dt>{key}</dt><dd className={value && value !== '-' ? '' : 'idr-empty'}>{value && value !== '-' ? value : '—'}</dd></div>)}</dl>
+          </section>
+
+          <section className="idr-section">
+            <h4>{t('itemDrawer.progress')}</h4>
+            <div className="idr-progress">
+              <span className={`idr-step${detailItem.checking ? ' done' : ''}`}>{detailItem.checking ? '✓' : '○'} {t('wording.checking')}</span>
+              <span className={`idr-step${detailItem.scanIn ? ' done' : ''}`} data-tip={detailItem.scanIn || t('itemDrawer.notYet')}>{detailItem.scanIn ? '✓' : '○'} {t('wording.scanIn')}</span>
+              <span className={`idr-step${detailItem.scanOut ? ' done' : ''}`} data-tip={detailItem.scanOut || t('itemDrawer.notYet')} data-tip-align="end">{detailItem.scanOut ? '✓' : '○'} {t('wording.scanOut')}</span>
+            </div>
+          </section>
+
+          {detailItem.note && detailItem.note.trim() && detailItem.note.trim() !== '-' && <section className="idr-section">
+            <h4>{t('itemDrawer.note')}</h4>
+            <p className="idr-note">{detailItem.note}</p>
+          </section>}
+        </div>}
       </Drawer>
       <Drawer
         open={filesOpen}
@@ -3082,7 +3120,19 @@ export default function EventDetailPage() {
         )}
       </Drawer>
       {reportItem && !isClosing && <BrokenItemReport key={reportItem.id} item={reportItem} report={reportItem.brokenReport} onSaved={saveBrokenReport} onClose={() => setReportItem(null)} />}
-{printPlanOpen && (printPlanItems.isLoading || printPlanItems.isError ? <Modal open title={t('october.printPlan')} onClose={() => setPrintPlanOpen(false)}><p>{t(printPlanItems.isError ? 'october.loadError' : 'wording.loading')}</p></Modal> : <PrintPlanModal eventName={eventName} currentStage={eventStatus} stages={stages} items={(printPlanItems.data?.data || []).map(item => mapEventItem(item, statusNames))} printedBy={getLoggedInFullname() || "—"} onClose={() => setPrintPlanOpen(false)} />)}
+<Modal open={printChooserOpen} title={t('eventDetailMenu.printTitle')} onClose={() => setPrintChooserOpen(false)}>
+        <div className="print-chooser">
+          <button type="button" className="print-choice" onClick={() => { setPrintChooserOpen(false); setPrintPlanOpen(true); }}>
+            <IconPrint />
+            <span><strong>{t('october.printPlan')}</strong><small>{t('eventDetailMenu.printPlanHint')}</small></span>
+          </button>
+          <button type="button" className="print-choice" onClick={() => { setPrintChooserOpen(false); window.setTimeout(() => window.print(), 150); }}>
+            <IconNotes />
+            <span><strong>{t('eventDetailMenu.printPage')}</strong><small>{t('eventDetailMenu.printPageHint')}</small></span>
+          </button>
+        </div>
+      </Modal>
+      {printPlanOpen && (printPlanItems.isLoading || printPlanItems.isError ? <Modal open title={t('october.printPlan')} onClose={() => setPrintPlanOpen(false)}><p>{t(printPlanItems.isError ? 'october.loadError' : 'wording.loading')}</p></Modal> : <PrintPlanModal eventName={eventName} currentStage={eventStatus} stages={stages} items={(printPlanItems.data?.data || []).map(item => mapEventItem(item, statusNames))} printedBy={getLoggedInFullname() || "—"} onClose={() => setPrintPlanOpen(false)} />)}
       <Modal open={rentalOpen} size="3xl" title={t('october.rentals')} onClose={() => setRentalOpen(false)}><RentalLogTab eventId={eventId} canCreate={loanEnabled} /></Modal>
       {borrowOpen && <EventBorrowItemModal
         eventId={eventId}
