@@ -463,6 +463,11 @@
     "notYet": "Not yet"
   },
   "edB": {
+    "files": "Files",
+    "filter": "Filter",
+    "area": "Area",
+    "ownership": "Ownership",
+    "clear": "Clear",
     "request": "Request",
     "refresh": "Refresh items"
   },

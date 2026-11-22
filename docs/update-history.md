@@ -49,14 +49,18 @@ explains a few non-obvious conventions that the entries below assume you already
   anywhere; the position is remembered. × hides it; open any page with `?ab=1` to bring it back.
   Shown only to **tenant admins** and only on `/event-detail`. The chosen version is per browser
   (localStorage), not per account.
-- **Layout B (same features, less noise):**
-  - Header: one **Request ▾** menu (Outsource Item / Rent Item / Request Production) instead of three
-    buttons; Files is an icon button with a count dot; *Add Item* and *⋯* unchanged.
-  - Stage block is a light row (no grey box, no "Stage" caption); progress bar and *Next* button unchanged.
-  - Items / Event Checklist switch as underline tabs.
-  - Filters in one row: keyword, area, ownership (applies immediately) and a refresh icon instead of *Check*.
-  - Stage chips show only stages that have items (plus *All* and the selected one) as quiet text chips.
-  - Smaller page title area, smaller image placeholder; mobile wraps at ≤ 900 px. Works in dark mode.
+- **Layout B v2 (same features, much less on screen)** — the owner found the first B still too busy:
+  - Header: only **Add Item** and **⋯**. Outsource Item, Rent Item, Request Production and Files (with count)
+    are the first group of the ⋯ menu, above Summary, Rentals, Group Items, Bulk Assign Ownership, Print….
+  - Stage: one quiet row — stage name ▾ · "Step 3 of 10", one thin continuous progress bar, *Next* on the right.
+  - Items / Event Checklist as underline tabs.
+  - Toolbar: keyword search, one **Filter** button (Area + Ownership in a small popover, applied immediately,
+    with *Clear* and *Refresh items*; the button shows how many filters are on) and the cards/list toggle.
+  - Stage chips: only stages that have items; the row is hidden when only *All* would show. The
+    "N item(s) with status … in area …" sentence is hidden (the chip and tab counts say the same).
+  - Item card: one line of small status pills (Checking · Scan In · Scan Out; green ✓ when done, scan time
+    as tooltip) instead of three rows; the PIC line only when there is a PIC; shorter image.
+  - Works in dark mode and on phones.
 - **Not changed:** data, actions, modals, permissions and API calls are the same in A and B.
 - **Files:** new `src/lib/uiVariant.ts`, `src/components/VariantSwitcher.tsx`, `src/edLayoutB.css`;
   changed `src/pages/EventDetailPage.tsx`, `src/components/Layout.tsx`, `src/main.jsx`,

@@ -9,6 +9,11 @@ Format: date — change — endpoints/fields touched — impact — action neede
 
 ---
 
+## 2026-11-22 — Event Detail layout B v2
+
+- **Endpoints touched:** none. Same requests; filters and *Refresh items* reuse the existing params and
+  `refetchEventItems()`.
+
 ## 2026-11-22 — Event Detail layout B + A/B switcher
 
 - **Endpoints touched:** none. Same queries and mutations in both layouts; B's refresh icon calls the existing

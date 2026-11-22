@@ -498,6 +498,7 @@ function ItemCard({
   onToggleChecked,
   onEditCheckNote,
 }: ItemCardProps) {
+  const compact = useUiVariant() === 'B';
   return (
     <div className="item-card clickable" role="button" tabIndex={0} onClick={() => onOpen?.(item)} onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onOpen?.(item); } }}>
       <div className="item-card-actions">
@@ -544,7 +545,7 @@ function ItemCard({
           </span>
           <span className="item-qty">{i18n.t("wording.qtyPrefix")} {fmtDisplayNumber(item.qty)}</span>
         </div>
-        <div className="item-pic">
+        {(!compact || item.pic) && <div className="item-pic">
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -558,7 +559,12 @@ function ItemCard({
             <circle cx="12" cy="7" r="4" />
           </svg>
           {item.pic || "-"}
-        </div>
+        </div>}
+        {compact ? <div className="ed-b-progress">
+          {!checkingMode && <span className={`ed-b-step${item.checking ? ' ok' : ''}`}>{item.checking ? <CheckIcon /> : <span className="ed-b-ring" />}{i18n.t("wording.checking")}</span>}
+          <span className={`ed-b-step${item.scanIn ? ' ok' : ''}`} data-tip={item.scanIn ? `Scanned In at ${item.scanIn}` : undefined}>{item.scanIn ? <CheckIcon /> : <span className="ed-b-ring" />}Scan In</span>
+          <span className={`ed-b-step${item.scanOut ? ' ok' : ''}`} data-tip={item.scanOut ? `Scanned Out at ${item.scanOut}` : undefined} data-tip-align="end">{item.scanOut ? <CheckIcon /> : <span className="ed-b-ring" />}Scan Out</span>
+        </div> : <>
         {!checkingMode && <div className="item-indicators">
           <div className="indicator-row">
             <span className={`indicator-box${item.checking ? " checked" : ""}`}>
@@ -591,6 +597,7 @@ function ItemCard({
             </span>
           </div>
         </div>
+        </>}
         {item.note && <div className="item-note">{item.note}</div>}
         {checkingMode && item.id > 0 && (
           <div className="event-item-check" onClick={(event) => event.stopPropagation()}>
@@ -835,16 +842,21 @@ export default function EventDetailPage() {
   const [drawerMenuOpen, setDrawerMenuOpen] = useState(false);
   // Layout B (A/B test, owner 2026-11-22): same state and actions, cleaner arrangement.
   const isB = useUiVariant() === 'B';
-  const [requestMenuOpen, setRequestMenuOpen] = useState(false);
-  const requestMenuRef = useRef<HTMLDivElement>(null);
+  // B: Area + Ownership live in one "Filter" popover. Selects open in a portal (.ss-menu), so clicks there don't close it.
+  const [filterOpen, setFilterOpen] = useState(false);
+  const filterRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!requestMenuOpen) return;
-    const close = (event: MouseEvent) => { if (!requestMenuRef.current?.contains(event.target as Node)) setRequestMenuOpen(false); };
-    const esc = (event: KeyboardEvent) => { if (event.key === 'Escape') setRequestMenuOpen(false); };
+    if (!filterOpen) return;
+    const close = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (filterRef.current?.contains(target) || target.closest?.('.ss-menu')) return;
+      setFilterOpen(false);
+    };
+    const esc = (event: KeyboardEvent) => { if (event.key === 'Escape') setFilterOpen(false); };
     document.addEventListener('mousedown', close);
     document.addEventListener('keydown', esc);
     return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc); };
-  }, [requestMenuOpen]);
+  }, [filterOpen]);
   const [filesOpen, setFilesOpen] = useState(false);
   const [isUploadingEventFiles, setIsUploadingEventFiles] = useState(false);
   const [deletingEventFileId, setDeletingEventFileId] = useState<number | null>(null);
@@ -2499,6 +2511,27 @@ export default function EventDetailPage() {
     ? `event_item/${scanningItem.id}/${getNextScanType(scanningItem)}`
     : "";
 
+  const areaSelect = (
+    <SearchableSelect
+      value={selectedArea}
+      onChange={(value) => setSelectedArea(String(value))}
+      placeholder={t("wording.allPlace")}
+      searchPlaceholder={t("wording.searchArea")}
+      emptyText={t("wording.noAreaFound")}
+      options={[
+        { value: "", label: t("wording.allPlace"), meta: String(items.length) },
+        ...areas.map((area) => ({
+          value: area,
+          label: area,
+          meta: String(areaCounts[area] || 0),
+        })),
+      ]}
+    />
+  );
+  const ownershipSelect = <SearchableSelect value={ownershipFilter} onChange={value => { setOwnershipFilter(String(value)); if (isB) setAppliedOwnershipFilter(String(value)); }} options={[{ value: '', label: t('lifecycle.allOwnership') }, ...OWNERSHIP_OPTIONS.map(value => ({ value, label: `${value} (${items.filter(item => item.ownerships.includes(value)).length})` }))]} />;
+  const viewToggle = <div className="view-toggle">{(['cards', 'list'] as const).map(mode => <button key={mode} title={t('eventUpgrade.' + mode)} aria-label={t('eventUpgrade.' + mode)} aria-pressed={viewMode === mode} className={viewMode === mode ? 'active' : ''} onClick={() => { setViewMode(mode); try { localStorage.setItem('emi_event_detail_view', mode); } catch { /* Preference is optional. */ } }}>{mode === 'cards' ? '▦' : '☰'}</button>)}</div>;
+  const activeFilterCount = (selectedArea ? 1 : 0) + (appliedOwnershipFilter ? 1 : 0);
+
   return (
     <>
       <h1 className={`page-title${isB ? ' ed-b-page-title' : ''}`}>{t("wording.eventDetail")}</h1>
@@ -2546,23 +2579,6 @@ export default function EventDetailPage() {
               Files <span className="stage-tab-count">{eventFiles.length}</span>
             </button>
             </>}
-            {isB && (outsourceEnabled || loanEnabled || productionEnabled) && (
-              <div className="more-menu-wrap" ref={requestMenuRef}>
-                <button type="button" className="btn btn-ghost ed-b-request" aria-haspopup="menu" aria-expanded={requestMenuOpen} onClick={() => setRequestMenuOpen((open) => !open)}>
-                  {t('edB.request')}
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9" /></svg>
-                </button>
-                {requestMenuOpen && <div className="more-menu-dropdown" role="menu">
-                  {outsourceEnabled && <button type="button" role="menuitem" className="more-menu-item" onClick={() => { setRequestMenuOpen(false); setOutsourceOpen(true); }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>{t('sourceUpgrade.outsourceItem')}</button>}
-                  {loanEnabled && <button type="button" role="menuitem" className="more-menu-item" onClick={() => { setRequestMenuOpen(false); setBorrowOpen(true); }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 3h5v5"/><path d="M21 3l-7 7"/><path d="M8 21H3v-5"/><path d="M3 21l7-7"/></svg>{t('sourceUpgrade.borrowItem')}</button>}
-                  {productionEnabled && <button type="button" role="menuitem" className="more-menu-item" onClick={() => { setRequestMenuOpen(false); setProductionInitial(null); setProductionOpen(true); }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v11h16V9"/><path d="M9 20v-6h6v6"/><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/></svg>{t("eventUpgrade.requestProduction")}</button>}
-                </div>}
-              </div>
-            )}
-            {isB && <button type="button" className="btn btn-ghost ed-b-icon-btn" onClick={() => setFilesOpen(true)} aria-label={`Files (${eventFiles.length})`} data-tip={`Files · ${eventFiles.length}`} data-tip-align="end">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-              {eventFiles.length > 0 && <span className="ed-b-dot">{fmtDisplayNumber(eventFiles.length)}</span>}
-            </button>}
             <button className="btn-new" disabled={addLocked} onClick={openCart}>
               <IconPlus /> {t("wording.addItem")}
               {cart.length > 0 && <span className="add-item-cart-count"><IconCart /> {fmtDisplayNumber(cart.length)}</span>}
@@ -2580,6 +2596,13 @@ export default function EventDetailPage() {
               {moreMenuOpen && (
                 <div className="more-menu-dropdown" role="menu">
                   {/* Grouped, every entry with an icon, one line each (owner 2026-11-22). */}
+                  {isB && <>
+                    {outsourceEnabled && <button type="button" role="menuitem" className="more-menu-item" onClick={() => { setMoreMenuOpen(false); setOutsourceOpen(true); }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>{t('sourceUpgrade.outsourceItem')}</button>}
+                    {loanEnabled && <button type="button" role="menuitem" className="more-menu-item" onClick={() => { setMoreMenuOpen(false); setBorrowOpen(true); }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 3h5v5"/><path d="M21 3l-7 7"/><path d="M8 21H3v-5"/><path d="M3 21l7-7"/></svg>{t('sourceUpgrade.borrowItem')}</button>}
+                    {productionEnabled && <button type="button" role="menuitem" className="more-menu-item" onClick={() => { setMoreMenuOpen(false); setProductionInitial(null); setProductionOpen(true); }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v11h16V9"/><path d="M9 20v-6h6v6"/><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/></svg>{t("eventUpgrade.requestProduction")}</button>}
+                    <button type="button" role="menuitem" className="more-menu-item" onClick={() => { setMoreMenuOpen(false); setFilesOpen(true); }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>{t('edB.files')}<span className="ed-b-menu-count">{fmtDisplayNumber(eventFiles.length)}</span></button>
+                    <div className="more-menu-sep" role="separator" />
+                  </>}
                   <button type="button" role="menuitem" className="more-menu-item" onClick={() => { setSummaryOpen(true); setMoreMenuOpen(false); }}>
                     <IconBarChart /> {t("wording.summary")}
                   </button>
@@ -2685,29 +2708,31 @@ export default function EventDetailPage() {
         {!checkingMode && (isClosing || addLocked) && <p className="ed-lock-note">{t(isClosing ? 'eventUpgrade.itemsLocked' : !addAllowedAtStage ? 'eventUpgrade.stageAddLocked' : 'eventUpgrade.addLocked')}</p>}
         <div className="ed-toolbar">
           <div className="search-wrap"><IconSearch /><input className="search-input" placeholder={t('wording.keywordSearch')} value={kwSearch} onChange={e => setKwSearch(e.target.value)} /></div>
+          {isB && <div className="ed-b-filter" ref={filterRef}>
+            <button type="button" className={`btn btn-ghost ed-b-filter-btn${activeFilterCount ? ' on' : ''}`} aria-haspopup="dialog" aria-expanded={filterOpen} onClick={() => setFilterOpen(open => !open)}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="10" y1="18" x2="14" y2="18"/></svg>
+              {t('edB.filter')}{activeFilterCount > 0 && <span className="ed-b-menu-count">{activeFilterCount}</span>}
+            </button>
+            {filterOpen && <div className="ed-b-filter-pop" role="dialog" aria-label={t('edB.filter')}>
+              <label>{t('edB.area')}</label>
+              {areaSelect}
+              <label>{t('edB.ownership')}</label>
+              {ownershipSelect}
+              <div className="ed-b-filter-foot">
+                <button type="button" className="btn btn-ghost" disabled={!activeFilterCount} onClick={() => { setSelectedArea(''); setOwnershipFilter(''); setAppliedOwnershipFilter(''); }}>{t('edB.clear')}</button>
+                <button type="button" className="btn btn-ghost" onClick={() => void refetchEventItems()}>{t('edB.refresh')}</button>
+              </div>
+            </div>}
+          </div>}
+          {isB && viewToggle}
+          {!isB && <>
           <div style={{ flex: 1, minWidth: 190 }}>
-            <SearchableSelect
-              value={selectedArea}
-              onChange={(value) => setSelectedArea(String(value))}
-              placeholder={t("wording.allPlace")}
-              searchPlaceholder={t("wording.searchArea")}
-              emptyText={t("wording.noAreaFound")}
-              options={[
-                { value: "", label: t("wording.allPlace"), meta: String(items.length) },
-                ...areas.map((area) => ({
-                  value: area,
-                  label: area,
-                  meta: String(areaCounts[area] || 0),
-                })),
-              ]}
-            />
+            {areaSelect}
           </div>
 
           <div className="filter-row-right">
-            <SearchableSelect value={ownershipFilter} onChange={value => { setOwnershipFilter(String(value)); if (isB) setAppliedOwnershipFilter(String(value)); }} options={[{ value: '', label: t('lifecycle.allOwnership') }, ...OWNERSHIP_OPTIONS.map(value => ({ value, label: `${value} (${items.filter(item => item.ownerships.includes(value)).length})` }))]} />
-            {isB ? <button type="button" className="btn btn-ghost ed-b-icon-btn" aria-label={t('edB.refresh')} data-tip={t('edB.refresh')} data-tip-align="end" onClick={() => void refetchEventItems()}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-            </button> : <button
+            {ownershipSelect}
+            <button
               className="btn btn-check"
               onClick={() => {
                 if (ownershipFilter === appliedOwnershipFilter) {
@@ -2718,8 +2743,9 @@ export default function EventDetailPage() {
               }}
             >
               <IconSearch /> {t("wording.check")}
-            </button>}
+            </button>
           </div>
+          </>}
         </div>
 
         <div className="stage-tabs-row"><div className="stage-tabs">
@@ -2729,7 +2755,7 @@ export default function EventDetailPage() {
             if (isB && tab !== 'all' && effectiveStageFilter !== tab && !counts[tab]) return null;
             return <button key={tab} className={'stage-tab' + (effectiveStageFilter === tab ? ' active' : '')} onClick={() => setStageFilter(tab as typeof stageFilter)}>{t(labels[tab])} <span className="stage-tab-count">{counts[tab]}</span></button>;
           })}
-        </div><div className="view-toggle">{(['cards', 'list'] as const).map(mode => <button key={mode} title={t('eventUpgrade.' + mode)} aria-label={t('eventUpgrade.' + mode)} aria-pressed={viewMode === mode} className={viewMode === mode ? 'active' : ''} onClick={() => { setViewMode(mode); try { localStorage.setItem('emi_event_detail_view', mode); } catch { /* Preference is optional. */ } }}>{mode === 'cards' ? '▦' : '☰'}</button>)}</div></div>
+        </div>{!isB && viewToggle}</div>
         {effectiveStageFilter === "outsourced" ? <EventOutsourceItemsPanel
           items={outsourceItems}
           isLoading={isOutsourceItemsLoading}

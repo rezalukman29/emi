@@ -463,6 +463,11 @@
     "notYet": "Belum"
   },
   "edB": {
+    "files": "File",
+    "filter": "Filter",
+    "area": "Area",
+    "ownership": "Kepemilikan",
+    "clear": "Hapus filter",
     "request": "Permintaan",
     "refresh": "Muat ulang barang"
   },

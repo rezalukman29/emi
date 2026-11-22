@@ -6,6 +6,25 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-22 — Event Detail layout B v2 (simpler)
+
+- **Owner:** "B is still too complicated, improve it." Follow-up commit on `ab-version` (first B commit not
+  pushed yet; owner gets a combined patch plus a v2-only patch).
+- **EventDetailPage:** Request ▾ dropdown and Files icon removed from the header; in B those entries are the
+  first group of the existing ⋯ menu (same setters). `requestMenu*` state replaced by `filterOpen`/`filterRef`
+  (click-outside ignores `.ss-menu`, because SearchableSelect renders its menu in a portal). Area/ownership
+  selects and the view toggle extracted to `areaSelect`, `ownershipSelect`, `viewToggle` consts (A renders them
+  where it did); `activeFilterCount` = area + applied ownership. B refresh icon → *Refresh items* inside the
+  popover. `ItemCard` calls `useUiVariant()`: B renders `.ed-b-progress` pills instead of indicator/scan rows
+  and hides an empty PIC line.
+- **CSS (`src/edLayoutB.css`):** continuous stage bar, popover, pills, `.stage-tabs-row:has(.stage-tab:only-child)`
+  hidden, `.summary-text` hidden in B.
+- **i18n:** `edB.files|filter|area|ownership|clear` (en/id).
+- **Checks:** build OK, tsc 0, lint 12/1, node tests 38/40 (same 2). Playwright: header = Add Item + ⋯;
+  ⋯ lists Outsource/Rent/Request Production/Files first and Outsource opens its modal; picking an area keeps
+  the popover open and shows "Filter 1"; outside click closes it; switcher/drag/staff checks unchanged;
+  dark + 390 px OK; no page errors.
+
 ## 2026-11-22 — Event Detail layout B + floating A/B switcher
 
 - **Base:** `origin/daniel-staging-web` `e9fe796` (owner pushed patches 0001–0007). Local branch `ab-version`.
