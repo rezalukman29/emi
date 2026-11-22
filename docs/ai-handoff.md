@@ -6,6 +6,24 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-22 — Sidebar: foldable groups + nested menus
+
+- **Sync check:** origin `daniel-staging-web` still `a25b133` (owner has not pushed patches 0001–0004);
+  main nothing new. This is patch 0005 on top of local `7b52bb5`.
+- **Owner:** "sidebar … nested menu if possible so it is not so crowded". UI only, no API.
+- **Sidebar.tsx:** entries are `NavLeaf {to,label,icon}` or `NavParent {key,label,icon,children}`.
+  Parents: `vendors` (Production/Rent/Outsource in Master Data), `event-settings` (`SETTINGS_PARENT()`,
+  admin only, appended to Events). Feature filtering runs per leaf; an empty parent is dropped.
+  Open state `Record<key,bool>` in `localStorage['emi.sidebar.open.v1']`; default = open if it holds the
+  current route (`isOnRoute`: equal, `to/…` or `to-…`, so `/event-detail` counts as `/event`); a
+  `pathname` effect re-opens a group/parent explicitly closed when you navigate into it; search forces
+  open. Enter in search goes to the first leaf.
+- **Checks:** build OK, tsc 0, lint baseline 12/1. Playwright: first visit only the active group open
+  (3 visible rows on /dashboard); open/close persists after reload; /loan re-opens Master Data + Vendors
+  with Rent active; search "outs" → Outsource, Enter → /outsource; "settings" → both settings links;
+  Staff sees no Settings parent; dark + 390px slide-over OK; no page errors.
+- **API impact:** none.
+
 ## 2026-11-20 — Event Checklist reachable from Event Detail (mock store) + stage race fix
 
 - **Owner:** "event checklist ok outside, but it must also be in every event / accessible from event

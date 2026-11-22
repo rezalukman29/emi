@@ -148,6 +148,26 @@ body {
 .nav-item.active svg { color: var(--brand); }
 .nav-item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* Foldable groups + nested menus (2026-11-22) */
+.sidebar-group-toggle {
+  display: flex; align-items: center; justify-content: space-between; width: 100%;
+  border: 0; background: none; cursor: pointer; font-family: inherit; text-align: left;
+  padding-top: 4px; border-radius: 6px;
+}
+.sidebar-group-toggle:hover { color: var(--text-2); }
+.sidebar-group-toggle:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.sidebar-chevron { width: 12px; height: 12px; flex-shrink: 0; transition: transform .15s; }
+.sidebar-chevron.open { transform: rotate(90deg); }
+.nav-item .sidebar-chevron { margin-left: auto; width: 13px; height: 13px; color: var(--text-muted); }
+.sidebar-section.foldable + .sidebar-section.foldable { margin-top: 8px; }
+.nav-parent { width: 100%; border: 0; background: none; font-family: inherit; text-align: left; }
+.nav-parent.has-active { color: var(--brand); }
+.nav-parent.has-active > svg:first-child { color: var(--brand); }
+.sidebar-children { margin: 1px 0 4px 17px; padding-left: 9px; border-left: 1px solid var(--border); }
+.nav-item.nav-item-child { padding-top: 6px; padding-bottom: 6px; font-size: 12.5px; }
+.nav-item.nav-item-child svg { width: 14px; height: 14px; }
+@media (prefers-reduced-motion: reduce) { .sidebar-chevron { transition: none; } }
+
 /* =========================================================
    MAIN
    ========================================================= */

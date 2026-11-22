@@ -9,6 +9,10 @@ Format: date — change — endpoints/fields touched — impact — action neede
 
 ---
 
+## 2026-11-22 — Sidebar foldable groups / nested menus
+
+- **Endpoints touched:** none. Menu structure and local UI state only (`localStorage` `emi.sidebar.open.v1`).
+
 ## 2026-11-20 — Event Checklist in Event Detail (mock) + stage fix
 
 - **Endpoints touched:** none changed. Read-only reuse of `/v2/event-filter` (overview list),

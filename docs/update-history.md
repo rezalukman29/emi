@@ -41,6 +41,24 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+# 2026-11-22 — Sidebar: foldable groups and nested menus
+
+- **Groups fold:** Events, Inventory, Master Data, Report and System have a chevron and can be folded.
+  On a first visit only the group of the current page is open, so the sidebar shows a short list of
+  headers instead of 26 links. Each user's open/closed choice is remembered in the browser
+  (`localStorage` `emi.sidebar.open.v1`). One-link sections (Home, AI Tools) do not fold.
+- **Nested menus:** *Events → Settings* holds Event Settings and Checklist Settings (admins only, as before);
+  *Master Data → Vendors* holds Production, Rent and Outsource. A folded parent turns brand-coloured
+  when the current page is inside it.
+- Opening a page inside a folded group (link, search, back button) opens that group again.
+  **Menu search** still works: results show expanded, including nested links; Enter opens the first one.
+- Same component for desktop and the phone slide-over; dark mode uses the existing tokens.
+- **Files:** `src/components/Sidebar.tsx`, `src/style.css` (foldable/nested block after `.nav-item`),
+  `src/locales/{en,id}/translation.json` (`navigation.items.vendors`, `navigation.items.settings`).
+- **API:** none. Route/feature gating (`ROUTE_FEATURES`) is unchanged and also applies to nested links.
+
+---
+
 # 2026-11-20 — Event Checklist inside every event (preview on mock data)
 
 - **Event Detail** has a new switch under the stage bar: **Items | Event Checklist**. The Checklist

@@ -1,6 +1,6 @@
-import { NavLink, Link, useNavigate } from 'react-router-dom';
+import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import BuildInfo from './BuildInfo';
 import useUserPlanController, {
   type UserPlanFeatureFlags,
@@ -75,7 +75,18 @@ export function getFirstAccessibleRoute(features: UserPlanFeatureFlags) {
   );
 }
 
-const SECTIONS = [
+/** A menu link, or a parent that groups links one level deeper (nested menu, 2026-11-22). */
+interface NavLeaf { to: string; label: string; icon: ReactNode }
+interface NavParent { key: string; label: string; icon: ReactNode; children: NavLeaf[] }
+type NavEntry = NavLeaf | NavParent;
+interface NavSection { label: string; items: NavEntry[] }
+const isParent = (entry: NavEntry): entry is NavParent => 'children' in entry;
+const leavesOf = (entry: NavEntry): NavLeaf[] => (isParent(entry) ? entry.children : [entry]);
+
+const VENDORS_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
+const SETTINGS_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>;
+
+const SECTIONS: NavSection[] = [
     {
     label: 'Home',
     items: [
@@ -120,12 +131,14 @@ const SECTIONS = [
         icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M4 10h16M4 14h10M4 18h6"/></svg> },
       { to: '/unit', label: 'Unit',
         icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg> },
-      { to: '/vendor', label: 'Production',
-        icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v11h16V9"/><path d="M9 20v-6h6v6"/><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/></svg> },
-      { to: '/loan', label: 'Rent',
-        icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 3h5v5"/><path d="M21 3l-7 7"/><path d="M8 21H3v-5"/><path d="M3 21l7-7"/></svg> },
-      { to: '/outsource', label: 'Outsource',
-        icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg> },
+      { key: 'vendors', label: 'Vendors', icon: VENDORS_ICON, children: [
+        { to: '/vendor', label: 'Production',
+          icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v11h16V9"/><path d="M9 20v-6h6v6"/><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/></svg> },
+        { to: '/loan', label: 'Rent',
+          icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 3h5v5"/><path d="M21 3l-7 7"/><path d="M8 21H3v-5"/><path d="M3 21l7-7"/></svg> },
+        { to: '/outsource', label: 'Outsource',
+          icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg> },
+      ] },
       { to: '/qr-code', label: 'QR Code',
         icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h.01M14 17h3v3M17 14h3"/></svg> },
     ],
@@ -175,6 +188,21 @@ const CHECKLIST_SETTINGS_ITEM = {
   icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>,
 };
 
+/** Admin-only settings, nested under Events → Settings. */
+const SETTINGS_PARENT = (): NavParent => ({ key: 'event-settings', label: 'Settings', icon: SETTINGS_ICON, children: [EVENT_SETTINGS_ITEM, CHECKLIST_SETTINGS_ITEM] });
+
+const SIDEBAR_STATE_KEY = 'emi.sidebar.open.v1';
+function readOpenState(): Record<string, boolean> {
+  try { return JSON.parse(window.localStorage.getItem(SIDEBAR_STATE_KEY) || '{}') as Record<string, boolean>; } catch { return {}; }
+}
+/** The current page belongs to this link (also its detail pages, e.g. /event-detail for /event). */
+function isOnRoute(pathname: string, to: string) {
+  return pathname === to || pathname.startsWith(`${to}/`) || pathname.startsWith(`${to}-`);
+}
+const Chevron = ({ open }: { open: boolean }) => (
+  <svg className={`sidebar-chevron${open ? ' open' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18" /></svg>
+);
+
 const SECTION_TRANSLATION_KEYS: Record<string, string> = {
   Home: 'navigation.sections.home',
   Events: 'navigation.sections.events',
@@ -214,6 +242,8 @@ const ITEM_TRANSLATION_KEYS: Record<string, string> = {
   Log: 'navigation.items.log',
   Users: 'navigation.items.users',
   'Product Knowledge': 'navigation.items.productKnowledge',
+  Vendors: 'navigation.items.vendors',
+  Settings: 'navigation.items.settings',
 };
 
 function isTenantAdmin() {
@@ -230,37 +260,93 @@ function isTenantAdmin() {
 export default function Sidebar({ visible, mobile = false }: { visible: boolean; mobile?: boolean }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const [openState, setOpenState] = useState<Record<string, boolean>>(readOpenState);
   const [menuQuery, setMenuQuery] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
   const enabledFeatures = useUserPlanController();
-  const sections = SECTIONS.map((section) => {
+  const allowed = (leaf: NavLeaf) => {
+    const requiredFeature = ROUTE_FEATURES[leaf.to];
+    return !requiredFeature || enabledFeatures[requiredFeature];
+  };
+  const sections: NavSection[] = SECTIONS.map((section) => {
     if (section.label !== 'Events' || !isTenantAdmin()) return section;
-    return { ...section, items: [...section.items, EVENT_SETTINGS_ITEM, CHECKLIST_SETTINGS_ITEM] };
+    return { ...section, items: [...section.items, SETTINGS_PARENT()] };
   })
     .map((section) => ({
       ...section,
-      items: section.items.filter((item) => {
-        const requiredFeature = ROUTE_FEATURES[item.to];
-        return !requiredFeature || enabledFeatures[requiredFeature];
-      }),
+      items: section.items
+        .map((entry): NavEntry | null => {
+          if (!isParent(entry)) return allowed(entry) ? entry : null;
+          const children = entry.children.filter(allowed);
+          return children.length ? { ...entry, children } : null;
+        })
+        .filter((entry): entry is NavEntry => entry !== null),
     }))
     .filter((section) => section.items.length > 0);
+  const label = (entry: { label: string }) => t(ITEM_TRANSLATION_KEYS[entry.label] ?? entry.label);
 
   const normalizedQuery = menuQuery.trim().toLowerCase();
   const shownSections = sections
     .map((section) => {
       const translatedLabel = t(SECTION_TRANSLATION_KEYS[section.label] ?? section.label);
       const sectionMatches = translatedLabel.toLowerCase().includes(normalizedQuery);
+      const matches = (entry: { label: string }) => label(entry).toLowerCase().includes(normalizedQuery);
       const items = !normalizedQuery || sectionMatches
         ? section.items
-        : section.items.filter((item) =>
-            t(ITEM_TRANSLATION_KEYS[item.label] ?? item.label)
-              .toLowerCase()
-              .includes(normalizedQuery),
-          );
+        : section.items
+            .map((entry): NavEntry | null => {
+              if (!isParent(entry)) return matches(entry) ? entry : null;
+              if (matches(entry)) return entry;
+              const children = entry.children.filter(matches);
+              return children.length ? { ...entry, children } : null;
+            })
+            .filter((entry): entry is NavEntry => entry !== null);
       return { ...section, translatedLabel, items };
     })
     .filter((section) => section.items.length > 0);
+
+  const firstLeaf = shownSections[0]?.items[0] ? leavesOf(shownSections[0].items[0])[0] : undefined;
+  // Open = what the user chose; otherwise open when it holds the current page. Search opens everything.
+  const isOpen = (key: string, entries: NavEntry[]) => {
+    if (normalizedQuery) return true;
+    if (key in openState) return openState[key];
+    return entries.some((entry) => leavesOf(entry).some((leaf) => isOnRoute(pathname, leaf.to)));
+  };
+  const toggle = (key: string, open: boolean) =>
+    setOpenState((current) => {
+      const next = { ...current, [key]: !open };
+      try { window.localStorage.setItem(SIDEBAR_STATE_KEY, JSON.stringify(next)); } catch { /* private mode */ }
+      return next;
+    });
+  // Navigating into a closed group (search, link, back button) opens it again.
+  useEffect(() => {
+    setOpenState((current) => {
+      let changed = false;
+      const next = { ...current };
+      for (const section of SECTIONS) {
+        const entries = section.label === 'Events' ? [...section.items, SETTINGS_PARENT()] : section.items;
+        for (const entry of entries) {
+          const here = leavesOf(entry).some((leaf) => isOnRoute(pathname, leaf.to));
+          if (!here) continue;
+          if (next[section.label] === false) { next[section.label] = true; changed = true; }
+          if (isParent(entry) && next[entry.key] === false) { next[entry.key] = true; changed = true; }
+        }
+      }
+      return changed ? next : current;
+    });
+  }, [pathname]);
+
+  const renderLeaf = ({ to, icon, label: text }: NavLeaf, nested = false) => (
+    <NavLink
+      key={to}
+      to={to}
+      className={({ isActive }) => 'nav-item' + (nested ? ' nav-item-child' : '') + (isActive ? ' active' : '')}
+    >
+      {icon}
+      <span>{t(ITEM_TRANSLATION_KEYS[text] ?? text)}</span>
+    </NavLink>
+  );
 
   useEffect(() => {
     const focusSearch = (event: KeyboardEvent) => {
@@ -297,9 +383,9 @@ export default function Sidebar({ visible, mobile = false }: { visible: boolean;
           value={menuQuery}
           onChange={(event) => setMenuQuery(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === 'Enter' && shownSections[0]?.items[0]) {
+            if (event.key === 'Enter' && firstLeaf) {
               event.preventDefault();
-              navigate(shownSections[0].items[0].to);
+              navigate(firstLeaf.to);
               setMenuQuery('');
             }
             if (event.key === 'Escape' && menuQuery) {
@@ -316,21 +402,48 @@ export default function Sidebar({ visible, mobile = false }: { visible: boolean;
           {t('navigation.noMenuMatches', { query: menuQuery })}
         </div>
       )}
-      {shownSections.map(section => (
-        <div key={section.label} className="sidebar-section">
-          <div className="sidebar-section-label">{section.translatedLabel}</div>
-          {section.items.map(({ to, label, icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) => 'nav-item' + (isActive ? ' active' : '')}
-            >
-              {icon}
-              <span>{t(ITEM_TRANSLATION_KEYS[label] ?? label)}</span>
-            </NavLink>
-          ))}
-        </div>
-      ))}
+      {shownSections.map(section => {
+        // A one-link section (Home, AI Tools) is not worth folding.
+        const foldable = section.items.length > 1 || isParent(section.items[0]);
+        const open = !foldable || isOpen(section.label, section.items);
+        const sectionId = `sidebar-sec-${section.label.replace(/\W+/g, '-').toLowerCase()}`;
+        return (
+          <div key={section.label} className={`sidebar-section${foldable ? ' foldable' : ''}`}>
+            {foldable ? (
+              <button type="button" className="sidebar-section-label sidebar-group-toggle" aria-expanded={open} aria-controls={sectionId} onClick={() => toggle(section.label, open)}>
+                <span>{section.translatedLabel}</span>
+                <Chevron open={open} />
+              </button>
+            ) : (
+              <div className="sidebar-section-label">{section.translatedLabel}</div>
+            )}
+            {open && (
+              <div id={sectionId} className="sidebar-section-items">
+                {section.items.map((entry) => {
+                  if (!isParent(entry)) return renderLeaf(entry);
+                  const childOpen = isOpen(entry.key, [entry]);
+                  const childActive = entry.children.some((leaf) => isOnRoute(pathname, leaf.to));
+                  const groupId = `sidebar-sub-${entry.key}`;
+                  return (
+                    <div key={entry.key} className="sidebar-subgroup">
+                      <button type="button" className={`nav-item nav-parent${childActive && !childOpen ? ' has-active' : ''}`} aria-expanded={childOpen} aria-controls={groupId} onClick={() => toggle(entry.key, childOpen)}>
+                        {entry.icon}
+                        <span>{label(entry)}</span>
+                        <Chevron open={childOpen} />
+                      </button>
+                      {childOpen && (
+                        <div id={groupId} className="sidebar-children">
+                          {entry.children.map((leaf) => renderLeaf(leaf, true))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
       <div className="sidebar-footer">
         <Link to="/superadmin/login" className="nav-item sidebar-owner-link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
