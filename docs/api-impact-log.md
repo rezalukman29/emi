@@ -9,6 +9,17 @@ Format: date — change — endpoints/fields touched — impact — action neede
 
 ---
 
+## 2026-11-22 — Event list: Overdue chip, clickable cards, tooltips
+
+- **Endpoints touched:** none. The Overdue chip reads the existing `event_start` / `event_end` /
+  `date_event` of `/v2/event-filter` records.
+- **Needs API — waiting for owner / backend:** an **Overdue tab** (events whose finish date has passed but
+  are still Upcoming / On Going), with its count and pagination. Tabs and counts come from the server
+  (`/v2/event-filter?status=<lifecycle>`), so the frontend cannot move events between tabs on its own.
+  Options: (A) add lifecycle `overdue` to `/v2/event-filter` (status filter + count), or (B) add an end-date
+  param, e.g. `end_to=<yyyy-mm-dd>` together with `status=upcoming|on-going`, so the frontend builds the tab.
+  Also a product decision: should overdue events leave Upcoming / On Going, or stay there and also show in Overdue?
+
 ## 2026-11-22 — Sidebar foldable groups / nested menus
 
 - **Endpoints touched:** none. Menu structure and local UI state only (`localStorage` `emi.sidebar.open.v1`).

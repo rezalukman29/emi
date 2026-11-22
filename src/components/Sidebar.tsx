@@ -192,6 +192,8 @@ const CHECKLIST_SETTINGS_ITEM = {
 const SETTINGS_PARENT = (): NavParent => ({ key: 'event-settings', label: 'Settings', icon: SETTINGS_ICON, children: [EVENT_SETTINGS_ITEM, CHECKLIST_SETTINGS_ITEM] });
 
 const SIDEBAR_STATE_KEY = 'emi.sidebar.open.v1';
+/** Groups open on a first visit even when the current page is elsewhere (owner, 2026-11-22). */
+const DEFAULT_OPEN = new Set(['Events']);
 function readOpenState(): Record<string, boolean> {
   try { return JSON.parse(window.localStorage.getItem(SIDEBAR_STATE_KEY) || '{}') as Record<string, boolean>; } catch { return {}; }
 }
@@ -311,6 +313,7 @@ export default function Sidebar({ visible, mobile = false }: { visible: boolean;
   const isOpen = (key: string, entries: NavEntry[]) => {
     if (normalizedQuery) return true;
     if (key in openState) return openState[key];
+    if (DEFAULT_OPEN.has(key)) return true;
     return entries.some((entry) => leavesOf(entry).some((leaf) => isOnRoute(pathname, leaf.to)));
   };
   const toggle = (key: string, open: boolean) =>

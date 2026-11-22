@@ -434,6 +434,12 @@
     "nowLight": "sekarang terang",
     "nowDark": "sekarang gelap"
   },
+  "eventCard": {
+    "overdue_one": "Terlambat · {{count}} hari",
+    "overdue_other": "Terlambat · {{count}} hari",
+    "overdueHint": "Selesai pada {{date}} tetapi belum ditutup",
+    "inProgress": "Sedang berjalan"
+  },
   "navigation": {
     "menuSearch": "Cari menu…",
     "noMenuMatches": "Tidak ada menu yang cocok dengan “{{query}}”.",

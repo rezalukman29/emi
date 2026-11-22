@@ -41,6 +41,29 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+# 2026-11-22 — Event list: clickable cards, Overdue chip, instant tooltips; Events open by default
+
+- **Sidebar:** the *Events* group is open by default (until the user folds it), even when the current
+  page is in another group.
+- **Clickable cards:** an event card (grid) or event row (Ready for Checking, Returned & Completed,
+  Transferred, past list) opens Event Detail when clicked anywhere; the icons keep their own action.
+  Keyboard: Tab to the card, Enter or Space.
+- **Overdue chip:** a card whose **finish date** has passed showed a negative countdown ("-1128d away").
+  It now shows **Overdue · N d** (red; tooltip "Ended on 10 Nov 2023 but not closed yet"); an event that
+  started but has not finished shows **In progress**. The event still sits in its current tab: moving it
+  to an *Overdue* tab needs the backend (see `docs/api-impact-log.md`, "Needs API").
+- **Tooltips:** card and row icons (Detail / Cart, Summary, Edit, Delete, History, item count) show an
+  instant styled tooltip on hover and keyboard focus, instead of the slow browser tooltip. The Edit icon of
+  a finished event is now `aria-disabled` (was `disabled`, which blocked its tooltip); clicking it still
+  shows "This event has ended and can no longer be edited."
+- Event cards no longer use `overflow: hidden` (it clipped tooltips); the cover photo rounds its own corners.
+- **Files:** `src/pages/EventPage.tsx` (`cardOpenProps`, `EventDateChip`, `daysSinceEnd`, tooltips),
+  `src/eventUpgrade.css` (`.event-card-link`, `.event-chip-*`, `[data-tip]`), `src/components/Sidebar.tsx`
+  (`DEFAULT_OPEN`), `src/locales/{en,id}/translation.json` (`eventCard.*`).
+- **Reusable:** `data-tip="text"` (+ `data-tip-align="start|end"`, `data-tip-pos="below"`) works on any element.
+
+---
+
 # 2026-11-22 — Sidebar: foldable groups and nested menus
 
 - **Groups fold:** Events, Inventory, Master Data, Report and System have a chevron and can be folded.

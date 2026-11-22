@@ -434,6 +434,12 @@
     "nowLight": "now light",
     "nowDark": "now dark"
   },
+  "eventCard": {
+    "overdue_one": "Overdue · {{count}} day",
+    "overdue_other": "Overdue · {{count}}d",
+    "overdueHint": "Ended on {{date}} but not closed yet",
+    "inProgress": "In progress"
+  },
   "navigation": {
     "menuSearch": "Search menu…",
     "noMenuMatches": "No menu matches “{{query}}”.",

@@ -183,6 +183,55 @@ function EventCardCover({ record }: { record: Record<string, any> }) {
   );
 }
 
+/**
+ * Whole card / row opens the event (owner 2026-11-22). Clicks on buttons and links inside
+ * keep their own action. Keyboard: Enter or Space on the focused card.
+ */
+function cardOpenProps(name: string, open: () => void) {
+  const isInner = (target: EventTarget) => target instanceof Element && Boolean(target.closest('button, a, input, select, textarea, label'));
+  return {
+    role: 'link' as const,
+    tabIndex: 0,
+    'aria-label': name,
+    className: 'event-card-link',
+    onClick: (event: { target: EventTarget }) => { if (!isInner(event.target)) open(); },
+    onKeyDown: (event: { key: string; target: EventTarget; currentTarget: EventTarget; preventDefault: () => void }) => {
+      if ((event.key === 'Enter' || event.key === ' ') && event.target === event.currentTarget) { event.preventDefault(); open(); }
+    },
+  };
+}
+
+/** Days since the event's last day (finish, else start / event date); null when it has not ended. */
+function daysSinceEnd(record: EventRecord): number | null {
+  if (!isEventPast(record)) return null;
+  const end = daysUntil(eventLastDate(record).slice(0, 10));
+  return end === null ? null : Math.max(1, -end);
+}
+
+/**
+ * Countdown on the card. An event whose finish date has passed shows "Overdue" (it still sits in an
+ * open tab because the server lifecycle has no overdue state; see api-impact-log 2026-11-22) and one
+ * that started but has not ended shows "In progress", instead of a negative "-1128d away".
+ */
+function EventDateChip({ record }: { record: EventRecord }) {
+  const { t, i18n } = useTranslation();
+  const overdueDays = daysSinceEnd(record);
+  const endDate = eventLastDate(record).slice(0, 10);
+  const endLabel = /^\d{4}-\d{2}-\d{2}$/.test(endDate)
+    ? new Intl.DateTimeFormat(i18n.language === 'id' ? 'id-ID' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${endDate}T00:00:00Z`))
+    : endDate;
+  if (overdueDays !== null) {
+    return (
+      <span className="event-chip event-chip-overdue" data-tip-pos="below" data-tip={t('eventCard.overdueHint', { date: endLabel })} tabIndex={0}>
+        {t('eventCard.overdue', { count: overdueDays })}
+      </span>
+    );
+  }
+  const days = daysUntil(record.event_start);
+  if (days !== null && days < 0) return <span className="event-chip event-chip-running">{t('eventCard.inProgress')}</span>;
+  return <CountdownChip days={days} />;
+}
+
 function CountdownChip({ days }: { days: number | null }) {
   if (days === null) return null;
   const isUrgent = days <= 7;
@@ -556,9 +605,10 @@ export default function EventPage() {
           borderTop: `3px solid ${accent}`,
           display: "flex",
           flexDirection: "column",
-          overflow: "hidden",
+          // No overflow: hidden here: it clipped the action tooltips. The cover rounds its own corners.
           transition: "box-shadow .15s, transform .15s",
         }}
+        {...cardOpenProps(r.name || r.event_code || `#${r.id}`, () => navigate(`/event-detail?id=${r.id}`))}
         onMouseEnter={(e) => {
           e.currentTarget.style.boxShadow = "0 6px 20px rgba(0,0,0,.08)";
           e.currentTarget.style.transform = "translateY(-1px)";
@@ -581,7 +631,7 @@ export default function EventPage() {
             <span className="badge badge-gray" style={{ fontSize: 10.5 }}>
               {r.event_code}
             </span>
-            <CountdownChip days={days} />
+            <EventDateChip record={r} />
             <span className={`badge ${LIFECYCLE_BADGES[lifecycleOf(r)]}`}>{t(`lifecycle.${lifecycleOf(r)}`)}</span>
           </div>
 
@@ -655,20 +705,20 @@ export default function EventPage() {
         >
           <button
             className="btn-icon cart"
-            title={t("wording.detailCart")}
+            data-tip={t("wording.detailCart")} data-tip-align="start" aria-label={t("wording.detailCart")}
             onClick={() => navigate(`/event-detail?id=${r.id}`)}
           >
             <IconCart />
           </button>
           {/* Item count next to the cart (ported from emi-source): `total_items` from /v2/event-filter. */}
           {Number.isFinite(Number(r.total_items)) && r.total_items !== null && r.total_items !== undefined && (
-            <span className="badge badge-gray" style={{ fontSize: 10.5, padding: "2px 7px" }} title={t("wording.totalItems", { defaultValue: "Total items" })}>
+            <span className="badge badge-gray" style={{ fontSize: 10.5, padding: "2px 7px" }} data-tip={t("wording.totalItems", { defaultValue: "Total items" })} tabIndex={0}>
               {fmtDisplayNumber(Number(r.total_items))}
             </span>
           )}
           <button
             className="btn-icon"
-            title={t("wording.summary")}
+            data-tip={t("wording.summary")} data-tip-align="start" aria-label={t("wording.summary")}
             style={{ color: "var(--purple)" }}
             onClick={() => navigate(`/event-summary?id=${r.id}`)}
           >
@@ -677,20 +727,23 @@ export default function EventPage() {
           <div style={{ flex: 1 }} />
           <button
             className="btn-icon edit"
-            title={isEventPast(r) ? t('eventRules.pastEditLocked') : t("wording.edit")}
-            disabled={isEventPast(r)}
+            data-tip={isEventPast(r) ? t('eventRules.pastEditLocked') : t("wording.edit")}
+            data-tip-align="end"
+            aria-label={isEventPast(r) ? t('eventRules.pastEditLocked') : t("wording.edit")}
+            // aria-disabled instead of disabled: a disabled button gets no hover, so its tooltip never showed.
+            aria-disabled={isEventPast(r)}
             onClick={() => openEdit(r.id)}
           >
             <IconEdit />
           </button>
           <button
             className="btn-icon delete"
-            title={t("wording.delete")}
+            data-tip={t("wording.delete")} data-tip-align="end" aria-label={t("wording.delete")}
             onClick={() => onDelete(r.id)}
           >
             <IconDelete />
           </button>
-          <button className="btn-icon history" title={t("wording.history")}>
+          <button className="btn-icon history" data-tip={t("wording.history")} data-tip-align="end" aria-label={t("wording.history")}>
             <IconHistory />
           </button>
         </div>
@@ -721,6 +774,7 @@ export default function EventPage() {
           gap: 14,
           transition: "box-shadow .12s",
         }}
+        {...cardOpenProps(r.name || r.event_code || `#${r.id}`, () => navigate(`/event-detail?id=${r.id}`))}
         onMouseEnter={(e) =>
           (e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,.07)")
         }
@@ -838,14 +892,14 @@ export default function EventPage() {
         <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
           <button
             className="btn-icon cart"
-            title={t("wording.detailCart")}
+            data-tip={t("wording.detailCart")} data-tip-align="start" aria-label={t("wording.detailCart")}
             onClick={() => navigate(`/event-detail?id=${r.id}`)}
           >
             <IconCart />
           </button>
           <button
             className="btn-icon"
-            title={t("wording.summary")}
+            data-tip={t("wording.summary")} data-tip-align="start" aria-label={t("wording.summary")}
             style={{ color: "var(--purple)" }}
             onClick={() => navigate(`/event-summary?id=${r.id}`)}
           >
@@ -853,20 +907,23 @@ export default function EventPage() {
           </button>
           {!readOnly && <><button
             className="btn-icon edit"
-            title={isEventPast(r) ? t('eventRules.pastEditLocked') : t("wording.edit")}
-            disabled={isEventPast(r)}
+            data-tip={isEventPast(r) ? t('eventRules.pastEditLocked') : t("wording.edit")}
+            data-tip-align="end"
+            aria-label={isEventPast(r) ? t('eventRules.pastEditLocked') : t("wording.edit")}
+            // aria-disabled instead of disabled: a disabled button gets no hover, so its tooltip never showed.
+            aria-disabled={isEventPast(r)}
             onClick={() => onEdit(r.id)}
           >
             <IconEdit />
           </button>
           <button
             className="btn-icon delete"
-            title={t("wording.delete")}
+            data-tip={t("wording.delete")} data-tip-align="end" aria-label={t("wording.delete")}
             onClick={() => onDelete(r.id)}
           >
             <IconDelete />
           </button>
-          <button className="btn-icon history" title={t("wording.history")}>
+          <button className="btn-icon history" data-tip={t("wording.history")} data-tip-align="end" aria-label={t("wording.history")}>
             <IconHistory />
           </button></>}
         </div>

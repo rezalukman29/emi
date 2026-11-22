@@ -6,6 +6,27 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-22 — Event list: clickable cards, Overdue chip, tooltips, Events default-open
+
+- **Sync check:** origin still `a25b133`, main nothing new. Patch 0006 on top of local `d569d55`.
+- **Owner asked (4 items):** (1) one group open by default, e.g. Events → `DEFAULT_OPEN` in Sidebar.tsx;
+  (2) click the whole card → `cardOpenProps()` on `EventCard` and `PastEventRow` (ignores clicks inside
+  button/a/input/label; role=link, tabIndex 0, Enter/Space); (3) "past finish date → overdue": the **tab**
+  needs the server lifecycle (stopped, logged as Needs API); built only the chip `EventDateChip`
+  (`isEventPast` → Overdue · days since `eventLastDate`; started-not-finished → In progress; else the old
+  `CountdownChip`); (4) tooltips: CSS-only `[data-tip]::after` in `eventUpgrade.css`, titles replaced
+  by `data-tip` + `aria-label`; edit uses `aria-disabled` (a `disabled` button gets no hover; `openEdit`
+  already refuses past events with a toast). Faded state is on the svg, not the button (opacity would
+  fade the tooltip). Removed `overflow: hidden` from `EventCard` (clipped tooltips); `.event-card-cover`
+  has its own top radius.
+- **Pre-existing, not changed:** `CountdownChip` strings ("Today!", "Tomorrow", "Nd away") are hard-coded
+  English; the History icon has no action.
+- **Checks:** build OK, tsc 0, lint 12/1, node tests 38/40 (same 2). Playwright: Events open on /dashboard;
+  chips Overdue · 1108d / Overdue · 454d / In progress / 9d away; edit tooltip visible (opacity 1),
+  forced click → toast, no navigation; Summary icon → /event-summary; card body → /event-detail?id=2;
+  row Enter → /event-detail?id=9; no page errors. Playwright refuses normal clicks on aria-disabled → use force.
+- **API impact:** none (Overdue tab = Needs API).
+
 ## 2026-11-22 — Sidebar: foldable groups + nested menus
 
 - **Sync check:** origin `daniel-staging-web` still `a25b133` (owner has not pushed patches 0001–0004);

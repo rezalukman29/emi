@@ -463,5 +463,40 @@
 
 /* Event card cover photo (ported from emi-source 2026-11-11): fixed 16:9 box, object-fit cover,
    so any photo size looks the same and the text below keeps its layout. */
-.event-card-cover { aspect-ratio: 16 / 9; background: var(--bg); overflow: hidden; }
+.event-card-cover { aspect-ratio: 16 / 9; background: var(--bg); overflow: hidden; border-radius: 7px 7px 0 0; }
 .event-card-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Event cards and past-event rows open the event on click (2026-11-22). */
+.event-card-link { cursor: pointer; }
+.event-card-link:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+/* Fade the icon only: fading the button would fade its tooltip too. */
+.event-card-link .btn-icon[aria-disabled="true"] { cursor: not-allowed; }
+.event-card-link .btn-icon[aria-disabled="true"] svg { opacity: .4; }
+.event-card-link .btn-icon[aria-disabled="true"]:hover { background: none; color: inherit; }
+
+/* Date chip on event cards: overdue / in progress (replaces negative "Nd away"). */
+.event-chip { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
+.event-chip-overdue { color: var(--red); background: var(--red-bg); cursor: help; }
+.event-chip-running { color: var(--green); background: var(--green-bg); }
+
+/* Instant tooltip for icon buttons: data-tip="text" (data-tip-align="end" for right-side buttons).
+   Shows on hover and keyboard focus, also on aria-disabled buttons. */
+[data-tip] { position: relative; }
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute; bottom: calc(100% + 7px); left: 50%; transform: translate(-50%, 3px);
+  z-index: 50; width: max-content; max-width: 200px; padding: 6px 9px; border-radius: 6px;
+  background: #1f2433; color: #fff; font-size: 12px; font-weight: 500; line-height: 1.35;
+  text-align: left; white-space: normal; letter-spacing: 0; text-transform: none;
+  box-shadow: 0 4px 14px rgba(0,0,0,.18);
+  opacity: 0; pointer-events: none; transition: opacity .12s ease .12s, transform .12s ease .12s;
+}
+[data-tip][data-tip-align="end"]::after { left: auto; right: 0; transform: translate(0, 3px); }
+[data-tip][data-tip-align="start"]::after { left: 0; transform: translate(0, 3px); }
+[data-tip][data-tip-pos="below"]::after { bottom: auto; top: calc(100% + 7px); transform: translate(-50%, -3px); }
+[data-tip]:hover::after, [data-tip]:focus-visible::after { opacity: 1; transform: translate(-50%, 0); }
+[data-tip][data-tip-align="end"]:hover::after, [data-tip][data-tip-align="end"]:focus-visible::after,
+[data-tip][data-tip-align="start"]:hover::after, [data-tip][data-tip-align="start"]:focus-visible::after { transform: translate(0, 0); }
+:root[data-theme="dark"] [data-tip]::after { background: #e7ebf5; color: #111827; }
+@media (hover: none) { [data-tip]:hover::after { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { [data-tip]::after { transition: none; } }
