@@ -2529,6 +2529,25 @@ export default function EventDetailPage() {
     />
   );
   const ownershipSelect = <SearchableSelect value={ownershipFilter} onChange={value => { setOwnershipFilter(String(value)); if (isB) setAppliedOwnershipFilter(String(value)); }} options={[{ value: '', label: t('lifecycle.allOwnership') }, ...OWNERSHIP_OPTIONS.map(value => ({ value, label: `${value} (${items.filter(item => item.ownerships.includes(value)).length})` }))]} />;
+  const bDateRange = (() => {
+    const start = formatEventDate(eventDetail?.event_start);
+    const end = formatEventDate(eventDetail?.event_end);
+    return start && end && start !== end ? `${start} – ${end}` : start || end;
+  })();
+  const bRealItems = items.filter((item) => item.id > 0);
+  const bNextHint: { text: string; tone: 'ok' | 'warn' } | null = isB && !isClosing && !checkingMode && hasNextStage
+    ? (stageScanEnabled && unscannedCount > 0
+      ? { text: t('edB.hintScan', { count: unscannedCount, next: stages[currentStageIndex + 1] }), tone: 'warn' }
+      : { text: t('edB.hintReady', { next: stages[currentStageIndex + 1] }), tone: 'ok' })
+    : null;
+  const bStats: Array<{ key: string; label: string; value: string; raw?: number; of?: number; onClick?: () => void }> = [
+    { key: 'items', label: t('edB.statItems'), value: fmtDisplayNumber(items.length), onClick: () => { setDetailView('items'); setStageFilter('all'); } },
+    backendCheckingEvent
+      ? { key: 'checked', label: t('edB.statChecked'), value: fmtDisplayNumber(checkedCount), raw: checkedCount, of: checkableEventItems.length }
+      : { key: 'in', label: t('edB.statScanIn'), value: fmtDisplayNumber(bRealItems.filter((item) => item.scanIn).length), raw: bRealItems.filter((item) => item.scanIn).length, of: bRealItems.length },
+    { key: 'out', label: t('edB.statScanOut'), value: fmtDisplayNumber(bRealItems.filter((item) => item.scanOut).length), raw: bRealItems.filter((item) => item.scanOut).length, of: bRealItems.length },
+    { key: 'checklist', label: t('navigation.items.eventChecklist'), value: fmtDisplayNumber(checklistSummary?.resolved ?? 0), raw: checklistSummary?.resolved ?? 0, of: checklistSummary?.total ?? 0, onClick: () => setDetailView('checklist') },
+  ];
   const viewToggle = <div className="view-toggle">{(['cards', 'list'] as const).map(mode => <button key={mode} title={t('eventUpgrade.' + mode)} aria-label={t('eventUpgrade.' + mode)} aria-pressed={viewMode === mode} className={viewMode === mode ? 'active' : ''} onClick={() => { setViewMode(mode); try { localStorage.setItem('emi_event_detail_view', mode); } catch { /* Preference is optional. */ } }}>{mode === 'cards' ? '▦' : '☰'}</button>)}</div>;
   const activeFilterCount = (selectedArea ? 1 : 0) + (appliedOwnershipFilter ? 1 : 0);
 
@@ -2536,6 +2555,8 @@ export default function EventDetailPage() {
     <>
       <h1 className={`page-title${isB ? ' ed-b-page-title' : ''}`}>{t("wording.eventDetail")}</h1>
       <div className={`card${isB ? ' ed-b' : ''}`}>
+        {/* B wraps the top (title, meta, stage) and the body in their own surfaces; A: display: contents. */}
+        <div className={isB ? 'ed-b-hero' : 'ed-contents'}>
         <div style={{ marginBottom: 14 }}>
           <button
             onClick={() => navigate("/event")}
@@ -2606,6 +2627,10 @@ export default function EventDetailPage() {
                   <button type="button" role="menuitem" className="more-menu-item" onClick={() => { setSummaryOpen(true); setMoreMenuOpen(false); }}>
                     <IconBarChart /> {t("wording.summary")}
                   </button>
+                  <button type="button" role="menuitem" className="more-menu-item" onClick={() => { setMoreMenuOpen(false); navigate(`/event-history?id=${eventId}`); }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                    {t("wording.history")}
+                  </button>
                   <button type="button" role="menuitem" className="more-menu-item" onClick={() => { setRentalOpen(true); setMoreMenuOpen(false); }}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 3h5v5"/><path d="M21 3l-7 7"/><path d="M8 21H3v-5"/><path d="M3 21l7-7"/></svg>
                     {t('october.rentals')}
@@ -2624,7 +2649,15 @@ export default function EventDetailPage() {
           </div>
         </div>
 
+        {isB && <div className="ed-b-meta">
+          {bDateRange && <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>{bDateRange}</span>}
+          {eventDetail?.address?.trim() && <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>{eventDetail.address.trim()}</span>}
+          {eventDetail?.PIC?.trim() && <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>{t('edB.pic')} {eventDetail.PIC.trim()}</span>}
+          {eventDetail?.event_code?.trim() && <span className="ed-b-code">#{eventDetail.event_code.trim()}</span>}
+        </div>}
+
         <div className="event-status-section">
+          {isB && <div className="ed-b-stage-label">{t('edB.currentStage')}</div>}
           <div className="event-status-section-label">{t("wording.eventStatus")}</div>
           <div className="event-status-stepper-wrap">
             <Stepper
@@ -2658,6 +2691,8 @@ export default function EventDetailPage() {
           )}
         </div>
 
+        {isB && bNextHint && <p className={`ed-b-hint${bNextHint.tone === 'warn' ? ' warn' : ''}`}>{bNextHint.text}</p>}
+
         {checkingMode && (
           <div className="event-check-progress">
             <div className="event-check-progress-head">
@@ -2685,6 +2720,18 @@ export default function EventDetailPage() {
           </div>
         )}
 
+        </div>
+
+        {isB && <div className="ed-b-stats">
+          {bStats.map((stat) => {
+            const inner = <><span className="ed-b-stat-label">{stat.label}</span><span className="ed-b-stat-value">{stat.value}{stat.of !== undefined && <small>/{stat.of}</small>}</span>{stat.of !== undefined && <span className="ed-b-stat-bar"><span style={{ width: `${stat.of ? Math.round((Number(stat.raw) / stat.of) * 100) : 0}%` }} /></span>}</>;
+            return stat.onClick
+              ? <button key={stat.key} type="button" className="ed-b-stat" onClick={stat.onClick}>{inner}</button>
+              : <div key={stat.key} className="ed-b-stat">{inner}</div>;
+          })}
+        </div>}
+
+        <div className={isB ? 'ed-b-body' : 'ed-contents'}>
         <div className="ed-view-switch" role="tablist" aria-label={t("eventChecklist.viewLabel")}>
           <button type="button" role="tab" aria-selected={detailView === 'items'} className={detailView === 'items' ? 'active' : ''} onClick={() => setDetailView('items')}>
             {t("eventChecklist.viewItems")} <span className="stage-tab-count">{fmtDisplayNumber(items.length)}</span>
@@ -2956,6 +3003,7 @@ export default function EventDetailPage() {
           </>
         )}
         </>)}
+        </div>
       </div>
 
       <Modal open={pendingStage !== null && flowStep === 'ownership'} title={t('sourceUpgrade.checkOwnership')} onClose={cancelStageFlow} footer={<>

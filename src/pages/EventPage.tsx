@@ -1,6 +1,6 @@
 import { fmtNum as fmtDisplayNumber } from '../lib/format';
 import { useState, useMemo, useRef, useEffect } from "react";
-import { useNavigate, type NavigateFunction } from "react-router-dom";
+import { useNavigate, useSearchParams, type NavigateFunction } from "react-router-dom";
 import { toast } from "react-toastify";
 import Modal from "../components/Modal";
 import Drawer from "../components/Drawer";
@@ -266,10 +266,30 @@ function CountdownChip({ days }: { days: number | null }) {
   );
 }
 
+const EVENT_TAB_KEY = "emi.event.tab.v1";
+
 export default function EventPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("upcoming");
+  // The active tab is kept in the URL (?tab=) and in this browser tab's session, so "Back to Events"
+  // from Event Detail (or the browser back button) returns to the same tab (owner 2026-11-23).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(() => {
+    const valid = (value: string | null) => !!value && ([...LIFECYCLE_STATUSES, 'invite'] as string[]).includes(value);
+    const fromUrl = searchParams.get('tab');
+    if (valid(fromUrl)) return fromUrl as string;
+    let saved: string | null = null;
+    try { saved = window.sessionStorage.getItem(EVENT_TAB_KEY); } catch { /* storage is optional */ }
+    return valid(saved) ? saved as string : 'upcoming';
+  });
+  useEffect(() => {
+    try { window.sessionStorage.setItem(EVENT_TAB_KEY, activeTab); } catch { /* storage is optional */ }
+    if (searchParams.get('tab') !== activeTab) {
+      const next = new URLSearchParams(searchParams);
+      next.set('tab', activeTab);
+      setSearchParams(next, { replace: true });
+    }
+  }, [activeTab, searchParams, setSearchParams]);
   const [filters, setFilters] = useState<EventListFilters>(EMPTY_EVENT_FILTERS);
   const [filterOpen, setFilterOpen] = useState(false);
   const [draftFilters, setDraftFilters] = useState<EventListFilters>(EMPTY_EVENT_FILTERS);
@@ -277,6 +297,7 @@ export default function EventPage() {
   const [isModify, setIsModify] = useState(false);
   const [event, setEvent] = useState<EventRecord | null>(null);
   const [pastQuery, setPastQuery] = useState("");
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [pastPage, setPastPage] = useState(1);
   const [upQuery, setUpQuery] = useState("");
   const [base64, setBase64] = useState("");
@@ -564,10 +585,11 @@ export default function EventPage() {
 
   function openDelete(id: number) {
     setDeletingId(id);
+    setDeleteConfirmText("");
     setDeleteOpen(true);
   }
   async function confirmDelete() {
-    if (deletingId === null) return;
+    if (deletingId === null || !deleteConfirmed) return;
     try {
       setIsDeleting(true);
       const result = await InventoryService.deleteEvent({
@@ -594,6 +616,12 @@ export default function EventPage() {
   }
 
   const delTarget = events.find((candidate: EventRecord) => candidate.id === deletingId);
+  // Delete safety (owner 2026-11-23): an event that has items must be confirmed by typing its name;
+  // an event with no items only needs the normal confirm. Unknown item count = treated as "has items".
+  const delItemCount = Number(delTarget?.total_items);
+  const delNeedsTyping = !(delTarget && delTarget.total_items !== null && delTarget.total_items !== undefined && Number.isFinite(delItemCount) && delItemCount === 0);
+  const delName = String(delTarget?.name ?? "").trim();
+  const deleteConfirmed = !delNeedsTyping || (delName !== "" && deleteConfirmText.trim().toLowerCase() === delName.toLowerCase());
 
   function EventCard({ r, onDelete, navigate }: EventRowProps) {
     const days = daysUntil(r.event_start);
@@ -751,7 +779,7 @@ export default function EventPage() {
           >
             <IconDelete />
           </button>
-          <button className="btn-icon history" data-tip={t("wording.history")} data-tip-align="end" aria-label={t("wording.history")}>
+          <button className="btn-icon history" data-tip={t("wording.history")} data-tip-align="end" aria-label={t("wording.history")} onClick={() => navigate(`/event-history?id=${r.id}`)}>
             <IconHistory />
           </button>
         </div>
@@ -931,7 +959,7 @@ export default function EventPage() {
           >
             <IconDelete />
           </button>
-          <button className="btn-icon history" data-tip={t("wording.history")} data-tip-align="end" aria-label={t("wording.history")}>
+          <button className="btn-icon history" data-tip={t("wording.history")} data-tip-align="end" aria-label={t("wording.history")} onClick={() => navigate(`/event-history?id=${r.id}`)}>
             <IconHistory />
           </button></>}
         </div>
@@ -1665,7 +1693,7 @@ export default function EventPage() {
             </button>
             <button
               className="btn-del-ok"
-              disabled={isDeleting}
+              disabled={isDeleting || !deleteConfirmed}
               onClick={confirmDelete}
             >
               {isDeleting ? t("common.actions.deleting") : t("common.actions.delete")}
@@ -1676,6 +1704,23 @@ export default function EventPage() {
         <p className="confirm-msg">
           {t("wording.areYouSureYouWantToDeletePrefix")}{delTarget?.name}&rdquo;?
         </p>
+        {delNeedsTyping && <div className="del-type-confirm form-group">
+          <p className="del-type-warn">
+            {Number.isFinite(delItemCount) && delItemCount > 0
+              ? t("eventDelete.hasItems", { count: delItemCount })
+              : t("eventDelete.mayHaveItems")}
+          </p>
+          <label htmlFor="del-type-input">{t("eventDelete.typeName")} <strong>{delName}</strong></label>
+          <input
+            id="del-type-input"
+            autoComplete="off"
+            autoFocus
+            value={deleteConfirmText}
+            placeholder={delName}
+            onChange={(event) => setDeleteConfirmText(event.target.value)}
+            onKeyDown={(event) => { if (event.key === "Enter" && deleteConfirmed && !isDeleting) void confirmDelete(); }}
+          />
+        </div>}
       </Modal>
       <Drawer
         open={filterOpen}

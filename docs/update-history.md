@@ -41,6 +41,34 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+# 2026-11-23 — Event Detail B v3, Events tab remembered, safer delete, Event History (preview)
+
+- **Event Detail layout B v3** (owner: "fresher, better UX; layout may change"). Version A is unchanged.
+  - **Hero card:** breadcrumb, event name + status, **date range · venue · PIC · event code** (A did not show
+    these), and a "Current stage" panel with the stage menu, a progress bar and the next action
+    (Next / Start Checking / For Return) on the right. Under it a one-line hint: green "All set at this stage.
+    Next: …" or orange "N item(s) still need scanning before moving to …".
+  - **Stat tiles:** Items · Scanned in (or Checked during inventory checking) · Scanned out · Event Checklist,
+    with small progress bars. Items and Checklist tiles switch to their tab.
+  - **Work area:** Items / Event Checklist tabs, search + one Filter button + cards/list toggle, chips only for
+    stages with items, item cards with a bigger photo and one row of status pills. Header actions are
+    *Add Item* and *⋯* (Outsource, Rent, Request Production, Files, History, Summary, Rentals, …, Print…).
+- **Events list remembers its tab:** the tab is kept in the URL (`/event?tab=on-going`) and in the browser
+  tab's session, so *Back to Events*, the browser back button and the sidebar link return to the same tab.
+- **Delete event:** if the event has items (`total_items` > 0, or the count is unknown) the user must type the
+  event name (not case-sensitive) before *Delete* is enabled; an event with 0 items keeps the simple confirm.
+- **Event History (preview, dummy data):** the History icon on event cards/rows (it had no action) and a new
+  *History* entry in the Event Detail ⋯ menu open `/event-history?id=<event>`: a timeline grouped by day
+  (event edits with before → after, stage moves, items, scans, files, checklist), search and type filters.
+  The entries are **generated sample data** with a "Preview · dummy data" badge; the real log needs the
+  backend (see `docs/api-impact-log.md`, "Needs API").
+- **Files:** new `src/pages/EventHistoryPage.tsx`, `src/data/eventHistoryMock.ts`,
+  `src/hooks/api/eventHistoryContract.ts`, `src/eventHistory.css`; changed `src/pages/EventDetailPage.tsx`,
+  `src/pages/EventPage.tsx`, `src/App.tsx`, `src/edLayoutB.css`, `src/eventUpgrade.css`,
+  `src/locales/{en,id}/translation.json` (`edB.*`, `eventDelete.*`, `eventHistory.*`).
+
+---
+
 # 2026-11-22 — Event Detail layout B + floating A/B switcher
 
 - **What:** a second, calmer layout ("B") for **Event Detail**, and a floating **A / B switcher** so the owner

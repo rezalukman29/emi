@@ -2,46 +2,94 @@
    EVENT DETAIL — LAYOUT B (A/B test, owner 2026-11-22)
    Same markup, data and actions as layout A; only the arrangement and visual weight change.
    Everything is scoped to .ed-b so layout A is untouched.
-   Principles (v2, owner said v1 was still too complicated): header = Add Item + more menu only;
-   stage as one thin row; underline tabs; search + one Filter button; only chips with items;
-   one progress line per item card.
+   v3 (owner 2026-11-23: "fresher, better UX, layout may change"): three surfaces —
+   hero (title, date/venue/PIC/code, current stage + next action + a hint of what blocks it),
+   stat tiles (items, scanned in/out or checked, checklist), and the work area (tabs, search,
+   one Filter button, cards with one progress line). Header actions = Add Item + more menu.
    ========================================================= */
 
+.ed-contents { display: contents; }
 .ed-b-page-title { display: none; }
-.card.ed-b { padding: 20px 24px 24px; }
 
-/* Back link: a quiet breadcrumb */
-.card.ed-b > div:first-child { margin-bottom: 6px !important; }
-.card.ed-b > div:first-child > button { color: var(--text-muted) !important; font-weight: 500 !important; }
-.card.ed-b > div:first-child > button:hover { color: var(--brand) !important; }
+/* Page = three surfaces: hero (who/when/where + stage), stat tiles, work area */
+.card.ed-b { padding: 0; background: none; border: 0; box-shadow: none; display: flex; flex-direction: column; gap: 14px; }
+.ed-b-hero, .ed-b-body {
+  background: var(--white); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-sm);
+}
+.ed-b-hero {
+  padding: 18px 24px 20px; position: relative; overflow: visible;
+  background-image: linear-gradient(180deg, var(--brand-bg) 0, transparent 140px);
+}
+.ed-b-body { padding: 6px 24px 24px; }
 
-/* Header: title + status left; only Add Item and ⋯ right (requests and files live in ⋯) */
-.ed-b .event-header-row { align-items: center; margin-bottom: 14px; gap: 12px; }
-.ed-b .event-heading { font-size: 20px; letter-spacing: -.02em; }
+/* Breadcrumb */
+.ed-b-hero > div:first-child { margin-bottom: 8px !important; }
+.ed-b-hero > div:first-child > button { color: var(--text-muted) !important; font-weight: 500 !important; }
+.ed-b-hero > div:first-child > button:hover { color: var(--brand) !important; }
+
+/* Title row: title + status left; Add Item + ⋯ right */
+.ed-b .event-header-row { align-items: flex-start; margin-bottom: 6px; gap: 12px; }
+.ed-b .event-heading { font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
 .ed-b .event-title-wrap { gap: 10px; }
 .ed-b .event-actions-bar { gap: 6px; }
 .ed-b .event-actions-bar .more-menu-wrap .more-menu-dropdown { min-width: 220px; }
 .ed-b-menu-count { margin-left: auto; padding-left: 10px; font-size: 11.5px; font-weight: 700; color: var(--text-muted); }
 .ed-b-filter-btn .ed-b-menu-count { margin-left: 2px; padding: 0 6px; border-radius: 9px; background: var(--brand); color: #fff; line-height: 18px; }
 
-/* Stage: one quiet row — name ▾ · step, one thin bar, Next on the right */
-.ed-b .event-status-section { background: none; border: 0; border-radius: 0; padding: 0; margin-bottom: 18px; gap: 16px; align-items: center; }
+/* Meta: date · venue · PIC · code */
+.ed-b-meta { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 2px 0 16px; color: var(--text-muted); font-size: 13px; }
+.ed-b-meta span { display: inline-flex; align-items: center; gap: 6px; }
+.ed-b-meta svg { width: 14px; height: 14px; opacity: .75; }
+.ed-b-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; padding: 1px 8px; border-radius: 6px; background: var(--bg); }
+
+/* Stage: an inset panel — label, stage ▾ · step, thin bar, next action on the right */
+.ed-b .event-status-section {
+  display: grid; grid-template-columns: 1fr auto; grid-template-areas: "label action" "stepper action";
+  align-items: center; column-gap: 20px; row-gap: 2px;
+  background: var(--white); border: 1px solid var(--border-2); border-radius: 12px; padding: 12px 16px 14px; margin-bottom: 0;
+}
 .ed-b .event-status-section-label { display: none; }
+.ed-b-stage-label { grid-area: label; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-faint, var(--text-muted)); }
+.ed-b .event-status-stepper-wrap { grid-area: stepper; min-width: 0; }
+.ed-b .event-status-section > .btn-next-stage { grid-area: action; justify-self: end; }
+.ed-b .event-status-section > .btn-next-stage + .btn-next-stage { grid-area: auto; grid-column: 2; }
 .ed-b .status-progress { gap: 8px; }
-.ed-b .status-track { gap: 0; height: 4px; border-radius: 2px; overflow: hidden; background: var(--border-2); }
-.ed-b .status-seg { height: 4px; border-radius: 0; }
+.ed-b .status-current-name { font-size: 16px; }
+.ed-b .status-track { gap: 0; height: 6px; border-radius: 3px; overflow: hidden; background: var(--border-2); }
+.ed-b .status-seg { height: 6px; border-radius: 0; }
 .ed-b .status-seg:hover:not(:disabled) { transform: none; filter: brightness(1.1); }
-.ed-b .btn-next-stage { padding: 8px 14px; border-radius: var(--r); font-size: 12.5px; }
+.ed-b .btn-next-stage { padding: 10px 16px; border-radius: 10px; font-size: 13px; }
+.ed-b-hint { margin: 10px 2px 0; font-size: 12.5px; color: var(--green); display: flex; gap: 6px; align-items: center; }
+.ed-b-hint::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: 0 0 auto; }
+.ed-b-hint.warn { color: var(--orange, #d97706); }
+.ed-b .event-check-progress { margin-top: 12px; margin-bottom: 0; }
+.ed-b .stepper-error-banner { margin-top: 12px; margin-bottom: 0; }
+
+/* Stat tiles */
+.ed-b-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.ed-b-stat {
+  display: flex; flex-direction: column; gap: 4px; text-align: left; font: inherit; color: inherit;
+  padding: 14px 16px; background: var(--white); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-sm);
+}
+button.ed-b-stat { cursor: pointer; transition: border-color .15s, transform .15s; }
+button.ed-b-stat:hover { border-color: var(--brand); transform: translateY(-1px); }
+.ed-b-stat-label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.ed-b-stat-value { font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+.ed-b-stat-value small { font-size: 13px; font-weight: 600; color: var(--text-muted); margin-left: 2px; }
+.ed-b-stat-bar { height: 4px; border-radius: 2px; background: var(--border-2); overflow: hidden; margin-top: 4px; }
+.ed-b-stat-bar span { display: block; height: 100%; background: var(--green); border-radius: 2px; }
 
 /* Items | Checklist as underline tabs */
-.ed-b .ed-view-switch { display: flex; gap: 22px; padding: 0; margin: 0 0 14px; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: none; }
-.ed-b .ed-view-switch button { white-space: nowrap; padding: 10px 2px; border-radius: 0; background: none; border-bottom: 2px solid transparent; margin-bottom: -1px; color: var(--text-muted); }
+.ed-b .ed-view-switch { display: flex; gap: 24px; padding: 0; margin: 0 0 16px; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: none; }
+.ed-b .ed-view-switch button { white-space: nowrap; padding: 14px 2px 12px; border-radius: 0; background: none; border-bottom: 2px solid transparent; margin-bottom: -1px; color: var(--text-muted); font-weight: 600; }
 .ed-b .ed-view-switch button:hover { background: none; color: var(--text); }
 .ed-b .ed-view-switch button.active { background: none; color: var(--text); border-bottom-color: var(--brand); }
+.ed-b .ed-lock-note { border-style: solid; border-color: var(--border-2); background: var(--bg); border-radius: 10px; font-size: 12.5px; }
 
-/* Toolbar: search + one Filter button */
-.ed-b .ed-toolbar { gap: 8px; margin-bottom: 10px; flex-wrap: nowrap; align-items: center; }
+/* Toolbar: search + one Filter button + view toggle */
+.ed-b .ed-toolbar { gap: 8px; margin-bottom: 12px; flex-wrap: nowrap; align-items: center; }
 .ed-b .ed-toolbar .search-wrap { flex: 1 1 auto; min-width: 0; }
+.ed-b .ed-toolbar .view-toggle { flex: 0 0 auto; margin: 0; align-self: center; }
 .ed-b-filter { position: relative; flex: 0 0 auto; }
 .ed-b-filter-btn { display: inline-flex; align-items: center; gap: 6px; height: 38px; }
 .ed-b-filter-btn svg { width: 15px; height: 15px; }
@@ -55,32 +103,39 @@
 .ed-b-filter-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--border-2); }
 .ed-b-filter-foot .btn { height: 32px; padding: 0 10px; font-size: 12.5px; }
 
-/* Chips: quiet text tabs; zero-count chips are not rendered; a lone "All" chip is hidden */
-.ed-b .stage-tabs-row { align-items: center; margin-bottom: 10px; }
-.ed-b .stage-tabs { gap: 4px; margin-bottom: 0; }
+/* Chips: only stages with items; hidden when only "All" */
+.ed-b .stage-tabs-row { align-items: center; margin-bottom: 12px; }
 .ed-b .stage-tabs-row:has(.stage-tab:only-child) { display: none; }
-.ed-b .ed-toolbar .view-toggle { flex: 0 0 auto; margin: 0; align-self: center; }
+.ed-b .stage-tabs { gap: 4px; margin-bottom: 0; }
 .ed-b .stage-tab { border-color: transparent; background: none; padding: 6px 10px; color: var(--text-muted); }
 .ed-b .stage-tab:hover { color: var(--text); background: var(--bg); }
 .ed-b .stage-tab.active { background: var(--brand-bg); border-color: transparent; color: var(--brand); }
 .ed-b .stage-tab.active .stage-tab-count { background: none; color: var(--brand); }
 .ed-b .summary-text { display: none; }
 
-/* Calmer item cards: short image, one progress line instead of three rows */
-.ed-b .item-img-placeholder { height: 84px; }
-.ed-b .item-card { border-color: var(--border-2); }
-.ed-b .item-card:hover { border-color: var(--border); box-shadow: var(--shadow-sm); }
+/* Item cards: photo, name, one progress line */
+.ed-b .items-grid { gap: 14px; }
+.ed-b .item-img-placeholder { height: 120px; }
+.ed-b .item-card { border-color: var(--border-2); border-radius: 14px; overflow: hidden; transition: border-color .15s, box-shadow .15s, transform .15s; }
+.ed-b .item-card:hover { border-color: var(--border); box-shadow: var(--shadow); transform: translateY(-1px); }
+.ed-b .item-name { font-size: 14px; }
 .ed-b-progress { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; }
-.ed-b-step { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 7px; border-radius: 11px; background: var(--bg); color: var(--text-muted); font-size: 11px; white-space: nowrap; font-weight: 600; }
+.ed-b-step { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 7px; border-radius: 11px; background: var(--bg); color: var(--text-muted); font-size: 11px; font-weight: 600; white-space: nowrap; }
 .ed-b-step svg { width: 11px; height: 11px; }
 .ed-b-step.ok { background: var(--green-bg); color: var(--green); }
 .ed-b-ring { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid currentColor; opacity: .6; }
 
 @media (max-width: 900px) {
-  .card.ed-b { padding: 16px; }
-  .ed-b .event-status-section { flex-wrap: wrap; }
+  .ed-b-hero { padding: 14px 16px 16px; }
+  .ed-b-body { padding: 4px 16px 16px; }
+  .ed-b .event-status-section { grid-template-columns: 1fr; grid-template-areas: "label" "stepper" "action"; row-gap: 8px; }
+  .ed-b .event-status-section > .btn-next-stage { justify-self: stretch; justify-content: center; }
+  .ed-b-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .ed-b-stat { padding: 12px; }
+  .ed-b-stat-value { font-size: 19px; }
   .ed-b .ed-view-switch { gap: 16px; overflow-x: auto; }
   .ed-b-filter-pop { width: min(280px, calc(100vw - 48px)); }
+  .ed-b .item-img-placeholder { height: 96px; }
 }
 
 /* Floating A/B switcher */

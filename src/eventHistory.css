@@ -1,0 +1,42 @@
+/* Event History page (owner 2026-11-23). Tokens only, so dark mode follows. */
+.card.eh-card { padding: 20px 24px 28px; }
+.eh-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; }
+.eh-back { display: inline-flex; align-items: center; gap: 5px; padding: 0; border: 0; background: none; color: var(--text-muted); font: inherit; font-size: 12.5px; font-weight: 500; cursor: pointer; }
+.eh-back:hover { color: var(--brand); }
+.eh-back svg { width: 14px; height: 14px; }
+.eh-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 18px; }
+.eh-title { font-size: 22px; font-weight: 800; letter-spacing: -.02em; color: var(--text); }
+.eh-sub { margin-top: 2px; font-size: 13px; color: var(--text-muted); }
+.eh-toolbar { display: flex; gap: 8px; margin-bottom: 10px; }
+.eh-toolbar .search-wrap { flex: 1; max-width: 420px; }
+.eh-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 18px; }
+.eh-chips .stage-tab { border-color: transparent; background: none; padding: 6px 10px; color: var(--text-muted); }
+.eh-chips .stage-tab.active { background: var(--brand-bg); color: var(--brand); }
+
+.eh-day + .eh-day { margin-top: 22px; }
+.eh-day-title { margin: 0 0 10px; font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--text-muted); }
+.eh-list { list-style: none; margin: 0; padding: 0; position: relative; }
+.eh-list::before { content: ""; position: absolute; left: 15px; top: 8px; bottom: 8px; width: 2px; background: var(--border-2); }
+.eh-row { position: relative; display: flex; gap: 14px; padding: 8px 0; }
+.eh-icon { position: relative; z-index: 1; flex: 0 0 auto; width: 32px; height: 32px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--bg); color: var(--text-muted); border: 2px solid var(--white); }
+.eh-icon svg { width: 15px; height: 15px; }
+.eh-event .eh-icon { background: var(--brand-bg); color: var(--brand); }
+.eh-stage .eh-icon { background: var(--purple-bg, var(--brand-bg)); color: var(--purple, var(--brand)); }
+.eh-item .eh-icon { background: var(--orange-bg); color: var(--orange); }
+.eh-scan .eh-icon { background: var(--green-bg); color: var(--green); }
+.eh-file .eh-icon { background: var(--blue-bg, var(--bg)); color: var(--blue, var(--text-muted)); }
+.eh-checklist .eh-icon { background: var(--green-bg); color: var(--green); }
+.eh-body { min-width: 0; padding-top: 5px; }
+.eh-text { font-size: 13.5px; color: var(--text); line-height: 1.45; }
+.eh-change { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 5px; font-size: 12.5px; }
+.eh-field { color: var(--text-muted); font-weight: 600; }
+.eh-from { padding: 1px 8px; border-radius: 6px; background: var(--red-bg); color: var(--red); text-decoration: line-through; }
+.eh-to { padding: 1px 8px; border-radius: 6px; background: var(--green-bg); color: var(--green); }
+.eh-arrow { color: var(--text-muted); }
+.eh-meta { margin-top: 4px; font-size: 12px; color: var(--text-muted); }
+
+@media (max-width: 700px) {
+  .card.eh-card { padding: 16px; }
+  .eh-head { flex-direction: column; }
+}
+.eh-chips .stage-tab.active .stage-tab-count { background: none; color: var(--brand); }

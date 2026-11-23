@@ -6,6 +6,30 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-23 — B v3, Events tab memory, delete-by-name, Event History preview
+
+- **Sync check:** `origin/daniel-staging-web` still `e9fe796`, `main` unchanged. Local branch `event-ux-v3`
+  on top of the two unpushed A/B commits (`845901d`, `64c6cb4`); owner gets one combined patch.
+- **B v3 (EventDetailPage):** card children wrapped in `.ed-b-hero` / `.ed-b-body` for B and `.ed-contents`
+  (`display: contents`) for A, so A's layout is unchanged. New B-only JSX: `.ed-b-meta` (date range from
+  `event_start`/`event_end`, `address`, `PIC`, `event_code`), `.ed-b-stage-label`, `.ed-b-hint` (`bNextHint`
+  from `stageScanEnabled`/`unscannedCount`/`hasNextStage`), `.ed-b-stats` (`bStats`; checked count replaces
+  scanned-in while `backendCheckingEvent`). CSS grid puts the next-stage buttons on the right of the stage panel.
+  ⋯ menu got **History** (A and B).
+- **EventPage:** `activeTab` initialised from `?tab=` → sessionStorage `emi.event.tab.v1` → `upcoming`, and
+  written back to both (URL with `replace`). Delete modal: `delNeedsTyping` unless `total_items` is known and 0;
+  `deleteConfirmed` gates the button, Enter and `confirmDelete`. History icons navigate to `/event-history`.
+- **EventHistoryPage:** route `event-history`; reads `/v1/event/{id}` + `/v1/event-status/get-all` (read-only),
+  builds entries with `buildEventHistory()` (seeded by event id, so stable). Contract in
+  `eventHistoryContract.ts` (`GET /v1/event/{id}/activity`).
+- **Wording check:** the delete warning does not claim what the backend does with the items (unknown).
+- **Checks:** build OK, tsc 0, lint 12/1, node tests 38/40 (same 2). Playwright (mocked API): tab
+  `on-going` → open event → Back to Events → `/event?tab=on-going` with On Going active; delete of an event
+  with 5 items shows the name box and stays disabled until "event b" is typed; 0 items → simple confirm;
+  History icon → `/event-history?id=1`, 17 entries, type filter works; B v3 desktop/dark/390 px OK; A/B
+  switcher checks unchanged; no page errors.
+- **Open:** Event History needs the backend activity log (Needs API).
+
 ## 2026-11-22 — Event Detail layout B v2 (simpler)
 
 - **Owner:** "B is still too complicated, improve it." Follow-up commit on `ab-version` (first B commit not

@@ -550,3 +550,10 @@
 .idr-more-btn svg { width: 16px; height: 16px; }
 .idr-more-menu { top: auto; bottom: calc(100% + 6px); right: 0; min-width: 200px; }
 @media (max-width: 420px) { .idr-stats { grid-template-columns: 1fr 1fr; } .idr-stats > div:nth-child(3) { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--border-2); } }
+
+/* Delete event: type the name when the event has items (owner 2026-11-23) */
+.del-type-confirm { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+.del-type-warn { margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--red-bg); color: var(--red); font-size: 13px; line-height: 1.45; }
+.del-type-confirm label { font-size: 13px; color: var(--text-muted); }
+.del-type-confirm label strong { color: var(--text); user-select: all; }
+.del-type-confirm.form-group label { text-transform: none; letter-spacing: 0; font-weight: 500; }

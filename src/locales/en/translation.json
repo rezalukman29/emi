@@ -462,7 +462,58 @@
     "note": "Note",
     "notYet": "Not yet"
   },
+  "eventHistory": {
+    "title": "Event History",
+    "subtitle": "Everything that happened on this event, newest first.",
+    "openEvent": "Open event",
+    "preview": "Preview · dummy data",
+    "previewHint": "Sample entries generated from this event. Real history needs the backend activity log.",
+    "noEvent": "No event selected.",
+    "search": "Search history…",
+    "empty": "Nothing matches this filter.",
+    "types": {
+      "all": "All",
+      "event": "Event details",
+      "stage": "Stages",
+      "item": "Items",
+      "scan": "Scans",
+      "file": "Files",
+      "checklist": "Checklist"
+    },
+    "fields": {
+      "pic": "PIC",
+      "venue": "Venue",
+      "stage": "Stage"
+    },
+    "actions": {
+      "created": "Created the event “{{name}}”",
+      "edited": "Edited the event details",
+      "fileUploaded": "Uploaded file {{file}}",
+      "itemsAdded": "Added {{count}} items to {{area}}",
+      "ownershipAssigned": "Assigned ownership “{{owner}}” to {{count}} items",
+      "itemRemoved": "Removed {{item}} from the event",
+      "checklistDone": "Completed checklist task “{{task}}”",
+      "scannedIn": "Scanned in {{done}} of {{total}} items",
+      "scannedOut": "Scanned out {{done}} of {{total}} items",
+      "stageMoved": "Moved the event to the next stage",
+      "checkingStarted": "Started inventory checking",
+      "brokenReported": "Reported {{qty}} broken: {{item}}"
+    }
+  },
+  "eventDelete": {
+    "hasItems": "This event already has {{count}} item(s). Deleting it cannot be undone.",
+    "mayHaveItems": "This event may have items. Deleting it cannot be undone.",
+    "typeName": "To confirm, type the event name:"
+  },
   "edB": {
+    "pic": "PIC",
+    "currentStage": "Current stage",
+    "hintScan": "{{count}} item(s) still need scanning before moving to “{{next}}”.",
+    "hintReady": "All set at this stage. Next: “{{next}}”.",
+    "statItems": "Items",
+    "statScanIn": "Scanned in",
+    "statScanOut": "Scanned out",
+    "statChecked": "Checked",
     "files": "Files",
     "filter": "Filter",
     "area": "Area",

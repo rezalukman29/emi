@@ -9,6 +9,21 @@ Format: date — change — endpoints/fields touched — impact — action neede
 
 ---
 
+## 2026-11-23 — Event Detail B v3, Events tab memory, delete confirm, Event History
+
+- **Endpoints touched:** none changed. B v3 shows fields already in `GET /v1/event/{id}` (`event_start`,
+  `event_end`, `address`, `PIC`, `event_code`). Delete still calls the same delete endpoint; the typed-name
+  check is front-end only and uses `total_items` from `/v2/event-filter`. Tab memory is URL + sessionStorage
+  (`emi.event.tab.v1`).
+- **Question for backend:** what happens to an event's items (stock, scans) when an event that has items is
+  deleted? The UI now only warns "cannot be undone"; if the server refuses or should refuse, tell the owner.
+- **Needs API — waiting for owner / backend: Event History (activity log).** The page runs on **dummy data**
+  (owner asked for it). Needed: `GET /v1/event/{id}/activity?page&limit&type&search` returning
+  `{ id, event_id, type (event|stage|item|scan|file|checklist), action, message, changes[{field,from,to}],
+  meta, user_id, user_name, created_at }`, newest first, and the backend writing one row for every change on
+  an event (create/edit with before/after, stage moves, items added/removed/modified, ownership, scan in/out,
+  checking started, broken reports, file upload/delete). Full contract: `src/hooks/api/eventHistoryContract.ts`.
+
 ## 2026-11-22 — Event Detail layout B v2
 
 - **Endpoints touched:** none. Same requests; filters and *Refresh items* reuse the existing params and

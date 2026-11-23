@@ -462,7 +462,58 @@
     "note": "Catatan",
     "notYet": "Belum"
   },
+  "eventHistory": {
+    "title": "Riwayat Event",
+    "subtitle": "Semua yang terjadi di event ini, terbaru di atas.",
+    "openEvent": "Buka event",
+    "preview": "Pratinjau · data contoh",
+    "previewHint": "Contoh riwayat yang dibuat dari event ini. Riwayat asli butuh log aktivitas dari backend.",
+    "noEvent": "Belum ada event yang dipilih.",
+    "search": "Cari riwayat…",
+    "empty": "Tidak ada yang cocok dengan filter ini.",
+    "types": {
+      "all": "Semua",
+      "event": "Detail event",
+      "stage": "Tahap",
+      "item": "Barang",
+      "scan": "Scan",
+      "file": "File",
+      "checklist": "Checklist"
+    },
+    "fields": {
+      "pic": "PIC",
+      "venue": "Lokasi",
+      "stage": "Tahap"
+    },
+    "actions": {
+      "created": "Membuat event “{{name}}”",
+      "edited": "Mengubah detail event",
+      "fileUploaded": "Mengunggah file {{file}}",
+      "itemsAdded": "Menambahkan {{count}} barang ke {{area}}",
+      "ownershipAssigned": "Mengatur kepemilikan “{{owner}}” untuk {{count}} barang",
+      "itemRemoved": "Menghapus {{item}} dari event",
+      "checklistDone": "Menyelesaikan tugas checklist “{{task}}”",
+      "scannedIn": "Scan masuk {{done}} dari {{total}} barang",
+      "scannedOut": "Scan keluar {{done}} dari {{total}} barang",
+      "stageMoved": "Memindahkan event ke tahap berikutnya",
+      "checkingStarted": "Memulai pengecekan inventaris",
+      "brokenReported": "Melaporkan {{qty}} rusak: {{item}}"
+    }
+  },
+  "eventDelete": {
+    "hasItems": "Event ini sudah punya {{count}} barang. Penghapusan tidak bisa dibatalkan.",
+    "mayHaveItems": "Event ini mungkin punya barang. Penghapusan tidak bisa dibatalkan.",
+    "typeName": "Untuk konfirmasi, ketik nama event:"
+  },
   "edB": {
+    "pic": "PIC",
+    "currentStage": "Tahap saat ini",
+    "hintScan": "{{count}} barang masih perlu di-scan sebelum lanjut ke “{{next}}”.",
+    "hintReady": "Tahap ini sudah beres. Berikutnya: “{{next}}”.",
+    "statItems": "Barang",
+    "statScanIn": "Sudah scan masuk",
+    "statScanOut": "Sudah scan keluar",
+    "statChecked": "Sudah dicek",
     "files": "File",
     "filter": "Filter",
     "area": "Area",
