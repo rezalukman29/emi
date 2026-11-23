@@ -9,6 +9,25 @@ Format: date — change — endpoints/fields touched — impact — action neede
 
 ---
 
+## 2026-11-23 — Event Checklist v2 (groups, assign, proof, admin e-mail, untick log, filter) + API backlog doc
+
+- **Existing endpoints changed:** none. Read-only reuse of `GET /v1/get-all-user` (page 1, limit 200) for the
+  assignee picker and the admin e-mail recipients (`is_admin = 1` or `user_type = ADMIN`, field `email`).
+- **Needs API — waiting for owner / backend (preview stays in the browser, owner approved the mock preview
+  2026-11-20):** everything in this change is stored in `localStorage['emi.checklist.v2']`, **e-mails are not
+  sent**. The proposed contract was rewritten for v2 (`src/hooks/api/eventChecklistContract.ts`):
+  - Groups replace stages: `event_status_id` removed from items/templates → `group_id`; new group endpoints
+    (CRUD + reorder) for templates and for each event; sign-offs move to `…/groups/{groupId}/sign-offs`.
+  - New fields: `requires_report` (template + item), `assignee_user_id` on create/update, activity actions
+    `unchecked`, `assigned`, `edited`, `email_sent`; summary `required_open` (was `blocking_items`),
+    `my_open_items`, filter `assignee_id`; settings `notify_admins_enabled`, `notify_admins_when`
+    (`require_sign_off_before_next_stage` removed).
+  - Server rules: refuse ticking without the required photo / report (422); allow unticking and log it;
+    e-mail all admins when a task is ticked (setting); 423 when editing a locked group.
+  - The stage-change gate from v1 is dropped (groups are not stages) — **question for the owner**, see
+    `docs/api-backlog.md` §1.
+- **New doc:** `docs/api-backlog.md` — one list of every API the backend still has to build (owner request).
+
 ## 2026-11-23 — Add Items stock tabs, default warehouse, version B
 
 - **Endpoints touched:** none changed. Read-only reuse of `GET /v2/barang-gudang/detail` (same params:

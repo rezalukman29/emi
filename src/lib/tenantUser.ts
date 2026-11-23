@@ -1,6 +1,7 @@
 // Small helpers around the tenant login stored in localStorage("auth").
 
 interface StoredTenantAuth {
+  id?: number;
   fullname?: string;
   user_type?: string;
   is_admin?: number;
@@ -22,4 +23,10 @@ export function isTenantAdminUser() {
 
 export function currentUserName(fallback = 'You') {
   return readAuth()?.fullname?.trim() || fallback;
+}
+
+/** Logged-in tenant user id (saved by the login page), or null. */
+export function currentUserId(): number | null {
+  const id = Number(readAuth()?.id);
+  return Number.isFinite(id) && id > 0 ? id : null;
 }

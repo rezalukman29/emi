@@ -41,6 +41,37 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+# 2026-11-23 — Event Checklist v2: free groups, assign to users, photo/report proof, admin e-mail, untick history, filter
+
+Owner request; applies on the **Event Checklist** page and in **Event Detail → Event Checklist** (same panel).
+Still a **preview**: data stays in the browser, e-mails are not sent (the backend list is in `docs/api-backlog.md`).
+
+- **Groups instead of stages:** tasks live in free groups (add, rename inline, move ↑ ↓, delete with Undo).
+  New events get a copy of the **template groups** (Templates tab, same tools). The "Current stage / All stages"
+  switch and the stage gate setting are gone; the event's stage still shows as a pill in the event list.
+- **Assign:** a task can be assigned to a user from the tenant's user list (`/v1/get-all-user`), when adding
+  the task (*Options*) or in the task drawer. Rows show the person (or *Unassigned*). Filters *Assigned to me*
+  (panel) and *Only events with tasks for me* (event list); event cards show "N for me".
+- **Proof when ticking:** each task (and template task) can need a **photo** and/or a **report**. Ticking such
+  a task opens *Complete task* (upload photo(s), write the report); *Mark as done* refuses until they are
+  filled. Tasks without requirements are ticked straight away. Requirements can be changed in the drawer.
+- **E-mail to admins:** new setting *Notifications → E-mail admins when a task is ticked* (every task or required
+  only). Preview: a toast says how many admins would get it, the task history logs it, and Checklist Settings
+  lists the last e-mails that would be sent (recipients = admins with an e-mail in the user list).
+- **Untick:** allowed; photos and report are kept; history records "unticked the task (was Done)".
+  The drawer history notes that every change is recorded.
+- **Filter:** All / Not done / Done with counts (plus *Assigned to me*).
+- **Preview data reset:** new storage key `emi.checklist.v2`; v1 data (by stage) is no longer read.
+- **Docs:** new `docs/api-backlog.md` (every API the backend still has to build) and `docs/ui-changes.md`
+  (UI map per screen + UI change log), both requested by the owner.
+- **Files:** `src/data/eventChecklistMock.ts`, `src/lib/checklistStore.ts`, `src/lib/checklistSettings.ts`,
+  `src/lib/tenantUser.ts` (`currentUserId`), `src/components/checklist/EventChecklistPanel.tsx`,
+  `ChecklistItemDrawer.tsx`, new `CompleteTaskModal.tsx`, new `useChecklistUsers.ts`,
+  `src/pages/EventChecklistPage.tsx`, `EventChecklistSettingsPage.tsx`, `EventDetailPage.tsx`,
+  `src/hooks/api/eventChecklistContract.ts`, `src/eventChecklist.css`, `src/locales/{en,id}/translation.json`.
+
+---
+
 # 2026-11-23 — Add Items: A/B switch + version B, stock tabs, default warehouse; responsive pass
 
 - **A/B switcher has two rows now:** *Event Detail A|B* and *Add Items A|B*, switched independently

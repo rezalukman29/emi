@@ -280,3 +280,52 @@
   .ed-view-switch { display: flex; }
   .ed-view-switch button { flex: 1; justify-content: center; padding: 8px 10px; }
 }
+
+/* ── Checklist v2 (owner 2026-11-23): free groups, assignees, proof form, filter, admin e-mail ── */
+.ck-group-head { display: flex; align-items: center; gap: 4px; padding-right: 10px; }
+.ck-group-head > .ck-stage-head { flex: 1; min-width: 0; }
+.ck-group-head .ck-stage-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ck-group-tools { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.ck-group-tools .btn-icon { width: 28px; height: 28px; font-size: 13px; color: var(--text-muted); }
+.ck-group-tools .btn-icon:disabled { opacity: .35; cursor: default; }
+.ck-group-tools .btn-icon svg { width: 14px; height: 14px; }
+.ck-group-rename { flex: 1; padding: 8px 12px; }
+.ck-group-rename input { width: 100%; font: inherit; font-size: 14px; font-weight: 600; padding: 6px 10px; border: 1px solid var(--brand); border-radius: var(--r); background: var(--white); color: var(--text); outline: none; }
+.ck-tag.need { color: var(--orange); border-color: transparent; background: var(--orange-bg); }
+.ck-assignee.none { color: var(--text-muted); font-style: italic; }
+.ck-seg-count { margin-left: 4px; font-size: 11px; font-weight: 600; color: var(--text-muted); }
+.ck-segment button.active .ck-seg-count { color: var(--brand); }
+.ck-filters .ck-check-inline .badge { margin-left: 6px; }
+.ck-add.ck-add-v2 { flex-direction: column; align-items: stretch; gap: 8px; }
+.ck-add-row { display: flex; align-items: center; gap: 8px; }
+.ck-add-row > svg { width: 14px; height: 14px; color: var(--text-muted); flex-shrink: 0; }
+.ck-add-row input { flex: 1; min-width: 0; border: none; outline: none; background: none; font: inherit; font-size: 13px; color: var(--text); padding: 4px 0; }
+.ck-add .ck-more-btn { font-size: 12px; color: var(--text-2); }
+.ck-add-options { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; padding: 10px 2px 4px; border-top: 1px solid var(--border-2); }
+.ck-add-options .ck-field { width: 200px; }
+.ck-add-options .ck-field input[type="date"] { border: 1px solid var(--border); padding: 7px 10px; }
+.ck-add-flags { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; }
+.ck-add-group { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; padding: 9px 14px; border: 1px dashed var(--border); border-radius: var(--r-lg); background: none; font: inherit; font-size: 13px; font-weight: 600; color: var(--brand); cursor: pointer; }
+.ck-add-group:hover { background: var(--brand-bg); border-color: var(--brand); }
+.ck-add-group svg { width: 13px; height: 13px; }
+.card.ck-add.ck-add-group-form { margin: 0; padding: 10px 10px 10px 14px; }
+.ck-req { color: var(--red); font-weight: 700; }
+.ck-complete { display: flex; flex-direction: column; gap: 14px; }
+.ck-complete section { display: flex; flex-direction: column; gap: 8px; }
+.ck-complete-task { margin: 0; font-size: 15px; font-weight: 700; color: var(--text); }
+.ck-drawer-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.ck-drawer-grid .ck-field { width: auto; }
+.ck-drawer-grid select, .ck-drawer-grid input[type="date"] { font: inherit; font-size: 13px; font-weight: 400; padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--r); background: var(--white); color: var(--text); }
+.ck-activity li.act-unchecked strong, .ck-activity li.act-emailQueued strong { color: var(--orange); }
+.cks-outbox { margin-top: 12px; padding: 12px 14px; border: 1px solid var(--border-2); border-radius: var(--r); }
+.cks-outbox h3 { margin: 0 0 8px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); }
+.cks-outbox ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.cks-outbox li { display: flex; flex-direction: column; gap: 1px; font-size: 12.5px; color: var(--text-muted); }
+.cks-outbox li strong { color: var(--text); font-size: 13px; }
+@media (max-width: 700px) {
+  .ck-group-tools .btn-icon { width: 26px; height: 26px; }
+  .ck-add-options .ck-field { width: 100%; }
+  .ck-add-row { flex-wrap: wrap; }
+  .ck-add-row input { flex-basis: calc(100% - 30px); }
+  .ck-add-row .btn { flex: 1; }
+}

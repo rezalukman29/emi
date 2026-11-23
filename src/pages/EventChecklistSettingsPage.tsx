@@ -12,6 +12,8 @@ import {
   type SignerMode,
 } from '../lib/checklistSettings';
 import { isTenantAdminUser } from '../lib/tenantUser';
+import { useChecklistStore } from '../lib/checklistStore';
+import { useChecklistUsers } from '../components/checklist/useChecklistUsers';
 import '../eventChecklist.css';
 
 // Admin page that switches Event Checklist features on/off.
@@ -61,6 +63,8 @@ export default function EventChecklistSettingsPage() {
   const saved = useChecklistSettings();
   const [draft, setDraft] = useState<ChecklistSettings>(saved);
   const isAdmin = isTenantAdminUser();
+  const people = useChecklistUsers();
+  const { outbox } = useChecklistStore();
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
   const k = (key: string) => t(`checklistSettings.${key}`);
 
@@ -141,12 +145,38 @@ export default function EventChecklistSettingsPage() {
             <input type="checkbox" checked={draft.signOff.lockAfterSignOff} onChange={(event) => patch('signOff', { ...draft.signOff, lockAfterSignOff: event.target.checked })} />
             {k('signOff.lock')}
           </label>
-          <label className="ck-check-inline">
-            <input type="checkbox" checked={draft.signOff.requiredBeforeNextStage} onChange={(event) => patch('signOff', { ...draft.signOff, requiredBeforeNextStage: event.target.checked })} />
-            {k('signOff.gate')}
-          </label>
-          <p className="cks-note">{k('signOff.gateNote')}</p>
         </SwitchRow>
+      </section>
+
+      <section className="card cks-group">
+        <h2>{k('groups.notifications')}</h2>
+        <SwitchRow label={k('notifyAdmins.label')} description={k('notifyAdmins.description')} checked={draft.notifyAdmins.enabled} onChange={(enabled) => patch('notifyAdmins', { ...draft.notifyAdmins, enabled })}>
+          <Choice<'all' | 'required'>
+            label={k('notifyAdmins.when')}
+            value={draft.notifyAdmins.when}
+            onChange={(when) => patch('notifyAdmins', { ...draft.notifyAdmins, when })}
+            options={[
+              { value: 'all', label: k('notifyAdmins.all') },
+              { value: 'required', label: k('notifyAdmins.required') },
+            ]}
+          />
+          <p className="cks-note">{k('notifyAdmins.recipients')}{people.admins.length ? ` ${people.admins.map((admin) => admin.email).filter(Boolean).join(', ')}` : ` ${k('notifyAdmins.noAdmins')}`}</p>
+          <p className="cks-note">{k('notifyAdmins.previewNote')}</p>
+        </SwitchRow>
+        {outbox.length > 0 && (
+          <div className="cks-outbox">
+            <h3>{k('notifyAdmins.outbox')}</h3>
+            <ul>
+              {outbox.slice(0, 10).map((mail) => (
+                <li key={mail.id}>
+                  <strong>{mail.taskTitle}</strong>
+                  <span>{mail.eventName} · {mail.by} · {new Date(mail.at).toLocaleString()}</span>
+                  <span>{k('notifyAdmins.to')} {mail.to.length ? mail.to.join(', ') : '—'}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </section>
 
       <section className="card cks-group">

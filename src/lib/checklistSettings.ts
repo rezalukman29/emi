@@ -27,9 +27,13 @@ export interface ChecklistSettings {
     enabled: boolean;
     signer: SignerMode;
     requireSignature: boolean;
-    /** Backend: refuse moving the event to the next stage until this stage is signed off. */
-    requiredBeforeNextStage: boolean;
     lockAfterSignOff: boolean;
+  };
+  /** E-mail the admins when a task is ticked (sent by the backend; preview only lists it). */
+  notifyAdmins: {
+    enabled: boolean;
+    /** 'all' = every ticked task, 'required' = only required tasks. */
+    when: 'all' | 'required';
   };
   dueDates: boolean;
   assignees: boolean;
@@ -42,7 +46,8 @@ export const DEFAULT_CHECKLIST_SETTINGS: ChecklistSettings = {
   notes: { enabled: true, requireForException: true },
   notApplicable: true,
   issues: true,
-  signOff: { enabled: true, signer: 'supervisor', requireSignature: true, requiredBeforeNextStage: true, lockAfterSignOff: true },
+  signOff: { enabled: true, signer: 'supervisor', requireSignature: true, lockAfterSignOff: true },
+  notifyAdmins: { enabled: true, when: 'all' },
   dueDates: true,
   assignees: true,
   extraTasks: true,
@@ -61,6 +66,7 @@ function merge(saved: Partial<ChecklistSettings> | null): ChecklistSettings {
     photos: { ...d.photos, ...saved.photos },
     notes: { ...d.notes, ...saved.notes },
     signOff: { ...d.signOff, ...saved.signOff },
+    notifyAdmins: { ...d.notifyAdmins, ...saved.notifyAdmins },
   };
 }
 

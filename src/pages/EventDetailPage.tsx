@@ -79,7 +79,6 @@ import {
   ensureEventChecklist,
   seedTemplates,
   summarizeEvent,
-  toChecklistStages,
   useChecklistStore,
   type ChecklistEventRef,
 } from "../lib/checklistStore";
@@ -1299,7 +1298,6 @@ export default function EventDetailPage() {
       return params;
     }, { replace: true });
   const checklistStore = useChecklistStore();
-  const checklistStages = useMemo(() => toChecklistStages(eventStatuses), [eventStatuses]);
   const checklistEvent = useMemo<ChecklistEventRef | null>(() => {
     if (!eventId || !eventDetail) return null;
     const start = String(eventDetail.event_start || eventDetail.date_event || '').slice(0, 10);
@@ -1311,12 +1309,12 @@ export default function EventDetailPage() {
       currentStageId: currentStatus?.id ?? null,
     };
   }, [eventId, eventDetail, currentStatus?.id]);
-  useEffect(() => { seedTemplates(checklistStages); }, [checklistStages]);
+  useEffect(() => { seedTemplates(); }, []);
   useEffect(() => {
-    if (checklistEvent && checklistStore.templatesSeeded) ensureEventChecklist(checklistEvent, checklistStages);
-  }, [checklistEvent, checklistStages, checklistStore.templatesSeeded]);
+    if (checklistEvent && checklistStore.templatesSeeded) ensureEventChecklist(checklistEvent);
+  }, [checklistEvent, checklistStore.templatesSeeded]);
   const checklistSummary = checklistEvent
-    ? summarizeEvent(checklistEvent.id, checklistEvent.currentStageId, checklistStore.items, todayIso())
+    ? summarizeEvent(checklistEvent.id, checklistStore.items, todayIso())
     : null;
   const deleteAllowed = currentStatus?.allow_delete === true && !isClosing;
   const features = Object.fromEntries(eventStatuses.map(status => [status.id, eventStatusFeatures(status)]));
@@ -2792,7 +2790,7 @@ export default function EventDetailPage() {
           <div className="ed-checklist">
             <p className="ed-checklist-preview"><span className="ck-preview-badge">{t('eventChecklist.preview')}</span> {t('eventChecklist.previewHint')}</p>
             {checklistEvent
-              ? <EventChecklistPanel key={checklistEvent.id} event={checklistEvent} stages={checklistStages} showTitle={false}
+              ? <EventChecklistPanel key={checklistEvent.id} event={checklistEvent} showTitle={false}
                   headerActions={<Link className="btn btn-ghost" to={`/event-checklist?event=${checklistEvent.id}`}>{t('eventChecklist.allChecklists')}</Link>} />
               : <p className="no-data">{t('wording.loading')}</p>}
           </div>

@@ -54,6 +54,8 @@ Do not mock a missing API into a feature that looks finished unless the owner as
 | Any change (for the next AI / model hand-off) | `docs/ai-handoff.md` (newest first) |
 | Any change (for human developers) | `docs/update-history.md` (newest first) |
 | A change that may affect the backend API (endpoints, payloads, field names, query params, response parsing, cache keys) — or explicitly "no API impact" when it is close | `docs/api-impact-log.md` |
+| A request that needs a new / changed API (owner rule): the developer to-do list | `docs/api-backlog.md` (keep the summary table current) |
+| Any visible UI change (screen, layout, text, colours, components, navigation, empty/error states) | `docs/ui-changes.md` — update the **UI map** and add a **log** row (before → after, why) |
 | Any AI lapse/mistake (wrong assumption, skipped check, broken thing, miscommunication) | `docs/ai-incident-log.md` |
 
 Write the entries in the same commit as the change. Be honest in the incident log.

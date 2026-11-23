@@ -6,6 +6,33 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-23 — Event Checklist v2 (groups, assign, proof, e-mail, untick log, filter) + docs
+
+- **Sync check:** `origin/daniel-staging-web` still `e9fe796`, `main` unchanged (previous patches not pushed yet).
+  Branch `add-items-b`, new commit on top of the Add Items commit.
+- **Model:** `src/data/eventChecklistMock.ts` now only types + sample template groups. Store
+  (`src/lib/checklistStore.ts`) v2: key `emi.checklist.v2`, state `templateGroups, templates, groups, items,
+  signOffs, outbox, nextId, templatesSeeded`. `seedTemplates()` / `ensureEventChecklist(event)` no longer take
+  stages; `summarizeEvent(eventId, items, today, me?)` → `blocking` = required open (all groups), `mine`.
+  `isMine(item, {id,name})` compares `assigneeId` with `currentUserId()` (auth `id`), name as fallback.
+- **Panel:** `EventChecklistPanel` (no `stages` prop): filter `all|todo|done` + mine; groups CRUD/reorder;
+  add-task form with Options (SearchableSelect of users, date, flags); `quickToggle` opens `CompleteTaskModal`
+  when `needsForm`; `setStatus` logs `unchecked` on untick and calls `queueAdminEmail` on done (outbox + toast +
+  `emailQueued` activity). Drawer gained assignee / group / due / requirement flags (`onAssign`, `onEdit`).
+- **Settings:** `notifyAdmins {enabled, when}`; `signOff.requiredBeforeNextStage` removed (groups ≠ stages).
+  Settings page shows recipients and the outbox. Admins/users from `useChecklistUsers()` (`/v1/get-all-user`).
+- **i18n:** removed `eventChecklist.scope*`, `hideDone`, `current`, `*InStage`, `noStages`, `stageUnknown`,
+  `currentStage`, `photoRequired`, `checklistSettings.signOff.gate*`; added `filter.*`, `assign.*`, `groups.*`,
+  `complete.*`, `email.*`, activity `unchecked/assigned/edited/emailQueued`, `notifyAdmins.*`.
+- **Docs:** new `docs/api-backlog.md` and `docs/ui-changes.md` (owner asked for both); `CLAUDE.md` table lists them.
+- **Checks:** build OK, tsc 0, lint 12/1 (baseline), node tests 38/40 (same 2). Playwright (mocked API incl.
+  users): 4 sample groups; report-required task refuses empty report then ticks; photo-required task ticks after
+  upload; toast "E-mail to 2 admins queued"; untick logged; assign → history; Done filter shows 1 row; new group
+  + task with assignee/flags; settings outbox lists 2 e-mails; Event Detail checklist tab same groups; 390 px no
+  sideways scroll; no page errors. Not tested on a real phone.
+- **Open:** owner to decide whether required tasks should block a stage change (needs an optional group→stage
+  link); e-mail template/sender; whether assignees should be notified.
+
 ## 2026-11-23 — Add Items A/B + stock tabs + default warehouse, responsive pass
 
 - **Sync check:** origin `daniel-staging-web` still `e9fe796` (previous patches not pushed yet); `main` unchanged.
