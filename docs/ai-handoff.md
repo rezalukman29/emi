@@ -6,6 +6,14 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-23 — PRD refresh (docs only)
+
+- `docs/prd/PRD-2026-11-23.md` is now the current product PRD; older PRDs point to it. Technical schema PRD got a
+  banner: it documents the old localStorage prototype; business rules in its §0 / §3.11 still hold.
+- Open business questions were sent to the owner (roles, lifecycle meanings, over-stock adding, delete with items,
+  checklist stage gate / notifications, A/B winners). Record answers in the PRD (§9) and remove the [QUESTION] marks.
+- No code change; checks not needed beyond a build sanity run.
+
 ## 2026-11-23 — Event Checklist v2 (groups, assign, proof, e-mail, untick log, filter) + docs
 
 - **Sync check:** `origin/daniel-staging-web` still `e9fe796`, `main` unchanged (previous patches not pushed yet).

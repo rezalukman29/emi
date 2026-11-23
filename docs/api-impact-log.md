@@ -9,6 +9,10 @@ Format: date — change — endpoints/fields touched — impact — action neede
 
 ---
 
+## 2026-11-23 — PRD refresh
+
+- **Endpoints touched:** none (documentation only). The PRD lists the same "Needs API" items as `docs/api-backlog.md`.
+
 ## 2026-11-23 — Event Checklist v2 (groups, assign, proof, admin e-mail, untick log, filter) + API backlog doc
 
 - **Existing endpoints changed:** none. Read-only reuse of `GET /v1/get-all-user` (page 1, limit 200) for the

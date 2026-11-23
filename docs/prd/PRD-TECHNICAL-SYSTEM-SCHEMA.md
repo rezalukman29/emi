@@ -18,6 +18,16 @@
 
 ---
 
+> ## ⚠️ Status 2026-11-23 — read this first
+> This document describes the **localStorage prototype of 2026-11-02** (repo `sandmanzz/emi`). The web app has since
+> been moved onto the **real backend API** (`emi.web.id`). What still holds: the business rules in §0 (rent is never our
+> asset, production becomes asset, outsource like rent, configurable stages, one stock source per warehouse row) and
+> the stage-flag meanings in §3.11. What is **outdated**: storage keys (`emi_*`), the fixed demo date `TODAY`, the
+> demo users and roles (now `user_type` **ADMIN / EMPLOYEE** from `/v1/get-all-user`), event keys by name
+> (the API uses event ids), and §8 (the real API exists; see `src/hooks/api/*`).
+> Current product description: **`docs/prd/PRD-2026-11-23.md`**. Missing APIs: **`docs/api-backlog.md`**.
+> New since this document: Event Checklist (§3.21 below), Event History (§3.18 note), A/B layouts.
+
 ## 0. Ten things you must not get wrong
 
 1. **"Rent" always means WE rent from a vendor.** We never lend our items out (the old outbound "Item Loan" module was
@@ -372,9 +382,18 @@ Store `emi_vendors` [`data/vendors.js`]. Lib `lib/vendorStore.js`.
 ### 3.18 Activity log
 Store `emi_activity_logs`. `{ id, userName, action: 'Create'|'Update'|'Delete'|'Return'|'Transfer'|'Login'…, module, description, createdAt }`.
 
+> **2026-11-23:** the **Event History** page (`/event-history`) shows dummy data; the real per-event activity log
+> (who changed what, before → after) is specified in `src/hooks/api/eventHistoryContract.ts` and `docs/api-backlog.md` §2.
+
 ### 3.19 UI-only persisted prefs
 `emi_event_detail_view` (card/list view). `emi_event_items_added` (`{[eventKey]: true}`). `emi_moved_items`
 (`{[eventKey]: Line[]}` transfer queue). `emi_vendors_outsource_seeded` (one-time migration flag).
+
+### 3.21 Event Checklist (added 2026-11-23, preview)
+Browser-only today (`emi.checklist.v2`); target contract `src/hooks/api/eventChecklistContract.ts`.
+Entities: template group → template task; per event: group → task (status `open|done|na|issue`, `requires_photo`,
+`requires_report`, `assignee_user_id`, note/report, photos, activity), group sign-off; tenant settings
+(incl. e-mail admins on tick). Rules: `docs/prd/event-checklist.md` Round 3.
 
 ### 3.20 Entity relationship (logical)
 ```

@@ -41,6 +41,19 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+# 2026-11-23 — PRD updated to the current product
+
+- New `docs/prd/PRD-2026-11-23.md`: the product as it is now (platform on the real API, navigation, Events list,
+  Event Detail A/B, Add Items A/B, Event History, Event Checklist groups model, calendar, A/B process) with
+  [RULE] / [ASSUMPTION] / [QUESTION] / [PREVIEW] / [NEEDS API] marks and a table of open owner decisions.
+- `docs/prd/event-checklist.md`: Round 3 (groups, assignees, proof on tick, admin e-mail, untick history) replaces the
+  stage model; Rounds 1–2 kept as history.
+- `docs/prd/PRD-TECHNICAL-SYSTEM-SCHEMA.md`: status banner (what is outdated since the move to the real API), notes for
+  Event History and a new §3.21 Event Checklist.
+- Docs only: no code, UI or API change.
+
+---
+
 # 2026-11-23 — Event Checklist v2: free groups, assign to users, photo/report proof, admin e-mail, untick history, filter
 
 Owner request; applies on the **Event Checklist** page and in **Event Detail → Event Checklist** (same panel).

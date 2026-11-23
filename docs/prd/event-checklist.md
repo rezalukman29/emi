@@ -1,6 +1,10 @@
-# Event Checklist — product decision (2026-11-20)
+# Event Checklist — product decision (2026-11-20, updated 2026-11-23)
 
-Status: **UI built on mock data** (`/event-checklist`). Backend not started.
+Status: **UI built on browser-only preview data** (`/event-checklist` and Event Detail → Event Checklist).
+Backend not started — what it needs: `docs/api-backlog.md` §1.
+
+> **Current model = Round 3 (bottom of this file): free groups, not stages.** Rounds 1–2 are kept as history;
+> where they talk about stages, stage templates or the stage gate, Round 3 replaces them.
 API contract: `src/hooks/api/eventChecklistContract.ts`.
 
 ## Question
@@ -110,3 +114,41 @@ Status: built on mock data; every feature can be switched in **Events → Checkl
    store which logged-in user handed the device over (`signed_by_user_id`).
 5. Settings are tenant-wide. Per-event-type overrides (wedding vs corporate) are not designed yet.
 6. "My tasks" view for crew (filter by assignee) — recommended next.
+
+---
+
+# Round 3 — Groups, assignees, proof on tick, admin e-mail, untick history (2026-11-23)
+
+Owner request (summarised): "assign task ke user lain · jangan per stage tapi per group, fleksibel · saat check ada
+form upload foto; saat membuat task bisa ditentukan butuh foto / butuh report deskripsi · email ke admin kalau ada
+yang tercheck · boleh uncheck tapi semua ter-record · filter belum done / sudah done · berlaku dari luar event
+maupun dari event detail".
+
+## Decisions
+
+| Topic | Round 1–2 | Round 3 (now) |
+|---|---|---|
+| Structure | Tasks grouped by event **stage**; stage templates | **Free groups** per event (add, rename, reorder, delete); **template groups** copied to every new event |
+| Who does it | Free-text role on templates ("Warehouse") | **Assigned user** from the tenant's users (picker), changeable any time |
+| Proof | Template could require a photo | Every task / template: **needs photo** and/or **needs report**; ticking opens the *Complete task* form and refuses without the proof |
+| Notify | — | **E-mail all admins** when a task is ticked (setting: every task / required only) |
+| Untick | Allowed, logged as a status change | Allowed, logged as **"unticked (was …)"**; photos and report stay; history is never deleted |
+| Filter | Hide completed; Current stage / All stages | **All / Not done / Done** with counts; **Assigned to me**; event list "tasks for me" |
+| Sign-off | Per stage; optional gate on stage change | **Per group**; no stage gate |
+| Where | Checklist page + Event Detail | Same — one panel, same data |
+
+## Rules
+1. A task is resolved when Done or N/A. Required tasks must be resolved and no Issue open before a group can be signed off.
+2. Ticking a task that needs a photo requires ≥ 1 photo; needing a report requires a non-empty report.
+3. Unticking keeps photos and report and writes a history row. Assigning, editing requirements, moving to another
+   group and every e-mail also write history rows (who, when, what).
+4. Deleting a group deletes its tasks (confirm when it has tasks; Undo in the preview).
+5. E-mail recipients = tenant users that are admin (`is_admin = 1` or `user_type = ADMIN`) with an e-mail address.
+
+## Open questions (owner)
+1. **Stage gate:** should required tasks still block moving the event to the next stage? If yes, a group gets an
+   optional "stage" link and only those groups block.
+2. Should the **assigned user** be notified (e-mail / push in the mobile app)? Should the **event PIC** also get the e-mail?
+3. E-mail language (ID / EN) and sender address.
+4. Should a crew member (EMPLOYEE) be allowed to untick a task ticked by someone else, or only admins?
+5. Offline use, photo storage policy, per-event-type settings — still open from Round 2.
