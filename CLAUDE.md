@@ -90,8 +90,8 @@ Write the entries in the same commit as the change. Be honest in the incident lo
   an override in `theme-dark.css`. Check new screens in both modes. Print always stays light.
   Inline styles in TSX: use `var(--white)` etc., or `var(--dk-name, #lightColour)` with `--dk-name`
   defined only in the dark block of `theme-dark.css` (keeps light mode identical).
-- **A/B layouts:** `useUiVariant()` (`src/lib/uiVariant.ts`) + floating `VariantSwitcher` (admins only,
-  mounted in `Layout.tsx`). B-only styles live in a scoped CSS file (e.g. `src/edLayoutB.css`, scope `.ed-b`).
+- **A/B layouts:** `useUiVariant(scope)` (`src/lib/uiVariant.ts`; scopes `eventDetail`, `addItems`) + floating
+  `VariantSwitcher rows=[…]` (one row per scope, admins only, mounted in `Layout.tsx`). B-only styles live in a scoped CSS file (e.g. `src/edLayoutB.css`, scope `.ed-b`).
   Keep A unchanged; when the owner picks a winner, delete the other branch and the switcher for that page.
 - **emi-source** (the browser-state prototype the owner designs in) is the public repo `sandmanzz/emi`.
   Port its changes with a `docs/source-migration-<commit>.md` note (what was ported, what needs backend).

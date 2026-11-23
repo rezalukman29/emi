@@ -505,6 +505,17 @@
     "mayHaveItems": "This event may have items. Deleting it cannot be undone.",
     "typeName": "To confirm, type the event name:"
   },
+  "addItemsB": {
+    "browse": "Browse inventory",
+    "stockTabs": "Stock",
+    "inCart": "{{count}} in cart",
+    "noWarehouse": "Not in any warehouse",
+    "inStock": "in stock",
+    "noOutOfStock": "No out-of-stock items in this list.",
+    "loadMore": "Load more items",
+    "totalQty": "{{count}} pcs",
+    "needLocation": "{{count}} item(s) still need an area. Select them and use “Assign locations”."
+  },
   "edB": {
     "pic": "PIC",
     "currentStage": "Current stage",

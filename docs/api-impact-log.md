@@ -9,6 +9,15 @@ Format: date — change — endpoints/fields touched — impact — action neede
 
 ---
 
+## 2026-11-23 — Add Items stock tabs, default warehouse, version B
+
+- **Endpoints touched:** none changed. Read-only reuse of `GET /v2/barang-gudang/detail` (same params:
+  page, limit 30, search, categoryId, gudang_id). Default warehouse = highest `stok_gudang` in the item's
+  `warehouses[]`; tabs split the loaded items by "any warehouse has stock". Add to cart / Save to Event unchanged.
+- **Optional (not blocking) — backend could add:** a stock filter on `/v2/barang-gudang/detail`
+  (e.g. `in_stock=1|0`) plus counts for both, so the Available / Out of Stock counts are exact and the
+  frontend does not need to load extra pages. Today the counts cover only the items loaded so far ("+" shown).
+
 ## 2026-11-23 — Event Detail B v3, Events tab memory, delete confirm, Event History
 
 - **Endpoints touched:** none changed. B v3 shows fields already in `GET /v1/event/{id}` (`event_start`,

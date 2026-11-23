@@ -41,6 +41,32 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+# 2026-11-23 — Add Items: A/B switch + version B, stock tabs, default warehouse; responsive pass
+
+- **A/B switcher has two rows now:** *Event Detail A|B* and *Add Items A|B*, switched independently
+  (admins only, on Event Detail). Its default spot moved to the bottom-left so it no longer covers
+  *Save to Event*; it can still be dragged anywhere.
+- **Add Items from Inventory — both versions:**
+  - Tabs **Available (n)** / **Out of Stock (n)** under the search; *Available* is open by default. The counts
+    cover the items loaded so far (a "+" means more pages exist); more pages load automatically while a tab
+    shows few rows, and a **Load more items** button is at the bottom.
+  - **A warehouse is always pre-selected**: the one with the most stock for that item (was: the first one in
+    the list). An item that is in no warehouse says "Not in any warehouse" instead of an empty dropdown.
+- **Add Items — version B:** one clean row per item (photo · name, SKU · category, warehouse · stock number
+  in green/orange/red · − qty + stepper · Add). Rows already in the cart show "3 in cart". Out-of-stock rows
+  offer **Rent Item** / **Request Production** (when the stage allows them; the picker closes and the cart is
+  kept). Cart panel shows the total pcs and a warning when items still need an area. On phones: a
+  *Browse inventory | Cart (n)* switch instead of two stacked panels.
+- **Responsive pass:** all 34 main pages checked at 390 px and 768 px for sideways scrolling (none).
+  Fixed on phones: Events tab labels no longer break into 2–3 lines (the tab bar scrolls); Event Detail
+  (A) ownership + Check use the full row, the stage chips and the cards/list toggle share one row, and the
+  Items / Event Checklist tab labels stay on one line.
+- **Files:** `src/lib/uiVariant.ts` (scopes), `src/components/VariantSwitcher.tsx`, `src/components/Layout.tsx`,
+  `src/pages/EventDetailPage.tsx`, `src/pages/EventPage.tsx`, `src/edLayoutB.css`, `src/eventUpgrade.css`,
+  `src/sourceResponsive.css`, `src/locales/{en,id}/translation.json` (`addItemsB.*`).
+
+---
+
 # 2026-11-23 — Event Detail B v3, Events tab remembered, safer delete, Event History (preview)
 
 - **Event Detail layout B v3** (owner: "fresher, better UX; layout may change"). Version A is unchanged.

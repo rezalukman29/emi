@@ -6,6 +6,30 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-23 — Add Items A/B + stock tabs + default warehouse, responsive pass
+
+- **Sync check:** origin `daniel-staging-web` still `e9fe796` (previous patches not pushed yet); `main` unchanged.
+  Branch `add-items-b` on top of `f71553f`. Owner gets a combined patch (5 commits) and a this-commit-only patch.
+- **A/B scopes:** `useUiVariant(scope)` / `setUiVariant(next, scope)`; scopes `eventDetail` (key
+  `emi.ui.variant.v1`, unchanged) and `addItems` (`emi.ui.variant.addItems.v1`). `VariantSwitcher` takes
+  `rows: {scope,label}[]`; default position bottom-left. Add a scope there for the next A/B test.
+- **Picker (EventDetailPage):** module helpers `itemHasStock`, `defaultItemWarehouse`, `PICKER_MIN_ROWS` (12),
+  `PICKER_AUTO_PAGES` (6). `pickerMatched` (search) → `pickerFiltered` (stock tab); `pickerStockCounts`;
+  effect auto-fetches next pages while the tab shows < 12 rows (max 6 auto pages per tab/search change);
+  `cartQtyByBarang`; state `pickerStock`, `pickPane`, `isAddB`. `getSelectedItemWarehouse` falls back to
+  `defaultItemWarehouse`. B rows are a separate JSX branch inside the same map (same setters /
+  `addInventoryItem`). Rent / Request Production from an out-of-stock row first closes the picker
+  (those modals render earlier in the DOM, so they would sit under it); `cart` is not reset by closing.
+- **Responsive:** `sourceResponsive.css` end block; `EventPage` tab bar got class `event-tab-bar`.
+  Audit script: every route at 390/768, page-level `scrollWidth > clientWidth` → none. Pages
+  `/warehouse-detail`, `/inventory-report`, `/upgrade` threw with the generic mock (mock shape, not checked
+  against the real API) so they were not fully rendered in the audit.
+- **Checks:** build OK, tsc 0, lint 12/1, node tests 38/40 (same 2). Playwright: A and B tabs Available 4 /
+  Out of Stock 3; default warehouse = Gudang Bali (12) over Gudang Utama (4); B stepper 3 → "3 in cart",
+  cart "3 pcs" + area warning; out-of-stock actions Rent Item / Request Production; phone Browse/Cart switch;
+  dark OK; previous Event Detail / Events / History tests still pass; no page errors.
+- **API impact:** none (reuse of `/v2/barang-gudang/detail`). Optional: a stock filter param for exact tab counts.
+
 ## 2026-11-23 — B v3, Events tab memory, delete-by-name, Event History preview
 
 - **Sync check:** `origin/daniel-staging-web` still `e9fe796`, `main` unchanged. Local branch `event-ux-v3`

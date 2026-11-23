@@ -557,3 +557,11 @@
 .del-type-confirm label { font-size: 13px; color: var(--text-muted); }
 .del-type-confirm label strong { color: var(--text); user-select: all; }
 .del-type-confirm.form-group label { text-transform: none; letter-spacing: 0; font-weight: 500; }
+
+/* Add Items modal: Available / Out of stock tabs + load more (A and B, owner 2026-11-23) */
+.inv-stock-tabs { display: flex; gap: 4px; margin-top: 10px; flex-wrap: wrap; }
+.inv-stock-tabs .stage-tab { border-color: transparent; background: none; padding: 6px 10px; color: var(--text-muted); }
+.inv-stock-tabs .stage-tab.active { background: var(--brand-bg); color: var(--brand); }
+.inv-stock-tabs .stage-tab.active .stage-tab-count { background: none; color: var(--brand); }
+.inv-pick-list .inv-load-more { display: block; margin: 12px auto 4px; }
+.inv-pick-list .inv-stock-tabs + .no-data { margin-top: 12px; }

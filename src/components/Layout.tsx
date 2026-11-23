@@ -167,7 +167,7 @@ export default function Layout() {
       {/* EMI Assistant chatbot hidden for now (owner 2026-11-22). Set SHOW_ASSISTANT to true to bring it back. */}
       {SHOW_ASSISTANT && <ChatBot />}
       {/* A/B layout switcher: admins only, on pages that have a B layout (owner 2026-11-22). */}
-      {isTenantAdminUser() && location.pathname.startsWith("/event-detail") && <VariantSwitcher label="Event Detail" />}
+      {isTenantAdminUser() && location.pathname.startsWith("/event-detail") && <VariantSwitcher rows={[{ scope: "eventDetail", label: "Event Detail" }, { scope: "addItems", label: "Add Items" }]} />}
     </>
   );
 }

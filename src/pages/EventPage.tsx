@@ -1067,6 +1067,7 @@ export default function EventPage() {
 
       {/* Tab bar */}
       <div
+        className="event-tab-bar"
         style={{
           display: "flex",
           borderBottom: "2px solid var(--border)",

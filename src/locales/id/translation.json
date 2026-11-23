@@ -505,6 +505,17 @@
     "mayHaveItems": "Event ini mungkin punya barang. Penghapusan tidak bisa dibatalkan.",
     "typeName": "Untuk konfirmasi, ketik nama event:"
   },
+  "addItemsB": {
+    "browse": "Pilih barang",
+    "stockTabs": "Stok",
+    "inCart": "{{count}} di keranjang",
+    "noWarehouse": "Tidak ada di gudang mana pun",
+    "inStock": "stok",
+    "noOutOfStock": "Tidak ada barang yang stoknya habis di daftar ini.",
+    "loadMore": "Muat barang lainnya",
+    "totalQty": "{{count}} pcs",
+    "needLocation": "{{count}} barang belum punya area. Pilih barangnya lalu pakai “Assign locations”."
+  },
   "edB": {
     "pic": "PIC",
     "currentStage": "Tahap saat ini",

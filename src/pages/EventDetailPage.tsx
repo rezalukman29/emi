@@ -103,6 +103,21 @@ import { canChangeStage } from "../lib/eventStageRules";
 const FALLBACK_STATUSES = ["Preparation", "During Event", "After Event"] as const;
 type DateEventStatus = (typeof FALLBACK_STATUSES)[number];
 
+// Add Items modal helpers (owner 2026-11-23).
+const PICKER_MIN_ROWS = 12;
+const PICKER_AUTO_PAGES = 6;
+/** An inventory item is "available" when at least one warehouse has stock. */
+function itemHasStock(item: BarangGudangItemV2) {
+  return item.warehouses.some((warehouse) => Number(warehouse.stok_gudang) > 0);
+}
+/** Pre-selected warehouse: the one with the most stock (first one when all are equal). */
+function defaultItemWarehouse(item: BarangGudangItemV2): BarangGudangWarehouseV2 | undefined {
+  return item.warehouses.reduce<BarangGudangWarehouseV2 | undefined>(
+    (best, warehouse) => (!best || Number(warehouse.stok_gudang) > Number(best.stok_gudang) ? warehouse : best),
+    undefined,
+  );
+}
+
 function formatEventDate(value?: string | null): string {
   const backendDate = value?.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (backendDate) {
@@ -976,6 +991,10 @@ export default function EventDetailPage() {
 
   // Inventory picker
   const [pickerQuery, setPickerQuery] = useState("");
+  // Add Items modal (owner 2026-11-23): Available / Out of stock tabs (A and B), B layout via its own A/B scope.
+  const [pickerStock, setPickerStock] = useState<'available' | 'out'>('available');
+  const [pickPane, setPickPane] = useState<'browse' | 'cart'>('browse');
+  const isAddB = useUiVariant('addItems') === 'B';
   const [pickerCategory, setPickerCategory] = useState("");
   const inventoryPickerListRef = useRef<HTMLDivElement>(null);
   const [pickerQty, setPickerQty] = useState<Record<number, number>>({});
@@ -1398,7 +1417,7 @@ export default function EventDetailPage() {
     );
   }, [newItemForm.areaId, subAreaResponse?.data?.data]);
 
-  const pickerFiltered = useMemo(() => {
+  const pickerMatched = useMemo(() => {
     const query = pickerQuery.trim().toLowerCase();
     return barangGudangItems.filter((item) => {
       if (query.length < 3) return true;
@@ -1407,6 +1426,29 @@ export default function EventDetailPage() {
         .includes(query);
     });
   }, [barangGudangItems, pickerQuery]);
+  // Stock tabs work on the items loaded so far (the API has no stock filter); more pages load
+  // automatically while a tab shows fewer than PICKER_MIN_ROWS rows, and a "Load more" button stays.
+  const pickerStockCounts = useMemo(() => ({
+    available: pickerMatched.filter(itemHasStock).length,
+    out: pickerMatched.filter((item) => !itemHasStock(item)).length,
+  }), [pickerMatched]);
+  const pickerFiltered = useMemo(
+    () => pickerMatched.filter((item) => (pickerStock === 'available') === itemHasStock(item)),
+    [pickerMatched, pickerStock],
+  );
+  const pickerAutoPages = useRef(0);
+  useEffect(() => { pickerAutoPages.current = 0; }, [pickerStock, debouncedBarangSearch, pickerCategory, newItemOpen]);
+  useEffect(() => {
+    if (!newItemOpen || !hasNextBarangPage || isFetchingNextBarangPage || isBarangGudangLoading) return;
+    if (pickerFiltered.length >= PICKER_MIN_ROWS || pickerAutoPages.current >= PICKER_AUTO_PAGES) return;
+    pickerAutoPages.current += 1;
+    void fetchNextBarangPage();
+  }, [newItemOpen, hasNextBarangPage, isFetchingNextBarangPage, isBarangGudangLoading, pickerFiltered.length, fetchNextBarangPage]);
+  const cartQtyByBarang = useMemo(() => {
+    const totals: Record<number, number> = {};
+    cart.forEach((entry) => { if (entry.barangId) totals[entry.barangId] = (totals[entry.barangId] ?? 0) + entry.qty; });
+    return totals;
+  }, [cart]);
 
   function handleInventoryPickerScroll(event: ReactUIEvent<HTMLDivElement>) {
     const list = event.currentTarget;
@@ -2153,10 +2195,11 @@ export default function EventDetailPage() {
     item: BarangGudangItemV2,
   ): BarangGudangWarehouseV2 | undefined {
     const selectedId = pickerWarehouseIds[item.barang_id];
+    // Default (owner 2026-11-23): the warehouse with the most stock is pre-selected.
     return (
       item.warehouses.find(
         (warehouse) => warehouse.barang_gudang_id === selectedId,
-      ) ?? item.warehouses[0]
+      ) ?? defaultItemWarehouse(item)
     );
   }
 
@@ -2482,6 +2525,8 @@ export default function EventDetailPage() {
     setDebouncedBarangSearch("");
     setSelectedBarangGudang(null);
     setPickerQuery("");
+    setPickerStock('available');
+    setPickPane('browse');
     setPickerCategory("");
     setPickerQty({});
     setPickerWarehouseIds({});
@@ -3762,7 +3807,7 @@ export default function EventDetailPage() {
         title={t("wording.addItemsFromInventory")}
         onClose={() => setNewItemOpen(false)}
         size="4xl"
-        className="inv-pick-modal"
+        className={`inv-pick-modal${isAddB ? ' inv-b' : ''}`}
         bodyClassName="inv-pick-modal-body"
         footer={
           <>
@@ -3783,7 +3828,11 @@ export default function EventDetailPage() {
           </>
         }
       >
-        <div className="inv-pick-split">
+        {isAddB && <div className="inv-b-pane-switch" role="tablist">
+          <button type="button" role="tab" aria-selected={pickPane === 'browse'} className={pickPane === 'browse' ? 'active' : ''} onClick={() => setPickPane('browse')}>{t('addItemsB.browse')}</button>
+          <button type="button" role="tab" aria-selected={pickPane === 'cart'} className={pickPane === 'cart' ? 'active' : ''} onClick={() => setPickPane('cart')}>{t('wording.cart')} <span className="inv-cart-count">{fmtDisplayNumber(cart.length)}</span></button>
+        </div>}
+        <div className={`inv-pick-split${isAddB ? ` pane-${pickPane}` : ''}`}>
           {/* Left panel — browse & add from inventory */}
           <div className="inv-pick-left">
             <div className="search-row" style={{ marginBottom: 4 }}>
@@ -3810,6 +3859,14 @@ export default function EventDetailPage() {
               </div>
             </div>
 
+            <div className="inv-stock-tabs" role="tablist" aria-label={t('addItemsB.stockTabs')}>
+              {(['available', 'out'] as const).map((key) => (
+                <button key={key} type="button" role="tab" aria-selected={pickerStock === key} className={`stage-tab${pickerStock === key ? ' active' : ''}`} onClick={() => { setPickerStock(key); inventoryPickerListRef.current?.scrollTo({ top: 0 }); }}>
+                  {key === 'available' ? t('wording.available') : t('wording.outOfStock')}{' '}
+                  <span className="stage-tab-count">{fmtDisplayNumber(pickerStockCounts[key])}{hasNextBarangPage ? '+' : ''}</span>
+                </button>
+              ))}
+            </div>
             <div
               ref={inventoryPickerListRef}
               className="inv-pick-list"
@@ -3825,13 +3882,56 @@ export default function EventDetailPage() {
                   </button>
                 </div>
               ) : pickerFiltered.length === 0 ? (
-                <div className="no-data">{t("wording.noItemsFound")}</div>
+                isFetchingNextBarangPage ? null : <div className="no-data">{pickerStock === 'out' ? t('addItemsB.noOutOfStock') : t("wording.noItemsFound")}</div>
               ) : (
                 pickerFiltered.map((inv) => {
                   const selectedWarehouse = getSelectedItemWarehouse(inv);
                   const qty = pickerQty[inv.barang_id] ?? 1;
                   const warehouseStock = selectedWarehouse?.stok_gudang ?? 0;
                   const outOfStock = warehouseStock <= 0;
+                  if (isAddB) {
+                    const inCart = cartQtyByBarang[inv.barang_id] ?? 0;
+                    const setQty = (next: number) => setPickerQty((current) => ({ ...current, [inv.barang_id]: Math.max(1, Math.min(Math.max(1, warehouseStock), next || 1)) }));
+                    return (
+                      <div className={`inv-b-row${outOfStock ? ' is-out' : ''}`} key={inv.barang_id}>
+                        <ImagePlaceholder src={getPhotoUrl(inv.photo)} alt={inv.nama_barang} />
+                        <div className="inv-b-info">
+                          <div className="inv-b-name">{inv.nama_barang}{inCart > 0 && <span className="inv-b-incart">{t('addItemsB.inCart', { count: inCart })}</span>}</div>
+                          <div className="inv-b-meta"><span className="inv-b-sku">{inv.code || `#${inv.barang_id}`}</span>{inv.nama_kategori ? ` · ${inv.nama_kategori}` : ''}</div>
+                          {inv.warehouses.length > 0 ? <div className="inv-b-wh">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-6h6v6"/></svg>
+                            {inv.warehouses.length === 1
+                              ? <span>{selectedWarehouse?.gudang_name}</span>
+                              : <SearchableSelect inline value={selectedWarehouse?.barang_gudang_id ?? ""} placeholder={t("wording.selectWarehouseText")}
+                                  onChange={(value) => { setPickerWarehouseIds((current) => ({ ...current, [inv.barang_id]: Number(value) })); setPickerQty((current) => ({ ...current, [inv.barang_id]: 1 })); }}
+                                  options={inv.warehouses.map((warehouse) => ({ value: warehouse.barang_gudang_id, label: warehouse.gudang_name, meta: t("dynamic.inStock", { count: warehouse.stok_gudang }) }))} />}
+                          </div> : <div className="inv-b-wh muted">{t('addItemsB.noWarehouse')}</div>}
+                        </div>
+                        <div className={`inv-b-stock${!outOfStock && warehouseStock < 10 ? ' low' : ''}`}>
+                          <strong>{fmtDisplayNumber(warehouseStock)}</strong>
+                          <span>{inv.nama_satuan || t('addItemsB.inStock')}</span>
+                        </div>
+                        {outOfStock ? (
+                          <div className="inv-b-out-actions">
+                            {loanEnabled && <button type="button" className="btn btn-ghost" onClick={() => { setNewItemOpen(false); setBorrowOpen(true); }}>{t('sourceUpgrade.borrowItem')}</button>}
+                            {productionEnabled && <button type="button" className="btn btn-ghost" onClick={() => { setNewItemOpen(false); setProductionInitial(null); setProductionOpen(true); }}>{t('eventUpgrade.requestProduction')}</button>}
+                            {!loanEnabled && !productionEnabled && <span className="inv-b-out-label">{t('wording.outOfStock')}</span>}
+                          </div>
+                        ) : (
+                          <div className="inv-b-actions">
+                            <div className="inv-b-stepper" role="group" aria-label={t('wording.qty')}>
+                              <button type="button" aria-label="−" disabled={qty <= 1} onClick={() => setQty(qty - 1)}>−</button>
+                              <input type="number" min={1} max={warehouseStock} value={qty} onChange={(e) => setQty(parseInt(e.target.value))} aria-label={t('wording.qty')} />
+                              <button type="button" aria-label="+" disabled={qty >= warehouseStock} onClick={() => setQty(qty + 1)}>+</button>
+                            </div>
+                            <button type="button" className="btn-add-cart" onClick={() => addInventoryItem(inv)}>
+                              <IconPlus /> {t("wording.add")}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
                   return (
                     <div className="inv-pick-row" key={inv.barang_id}>
                       <ImagePlaceholder
@@ -3871,7 +3971,8 @@ export default function EventDetailPage() {
                             <SearchableSelect
                               inline
                               value={selectedWarehouse?.barang_gudang_id ?? ""}
-                              placeholder={t("wording.selectWarehouseText")}
+                              placeholder={inv.warehouses.length ? t("wording.selectWarehouseText") : t('addItemsB.noWarehouse')}
+                              disabled={!inv.warehouses.length}
                               onChange={(value) => {
                                 const barangGudangId = Number(value);
                                 setPickerWarehouseIds((current) => ({
@@ -3925,6 +4026,9 @@ export default function EventDetailPage() {
                   );
                 })
               )}
+              {hasNextBarangPage && !isFetchingNextBarangPage && !isBarangGudangLoading && !isBarangGudangError && (
+                <button type="button" className="btn btn-ghost inv-load-more" onClick={() => void fetchNextBarangPage()}>{t('addItemsB.loadMore')}</button>
+              )}
               {isFetchingNextBarangPage && (
                 <div className="inv-pick-loading" role="status">
                   {t("wording.loadingInventory")}
@@ -3946,7 +4050,9 @@ export default function EventDetailPage() {
             <div className="inv-cart-header">
               <IconCart /> {t("wording.cart")}{" "}
               <span className="inv-cart-count">{fmtDisplayNumber(cart.length)}</span>
+              {isAddB && cart.length > 0 && <span className="inv-b-cart-total">{t('addItemsB.totalQty', { count: cart.reduce((sum, entry) => sum + entry.qty, 0) })}</span>}
             </div>
+            {isAddB && hasMissingArea && <p className="inv-b-cart-warn">{t('addItemsB.needLocation', { count: cart.filter((entry) => entry.areaId === null).length })}</p>}
 
             {cart.length === 0 ? (
               <div className="cart-empty">{t("wording.theCartIsEmpty")}</div>
