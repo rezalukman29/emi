@@ -41,6 +41,30 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+# 2026-11-24 — 3 Star Protection v2 (after the UX review)
+
+- **Fair stars:** suggestions marked *Done* or *Not relevant* no longer count against the stars, so a team can reach
+  3 stars. *Not relevant* asks for a short reason; handled items show who handled them, when and why.
+- **Brief first:** a new event opens the 3 Star tab in setup mode (no score yet, brief form on top,
+  "Save and analyze", or "Skip, show suggestions"). The tab badge says "Set up" until a brief exists.
+- **No overdue AI tasks:** AI checklist due dates are never before today.
+- **Less noise:** suggestions about the same item are grouped ("Meja Bulat Kaca · 4 notes"); the top 5 show, the rest
+  behind "Show N more". Severity "Check" renamed "Confirm" / "Perlu dipastikan".
+- **Actionable:** "Show in items" opens the Items tab filtered to that item; material suggestions list alternatives in
+  stock from the inventory (e.g. wooden items) with links to the item.
+- **Honest updates:** the fake "Analyze again" button is gone; the panel says "Updates automatically".
+- **Visible outside the event:** star badge on event cards (last score) and a "Below 3 stars (n)" quick filter on the
+  Events list; on phones the Event Detail tabs wrap so the 3 Star tab is visible.
+- **Brief in the event form:** New / Edit Event has an optional "Brief for the AI" section; for a new event the brief is
+  attached when the event is first opened.
+- **Settings:** shows what the numbers mean ("too tight below N days with this strictness"); members see who can turn
+  the feature on.
+- **Files:** `src/lib/threeStar.ts`, `src/components/ai/ThreeStarPanel.tsx`, new `src/components/ai/BriefFields.tsx`,
+  `src/pages/EventDetailPage.tsx`, `src/pages/EventPage.tsx`, `src/pages/ThreeStarSettingsPage.tsx`, `src/threeStar.css`,
+  translations.
+
+---
+
 # 2026-11-24 — AI Tools hub + 3 Star Protection (preview on mock AI)
 
 - **Sidebar:** AI Tools is now a highlighted card (not a plain group) linking to the new **AI Tools hub** (`/ai-tools`)

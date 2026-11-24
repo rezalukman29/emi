@@ -96,6 +96,19 @@ checked at 390 px and tablets at 768 px.
 
 ## UI change log (newest first)
 
+### 2026-11-24 — 3 Star Protection v2 (UX review)
+| Where | Before | After | Why |
+|---|---|---|---|
+| 3 Star tab, new event | Score + 10 "missing" warnings, brief at the bottom | Setup mode: "Not scored yet", brief form on top, Save and analyze / Skip | Brief first; no punishment |
+| Stars | Handled suggestions still counted | Done / Not relevant (with reason) lift the star; handled list shows who/when/why | Reachable 3 stars |
+| Suggestions | 12 flat cards, 3 about one item | Grouped per item, top 5 + "Show N more"; "Confirm" instead of "Check" | Less noise |
+| Suggestion actions | "Open items" to the tab only | "Show in items" filters to the item; alternatives in stock | Actionable |
+| Hero | "Analyze again" button with fake delay | "Updates automatically" | Honest |
+| AI checklist | Tasks could be created overdue | Due date never before today | No instant red |
+| Events list | — | Star badge on cards, "Below 3 stars (n)" filter | Portfolio view |
+| New / Edit Event | — | Optional "Brief for the AI" section | Fill once, when info is fresh |
+| Event Detail tabs (phone) | 3 Star tab hidden off-screen | Tabs wrap | Discoverable |
+
 ### 2026-11-24 — AI Tools made special + 3 Star Protection
 | Where | Before | After | Why |
 |---|---|---|---|

@@ -1,19 +1,23 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery } from 'react-query';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
+import ax from '../../service/axios';
+import BriefFields from './BriefFields';
 import {
   EMPTY_BRIEF,
   analyzeEvent,
   markSuggestion,
   saveBrief,
+  saveScore,
   useThreeStar,
   type AnalysisClash,
   type AnalysisEvent,
   type AnalysisItem,
   type EventBrief,
-  type Severity,
   type StarKey,
+  type Suggestion,
 } from '../../lib/threeStar';
 import { addDays, todayIso } from '../../data/eventChecklistMock';
 import { takeIds, updateChecklist, useChecklistStore } from '../../lib/checklistStore';
@@ -21,63 +25,94 @@ import { currentUserName, isTenantAdminUser } from '../../lib/tenantUser';
 import '../../threeStar.css';
 
 // 3 Star Protection inside one event (owner 2026-11-24). PREVIEW: rule-based mock "AI", data in this browser.
+// v2 after the UX roast: brief first, handled suggestions lift the stars, grouped per item, alternatives from
+// the inventory, checklist due dates never in the past, analysis updates automatically.
 
 export const STAR_ICON = (
   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.8 5.7 6.3.9-4.6 4.4 1.1 6.2L12 17l-5.6 3 1.1-6.2L2.9 9.4l6.3-.9z" /></svg>
 );
 
-export function StarRow({ earned, size = 'md' }: { earned: number; size?: 'sm' | 'md' }) {
+export function StarRow({ earned, size = 'md', label }: { earned: number; size?: 'sm' | 'md'; label?: string }) {
   return (
-    <span className={`ts-stars ${size}`} aria-label={`${earned}/3`}>
+    <span className={`ts-stars ${size}`} role="img" aria-label={label ?? `${earned}/3`}>
       {[0, 1, 2].map((i) => <span key={i} className={i < earned ? 'on' : ''}>{STAR_ICON}</span>)}
     </span>
   );
 }
 
 const STAR_ORDER: StarKey[] = ['brief', 'items', 'schedule'];
-const SEV_ORDER: Severity[] = ['risk', 'warn', 'tip'];
+const TOP_LIMIT = 5;
+
+/** Up to 3 items from the inventory matching a word (read-only reuse of GET /v2/barang-gudang/detail). */
+function Alternatives({ search, exclude }: { search: string; exclude?: string }) {
+  const { t } = useTranslation();
+  const query = useQuery(['threeStarAlt', search], async () => {
+    const response = await ax.get('/v2/barang-gudang/detail', { params: { page: 1, limit: 8, search } });
+    return response.data;
+  }, { staleTime: 5 * 60_000 });
+  const rows = ((query.data?.data?.data ?? []) as Array<{ barang_id: number; nama_barang: string; warehouses?: Array<{ stok_gudang: number }> }>)
+    .filter((row) => row.nama_barang !== exclude && row.nama_barang.toLowerCase().includes(search.toLowerCase()))
+    .map((row) => ({ id: row.barang_id, name: row.nama_barang, stock: (row.warehouses ?? []).reduce((sum, w) => sum + (Number(w.stok_gudang) || 0), 0) }))
+    .filter((row) => row.stock > 0)
+    .slice(0, 3);
+  if (query.isLoading) return <div className="ts-alt muted">{t('threeStar.altLoading')}</div>;
+  if (!rows.length) return <div className="ts-alt muted">{t('threeStar.altNone', { word: search })}</div>;
+  return (
+    <div className="ts-alt">
+      <span>{t('threeStar.altTitle')}</span>
+      {rows.map((row) => <Link key={row.id} to={`/inventory-detail?id=${row.id}`}>{row.name} <b>{t('threeStar.altStock', { count: row.stock })}</b></Link>)}
+    </div>
+  );
+}
 
 export default function ThreeStarPanel({ event, items, clashes, onOpenItems, onOpenChecklist }: {
   event: AnalysisEvent;
   items: AnalysisItem[];
   clashes: AnalysisClash[];
-  onOpenItems: () => void;
+  /** Opens the Items tab, filtered to this item name when given. */
+  onOpenItems: (itemName?: string) => void;
   onOpenChecklist: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const store = useThreeStar();
   const checklist = useChecklistStore();
   const settings = store.settings;
+  const hasBrief = Boolean(store.briefs[event.id]);
   const saved = store.briefs[event.id] ?? EMPTY_BRIEF;
-  const handled = store.handled[event.id] ?? {};
+  const handled = useMemo(() => store.handled[event.id] ?? {}, [store.handled, event.id]);
   const [brief, setBrief] = useState<EventBrief>(saved);
-  const [briefOpen, setBriefOpen] = useState(!store.briefs[event.id]);
-  const [thinking, setThinking] = useState(false);
-  const [runKey, setRunKey] = useState(0);
+  const [briefOpen, setBriefOpen] = useState(false);
+  const [skipSetup, setSkipSetup] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const [showHandled, setShowHandled] = useState(false);
+  const [dismissing, setDismissing] = useState<{ id: string; reason: string } | null>(null);
   const briefRef = useRef<HTMLElement>(null);
+  const me = currentUserName(t('eventChecklist.you'));
+  const today = todayIso();
 
   useEffect(() => { setBrief(store.briefs[event.id] ?? EMPTY_BRIEF); }, [store.briefs, event.id]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const analysis = useMemo(() => analyzeEvent(event, items, saved, settings, todayIso(), clashes), [event, items, saved, settings, clashes, runKey]);
+  const analysis = useMemo(() => analyzeEvent(event, items, saved, settings, today, clashes, handled), [event, items, saved, settings, today, clashes, handled]);
+  const open = analysis.suggestions.filter((s) => !s.handled);
+  const done = analysis.suggestions.filter((s) => s.handled);
+  const risks = open.filter((s) => s.severity === 'risk').length;
+  const setupMode = settings.enabled && !hasBrief && !skipSetup;
+
+  useEffect(() => {
+    if (settings.enabled && hasBrief) saveScore(event.id, { earned: analysis.earned, risks, open: open.length });
+  }, [settings.enabled, hasBrief, event.id, analysis.earned, risks, open.length]);
+
   const dirty = JSON.stringify({ ...brief, updatedAt: undefined }) !== JSON.stringify({ ...saved, updatedAt: undefined });
-  const open = analysis.suggestions.filter((s) => !handled[s.id]);
-  const done = analysis.suggestions.filter((s) => handled[s.id]);
   const aiGroup = checklist.groups.find((g) => g.eventId === event.id && g.name === t('threeStar.checklistGroup'));
   const locale = i18n.language === 'id' ? 'id-ID' : 'en-GB';
   const fmt = (iso: string) => new Date(`${iso.slice(0, 10)}T12:00:00`).toLocaleDateString(locale, { day: 'numeric', month: 'short' });
+  const fmtTime = (iso: string) => new Date(iso).toLocaleString(locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
-  function rerun() {
-    setThinking(true);
-    window.setTimeout(() => { setRunKey((k) => k + 1); setThinking(false); }, 900);
-  }
-
-  function submitBrief() {
+  function submitBrief(formEvent?: FormEvent) {
+    formEvent?.preventDefault();
     saveBrief(event.id, brief);
     setBriefOpen(false);
     toast.success(t('threeStar.briefSaved'));
-    rerun();
   }
 
   function openBrief() {
@@ -85,196 +120,243 @@ export default function ThreeStarPanel({ event, items, clashes, onOpenItems, onO
     window.setTimeout(() => briefRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   }
 
+  function handle(sug: Suggestion, state: 'done' | 'dismissed', reason?: string) {
+    markSuggestion(event.id, sug.id, { state, reason, by: me, at: new Date().toISOString() });
+    setDismissing(null);
+  }
+
   function generateChecklist() {
-    const me = currentUserName(t('eventChecklist.you'));
     const now = new Date().toISOString();
     const groupId = aiGroup?.id ?? takeIds();
     const firstId = takeIds(analysis.checklist.length);
     const existingTitles = new Set(checklist.items.filter((i) => i.groupId === groupId).map((i) => i.title));
+    const validStart = /^\d{4}-\d{2}-\d{2}$/.test(event.start);
     const tasks = analysis.checklist
       .map((task, index) => ({ task, index, title: t(`threeStar.tasks.${task.key}`, task.params) }))
       .filter(({ title }) => !existingTitles.has(title))
-      .map(({ task, index, title }) => ({
-        id: firstId + index, eventId: event.id, groupId, templateId: null, title,
-        required: task.key === 'lockItems' || task.key === 'returnCheck',
-        requiresPhoto: Boolean(task.requiresPhoto), requiresReport: Boolean(task.requiresReport),
-        status: 'open' as const, note: '', photos: [],
-        dueDate: /^\d{4}-\d{2}-\d{2}$/.test(event.start) ? addDays(event.start, task.dueOffsetDays) : null,
-        assigneeId: null, assignee: null, statusBy: null, statusAt: null,
-        activity: [{ at: now, by: '3 Star AI', action: 'created' as const, detail: 'ai' }],
-      }));
+      .map(({ task, index, title }) => {
+        // Never create a task that is already overdue: the earliest due date is today.
+        const ideal = validStart ? addDays(event.start, task.dueOffsetDays) : null;
+        const dueDate = ideal && ideal < today ? today : ideal;
+        return {
+          id: firstId + index, eventId: event.id, groupId, templateId: null, title,
+          required: task.key === 'lockItems' || task.key === 'returnCheck',
+          requiresPhoto: Boolean(task.requiresPhoto), requiresReport: Boolean(task.requiresReport),
+          status: 'open' as const, note: '', photos: [], dueDate,
+          assigneeId: null, assignee: null, statusBy: null, statusAt: null,
+          activity: [{ at: now, by: '3 Star AI', action: 'created' as const, detail: 'ai' }],
+        };
+      });
     updateChecklist((current) => ({
       ...current,
       groups: aiGroup ? current.groups : [...current.groups, { id: groupId, eventId: event.id, name: t('threeStar.checklistGroup'), order: 0, templateGroupId: null }],
       items: [...current.items, ...tasks],
     }));
-    toast.success(tasks.length ? t('threeStar.checklistAdded', { count: tasks.length, by: me }) : t('threeStar.checklistUpToDate'));
+    toast.success(tasks.length ? t('threeStar.checklistAdded', { count: tasks.length }) : t('threeStar.checklistUpToDate'));
   }
 
   if (!settings.enabled) {
+    const admin = isTenantAdminUser();
     return (
       <div className="card ts-off">
         <StarRow earned={0} />
         <h3>{t('threeStar.offTitle')}</h3>
-        <p>{t('threeStar.offBody')}</p>
-        {isTenantAdminUser() && <Link className="btn btn-primary" to="/ai/three-star">{t('threeStar.turnOn')}</Link>}
+        <p>{admin ? t('threeStar.offBody') : t('threeStar.offBodyMember')}</p>
+        {admin && <Link className="btn btn-primary" to="/ai/three-star">{t('threeStar.turnOn')}</Link>}
       </div>
     );
   }
 
-  const sugTitle = (key: string, params?: Record<string, string | number>) => {
-    const p = { ...params } as Record<string, string | number>;
+  const sugText = (sug: Suggestion) => {
+    const p = { ...sug.params } as Record<string, string | number>;
     if (typeof p.from === 'string') p.from = fmt(p.from);
     if (typeof p.to === 'string') p.to = fmt(p.to);
     if (typeof p.fields === 'string') p.fields = String(p.fields).split(',').map((f) => t(`threeStar.brief.${f}`)).join(', ');
     if (typeof p.ground === 'string') p.ground = t(`threeStar.brief.groundOpt.${p.ground}`);
-    return { title: t(`threeStar.sug.${key}.title`, p), detail: t(`threeStar.sug.${key}.detail`, p) };
+    return { title: t(`threeStar.sug.${sug.key}.title`, p), detail: t(`threeStar.sug.${sug.key}.detail`, p) };
   };
-  const set = <K extends keyof EventBrief>(key: K, value: EventBrief[K]) => setBrief((b) => ({ ...b, [key]: value }));
-  const outdoor = brief.venueType === 'outdoor';
+
+  // Group item suggestions by item; others stay one card each. Order follows the worst severity.
+  type Entry = { key: string; item?: string; list: Suggestion[] };
+  const entries: Entry[] = [];
+  for (const sug of open) {
+    const existing = sug.itemName ? entries.find((e) => e.item === sug.itemName) : undefined;
+    if (existing) existing.list.push(sug);
+    else entries.push({ key: sug.itemName ? `item-${sug.itemName}` : sug.id, item: sug.itemName, list: [sug] });
+  }
+  const shown = showAll ? entries : entries.slice(0, TOP_LIMIT);
+
+  const renderSug = (sug: Suggestion, compact = false) => {
+    const text = sugText(sug);
+    return (
+      <div key={sug.id} className={`ts-sug ${sug.severity}${compact ? ' compact' : ''}`}>
+        <span className="ts-sev">{t(`threeStar.severity.${sug.severity}`)}</span>
+        <div className="ts-sug-body">
+          <b>{text.title}</b>
+          <p>{text.detail}</p>
+          {!compact && sug.altSearch && <Alternatives search={sug.altSearch} exclude={sug.itemName} />}
+          {dismissing?.id === sug.id ? (
+            <form className="ts-dismiss" onSubmit={(e) => { e.preventDefault(); if (dismissing.reason.trim()) handle(sug, 'dismissed', dismissing.reason.trim()); }}>
+              <input autoFocus value={dismissing.reason} onChange={(e) => setDismissing({ id: sug.id, reason: e.target.value })} placeholder={t('threeStar.dismissReasonPh')} aria-label={t('threeStar.dismissReason')} />
+              <button type="submit" className="btn btn-primary" disabled={!dismissing.reason.trim()}>{t('threeStar.dismiss')}</button>
+              <button type="button" className="btn btn-ghost" onClick={() => setDismissing(null)}>{t('eventChecklist.cancel')}</button>
+            </form>
+          ) : (
+            <div className="ts-sug-actions">
+              {sug.action === 'openBrief' && <button type="button" className="ts-link" onClick={openBrief}>{t('threeStar.fillBrief')}</button>}
+              {!compact && (sug.action === 'openItems' || sug.itemName) && <button type="button" className="ts-link" onClick={() => onOpenItems(sug.itemName)}>{sug.itemName ? t('threeStar.openItem') : t('threeStar.openItems')}</button>}
+              <button type="button" className="ts-link" onClick={() => handle(sug, 'done')}>{t('threeStar.markDone')}</button>
+              <button type="button" className="ts-link muted" onClick={() => setDismissing({ id: sug.id, reason: '' })}>{t('threeStar.dismiss')}</button>
+            </div>
+          )}
+        </div>
+        {!compact && <span className="ts-sug-star">{t(`threeStar.stars.${sug.star}`)}</span>}
+      </div>
+    );
+  };
+
+  const briefCard = (
+    <section ref={briefRef} className={`card ts-brief${setupMode ? ' setup' : ''}`}>
+      {setupMode ? (
+        <div className="ts-brief-head static">
+          <span><b>{t('threeStar.setupTitle')}</b><small>{t('threeStar.setupSub')}</small></span>
+        </div>
+      ) : (
+        <button type="button" className="ts-brief-head" aria-expanded={briefOpen} onClick={() => setBriefOpen((v) => !v)}>
+          <span><b>{t('threeStar.briefTitle')}</b><small>{saved.updatedAt ? t('threeStar.briefUpdated', { date: fmtTime(saved.updatedAt) }) : t('threeStar.briefSub')}</small></span>
+          <span className="ts-brief-pct">{Math.round(analysis.briefCompleteness * 100)}%</span>
+        </button>
+      )}
+      {(setupMode || briefOpen) && (
+        <form className="ts-brief-form" onSubmit={submitBrief}>
+          <BriefFields brief={brief} onChange={setBrief} />
+          <div className="ts-brief-actions">
+            <span>{t('threeStar.briefPrivacy')}</span>
+            {setupMode && <button type="button" className="btn btn-ghost" onClick={() => setSkipSetup(true)}>{t('threeStar.skipSetup')}</button>}
+            {!setupMode && dirty && <button type="button" className="btn btn-ghost" onClick={() => setBrief(saved)}>{t('eventChecklist.cancel')}</button>}
+            <button type="submit" className="btn btn-primary" disabled={!setupMode && !dirty}>{setupMode ? t('threeStar.saveAndAnalyze') : t('threeStar.saveBrief')}</button>
+          </div>
+        </form>
+      )}
+    </section>
+  );
 
   return (
-    <div className={`ts-panel${thinking ? ' thinking' : ''}`}>
+    <div className="ts-panel">
       <section className="card ts-hero">
         <div className="ts-hero-main">
           <span className="ts-ai-badge">{STAR_ICON} {t('threeStar.name')}</span>
-          <div className="ts-score">
-            <StarRow earned={analysis.earned} />
-            <strong>{t('threeStar.scoreLine', { count: analysis.earned })}</strong>
-          </div>
-          <p className="ts-hero-sub">{thinking ? t('threeStar.thinking') : t('threeStar.heroSub', { open: open.length, count: open.length })}</p>
+          {setupMode ? (
+            <>
+              <div className="ts-score"><StarRow earned={0} /><strong>{t('threeStar.setupScore')}</strong></div>
+              <p className="ts-hero-sub">{t('threeStar.setupHint')}</p>
+            </>
+          ) : (
+            <>
+              <div className="ts-score">
+                <StarRow earned={analysis.earned} label={t('threeStar.scoreLine', { count: analysis.earned })} />
+                <strong>{t('threeStar.scoreLine', { count: analysis.earned })}</strong>
+              </div>
+              <p className="ts-hero-sub">{open.length ? t('threeStar.heroSub', { count: open.length, risks }) : t('threeStar.allClear')}</p>
+            </>
+          )}
         </div>
         <div className="ts-hero-actions">
-          <button type="button" className="btn btn-ghost" onClick={rerun} disabled={thinking}>{thinking ? t('threeStar.analyzing') : t('threeStar.reanalyze')}</button>
+          <span className="ts-auto">{t('threeStar.autoUpdate')}</span>
           <span className="ck-preview-badge" title={t('threeStar.previewHint')}>{t('threeStar.preview')}</span>
         </div>
-        <div className="ts-star-tiles">
-          {STAR_ORDER.map((key) => {
-            const star = analysis.stars.find((s) => s.key === key)!;
-            const count = open.filter((s) => s.star === key).length;
-            return (
-              <div key={key} className={`ts-tile${star.earned ? ' earned' : ''}${star.enabled ? '' : ' disabled'}`}>
-                <span className="ts-tile-star">{STAR_ICON}</span>
-                <div>
-                  <b>{t(`threeStar.stars.${key}`)}</b>
-                  <small>{!star.enabled ? t('threeStar.checkOff') : star.earned ? t('threeStar.passed') : t('threeStar.toFix', { count })}</small>
-                </div>
-                {key === 'brief' && star.enabled && <span className="ts-tile-meter"><i style={{ width: `${Math.round(analysis.briefCompleteness * 100)}%` }} /></span>}
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <div className="ts-grid">
-        <section className="card ts-suggestions" aria-label={t('threeStar.suggestionsTitle')}>
-          <h3>{t('threeStar.suggestionsTitle')} <span className="stage-tab-count">{open.length}</span></h3>
-          {open.length === 0 && <p className="ts-empty">{t('threeStar.allClear')}</p>}
-          {SEV_ORDER.map((sev) => open.filter((s) => s.severity === sev).map((s) => {
-            const text = sugTitle(s.key, s.params);
-            return (
-              <article key={s.id} className={`ts-sug ${s.severity}`}>
-                <span className="ts-sev">{t(`threeStar.severity.${s.severity}`)}</span>
-                <div className="ts-sug-body">
-                  <b>{text.title}</b>
-                  <p>{text.detail}</p>
-                  <div className="ts-sug-actions">
-                    {s.action === 'openBrief' && <button type="button" className="ts-link" onClick={openBrief}>{t('threeStar.fillBrief')}</button>}
-                    {s.action === 'openItems' && <button type="button" className="ts-link" onClick={onOpenItems}>{t('threeStar.openItems')}</button>}
-                    <button type="button" className="ts-link" onClick={() => markSuggestion(event.id, s.id, 'done')}>{t('threeStar.markDone')}</button>
-                    <button type="button" className="ts-link muted" onClick={() => markSuggestion(event.id, s.id, 'dismissed')}>{t('threeStar.dismiss')}</button>
+        {!setupMode && (
+          <div className="ts-star-tiles">
+            {STAR_ORDER.map((key) => {
+              const star = analysis.stars.find((s) => s.key === key)!;
+              const count = open.filter((s) => s.star === key).length;
+              return (
+                <div key={key} className={`ts-tile${star.earned ? ' earned' : ''}${star.enabled ? '' : ' disabled'}`}>
+                  <span className="ts-tile-star">{STAR_ICON}</span>
+                  <div>
+                    <b>{t(`threeStar.stars.${key}`)}</b>
+                    <small>{!star.enabled ? t('threeStar.checkOff') : star.earned ? (count ? t('threeStar.passedWithTips', { count }) : t('threeStar.passed')) : t('threeStar.toFix', { count })}</small>
                   </div>
+                  {key === 'brief' && star.enabled && <span className="ts-tile-meter"><i style={{ width: `${Math.round(analysis.briefCompleteness * 100)}%` }} /></span>}
                 </div>
-                <span className="ts-sug-star">{t(`threeStar.stars.${s.star}`)}</span>
-              </article>
-            );
-          }))}
-          {done.length > 0 && (
-            <button type="button" className="ts-link muted ts-handled-toggle" onClick={() => setShowHandled((v) => !v)}>
-              {showHandled ? t('threeStar.hideHandled') : t('threeStar.showHandled', { count: done.length })}
-            </button>
-          )}
-          {showHandled && done.map((s) => (
-            <article key={s.id} className="ts-sug handled">
-              <span className="ts-sev">{t(`threeStar.handled.${handled[s.id]}`)}</span>
-              <div className="ts-sug-body"><b>{sugTitle(s.key, s.params).title}</b>
-                <div className="ts-sug-actions"><button type="button" className="ts-link" onClick={() => markSuggestion(event.id, s.id, null)}>{t('threeStar.reopen')}</button></div>
-              </div>
-            </article>
-          ))}
-        </section>
-
-        <aside className="ts-side">
-          {settings.suggestChecklist && (
-            <section className="card ts-checklist">
-              <h3>{t('threeStar.checklistTitle')}</h3>
-              <p>{t('threeStar.checklistBody', { count: analysis.checklist.length })}</p>
-              <ul>
-                {analysis.checklist.slice(0, 5).map((task) => <li key={task.key}>{t(`threeStar.tasks.${task.key}`, task.params)}</li>)}
-                {analysis.checklist.length > 5 && <li className="more">{t('threeStar.andMore', { count: analysis.checklist.length - 5 })}</li>}
-              </ul>
-              <div className="ts-checklist-actions">
-                <button type="button" className="btn btn-primary" onClick={generateChecklist}>{aiGroup ? t('threeStar.updateChecklist') : t('threeStar.generateChecklist')}</button>
-                {aiGroup && <button type="button" className="btn btn-ghost" onClick={onOpenChecklist}>{t('threeStar.openChecklist')}</button>}
-              </div>
-            </section>
-          )}
-          <section className="card ts-context">
-            <h3>{t('threeStar.readTitle')}</h3>
-            <ul>
-              <li><span>{t('threeStar.read.dates')}</span><b>{event.start ? `${fmt(event.start)}${event.end && event.end !== event.start ? ` – ${fmt(event.end)}` : ''}` : '—'}</b></li>
-              <li><span>{t('threeStar.read.items')}</span><b>{items.length}</b></li>
-              <li><span>{t('threeStar.read.venue')}</span><b>{event.address || '—'}</b></li>
-              <li><span>{t('threeStar.read.brief')}</span><b>{Math.round(analysis.briefCompleteness * 100)}%</b></li>
-            </ul>
-          </section>
-        </aside>
-      </div>
-
-      <section ref={briefRef} className="card ts-brief">
-        <button type="button" className="ts-brief-head" aria-expanded={briefOpen} onClick={() => setBriefOpen((v) => !v)}>
-          <span>
-            <b>{t('threeStar.briefTitle')}</b>
-            <small>{t('threeStar.briefSub')}</small>
-          </span>
-          <span className="ts-brief-pct">{Math.round(analysis.briefCompleteness * 100)}%</span>
-        </button>
-        {briefOpen && (
-          <form className="ts-brief-form" onSubmit={(e) => { e.preventDefault(); submitBrief(); }}>
-            <label className="ts-f"><span>{t('threeStar.brief.eventType')}</span>
-              <select id="ts-type" value={brief.eventType} onChange={(e) => set('eventType', e.target.value as EventBrief['eventType'])}>
-                <option value="">—</option>{['wedding', 'corporate', 'birthday', 'gala', 'exhibition', 'other'].map((v) => <option key={v} value={v}>{t(`threeStar.brief.typeOpt.${v}`)}</option>)}
-              </select></label>
-            <label className="ts-f"><span>{t('threeStar.brief.guests')}</span><input id="ts-guests" type="number" min={0} inputMode="numeric" value={brief.guests} onChange={(e) => set('guests', e.target.value)} placeholder="250" /></label>
-            <label className="ts-f"><span>{t('threeStar.brief.venueType')}</span>
-              <select id="ts-venue" value={brief.venueType} onChange={(e) => set('venueType', e.target.value as EventBrief['venueType'])}>
-                <option value="">—</option>{['indoor', 'outdoor', 'semi'].map((v) => <option key={v} value={v}>{t(`threeStar.brief.venueOpt.${v}`)}</option>)}
-              </select></label>
-            {(outdoor || brief.venueType === 'semi') && <label className="ts-f"><span>{t('threeStar.brief.ground')}</span>
-              <select id="ts-ground" value={brief.ground} onChange={(e) => set('ground', e.target.value as EventBrief['ground'])}>
-                <option value="">—</option>{['grass', 'sand', 'floor', 'carpet'].map((v) => <option key={v} value={v}>{t(`threeStar.brief.groundOpt.${v}`)}</option>)}
-              </select></label>}
-            {(outdoor || brief.venueType === 'semi') && <label className="ts-f"><span>{t('threeStar.brief.rainPlan')}</span>
-              <select id="ts-rain" value={brief.rainPlan} onChange={(e) => set('rainPlan', e.target.value as EventBrief['rainPlan'])}>
-                <option value="">—</option>{['tent', 'indoor', 'none'].map((v) => <option key={v} value={v}>{t(`threeStar.brief.rainOpt.${v}`)}</option>)}
-              </select></label>}
-            <label className="ts-f"><span>{t('threeStar.brief.power')}</span>
-              <select id="ts-power" value={brief.power} onChange={(e) => set('power', e.target.value as EventBrief['power'])}>
-                <option value="">—</option>{['venue', 'genset', 'none'].map((v) => <option key={v} value={v}>{t(`threeStar.brief.powerOpt.${v}`)}</option>)}
-              </select></label>
-            <label className="ts-f"><span>{t('threeStar.brief.loadIn')}</span><input id="ts-loadin" type="datetime-local" value={brief.loadIn} onChange={(e) => set('loadIn', e.target.value)} /></label>
-            <label className="ts-f"><span>{t('threeStar.brief.eventStartTime')}</span><input id="ts-start" type="time" value={brief.eventStartTime} onChange={(e) => set('eventStartTime', e.target.value)} /></label>
-            <label className="ts-f wide"><span>{t('threeStar.brief.style')}</span><input id="ts-style" value={brief.style} onChange={(e) => set('style', e.target.value)} placeholder={t('threeStar.brief.stylePh')} /></label>
-            <label className="ts-f wide"><span>{t('threeStar.brief.colors')}</span><input id="ts-colors" value={brief.colors} onChange={(e) => set('colors', e.target.value)} placeholder={t('threeStar.brief.colorsPh')} /></label>
-            <label className="ts-f full"><span>{t('threeStar.brief.priorities')}</span><textarea id="ts-prio" rows={3} value={brief.priorities} onChange={(e) => set('priorities', e.target.value)} placeholder={t('threeStar.brief.prioritiesPh')} /></label>
-            <div className="ts-brief-actions full">
-              <span>{t('threeStar.briefPrivacy')}</span>
-              {dirty && <button type="button" className="btn btn-ghost" onClick={() => setBrief(saved)}>{t('eventChecklist.cancel')}</button>}
-              <button type="submit" className="btn btn-primary" disabled={!dirty}>{t('threeStar.saveBrief')}</button>
-            </div>
-          </form>
+              );
+            })}
+          </div>
         )}
       </section>
+
+      {setupMode && briefCard}
+
+      {!setupMode && (
+        <div className="ts-grid">
+          <section className="card ts-suggestions" aria-label={t('threeStar.suggestionsTitle')}>
+            <h3>{t('threeStar.suggestionsTitle')} <span className="stage-tab-count">{open.length}</span></h3>
+            {open.length === 0 && <p className="ts-empty">{t('threeStar.allClear')}</p>}
+            {shown.map((entry) => (entry.list.length > 1 ? (
+              <article key={entry.key} className={`ts-item-group ${entry.list[0].severity}`}>
+                <header>
+                  <b>{entry.item}</b>
+                  <span>{t('threeStar.itemNotes', { count: entry.list.length })}</span>
+                  <button type="button" className="ts-link" onClick={() => onOpenItems(entry.item)}>{t('threeStar.openItem')}</button>
+                </header>
+                {(() => { const alt = entry.list.find((x) => x.altSearch)?.altSearch; return alt ? <Alternatives search={alt} exclude={entry.item} /> : null; })()}
+                {entry.list.map((sug) => renderSug(sug, true))}
+              </article>
+            ) : renderSug(entry.list[0])))}
+            {entries.length > TOP_LIMIT && (
+              <button type="button" className="ts-link ts-more" onClick={() => setShowAll((v) => !v)}>
+                {showAll ? t('threeStar.showLess') : t('threeStar.showAll', { count: entries.length - TOP_LIMIT })}
+              </button>
+            )}
+            {done.length > 0 && (
+              <button type="button" className="ts-link muted ts-handled-toggle" onClick={() => setShowHandled((v) => !v)}>
+                {showHandled ? t('threeStar.hideHandled') : t('threeStar.showHandled', { count: done.length })}
+              </button>
+            )}
+            {showHandled && done.map((sug) => (
+              <div key={sug.id} className="ts-sug handled">
+                <span className="ts-sev">{t(`threeStar.handled.${sug.handled!.state}`)}</span>
+                <div className="ts-sug-body">
+                  <b>{sugText(sug).title}</b>
+                  <p className="ts-handled-by">
+                    {sug.handled!.by && t('threeStar.handledBy', { name: sug.handled!.by, date: sug.handled!.at ? fmtTime(sug.handled!.at) : '' })}
+                    {sug.handled!.reason && <> · “{sug.handled!.reason}”</>}
+                  </p>
+                  <div className="ts-sug-actions"><button type="button" className="ts-link" onClick={() => markSuggestion(event.id, sug.id, null)}>{t('threeStar.reopen')}</button></div>
+                </div>
+              </div>
+            ))}
+          </section>
+
+          <aside className="ts-side">
+            {settings.suggestChecklist && (
+              <section className="card ts-checklist">
+                <h3>{t('threeStar.checklistTitle')}</h3>
+                <p>{t('threeStar.checklistBody', { count: analysis.checklist.length })}</p>
+                <ul>
+                  {analysis.checklist.slice(0, 5).map((task) => <li key={task.key}>{t(`threeStar.tasks.${task.key}`, task.params)}</li>)}
+                  {analysis.checklist.length > 5 && <li className="more">{t('threeStar.andMore', { count: analysis.checklist.length - 5 })}</li>}
+                </ul>
+                <div className="ts-checklist-actions">
+                  <button type="button" className="btn btn-primary" onClick={generateChecklist}>{aiGroup ? t('threeStar.updateChecklist') : t('threeStar.generateChecklist')}</button>
+                  {aiGroup && <button type="button" className="btn btn-ghost" onClick={onOpenChecklist}>{t('threeStar.openChecklist')}</button>}
+                </div>
+              </section>
+            )}
+            <section className="card ts-context">
+              <h3>{t('threeStar.readTitle')}</h3>
+              <ul>
+                <li><span>{t('threeStar.read.dates')}</span><b>{event.start ? `${fmt(event.start)}${event.end && event.end !== event.start ? ` – ${fmt(event.end)}` : ''}` : '—'}</b></li>
+                <li><span>{t('threeStar.read.items')}</span><b>{items.length}</b></li>
+                <li><span>{t('threeStar.read.venue')}</span><b>{event.address || '—'}</b></li>
+                <li><span>{t('threeStar.read.brief')}</span><b>{Math.round(analysis.briefCompleteness * 100)}%</b></li>
+              </ul>
+            </section>
+          </aside>
+        </div>
+      )}
+
+      {!setupMode && briefCard}
     </div>
   );
 }

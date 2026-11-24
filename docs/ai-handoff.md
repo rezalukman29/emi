@@ -6,6 +6,20 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-24 — 3 Star v2 (UX roast fixes)
+
+- Store `emi.threeStar.v1` now also has `scores` (per event `{earned, risks, open, at}`, written by the panel) and
+  `pendingBriefs` (keyed `pendingBriefKey(name, start)`, claimed in EventDetail by `claimPendingBrief`); `handled` values
+  are `Handling {state, reason?, by, at}` (old string values are migrated on load).
+- `analyzeEvent(..., handled)` marks suggestions with `handled` and scores only unhandled ones; brief star also passes
+  when `brief-missing` was handled. Suggestions carry `itemName` (grouping) and `altSearch` ("kayu").
+- Panel: setup mode when no brief; groups per item; `Alternatives` reads `/v2/barang-gudang/detail?search=` (reuse) and
+  filters by the word client-side; dismiss needs a reason; checklist due ≥ today; `onOpenItems(name)` sets the Items
+  keyword search. EventPage: optional brief section (`BriefFields`), `.event-card-stars`, `.event-star-filter`.
+- **Checks:** build OK, tsc 0, lint 12/1, tests 38/40. Playwright (mock): setup mode → after brief 2/3 (was 1→0 before),
+  handling all suggestions → 3/3 "Nothing to fix"; item link filters Items; no overdue AI tasks; card stars + filter;
+  form brief section; off state; 390 px no sideways scroll; no page errors.
+
 ## 2026-11-24 — AI Tools hub + 3 Star Protection (mock)
 
 - **Engine:** `analyzeEvent(event, items, brief, settings, today, clashes)` in `src/lib/threeStar.ts` returns stars,

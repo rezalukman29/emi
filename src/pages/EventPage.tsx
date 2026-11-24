@@ -34,6 +34,9 @@ import { useTranslation } from "react-i18next";
 import { getDateLocale } from "../utils/function";
 import { LIFECYCLE_STATUSES, LIFECYCLE_BADGES, type LifecycleStatus } from '../lib/eventLifecycle';
 import "../eventUpgrade.css";
+import { briefHasContent, EMPTY_BRIEF, pendingBriefKey, saveBrief, savePendingBrief, useThreeStar, type EventBrief } from "../lib/threeStar";
+import BriefFields from "../components/ai/BriefFields";
+import { StarRow } from "../components/ai/ThreeStarPanel";
 
 const PAGE_SIZE = 8;
 const monthLabel = (month: number, style: "short" | "long" = "short") =>
@@ -300,6 +303,11 @@ export default function EventPage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [pastPage, setPastPage] = useState(1);
   const [upQuery, setUpQuery] = useState("");
+  // 3 Star Protection (owner 2026-11-24): optional AI brief in the event form, stars on cards, quick filter.
+  const threeStar = useThreeStar();
+  const [aiBrief, setAiBrief] = useState<EventBrief>(EMPTY_BRIEF);
+  const [aiBriefOpen, setAiBriefOpen] = useState(false);
+  const [starOnly, setStarOnly] = useState(false);
   const [base64, setBase64] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   // PIC is picked from the tenant's users (owner 2026-11-22). Saved as the user's name in the same
@@ -420,6 +428,12 @@ export default function EventPage() {
           );
         }
 
+        if (threeStar.settings.enabled && briefHasContent(aiBrief)) {
+          const newId = Number((result as { data?: { id?: number } }).data?.id);
+          if (isModify && event?.id) saveBrief(event.id, aiBrief);
+          else if (newId > 0) saveBrief(newId, aiBrief);
+          else savePendingBrief(pendingBriefKey(values.name, values.event_start), aiBrief);
+        }
         toast.success(
           result.message ||
             (isModify
@@ -568,6 +582,8 @@ export default function EventPage() {
     setIsModify(false);
     setEvent(null);
     formik.resetForm();
+    setAiBrief(EMPTY_BRIEF);
+    setAiBriefOpen(false);
     setModalOpen(true);
   }
   function openEdit(id: number) {
@@ -580,6 +596,8 @@ export default function EventPage() {
     setEditingId(id);
     setIsModify(true);
     setEvent(r);
+    setAiBrief(threeStar.briefs[id] ?? EMPTY_BRIEF);
+    setAiBriefOpen(false);
     setModalOpen(true);
   }
 
@@ -667,6 +685,11 @@ export default function EventPage() {
             <span className="badge badge-gray" style={{ fontSize: 10.5 }}>
               {r.event_code}
             </span>
+            {threeStar.settings.enabled && threeStar.scores[r.id] && (
+              <span className={`event-card-stars${threeStar.scores[r.id].risks ? ' risk' : ''}`} data-tip={t('threeStar.cardTip', { count: threeStar.scores[r.id].earned, risks: threeStar.scores[r.id].risks })}>
+                <StarRow earned={threeStar.scores[r.id].earned} size="sm" />
+              </span>
+            )}
             <EventDateChip record={r} />
             <span className={`badge ${LIFECYCLE_BADGES[lifecycleOf(r)]}`}>{t(`lifecycle.${lifecycleOf(r)}`)}</span>
           </div>
@@ -1145,6 +1168,11 @@ export default function EventPage() {
               />
             </div>
             {renderFilterButton()}
+            {threeStar.settings.enabled && Object.keys(threeStar.scores).length > 0 && (
+              <button type="button" className={`btn btn-ghost event-star-filter${starOnly ? ' on' : ''}`} aria-pressed={starOnly} onClick={() => setStarOnly((v) => !v)}>
+                <StarRow earned={starOnly ? 1 : 0} size="sm" /> {t('threeStar.filterNeeds', { count: upcomingEvents.filter((r: EventRecord) => threeStar.scores[r.id] && threeStar.scores[r.id].earned < 3).length })}
+              </button>
+            )}
             <button className="btn-print" onClick={() => window.print()}>
               <IconPrint /> {t("wording.print")}
             </button>
@@ -1169,7 +1197,7 @@ export default function EventPage() {
                 gap: 14,
               }}
             >
-              {upcomingEvents.map((r: EventRecord) => (
+              {(starOnly ? upcomingEvents.filter((r: EventRecord) => threeStar.scores[r.id] && threeStar.scores[r.id].earned < 3) : upcomingEvents).map((r: EventRecord) => (
                 ['checking-inventory', 'transferred'].includes(activeTab) ? <PastEventRow key={r.id} r={r} onEdit={openEdit} onDelete={openDelete} navigate={navigate} /> : <EventCard
                   key={r.id}
                   r={r}
@@ -1677,6 +1705,16 @@ export default function EventPage() {
             )}
           </div>
         </div>
+        {threeStar.settings.enabled && (
+          <div className="event-ai-brief">
+            <button type="button" className="event-ai-brief-head" aria-expanded={aiBriefOpen} onClick={() => setAiBriefOpen((v) => !v)}>
+              <span className="ts-ai-badge">★ {t('threeStar.name')}</span>
+              <span><b>{t('threeStar.formTitle')}</b><small>{t('threeStar.formSub')}</small></span>
+              <span className="event-ai-brief-state">{briefHasContent(aiBrief) ? t('threeStar.formFilled') : t('threeStar.formOptional')}</span>
+            </button>
+            {aiBriefOpen && <div className="ts-brief-form compact"><BriefFields brief={aiBrief} onChange={setAiBrief} idPrefix="ev-ai" /></div>}
+          </div>
+        )}
       </Modal>
 
       {/* Delete confirm modal */}

@@ -59,17 +59,26 @@ export interface EventBrief {
 
 export const EMPTY_BRIEF: EventBrief = { eventType: '', guests: '', venueType: '', ground: '', style: '', colors: '', loadIn: '', eventStartTime: '', power: '', rainPlan: '', priorities: '' };
 
+/** How a suggestion was handled. "Not relevant" needs a short reason (shown to the team). */
+export interface Handling { state: 'done' | 'dismissed'; reason?: string; by: string; at: string }
+
+/** Last computed score per event, so lists (Events page) can show stars without re-analysing. */
+export interface ScoreSnapshot { earned: number; risks: number; open: number; at: string }
+
 interface State {
   settings: ThreeStarSettings;
   briefs: Record<number, EventBrief>;
-  /** Suggestion ids the user marked done / dismissed, per event. */
-  handled: Record<number, Record<string, 'done' | 'dismissed'>>;
+  /** Handled suggestions per event. */
+  handled: Record<number, Record<string, Handling>>;
+  scores: Record<number, ScoreSnapshot>;
+  /** Briefs typed in the New Event form before the event had an id, keyed by "name|start". */
+  pendingBriefs: Record<string, EventBrief>;
 }
 
 const KEY = 'emi.threeStar.v1';
 
 function load(): State {
-  const empty: State = { settings: DEFAULT_THREE_STAR, briefs: {}, handled: {} };
+  const empty: State = { settings: DEFAULT_THREE_STAR, briefs: {}, handled: {}, scores: {}, pendingBriefs: {} };
   try {
     const raw = window.localStorage.getItem(KEY);
     if (!raw) return empty;
@@ -77,7 +86,10 @@ function load(): State {
     return {
       settings: { ...DEFAULT_THREE_STAR, ...parsed.settings, checks: { ...DEFAULT_THREE_STAR.checks, ...parsed.settings?.checks } },
       briefs: parsed.briefs ?? {},
-      handled: parsed.handled ?? {},
+      // v1 stored plain 'done' | 'dismissed' strings.
+      handled: Object.fromEntries(Object.entries(parsed.handled ?? {}).map(([eventId, map]) => [eventId, Object.fromEntries(Object.entries(map as Record<string, unknown>).map(([id, value]) => [id, typeof value === 'string' ? { state: value as Handling['state'], by: '', at: '' } : value as Handling]))])),
+      scores: parsed.scores ?? {},
+      pendingBriefs: parsed.pendingBriefs ?? {},
     };
   } catch {
     return empty;
@@ -97,7 +109,29 @@ export function useThreeStar() {
 }
 export function saveThreeStarSettings(settings: ThreeStarSettings) { state = { ...state, settings }; emit(); }
 export function saveBrief(eventId: number, brief: EventBrief) { state = { ...state, briefs: { ...state.briefs, [eventId]: { ...brief, updatedAt: new Date().toISOString() } } }; emit(); }
-export function markSuggestion(eventId: number, id: string, value: 'done' | 'dismissed' | null) {
+export function saveScore(eventId: number, snapshot: Omit<ScoreSnapshot, 'at'>) {
+  const prev = state.scores[eventId];
+  if (prev && prev.earned === snapshot.earned && prev.risks === snapshot.risks && prev.open === snapshot.open) return;
+  state = { ...state, scores: { ...state.scores, [eventId]: { ...snapshot, at: new Date().toISOString() } } };
+  emit();
+}
+export const pendingBriefKey = (name: string, start: string) => `${name.trim().toLowerCase()}|${start.slice(0, 10)}`;
+export function savePendingBrief(key: string, brief: EventBrief) {
+  state = { ...state, pendingBriefs: { ...state.pendingBriefs, [key]: brief } };
+  emit();
+}
+/** Moves a brief typed in the New Event form onto the event once it has an id. */
+export function claimPendingBrief(eventId: number, key: string) {
+  const brief = state.pendingBriefs[key];
+  if (!brief || state.briefs[eventId]) return;
+  const rest = { ...state.pendingBriefs };
+  delete rest[key];
+  state = { ...state, pendingBriefs: rest, briefs: { ...state.briefs, [eventId]: { ...brief, updatedAt: new Date().toISOString() } } };
+  emit();
+}
+export const briefHasContent = (brief: EventBrief) => Object.entries(brief).some(([key, value]) => key !== 'updatedAt' && String(value ?? '').trim() !== '');
+
+export function markSuggestion(eventId: number, id: string, value: Handling | null) {
   const current = { ...(state.handled[eventId] ?? {}) };
   if (value) current[id] = value; else delete current[id];
   state = { ...state, handled: { ...state.handled, [eventId]: current } };
@@ -129,6 +163,12 @@ export interface Suggestion {
   params?: Record<string, string | number>;
   /** Optional quick action the UI can offer. */
   action?: 'openBrief' | 'openItems' | 'openChecklist';
+  /** Item the suggestion is about (used to group suggestions per item and to open it). */
+  itemName?: string;
+  /** Search word for alternatives from the inventory (e.g. "kayu"). */
+  altSearch?: string;
+  /** Set when the team handled it. Handled suggestions no longer count against the stars. */
+  handled?: Handling;
 }
 
 export interface StarResult { key: StarKey; score: number; earned: boolean; enabled: boolean }
@@ -152,15 +192,18 @@ const KB = {
   electronic: ['tv', 'led screen', 'videotron', 'speaker', 'sound', 'projector'],
 };
 
-const LIMITS: Record<Strictness, { tight: number; briefPass: number }> = {
+export const LIMITS: Record<Strictness, { tight: number; briefPass: number }> = {
   relaxed: { tight: 0.5, briefPass: 0.5 },
   balanced: { tight: 1, briefPass: 0.7 },
   strict: { tight: 1.5, briefPass: 0.9 },
 };
 
-export function analyzeEvent(event: AnalysisEvent, items: AnalysisItem[], brief: EventBrief, settings: ThreeStarSettings, today: string, clashes: AnalysisClash[] = []): Analysis {
+export function analyzeEvent(event: AnalysisEvent, items: AnalysisItem[], brief: EventBrief, settings: ThreeStarSettings, today: string, clashes: AnalysisClash[] = [], handled: Record<string, Handling> = {}): Analysis {
   const s: Suggestion[] = [];
-  const add = (sug: Suggestion) => s.push(sug);
+  const add = (sug: Suggestion) => {
+    const item = typeof sug.params?.item === 'string' ? sug.params.item : undefined;
+    s.push({ ...sug, itemName: sug.itemName ?? item, handled: handled[sug.id] });
+  };
   const limits = LIMITS[settings.strictness];
   const text = `${event.name} ${event.description} ${event.notes} ${brief.style} ${brief.priorities}`.toLowerCase();
   const outdoor = brief.venueType === 'outdoor' || (!brief.venueType && has(text, ['outdoor', 'garden', 'taman', 'pantai', 'beach', 'rooftop']));
@@ -191,13 +234,13 @@ export function analyzeEvent(event: AnalysisEvent, items: AnalysisItem[], brief:
     if (!items.length) add({ id: 'items-empty', star: 'items', severity: daysBetween(today, event.start) <= 14 ? 'risk' : 'tip', key: 'noItems', action: 'openItems' });
     const round = find(KB.roundTable);
     if (round.length && (outdoor && (brief.ground === 'grass' || brief.ground === 'sand'))) {
-      add({ id: 'items-round-ground', star: 'items', severity: 'warn', key: 'roundTableGround', params: { item: round[0].name, ground: brief.ground } });
+      add({ id: 'items-round-ground', star: 'items', severity: 'warn', key: 'roundTableGround', altSearch: 'kayu', params: { item: round[0].name, ground: brief.ground } });
     }
     if (round.length && !round.some((i) => has(i.n, KB.wood)) && (has(text, ['rustic', 'natural', 'garden', 'kayu', 'boho']) || outdoor)) {
-      add({ id: 'items-round-wood', star: 'items', severity: 'tip', key: 'roundTableWood', params: { item: round[0].name } });
+      add({ id: 'items-round-wood', star: 'items', severity: 'tip', key: 'roundTableWood', altSearch: 'kayu', params: { item: round[0].name } });
     }
     const glass = find(KB.glass);
-    if (glass.length && outdoor) add({ id: 'items-glass-outdoor', star: 'items', severity: 'warn', key: 'glassOutdoor', params: { item: glass[0].name } });
+    if (glass.length && outdoor) add({ id: 'items-glass-outdoor', star: 'items', severity: 'warn', key: 'glassOutdoor', altSearch: 'kayu', params: { item: glass[0].name } });
     const fabric = find(KB.fabric);
     if (fabric.length && outdoor && brief.rainPlan !== 'tent') add({ id: 'items-fabric-rain', star: 'items', severity: 'warn', key: 'fabricRain', params: { item: fabric[0].name } });
     const lights = find(KB.light);
@@ -212,7 +255,7 @@ export function analyzeEvent(event: AnalysisEvent, items: AnalysisItem[], brief:
     }
     const flowers = find(KB.flower);
     if (flowers.length && daysBetween(event.loadInDate || event.start, event.start) >= 2) add({ id: 'items-flowers', star: 'items', severity: 'tip', key: 'flowersEarly', params: { item: flowers[0].name } });
-    if (has(text, ['rustic', 'boho', 'natural']) && glass.length) add({ id: 'items-style', star: 'items', severity: 'tip', key: 'styleMismatch', params: { style: brief.style || 'rustic', item: glass[0].name } });
+    if (has(text, ['rustic', 'boho', 'natural']) && glass.length) add({ id: 'items-style', star: 'items', severity: 'tip', key: 'styleMismatch', altSearch: 'kayu', params: { style: brief.style || 'rustic', item: glass[0].name } });
     clashes.slice(0, 3).forEach((c, i) => add({ id: `items-clash-${i}`, star: 'items', severity: 'risk', key: 'stockClash', params: { item: c.itemName, shortage: c.shortage, from: c.from, to: c.to } }));
   }
 
@@ -234,11 +277,15 @@ export function analyzeEvent(event: AnalysisEvent, items: AnalysisItem[], brief:
   }
 
   const sevWeight: Record<Severity, number> = { risk: 40, warn: 15, tip: 0 };
-  const starScore = (key: StarKey) => Math.max(0, 100 - s.filter((x) => x.star === key).reduce((sum, x) => sum + sevWeight[x.severity], 0));
+  // Only suggestions the team has not handled count. Marking "Done" or "Not relevant" (with a reason) lifts the star.
+  const live = s.filter((x) => !x.handled);
+  const starScore = (key: StarKey) => Math.max(0, 100 - live.filter((x) => x.star === key).reduce((sum, x) => sum + sevWeight[x.severity], 0));
   const stars: StarResult[] = (['brief', 'items', 'schedule'] as StarKey[]).map((key) => {
     const enabled = settings.checks[key];
     const score = key === 'brief' ? Math.round(Math.min(starScore('brief'), briefCompleteness * 100)) : starScore(key);
-    const earned = enabled && (key === 'brief' ? briefCompleteness >= limits.briefPass && !s.some((x) => x.star === 'brief' && x.severity === 'risk') : !s.some((x) => x.star === key && x.severity === 'risk') && score >= 70);
+    const earned = enabled && (key === 'brief'
+      ? (briefCompleteness >= limits.briefPass || !live.some((x) => x.id === 'brief-missing')) && !live.some((x) => x.star === 'brief' && x.severity === 'risk')
+      : !live.some((x) => x.star === key && x.severity === 'risk') && score >= 70);
     return { key, score, earned, enabled };
   });
 
@@ -259,6 +306,7 @@ export function analyzeEvent(event: AnalysisEvent, items: AnalysisItem[], brief:
   if (find(KB.stage).length) cl.push({ key: 'rigging', dueOffsetDays: 0, requiresPhoto: true });
   if (brief.eventType === 'wedding') cl.push({ key: 'weddingRundown', dueOffsetDays: -5 });
 
+  /** Days before the start a "too tight" warning starts (min days × strictness factor). */
   const order: Record<Severity, number> = { risk: 0, warn: 1, tip: 2 };
   s.sort((a, b) => order[a.severity] - order[b.severity]);
   return { stars, earned: stars.filter((x) => x.earned).length, suggestions: s, briefCompleteness, checklist: cl };

@@ -1,7 +1,7 @@
 import { fmtNum as fmtDisplayNumber } from '../lib/format';
 import { useGetEventCalendarClashes, type EventCalendarClash } from '../hooks/api/useGetEventCalendar';
 import ThreeStarPanel, { StarRow } from '../components/ai/ThreeStarPanel';
-import { analyzeEvent, EMPTY_BRIEF, useThreeStar, type AnalysisEvent } from '../lib/threeStar';
+import { analyzeEvent, claimPendingBrief, EMPTY_BRIEF, pendingBriefKey, useThreeStar, type AnalysisEvent } from '../lib/threeStar';
 import { isTenantAdminUser as isTenantAdminForStars } from '../lib/tenantUser';
 import BrokenItemReport from '../components/BrokenItemReport';
 import PrintPlanModal from '../components/PrintPlanModal.jsx';
@@ -1501,9 +1501,13 @@ export default function EventDetailPage() {
     description: eventDetail?.description ?? '',
     notes: eventDetail?.notes ?? '',
   }), [eventId, eventDetail]);
+  // A brief typed in the New Event form (before the event had an id) is attached here.
+  useEffect(() => {
+    if (eventId && eventDetail?.name && eventDetail?.event_start) claimPendingBrief(eventId, pendingBriefKey(eventDetail.name, String(eventDetail.event_start)));
+  }, [eventId, eventDetail?.name, eventDetail?.event_start]);
   const starItems = useMemo(() => items.map((item) => ({ name: item.name, qty: Number(item.qty) || 0, area: item.area ?? '' })), [items]);
   const starClashes = useMemo(() => [...clashesByItem.values()].flat().map((c) => ({ itemName: c.item_name, from: String(c.from).slice(0, 10), to: String(c.to).slice(0, 10), shortage: c.shortage })), [clashesByItem]);
-  const starEarned = useMemo(() => (threeStar.settings.enabled && eventDetail ? analyzeEvent(starEvent, starItems, threeStar.briefs[eventId] ?? EMPTY_BRIEF, threeStar.settings, todayIso(), starClashes).earned : 0), [threeStar, eventDetail, starEvent, starItems, starClashes, eventId]);
+  const starEarned = useMemo(() => (threeStar.settings.enabled && eventDetail ? (threeStar.briefs[eventId] ? analyzeEvent(starEvent, starItems, threeStar.briefs[eventId] ?? EMPTY_BRIEF, threeStar.settings, todayIso(), starClashes, threeStar.handled[eventId] ?? {}).earned : -1) : 0), [threeStar, eventDetail, starEvent, starItems, starClashes, eventId]);
   const cartQtyByBarang = useMemo(() => {
     const totals: Record<number, number> = {};
     cart.forEach((entry) => { if (entry.barangId) totals[entry.barangId] = (totals[entry.barangId] ?? 0) + entry.qty; });
@@ -2847,12 +2851,12 @@ export default function EventDetailPage() {
             {checklistSummary && checklistSummary.blocking > 0 && <span className="badge badge-orange ed-view-blocking">{t('eventChecklist.blockingCount', { count: checklistSummary.blocking })}</span>}
           </button>
           {showStars && <button type="button" role="tab" aria-selected={detailView === 'stars'} className={`ed-view-stars${detailView === 'stars' ? ' active' : ''}`} onClick={() => setDetailView('stars')}>
-            {t('threeStar.tab')} {threeStar.settings.enabled ? <StarRow earned={starEarned} size="sm" /> : <span className="stage-tab-count">{t('threeStar.off')}</span>}
+            {t('threeStar.tab')} {!threeStar.settings.enabled ? <span className="stage-tab-count">{t('threeStar.off')}</span> : starEarned < 0 ? <span className="badge badge-purple">{t('threeStar.tabSetup')}</span> : <StarRow earned={starEarned} size="sm" />}
           </button>}
         </div>
 
         {detailView === 'stars' && showStars ? (
-          eventDetail ? <ThreeStarPanel key={eventId} event={starEvent} items={starItems} clashes={starClashes} onOpenItems={() => setDetailView('items')} onOpenChecklist={() => setDetailView('checklist')} /> : <p className="no-data">{t('wording.loading')}</p>
+          eventDetail ? <ThreeStarPanel key={eventId} event={starEvent} items={starItems} clashes={starClashes} onOpenItems={(name) => { setDetailView('items'); setKwSearch(name ?? ''); }} onOpenChecklist={() => setDetailView('checklist')} /> : <p className="no-data">{t('wording.loading')}</p>
         ) : detailView === 'checklist' ? (
           <div className="ed-checklist">
             <p className="ed-checklist-preview"><span className="ck-preview-badge">{t('eventChecklist.preview')}</span> {t('eventChecklist.previewHint')}</p>

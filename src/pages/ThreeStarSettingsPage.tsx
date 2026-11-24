@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import { IconArrowLeft } from '../components/icons';
 import { STAR_ICON } from '../components/ai/ThreeStarPanel';
-import { DEFAULT_THREE_STAR, saveThreeStarSettings, useThreeStar, type StarKey, type Strictness, type ThreeStarSettings } from '../lib/threeStar';
+import { DEFAULT_THREE_STAR, LIMITS, saveThreeStarSettings, useThreeStar, type StarKey, type Strictness, type ThreeStarSettings } from '../lib/threeStar';
 import { isTenantAdminUser } from '../lib/tenantUser';
 import '../eventChecklist.css';
 import '../threeStar.css';
@@ -80,6 +80,7 @@ export default function ThreeStarSettingsPage() {
             <label className="cks-number"><span>{k('minLeadDays')}</span><input id="ts-lead" type="number" min={1} max={120} value={draft.minLeadDays} onChange={(e) => patch({ minLeadDays: Math.min(120, Math.max(1, Number(e.target.value) || 1)) })} /></label>
             <label className="cks-number"><span>{k('setupHours')}</span><input id="ts-setup" type="number" min={1} max={72} value={draft.setupHours} onChange={(e) => patch({ setupHours: Math.min(72, Math.max(1, Number(e.target.value) || 1)) })} /></label>
           </div>
+          <p className="cks-note ts-effective">{k('effective', { days: Math.round(draft.minLeadDays * LIMITS[draft.strictness].tight), min: draft.minLeadDays, level: k(`strict.${draft.strictness}`), hours: draft.setupHours })}</p>
           <div className="cks-row">
             <label className="cks-row-main">
               <span className="cks-row-text"><strong>{k('suggestChecklist')}</strong><span>{k('suggestChecklistHint')}</span></span>
