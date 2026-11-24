@@ -27,6 +27,7 @@ Last updated: 2026-11-23.
 | 7 | **Event cover images** on the event list | Works if the field exists | Confirm `images` in `/v2/event-filter` (URL preferred) | Question | — |
 | 8 | **Partial return / partial transfer** lifecycle | Not built | New lifecycle status + transfer endpoints | Later | `docs/source-migration-53aaf50.md` |
 | 9 | **PIC as a user id** (follow renames, "my events") | Not built — PIC saved as a name | Optional `pic_user_id` on events | Optional | — |
+| 11 | **Availability by date** (lending model) | Clash pill only | Per-item available qty for a date range; add-to-event checks by dates | **High** | — |
 | 10 | **Deleting an event that has items** | UI asks to type the name | Answer: what happens to items, stock and scans? Should the server refuse? | Question | — |
 
 ---
@@ -133,6 +134,22 @@ show "my events".
 ## 10. Deleting an event that has items
 
 What happens to its items, stock and scans? Should the server refuse? The UI only says "cannot be undone".
+
+## 11. Availability by date (owner 2026-11-24)
+
+**Why:** items are lent to events and come back when returned. "Available" must be computed for the event's
+dates, predicting when running events give items back. Today the server checks only today's shelf stock
+("stok barang gudang tidak mencukupi"), so an event next month can be refused although the items are back by then,
+and the Add Items list cannot show the right number.
+**Needed:**
+- `GET /v1/availability?start=yyyy-mm-dd&end=yyyy-mm-dd&barang_ids=1,2&gudang_id=` → per item (and per warehouse):
+  `on_hand` (shelf now), `out_until_return` (lent to events, with each event id, end date and expected return date),
+  `booked_overlapping` (qty in events overlapping the range), `available_for_range` = on_hand + returns due before
+  `start` − booked_overlapping, and `shortage`.
+- Same rule in `POST /v1/fix-list-item` (and qty edit): check `available_for_range` for the event's dates, not today's stock.
+- Expected return date per event (default `event_end` + buffer days set per tenant), overdue returns flagged.
+- Optional: `available_for_range` and `next_free_date` included in `/v2/barang-gudang/detail` when `start`/`end` are passed.
+**Today in the web:** Add Items shows a note and clash pills from `GET /v1/event-calendar/clashes?month=` (reuse).
 
 ---
 

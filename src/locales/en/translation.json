@@ -505,6 +505,7 @@
     "mayHaveItems": "This event may have items. Deleting it cannot be undone.",
     "typeName": "To confirm, type the event name:"
   },
+  "rentalAvail": {"note": "Stock = what is in the warehouse now. This is rental-style inventory: items out at other events come back when those events return them, so check the dates below.", "clashCount_one": "{{count}} item clashes with other events on these dates.", "clashCount_other": "{{count}} items clash with other events on these dates.", "clash": "Clash {{from}}–{{to}}: short {{shortage}}", "clashTip": "Overlapping events need {{demand}}, stock {{stock}}"},
   "addItemsB": {
     "browse": "Browse inventory",
     "stockTabs": "Stock",

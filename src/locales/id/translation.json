@@ -505,6 +505,7 @@
     "mayHaveItems": "Event ini mungkin punya barang. Penghapusan tidak bisa dibatalkan.",
     "typeName": "Untuk konfirmasi, ketik nama event:"
   },
+  "rentalAvail": {"note": "Stok = yang ada di gudang sekarang. Barang bersifat dipinjam: yang sedang dipakai event lain baru kembali setelah event itu diretur, jadi perhatikan tanggal di bawah.", "clashCount_one": "{{count}} barang bentrok dengan event lain di tanggal ini.", "clashCount_other": "{{count}} barang bentrok dengan event lain di tanggal ini.", "clash": "Bentrok {{from}}–{{to}}: kurang {{shortage}}", "clashTip": "Event yang bersamaan butuh {{demand}}, stok {{stock}}"},
   "addItemsB": {
     "browse": "Pilih barang",
     "stockTabs": "Stok",

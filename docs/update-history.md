@@ -41,6 +41,21 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+# 2026-11-24 — Inventory is lent to events: rental availability hints in Add Items
+
+- **Business knowledge (owner):** items go out to an event and come back to the warehouse; a return adds stock
+  again. Availability therefore depends on dates, and stock checks must predict when running events return items.
+  Recorded in `docs/prd/PRD-2026-11-23.md` §1b.
+- **Add Items (A and B):** a note says the stock is what is on the shelf now and that items at other events come back
+  when returned; items that clash with other events on this event's dates get an orange pill
+  "Clash 24 Dec–26 Dec: short 40 · Other event" (data from the Event Calendar clash report, no new API).
+- **Needs API:** a real "available for these dates" number and date-based checks when adding items
+  (`docs/api-backlog.md` §11).
+- **Files:** `src/pages/EventDetailPage.tsx`, `src/hooks/api/useGetEventCalendar.ts`, `src/eventUpgrade.css`,
+  `src/locales/{en,id}/translation.json` (`rentalAvail.*`), docs.
+
+---
+
 # 2026-11-23 — PRD updated to the current product
 
 - New `docs/prd/PRD-2026-11-23.md`: the product as it is now (platform on the real API, navigation, Events list,

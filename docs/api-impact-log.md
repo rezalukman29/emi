@@ -9,6 +9,15 @@ Format: date — change — endpoints/fields touched — impact — action neede
 
 ---
 
+## 2026-11-24 — Rental availability hints in Add Items (+ business rule)
+
+- **Endpoints touched:** none changed. Read-only reuse of `GET /v1/event-calendar/clashes?month=` (the event's start
+  and end month) in Event Detail; `useGetEventCalendarClashes` now skips the call while the month is empty.
+- **Business rule recorded (owner):** inventory is lent to events; returning adds stock back; availability must be
+  predicted by dates. **Needs API — waiting for backend:** availability for a date range and date-based checks when
+  adding items (`docs/api-backlog.md` §11). Open question: the server refuses more than today's shelf stock even when
+  items are back before the event — should it check by the event's dates?
+
 ## 2026-11-23 — PRD refresh
 
 - **Endpoints touched:** none (documentation only). The PRD lists the same "Needs API" items as `docs/api-backlog.md`.

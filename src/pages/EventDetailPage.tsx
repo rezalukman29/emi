@@ -1,4 +1,5 @@
 import { fmtNum as fmtDisplayNumber } from '../lib/format';
+import { useGetEventCalendarClashes, type EventCalendarClash } from '../hooks/api/useGetEventCalendar';
 import BrokenItemReport from '../components/BrokenItemReport';
 import PrintPlanModal from '../components/PrintPlanModal.jsx';
 import RentalLogTab from '../components/RentalLogTab';
@@ -1442,6 +1443,45 @@ export default function EventDetailPage() {
     pickerAutoPages.current += 1;
     void fetchNextBarangPage();
   }, [newItemOpen, hasNextBarangPage, isFetchingNextBarangPage, isBarangGudangLoading, pickerFiltered.length, fetchNextBarangPage]);
+  // Rental model (owner 2026-11-24): items go out to an event and come back to the warehouse when it
+  // is returned, so availability depends on dates. The only date-based data today is the Event
+  // Calendar clash report (GET /v1/event-calendar/clashes?month=, read-only reuse): items whose
+  // overlapping events need more than the stock. Show those clashes for this event's dates.
+  const pickEventStart = String(eventDetail?.event_start ?? '').slice(0, 10);
+  const pickEventEnd = String(eventDetail?.event_end ?? eventDetail?.event_start ?? '').slice(0, 10);
+  const clashStartMonth = /^\d{4}-\d{2}/.test(pickEventStart) ? pickEventStart.slice(0, 7) : '';
+  const clashEndMonth = /^\d{4}-\d{2}/.test(pickEventEnd) ? pickEventEnd.slice(0, 7) : clashStartMonth;
+  const clashStartQuery = useGetEventCalendarClashes(clashStartMonth);
+  const clashEndQuery = useGetEventCalendarClashes(clashEndMonth);
+  const clashesByItem = useMemo(() => {
+    const map = new Map<number, EventCalendarClash[]>();
+    if (!pickEventStart) return map;
+    const all = [...(clashStartQuery.data?.data?.clashes ?? []), ...(clashEndMonth !== clashStartMonth ? clashEndQuery.data?.data?.clashes ?? [] : [])];
+    const seen = new Set<string>();
+    for (const clash of all) {
+      const from = String(clash.from).slice(0, 10);
+      const to = String(clash.to).slice(0, 10);
+      if (from > pickEventEnd || to < pickEventStart) continue;
+      const key = `${clash.item_id}-${from}-${to}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      map.set(clash.item_id, [...(map.get(clash.item_id) ?? []), clash]);
+    }
+    return map;
+  }, [clashStartQuery.data, clashEndQuery.data, clashStartMonth, clashEndMonth, pickEventStart, pickEventEnd]);
+  const clashNote = (barangId: number) => {
+    const list = clashesByItem.get(barangId);
+    if (!list?.length) return null;
+    const worst = list.reduce((a, b) => (b.shortage > a.shortage ? b : a));
+    const others = worst.events.filter((ev) => ev.id !== eventId).map((ev) => ev.name);
+    const fmt = (d: string) => new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString(i18n.language === 'id' ? 'id-ID' : 'en-GB', { day: 'numeric', month: 'short' });
+    return (
+      <div className="inv-clash" title={t('rentalAvail.clashTip', { demand: worst.demand, stock: worst.stock })}>
+        {t('rentalAvail.clash', { from: fmt(worst.from), to: fmt(worst.to), shortage: worst.shortage })}
+        {others.length > 0 && <span> · {others.slice(0, 2).join(', ')}{others.length > 2 ? ` +${others.length - 2}` : ''}</span>}
+      </div>
+    );
+  };
   const cartQtyByBarang = useMemo(() => {
     const totals: Record<number, number> = {};
     cart.forEach((entry) => { if (entry.barangId) totals[entry.barangId] = (totals[entry.barangId] ?? 0) + entry.qty; });
@@ -3865,6 +3905,7 @@ export default function EventDetailPage() {
                 </button>
               ))}
             </div>
+            <p className="inv-avail-note">{t('rentalAvail.note')}{clashesByItem.size > 0 && <strong> {t('rentalAvail.clashCount', { count: clashesByItem.size })}</strong>}</p>
             <div
               ref={inventoryPickerListRef}
               className="inv-pick-list"
@@ -3896,6 +3937,7 @@ export default function EventDetailPage() {
                         <div className="inv-b-info">
                           <div className="inv-b-name">{inv.nama_barang}{inCart > 0 && <span className="inv-b-incart">{t('addItemsB.inCart', { count: inCart })}</span>}</div>
                           <div className="inv-b-meta"><span className="inv-b-sku">{inv.code || `#${inv.barang_id}`}</span>{inv.nama_kategori ? ` · ${inv.nama_kategori}` : ''}</div>
+                          {clashNote(inv.barang_id)}
                           {inv.warehouses.length > 0 ? <div className="inv-b-wh">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-6h6v6"/></svg>
                             {inv.warehouses.length === 1
@@ -3957,6 +3999,7 @@ export default function EventDetailPage() {
                           </span>{" "}
                           · {inv.nama_kategori} · {inv.nama_satuan}
                         </div>
+                        {clashNote(inv.barang_id)}
                         <div className="inv-pick-stock">
                           {t("wording.availableStock")}{" "}
                           <strong>

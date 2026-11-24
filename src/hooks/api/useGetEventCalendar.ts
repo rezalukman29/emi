@@ -83,5 +83,7 @@ export function useGetEventCalendar(month: string) {
 export function useGetEventCalendarClashes(month: string) {
   return useQuery(["event-calendar", "clashes", month], () => getEventCalendarClashes(month), {
     keepPreviousData: true,
+    // Event Detail passes '' until the event dates are known.
+    enabled: Boolean(month),
   });
 }

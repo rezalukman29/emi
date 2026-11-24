@@ -6,6 +6,19 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-24 — Rental model + clash hints in Add Items
+
+- **Rule to remember:** EMI inventory is LENT. Add to event → out; return → stock back; availability = by dates
+  (shelf now + returns due before the event − overlapping bookings). Never treat it like a sales inventory.
+- **Code:** EventDetailPage computes `clashesByItem` from `useGetEventCalendarClashes(start month)` and `(end month)`,
+  filtered to clashes overlapping `event_start..event_end`; `clashNote(barangId)` renders `.inv-clash` in A and B rows;
+  `.inv-avail-note` above the list. Hook now `enabled: Boolean(month)`.
+- **Assumption:** `clash.item_id` = `barang_id` (same id space as `/v2/barang-gudang/detail`). Verify on staging data
+  with a real clash.
+- **Checks:** build OK, tsc 0, lint 12/1 baseline; Playwright mocked clash on item 103 shows pill in A and B, note with
+  count; no page errors. Staging had no clashes in Nov 2026, so not seen with real data.
+- **Needs API:** `docs/api-backlog.md` §11.
+
 ## 2026-11-23 — PRD refresh (docs only)
 
 - `docs/prd/PRD-2026-11-23.md` is now the current product PRD; older PRDs point to it. Technical schema PRD got a

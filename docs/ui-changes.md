@@ -40,6 +40,8 @@ checked at 390 px and tablets at 768 px.
 - **Event Checklist tab:** the same checklist panel as the Event Checklist page (see below).
 
 ### Add Items from Inventory (modal in Event Detail) — A/B test
+- Both: a grey note "Stock = what is in the warehouse now… check the dates" and orange **clash pills** on items that
+  clash with other events on this event's dates (count in the note).
 - Both: search, category, **Available / Out of Stock tabs** with counts ("+" = more pages), a warehouse
   pre-selected (the one with the most stock), "Load more items".
 - **A:** original table-like rows with a warehouse dropdown.
@@ -87,6 +89,12 @@ checked at 390 px and tablets at 768 px.
 ---
 
 ## UI change log (newest first)
+
+### 2026-11-24 — Add Items: rental availability hints
+| Where | Before | After | Why |
+|---|---|---|---|
+| Add Items (A and B) | Stock number only | Note "stock = on the shelf now; items at other events come back when returned" + count of clashing items | Owner: inventory is lent; availability depends on dates |
+| Add Items rows (A and B) | — | Orange pill "Clash 24 Dec–26 Dec: short 40 · Other event" (tooltip: demand vs stock) | Warn before booking items that other events need on the same dates |
 
 ### 2026-11-23 — Event Checklist v2: groups, assign, proof form, admin e-mail, untick history, filter
 Owner request (Event Checklist screen + Event Detail checklist tab). All in the preview (browser only).
