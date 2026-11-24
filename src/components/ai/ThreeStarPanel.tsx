@@ -65,13 +65,15 @@ function Alternatives({ search, exclude }: { search: string; exclude?: string })
   );
 }
 
-export default function ThreeStarPanel({ event, items, clashes, onOpenItems, onOpenChecklist }: {
+export default function ThreeStarPanel({ event, items, clashes, onOpenItems, onOpenChecklist, onRent }: {
   event: AnalysisEvent;
   items: AnalysisItem[];
   clashes: AnalysisClash[];
   /** Opens the Items tab, filtered to this item name when given. */
   onOpenItems: (itemName?: string) => void;
   onOpenChecklist: () => void;
+  /** Opens Rent Item for this event (only when the stage allows rentals). */
+  onRent?: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const store = useThreeStar();
@@ -85,7 +87,7 @@ export default function ThreeStarPanel({ event, items, clashes, onOpenItems, onO
   const [skipSetup, setSkipSetup] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [showHandled, setShowHandled] = useState(false);
-  const [dismissing, setDismissing] = useState<{ id: string; reason: string } | null>(null);
+  const [dismissing, setDismissing] = useState<{ id: string; reason: string; mode: 'dismissed' | 'done' } | null>(null);
   const briefRef = useRef<HTMLElement>(null);
   const me = currentUserName(t('eventChecklist.you'));
   const today = todayIso();
@@ -121,7 +123,7 @@ export default function ThreeStarPanel({ event, items, clashes, onOpenItems, onO
   }
 
   function handle(sug: Suggestion, state: 'done' | 'dismissed', reason?: string) {
-    markSuggestion(event.id, sug.id, { state, reason, by: me, at: new Date().toISOString() });
+    markSuggestion(event.id, sug.id, { state, reason, by: me, at: new Date().toISOString(), fp: sug.fp });
     setDismissing(null);
   }
 
@@ -129,11 +131,13 @@ export default function ThreeStarPanel({ event, items, clashes, onOpenItems, onO
     const now = new Date().toISOString();
     const groupId = aiGroup?.id ?? takeIds();
     const firstId = takeIds(analysis.checklist.length);
-    const existingTitles = new Set(checklist.items.filter((i) => i.groupId === groupId).map((i) => i.title));
+    const groupItems = checklist.items.filter((i) => i.groupId === groupId);
+    const existingTitles = new Set(groupItems.map((i) => i.title));
+    const existingKeys = new Set(groupItems.flatMap((i) => i.activity.map((a) => a.detail ?? '')).filter((d) => d.startsWith('ai:')).map((d) => d.slice(3)));
     const validStart = /^\d{4}-\d{2}-\d{2}$/.test(event.start);
     const tasks = analysis.checklist
       .map((task, index) => ({ task, index, title: t(`threeStar.tasks.${task.key}`, task.params) }))
-      .filter(({ title }) => !existingTitles.has(title))
+      .filter(({ task, title }) => !existingTitles.has(title) && !existingKeys.has(task.key))
       .map(({ task, index, title }) => {
         // Never create a task that is already overdue: the earliest due date is today.
         const ideal = validStart ? addDays(event.start, task.dueOffsetDays) : null;
@@ -144,7 +148,7 @@ export default function ThreeStarPanel({ event, items, clashes, onOpenItems, onO
           requiresPhoto: Boolean(task.requiresPhoto), requiresReport: Boolean(task.requiresReport),
           status: 'open' as const, note: '', photos: [], dueDate,
           assigneeId: null, assignee: null, statusBy: null, statusAt: null,
-          activity: [{ at: now, by: '3 Star AI', action: 'created' as const, detail: 'ai' }],
+          activity: [{ at: now, by: '3 Star AI', action: 'created' as const, detail: `ai:${task.key}` }],
         };
       });
     updateChecklist((current) => ({
@@ -195,18 +199,20 @@ export default function ThreeStarPanel({ event, items, clashes, onOpenItems, onO
           <b>{text.title}</b>
           <p>{text.detail}</p>
           {!compact && sug.altSearch && <Alternatives search={sug.altSearch} exclude={sug.itemName} />}
+          {sug.changedSinceHandled && <p className="ts-changed">{t('threeStar.changedSince')}</p>}
           {dismissing?.id === sug.id ? (
-            <form className="ts-dismiss" onSubmit={(e) => { e.preventDefault(); if (dismissing.reason.trim()) handle(sug, 'dismissed', dismissing.reason.trim()); }}>
-              <input autoFocus value={dismissing.reason} onChange={(e) => setDismissing({ id: sug.id, reason: e.target.value })} placeholder={t('threeStar.dismissReasonPh')} aria-label={t('threeStar.dismissReason')} />
-              <button type="submit" className="btn btn-primary" disabled={!dismissing.reason.trim()}>{t('threeStar.dismiss')}</button>
+            <form className="ts-dismiss" onSubmit={(e) => { e.preventDefault(); if (dismissing.reason.trim()) handle(sug, dismissing.mode, dismissing.reason.trim()); }}>
+              <input autoFocus value={dismissing.reason} onChange={(e) => setDismissing({ ...dismissing, reason: e.target.value })} placeholder={dismissing.mode === 'done' ? t('threeStar.doneNotePh') : t('threeStar.dismissReasonPh')} aria-label={dismissing.mode === 'done' ? t('threeStar.doneNote') : t('threeStar.dismissReason')} />
+              <button type="submit" className="btn btn-primary" disabled={!dismissing.reason.trim()}>{dismissing.mode === 'done' ? t('threeStar.markDone') : t('threeStar.dismiss')}</button>
               <button type="button" className="btn btn-ghost" onClick={() => setDismissing(null)}>{t('eventChecklist.cancel')}</button>
             </form>
           ) : (
             <div className="ts-sug-actions">
               {sug.action === 'openBrief' && <button type="button" className="ts-link" onClick={openBrief}>{t('threeStar.fillBrief')}</button>}
               {!compact && (sug.action === 'openItems' || sug.itemName) && <button type="button" className="ts-link" onClick={() => onOpenItems(sug.itemName)}>{sug.itemName ? t('threeStar.openItem') : t('threeStar.openItems')}</button>}
-              <button type="button" className="ts-link" onClick={() => handle(sug, 'done')}>{t('threeStar.markDone')}</button>
-              <button type="button" className="ts-link muted" onClick={() => setDismissing({ id: sug.id, reason: '' })}>{t('threeStar.dismiss')}</button>
+              {sug.action === 'rent' && onRent && <button type="button" className="ts-link" onClick={onRent}>{t('threeStar.rentShort')}</button>}
+              <button type="button" className="ts-link" onClick={() => (sug.severity === 'risk' ? setDismissing({ id: sug.id, reason: '', mode: 'done' }) : handle(sug, 'done'))}>{t('threeStar.markDone')}</button>
+              <button type="button" className="ts-link muted" onClick={() => setDismissing({ id: sug.id, reason: '', mode: 'dismissed' })}>{t('threeStar.dismiss')}</button>
             </div>
           )}
         </div>
@@ -270,12 +276,14 @@ export default function ThreeStarPanel({ event, items, clashes, onOpenItems, onO
             {STAR_ORDER.map((key) => {
               const star = analysis.stars.find((s) => s.key === key)!;
               const count = open.filter((s) => s.star === key).length;
+              const manual = done.filter((s) => s.star === key && s.severity !== 'tip').length;
               return (
                 <div key={key} className={`ts-tile${star.earned ? ' earned' : ''}${star.enabled ? '' : ' disabled'}`}>
                   <span className="ts-tile-star">{STAR_ICON}</span>
                   <div>
                     <b>{t(`threeStar.stars.${key}`)}</b>
                     <small>{!star.enabled ? t('threeStar.checkOff') : star.earned ? (count ? t('threeStar.passedWithTips', { count }) : t('threeStar.passed')) : t('threeStar.toFix', { count })}</small>
+                    {star.enabled && manual > 0 && <small className="ts-manual">{t('threeStar.manualConfirmed', { count: manual })}</small>}
                   </div>
                   {key === 'brief' && star.enabled && <span className="ts-tile-meter"><i style={{ width: `${Math.round(analysis.briefCompleteness * 100)}%` }} /></span>}
                 </div>

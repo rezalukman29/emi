@@ -2856,7 +2856,7 @@ export default function EventDetailPage() {
         </div>
 
         {detailView === 'stars' && showStars ? (
-          eventDetail ? <ThreeStarPanel key={eventId} event={starEvent} items={starItems} clashes={starClashes} onOpenItems={(name) => { setDetailView('items'); setKwSearch(name ?? ''); }} onOpenChecklist={() => setDetailView('checklist')} /> : <p className="no-data">{t('wording.loading')}</p>
+          eventDetail ? <ThreeStarPanel key={eventId} event={starEvent} items={starItems} clashes={starClashes} onOpenItems={(name) => { setDetailView('items'); setKwSearch(name ?? ''); }} onOpenChecklist={() => setDetailView('checklist')} onRent={loanEnabled && !addLocked ? () => setBorrowOpen(true) : undefined} /> : <p className="no-data">{t('wording.loading')}</p>
         ) : detailView === 'checklist' ? (
           <div className="ed-checklist">
             <p className="ed-checklist-preview"><span className="ck-preview-badge">{t('eventChecklist.preview')}</span> {t('eventChecklist.previewHint')}</p>

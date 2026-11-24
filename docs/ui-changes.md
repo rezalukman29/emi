@@ -96,6 +96,15 @@ checked at 390 px and tablets at 768 px.
 
 ## UI change log (newest first)
 
+### 2026-11-24 — 3 Star Protection v3
+| Where | Before | After | Why |
+|---|---|---|---|
+| Risk suggestion → Done | One click | Asks "What was done?" | Stars must mean something |
+| Star tiles | — | "N confirmed by the team" | Shows manual overrides |
+| Handled suggestion | Stayed handled forever | Reopens with an orange note when the facts change | No stale ticks |
+| Shortage / clash suggestions | No action | "Rent the shortfall" opens Rent Item | One step to the fix |
+| Event card stars | — | Tooltip adds "checked <date>" | Freshness |
+
 ### 2026-11-24 — 3 Star Protection v2 (UX review)
 | Where | Before | After | Why |
 |---|---|---|---|

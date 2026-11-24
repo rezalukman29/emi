@@ -197,3 +197,5 @@
   .ed-view-switch { flex-wrap: wrap; }
   .event-ai-brief-head { flex-wrap: wrap; }
 }
+.ts-changed { margin: 6px 0 0 !important; font-size: 12px !important; color: var(--orange) !important; font-weight: 600; }
+.ts-tile small.ts-manual { display: block; color: var(--text-muted); }

@@ -41,6 +41,22 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+# 2026-11-24 — 3 Star Protection v3 (second review)
+
+- **Risks need proof:** marking a *Risk* as Done asks "What was done?" (e.g. "Genset 5 kVA booked with Vendor X");
+  the star tile shows how many items the team confirmed manually ("1 confirmed by the team").
+- **No stale ticks:** a handled suggestion reopens when its facts change (e.g. guests 200 → 260 makes "110 chairs
+  short"), with "Reopened: the details changed after it was handled."
+- **Act on shortages:** chairs / tables short and stock clashes offer "Rent the shortfall", which opens Rent Item
+  (only when the stage allows rentals).
+- **No duplicate AI tasks:** tasks remember their AI key, so adding again (also after switching language) only adds
+  missing tasks.
+- **Card stars show when they were checked** (tooltip "checked 24 Nov").
+- **Files:** `src/lib/threeStar.ts`, `src/components/ai/ThreeStarPanel.tsx`, `src/pages/EventDetailPage.tsx`,
+  `src/pages/EventPage.tsx`, `src/threeStar.css`, translations.
+
+---
+
 # 2026-11-24 — 3 Star Protection v2 (after the UX review)
 
 - **Fair stars:** suggestions marked *Done* or *Not relevant* no longer count against the stars, so a team can reach

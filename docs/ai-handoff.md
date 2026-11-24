@@ -6,6 +6,15 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-24 — 3 Star v3 (second review)
+
+- `Handling.fp` = JSON of the suggestion params when handled; `analyzeEvent` treats a handling with a different fp as
+  open and sets `changedSinceHandled`. Risks need a note to be marked done (`dismissing.mode = 'done'`).
+- `action: 'rent'` on chairsShort / tablesShort / stockClash → panel `onRent` (EventDetail passes `setBorrowOpen(true)`
+  when `loanEnabled && !addLocked`). AI checklist tasks carry activity detail `ai:<taskKey>` for de-duplication.
+- Checks: build OK, tsc 0, lint 12/1, tests 38/40; Playwright: rent action shown, risk done needs note, tile
+  "1 confirmed by the team", guests 200→260 reopens chairs (110 short), re-adding checklist in Indonesian adds 0.
+
 ## 2026-11-24 — 3 Star v2 (UX roast fixes)
 
 - Store `emi.threeStar.v1` now also has `scores` (per event `{earned, risks, open, at}`, written by the panel) and

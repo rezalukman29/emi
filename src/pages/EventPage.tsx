@@ -686,7 +686,7 @@ export default function EventPage() {
               {r.event_code}
             </span>
             {threeStar.settings.enabled && threeStar.scores[r.id] && (
-              <span className={`event-card-stars${threeStar.scores[r.id].risks ? ' risk' : ''}`} data-tip={t('threeStar.cardTip', { count: threeStar.scores[r.id].earned, risks: threeStar.scores[r.id].risks })}>
+              <span className={`event-card-stars${threeStar.scores[r.id].risks ? ' risk' : ''}`} data-tip={t('threeStar.cardTip', { count: threeStar.scores[r.id].earned, risks: threeStar.scores[r.id].risks, date: new Date(threeStar.scores[r.id].at).toLocaleDateString(i18n.language === 'id' ? 'id-ID' : 'en-GB', { day: 'numeric', month: 'short' }) })}>
                 <StarRow earned={threeStar.scores[r.id].earned} size="sm" />
               </span>
             )}

@@ -60,7 +60,7 @@ export interface EventBrief {
 export const EMPTY_BRIEF: EventBrief = { eventType: '', guests: '', venueType: '', ground: '', style: '', colors: '', loadIn: '', eventStartTime: '', power: '', rainPlan: '', priorities: '' };
 
 /** How a suggestion was handled. "Not relevant" needs a short reason (shown to the team). */
-export interface Handling { state: 'done' | 'dismissed'; reason?: string; by: string; at: string }
+export interface Handling { state: 'done' | 'dismissed'; reason?: string; by: string; at: string; /** Fingerprint of the suggestion when handled; a different one reopens it. */ fp?: string }
 
 /** Last computed score per event, so lists (Events page) can show stars without re-analysing. */
 export interface ScoreSnapshot { earned: number; risks: number; open: number; at: string }
@@ -162,13 +162,17 @@ export interface Suggestion {
   key: string;
   params?: Record<string, string | number>;
   /** Optional quick action the UI can offer. */
-  action?: 'openBrief' | 'openItems' | 'openChecklist';
+  action?: 'openBrief' | 'openItems' | 'openChecklist' | 'rent';
   /** Item the suggestion is about (used to group suggestions per item and to open it). */
   itemName?: string;
   /** Search word for alternatives from the inventory (e.g. "kayu"). */
   altSearch?: string;
   /** Set when the team handled it. Handled suggestions no longer count against the stars. */
   handled?: Handling;
+  /** Fingerprint of the facts behind it (params); stored with the handling. */
+  fp?: string;
+  /** It was handled, but the facts changed since (e.g. even fewer chairs now). */
+  changedSinceHandled?: boolean;
 }
 
 export interface StarResult { key: StarKey; score: number; earned: boolean; enabled: boolean }
@@ -202,7 +206,10 @@ export function analyzeEvent(event: AnalysisEvent, items: AnalysisItem[], brief:
   const s: Suggestion[] = [];
   const add = (sug: Suggestion) => {
     const item = typeof sug.params?.item === 'string' ? sug.params.item : undefined;
-    s.push({ ...sug, itemName: sug.itemName ?? item, handled: handled[sug.id] });
+    const fp = JSON.stringify(sug.params ?? {});
+    const h = handled[sug.id];
+    const stillValid = h && (!h.fp || h.fp === fp);
+    s.push({ ...sug, itemName: sug.itemName ?? item, fp, handled: stillValid ? h : undefined, changedSinceHandled: Boolean(h && !stillValid) });
   };
   const limits = LIMITS[settings.strictness];
   const text = `${event.name} ${event.description} ${event.notes} ${brief.style} ${brief.priorities}`.toLowerCase();
@@ -249,14 +256,14 @@ export function analyzeEvent(event: AnalysisEvent, items: AnalysisItem[], brief:
     if (electronics.length && outdoor && brief.rainPlan !== 'tent' && brief.rainPlan !== 'indoor') add({ id: 'items-electronic', star: 'items', severity: 'warn', key: 'electronicsOutdoor', params: { item: electronics[0].name } });
     if (guests > 0) {
       const chairs = count(KB.chair);
-      if (chairs > 0 && chairs < guests) add({ id: 'items-chairs', star: 'items', severity: chairs < guests * 0.8 ? 'risk' : 'warn', key: 'chairsShort', params: { chairs, guests, short: guests - chairs } });
+      if (chairs > 0 && chairs < guests) add({ id: 'items-chairs', star: 'items', severity: chairs < guests * 0.8 ? 'risk' : 'warn', key: 'chairsShort', action: 'rent', params: { chairs, guests, short: guests - chairs } });
       const roundQty = count(KB.roundTable);
-      if (roundQty > 0 && roundQty * 10 < guests) add({ id: 'items-tables', star: 'items', severity: 'warn', key: 'tablesShort', params: { tables: roundQty, need: Math.ceil(guests / 10) } });
+      if (roundQty > 0 && roundQty * 10 < guests) add({ id: 'items-tables', star: 'items', severity: 'warn', key: 'tablesShort', action: 'rent', params: { tables: roundQty, need: Math.ceil(guests / 10) } });
     }
     const flowers = find(KB.flower);
     if (flowers.length && daysBetween(event.loadInDate || event.start, event.start) >= 2) add({ id: 'items-flowers', star: 'items', severity: 'tip', key: 'flowersEarly', params: { item: flowers[0].name } });
     if (has(text, ['rustic', 'boho', 'natural']) && glass.length) add({ id: 'items-style', star: 'items', severity: 'tip', key: 'styleMismatch', altSearch: 'kayu', params: { style: brief.style || 'rustic', item: glass[0].name } });
-    clashes.slice(0, 3).forEach((c, i) => add({ id: `items-clash-${i}`, star: 'items', severity: 'risk', key: 'stockClash', params: { item: c.itemName, shortage: c.shortage, from: c.from, to: c.to } }));
+    clashes.slice(0, 3).forEach((c, i) => add({ id: `items-clash-${i}`, star: 'items', severity: 'risk', key: 'stockClash', action: 'rent', params: { item: c.itemName, shortage: c.shortage, from: c.from, to: c.to } }));
   }
 
   // ★3 Schedule
