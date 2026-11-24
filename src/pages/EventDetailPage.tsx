@@ -1,5 +1,8 @@
 import { fmtNum as fmtDisplayNumber } from '../lib/format';
 import { useGetEventCalendarClashes, type EventCalendarClash } from '../hooks/api/useGetEventCalendar';
+import ThreeStarPanel, { StarRow } from '../components/ai/ThreeStarPanel';
+import { analyzeEvent, EMPTY_BRIEF, useThreeStar, type AnalysisEvent } from '../lib/threeStar';
+import { isTenantAdminUser as isTenantAdminForStars } from '../lib/tenantUser';
 import BrokenItemReport from '../components/BrokenItemReport';
 import PrintPlanModal from '../components/PrintPlanModal.jsx';
 import RentalLogTab from '../components/RentalLogTab';
@@ -1292,10 +1295,12 @@ export default function EventDetailPage() {
 
   // Event Checklist inside the event (preview on mock data, owner 2026-11-20): same checklist as
   // the Event Checklist page, kept in this browser by src/lib/checklistStore.ts. ?view=checklist opens it.
-  const detailView: 'items' | 'checklist' = searchParams.get('view') === 'checklist' ? 'checklist' : 'items';
-  const setDetailView = (view: 'items' | 'checklist') =>
+  // ?view=stars opens 3 Star Protection (owner 2026-11-24).
+  const viewParam = searchParams.get('view');
+  const detailView: 'items' | 'checklist' | 'stars' = viewParam === 'checklist' ? 'checklist' : viewParam === 'stars' ? 'stars' : 'items';
+  const setDetailView = (view: 'items' | 'checklist' | 'stars') =>
     setSearchParams((params) => {
-      if (view === 'checklist') params.set('view', 'checklist'); else params.delete('view');
+      if (view === 'items') params.delete('view'); else params.set('view', view);
       return params;
     }, { replace: true });
   const checklistStore = useChecklistStore();
@@ -1482,6 +1487,23 @@ export default function EventDetailPage() {
       </div>
     );
   };
+  // 3 Star Protection (owner 2026-11-24, preview): AI-style analysis of this event.
+  const threeStar = useThreeStar();
+  const showStars = threeStar.settings.audience === 'everyone' || isTenantAdminForStars();
+  const starEvent = useMemo<AnalysisEvent>(() => ({
+    id: eventId,
+    name: eventDetail?.name ?? '',
+    start: String(eventDetail?.event_start ?? '').slice(0, 10),
+    end: String(eventDetail?.event_end ?? '').slice(0, 10),
+    loadInDate: String(eventDetail?.date_event ?? '').slice(0, 10),
+    address: eventDetail?.address ?? '',
+    pic: eventDetail?.PIC ?? '',
+    description: eventDetail?.description ?? '',
+    notes: eventDetail?.notes ?? '',
+  }), [eventId, eventDetail]);
+  const starItems = useMemo(() => items.map((item) => ({ name: item.name, qty: Number(item.qty) || 0, area: item.area ?? '' })), [items]);
+  const starClashes = useMemo(() => [...clashesByItem.values()].flat().map((c) => ({ itemName: c.item_name, from: String(c.from).slice(0, 10), to: String(c.to).slice(0, 10), shortage: c.shortage })), [clashesByItem]);
+  const starEarned = useMemo(() => (threeStar.settings.enabled && eventDetail ? analyzeEvent(starEvent, starItems, threeStar.briefs[eventId] ?? EMPTY_BRIEF, threeStar.settings, todayIso(), starClashes).earned : 0), [threeStar, eventDetail, starEvent, starItems, starClashes, eventId]);
   const cartQtyByBarang = useMemo(() => {
     const totals: Record<number, number> = {};
     cart.forEach((entry) => { if (entry.barangId) totals[entry.barangId] = (totals[entry.barangId] ?? 0) + entry.qty; });
@@ -2824,9 +2846,14 @@ export default function EventDetailPage() {
             {checklistSummary && checklistSummary.total > 0 && <span className="stage-tab-count">{fmtDisplayNumber(checklistSummary.resolved)}/{fmtDisplayNumber(checklistSummary.total)}</span>}
             {checklistSummary && checklistSummary.blocking > 0 && <span className="badge badge-orange ed-view-blocking">{t('eventChecklist.blockingCount', { count: checklistSummary.blocking })}</span>}
           </button>
+          {showStars && <button type="button" role="tab" aria-selected={detailView === 'stars'} className={`ed-view-stars${detailView === 'stars' ? ' active' : ''}`} onClick={() => setDetailView('stars')}>
+            {t('threeStar.tab')} {threeStar.settings.enabled ? <StarRow earned={starEarned} size="sm" /> : <span className="stage-tab-count">{t('threeStar.off')}</span>}
+          </button>}
         </div>
 
-        {detailView === 'checklist' ? (
+        {detailView === 'stars' && showStars ? (
+          eventDetail ? <ThreeStarPanel key={eventId} event={starEvent} items={starItems} clashes={starClashes} onOpenItems={() => setDetailView('items')} onOpenChecklist={() => setDetailView('checklist')} /> : <p className="no-data">{t('wording.loading')}</p>
+        ) : detailView === 'checklist' ? (
           <div className="ed-checklist">
             <p className="ed-checklist-preview"><span className="ck-preview-badge">{t('eventChecklist.preview')}</span> {t('eventChecklist.previewHint')}</p>
             {checklistEvent

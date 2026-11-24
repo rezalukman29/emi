@@ -41,6 +41,24 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+# 2026-11-24 — AI Tools hub + 3 Star Protection (preview on mock AI)
+
+- **Sidebar:** AI Tools is now a highlighted card (not a plain group) linking to the new **AI Tools hub** (`/ai-tools`)
+  with 3 Star Protection and Material Analyzer.
+- **3 Star Protection settings** (`/ai/three-star`): explains the three stars, master On/Off, checks per star,
+  strictness, minimum prep days, setup hours, checklist suggestion, who sees the tab, example suggestions.
+- **Event Detail → 3 Star tab:** star score in the tab; hero with stars and per-star status; suggestions with Risk /
+  Check / Tip (e.g. "Meja Bulat Kaca on grass may wobble", "50 chairs short for 200 guests", "Only 9 days to
+  prepare", "Lights need power"); Done / Not relevant; an AI checklist that adds tasks (with photo/report
+  requirements and due dates) to the Event Checklist group "3 Star · AI"; a structured **Event brief** form.
+- **Mock:** `src/lib/threeStar.ts` (rule engine + small item knowledge base), stored per browser. Contract for the
+  real AI: `src/hooks/api/threeStarContract.ts`; API needs in `docs/api-backlog.md` §12.
+- **Files:** new `src/lib/threeStar.ts`, `src/components/ai/ThreeStarPanel.tsx`, `src/pages/AiToolsPage.tsx`,
+  `src/pages/ThreeStarSettingsPage.tsx`, `src/threeStar.css`, `src/hooks/api/threeStarContract.ts`; changed
+  `src/components/Sidebar.tsx`, `src/App.tsx`, `src/pages/EventDetailPage.tsx`, translations (`aiTools.*`, `threeStar.*`).
+
+---
+
 # 2026-11-24 — Inventory is lent to events: rental availability hints in Add Items
 
 - **Business knowledge (owner):** items go out to an event and come back to the warehouse; a return adds stock

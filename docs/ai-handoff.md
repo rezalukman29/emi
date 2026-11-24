@@ -6,6 +6,22 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-24 — AI Tools hub + 3 Star Protection (mock)
+
+- **Engine:** `analyzeEvent(event, items, brief, settings, today, clashes)` in `src/lib/threeStar.ts` returns stars,
+  suggestions `{id, star, severity, key, params, action}` (texts in `threeStar.sug.<key>.title/detail`) and checklist
+  task keys (`threeStar.tasks.*`). Keyword KB (`KB`) for round tables, chairs, glass, fabric, lights, flowers, wood,
+  stage, electronics (ID + EN words). Store `useThreeStar()` (localStorage `emi.threeStar.v1`: settings, briefs, handled).
+- **UI:** `ThreeStarPanel` (Event Detail `?view=stars`), `StarRow`, `STAR_ICON`; `AiToolsPage` `/ai-tools`;
+  `ThreeStarSettingsPage` `/ai/three-star`. Sidebar renders section "AI Tools" as `.sidebar-ai-card` unless the menu
+  search is active. Tab hidden for non-admins when audience = admins.
+- **Checklist hand-off:** adds group "3 Star · AI" (order 0) with tasks into `checklistStore`; re-running only adds
+  missing titles.
+- **Checks:** build OK, tsc 0, lint 12/1 baseline. Playwright (mock): sidebar card, hub → settings, brief filled
+  (outdoor, grass, no rain plan, no power, 200 guests) → 12 suggestions incl. round table on grass, chairs short,
+  setup 3 h; checklist added; turning off shows the off state; 390 px no sideways scroll; no page errors.
+- **Open:** advisory only vs blocking (PRD §5b question); real LLM + item material fields.
+
 ## 2026-11-24 — Rental model + clash hints in Add Items
 
 - **Rule to remember:** EMI inventory is LENT. Add to event → out; return → stock back; availability = by dates

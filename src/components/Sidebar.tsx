@@ -1,4 +1,5 @@
 import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
+import '../threeStar.css';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import BuildInfo from './BuildInfo';
@@ -159,6 +160,8 @@ const SECTIONS: NavSection[] = [
   {
     label: 'AI Tools',
     items: [
+      { to: '/ai/three-star', label: '3 Star Protection',
+        icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><path d="M12 2.8l2.8 5.7 6.3.9-4.6 4.4 1.1 6.2L12 17l-5.6 3 1.1-6.2L2.9 9.4l6.3-.9z"/></svg> },
       { to: '/ai-material-analyzer', label: 'Material Analyzer',
         icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg> },
     ],
@@ -241,6 +244,7 @@ const ITEM_TRANSLATION_KEYS: Record<string, string> = {
   'Inventory Report': 'navigation.items.inventoryReport',
   'Overview Report': 'navigation.items.overviewReport',
   'Material Analyzer': 'navigation.items.materialAnalyzer',
+  '3 Star Protection': 'navigation.items.threeStar',
   Log: 'navigation.items.log',
   Users: 'navigation.items.users',
   'Product Knowledge': 'navigation.items.productKnowledge',
@@ -406,7 +410,21 @@ export default function Sidebar({ visible, mobile = false }: { visible: boolean;
         </div>
       )}
       {shownSections.map(section => {
-        // A one-link section (Home, AI Tools) is not worth folding.
+        // AI Tools is a highlighted card, not a plain group (owner 2026-11-24).
+        if (section.label === 'AI Tools' && !menuQuery) {
+          return (
+            <div key={section.label} className="sidebar-ai-card">
+              <NavLink to="/ai-tools" end className={({ isActive }) => `sidebar-ai-head${isActive ? ' active' : ''}`}>
+                <span className="sidebar-ai-spark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8zM19 14l.9 2.6 2.6.9-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9zM5 15l.7 1.8 1.8.7-1.8.7L5 20l-.7-1.8-1.8-.7 1.8-.7z"/></svg></span>
+                <span className="sidebar-ai-title">{section.translatedLabel}<small>{t('aiTools.sidebarSub')}</small></span>
+              </NavLink>
+              <div className="sidebar-ai-items">
+                {section.items.map((entry) => (isParent(entry) ? null : renderLeaf(entry)))}
+              </div>
+            </div>
+          );
+        }
+        // A one-link section (Home) is not worth folding.
         const foldable = section.items.length > 1 || isParent(section.items[0]);
         const open = !foldable || isOpen(section.label, section.items);
         const sectionId = `sidebar-sec-${section.label.replace(/\W+/g, '-').toLowerCase()}`;

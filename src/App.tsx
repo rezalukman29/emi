@@ -17,6 +17,8 @@ import RequireTenantAuth from "./components/RequireTenantAuth";
 import AreaDetailPage from "./pages/AreaDetailPage.jsx";
 import AreaPage from "./pages/AreaPage.jsx";
 import AiMaterialAnalyzerPage from "./pages/AiMaterialAnalyzerPage";
+import AiToolsPage from "./pages/AiToolsPage";
+import ThreeStarSettingsPage from "./pages/ThreeStarSettingsPage";
 import CategoryDetailPage from "./pages/CategoryDetailPage.jsx";
 import CategoryPage from "./pages/CategoryPage";
 import MainDashboardPage from "./pages/DashboardPage";
@@ -150,6 +152,8 @@ export default function App() {
               <Route path="unit-detail" element={<UnitDetailPage />} />
               <Route path="qr-code" element={<PlaceholderPage title="QR Code" />} />
               <Route path="ai-material-analyzer" element={<AiMaterialAnalyzerPage />} />
+              <Route path="ai-tools" element={<AiToolsPage />} />
+              <Route path="ai/three-star" element={<ThreeStarSettingsPage />} />
               <Route path="log" element={<LogPage />} />
               <Route path="users" element={<UsersPage />} />
               <Route path="*" element={<Navigate to="/event" replace />} />

@@ -83,12 +83,27 @@ checked at 390 px and tablets at 768 px.
   preview note, "Latest e-mails that would be sent"), Planning (due dates, assignees), Permissions
   (add tasks, who can delete). Sticky save bar; Reset to recommended defaults.
 
+### AI Tools (`/ai-tools`) and 3 Star Protection (`/ai/three-star`, Event Detail → 3 Star) — preview
+- Sidebar: purple "AI Tools" card above System (hub link + 3 Star Protection + Material Analyzer).
+- Hub: hero, tool cards with status. Settings: intro with the three stars, master switch, checks, strictness, numbers,
+  checklist suggestion, audience, example. Event Detail tab "3 Star ★★☆": hero with stars and tiles, suggestions,
+  AI checklist, read context, brief form. Off state explains how to turn it on (admins get a button).
+
 ### Event Calendar (`/event-calendar`)
 - Month view with search and filters (on the loaded month), clash table.
 
 ---
 
 ## UI change log (newest first)
+
+### 2026-11-24 — AI Tools made special + 3 Star Protection
+| Where | Before | After | Why |
+|---|---|---|---|
+| Sidebar | "AI Tools" plain group with one link | Highlighted purple card "AI Tools · Your event assistant" (link to the hub) with 3 Star Protection and Material Analyzer | AI should feel like a feature, not a menu entry |
+| New `/ai-tools` | — | Hub: hero + tool cards (3 Star Protection "New" with On/Off, Material Analyzer) | Home for AI features |
+| New `/ai/three-star` | — | Explanation of the three stars, master On/Off, checks per star, strictness, minimum prep days, setup hours, suggest checklist, who sees the tab, example suggestions, save bar | Owner can enable and tune |
+| Event Detail tabs | Items · Event Checklist | + **3 Star** tab with the star count (or "Off") | Assistant per event |
+| 3 Star tab | — | Hero (stars, Analyze again, preview badge, three star tiles), Suggestions (Risk/Check/Tip, actions Done / Not relevant / Complete the brief / Open items, show handled), AI checklist card (Add to checklist → group "3 Star · AI"), What the assistant read, collapsible Event brief form | Readable, actionable suggestions |
 
 ### 2026-11-24 — Add Items: rental availability hints
 | Where | Before | After | Why |

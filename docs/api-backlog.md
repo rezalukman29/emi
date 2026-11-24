@@ -28,6 +28,7 @@ Last updated: 2026-11-23.
 | 8 | **Partial return / partial transfer** lifecycle | Not built | New lifecycle status + transfer endpoints | Later | `docs/source-migration-53aaf50.md` |
 | 9 | **PIC as a user id** (follow renames, "my events") | Not built — PIC saved as a name | Optional `pic_user_id` on events | Optional | — |
 | 11 | **Availability by date** (lending model) | Clash pill only | Per-item available qty for a date range; add-to-event checks by dates | **High** | — |
+| 12 | **3 Star Protection** (AI assistant per event) | Preview: mock AI rules in the browser | Settings, event brief, analyze endpoint with an LLM, suggestion states | Medium | `src/hooks/api/threeStarContract.ts` |
 | 10 | **Deleting an event that has items** | UI asks to type the name | Answer: what happens to items, stock and scans? Should the server refuse? | Question | — |
 
 ---
@@ -150,6 +151,17 @@ and the Add Items list cannot show the right number.
 - Expected return date per event (default `event_end` + buffer days set per tenant), overdue returns flagged.
 - Optional: `available_for_range` and `next_free_date` included in `/v2/barang-gudang/detail` when `start`/`end` are passed.
 **Today in the web:** Add Items shows a note and clash pills from `GET /v1/event-calendar/clashes?month=` (reuse).
+
+## 12. 3 Star Protection (owner 2026-11-24)
+
+**Why:** an assistant per event that checks ★ brief, ★ items, ★ timing, suggests better items or materials
+(e.g. round table on grass → wooden base), warns when dates are too tight, and builds a default checklist.
+**Today:** works fully in the UI on a rule-based mock (`src/lib/threeStar.ts`), data per browser.
+**Needed:** tenant settings, a structured event brief per event, `POST /v1/events/{id}/three-star/analyze` that calls
+an LLM with the event + item lines + brief + availability by date (§11) and returns stars, suggestions (with stable
+`code`), and checklist tasks; suggestion states (done / dismissed); adding tasks needs the checklist API (§1).
+Item knowledge (material, indoor/outdoor suitability, capacity per table) would improve results: optional new item
+fields `material`, `outdoor_ok`, `seats`. Full contract: `src/hooks/api/threeStarContract.ts`.
 
 ---
 

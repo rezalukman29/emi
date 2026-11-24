@@ -9,6 +9,13 @@ Format: date — change — endpoints/fields touched — impact — action neede
 
 ---
 
+## 2026-11-24 — AI Tools hub + 3 Star Protection (preview)
+
+- **Endpoints touched:** none changed. Event Detail reuses data it already loads (event, item lines, clash report).
+- **Needs API — waiting for backend (owner asked for a mock first):** settings, event brief, AI analyze endpoint,
+  suggestion states, checklist hand-off. `docs/api-backlog.md` §12, contract `src/hooks/api/threeStarContract.ts`.
+  Local data: localStorage `emi.threeStar.v1`; AI checklist tasks go into the checklist preview store (`emi.checklist.v2`).
+
 ## 2026-11-24 — Rental availability hints in Add Items (+ business rule)
 
 - **Endpoints touched:** none changed. Read-only reuse of `GET /v1/event-calendar/clashes?month=` (the event's start
