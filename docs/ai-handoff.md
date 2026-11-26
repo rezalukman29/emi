@@ -16,6 +16,24 @@ Each entry: what changed, files, why, state left behind, open items.
   instead of "NaN-NaN-NaN"; Inventory images `loading="lazy"` (page took 13–16 s mostly downloading photos).
 - Strings: `uxFix.*` (en + id). CSS: `.page-crash` in index.css.
 - Not changed, data/backend: negative stock on Dashboard (-97), invalid `date_event` on events 85/73 → api-backlog §15.
+- Needs API (status "Butuh API: waiting for backend"), all in api-backlog §15:
+  - validate `date_event` / `event_start` / `event_end` as YYYY-MM-DD (422) and repair events 85 and 73;
+  - stock must never go below 0: moving order, item-out and opname adjustments refuse with 422; report existing rows < 0.
+- Behaviour change for backend to confirm: every 401 now logs the user out locally (removes `auth`) → `/login?expired=1`.
+  If the API ever returns 401 for something other than an invalid/expired session, the rule must be narrowed.
+- Not done yet (next):
+  - merge the one-item sidebar sections "Warehouse Hub" and "Finance" into one "Operations" / "Operasional" section;
+  - Dashboard: label negative stock as a data error, add links to Warehouse Hub and Finance;
+  - re-measure Inventory load time after lazy photos (was 13–16 s, not re-measured).
+- Checks: build OK, tsc 0 errors, ESLint 0 errors on the new files; full lint/test not re-run (last baseline: lint 12
+  errors / 1 warning, tests 38/40 — all pre-existing).
+- Verified in browser (staging, writes blocked): unknown address shows the not-found card; `/login?expired=1` shows the
+  message. The error boundary itself was not triggered by a real crash.
+- Delivery: patches made with `git format-patch`; `src/service/axios.ts` uses CRLF line endings, so apply with
+  `git am --keep-cr` or the patch fails.
+- Open owner questions:
+  - warehouses "Rent", "Buy", "IHP", "Printing", "Venue": real places or ownership labels?
+  - three warehouses named "Gudang C9": duplicates?
 
 ## 2026-11-26 — Warehouse Hub + Project Finance (preview)
 
