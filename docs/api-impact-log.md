@@ -9,6 +9,14 @@ Format: date — change — endpoints/fields touched — impact — action neede
 
 ---
 
+## 2026-11-26 — Warehouse Hub + Project Finance (preview)
+
+- **Endpoints touched:** none changed. Warehouse Hub reads `/v1/gudang`, `/v1/barang-gudang/gudang/{id}`, `/v2/event-filter`,
+  `/v3/fix-list-item-event`, `/v2/barang-gudang/detail`, `/v1/stock-opname` and writes only through the existing
+  `POST /v1/moving-order` (guided form, qty capped at the source stock in the UI). Finance reads `/v1/loan-items`,
+  `/v1/outsource-items`, `/v2/event-filter`.
+- **Needs API — waiting for backend:** warehouse schedule (§13) and the whole finance model (§14). Finance data is per browser.
+
 ## 2026-11-24 — AI Tools hub + 3 Star Protection (preview)
 
 - **Endpoints touched:** none changed. Event Detail reuses data it already loads (event, item lines, clash report).

@@ -34,6 +34,7 @@ export const ROUTE_FEATURES: Partial<Record<string, keyof UserPlanFeatureFlags>>
   '/unit': 'inventory_management_price',
   '/unit-detail': 'inventory_management_price',
   '/warehouse': 'warehouse_management_price',
+  '/warehouse-hub': 'warehouse_management_price',
   '/warehouse-detail': 'warehouse_management_price',
   '/warehouse-inventory': 'warehouse_management_price',
   '/stock-opname': 'warehouse_management_price',
@@ -104,6 +105,21 @@ const SECTIONS: NavSection[] = [
         icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> },
       { to: '/event-checklist', label: 'Event Checklist',
         icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> },
+    ],
+  },
+  {
+    // New task-first warehouse menu (owner 2026-11-26). The old warehouse menus below stay unchanged.
+    label: 'Warehouse Hub',
+    items: [
+      { to: '/warehouse-hub', label: 'Warehouse Hub',
+        icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-6 9 6v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M7 21v-8h10v8"/><path d="M7 17h10"/></svg> },
+    ],
+  },
+  {
+    label: 'Finance',
+    items: [
+      { to: '/finance', label: 'Project Finance',
+        icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg> },
     ],
   },
   {
@@ -215,6 +231,8 @@ const SECTION_TRANSLATION_KEYS: Record<string, string> = {
   'Master Data': 'navigation.sections.masterData',
   Report: 'navigation.sections.report',
   'AI Tools': 'navigation.sections.aiTools',
+  'Warehouse Hub': 'navigation.sections.warehouseHub',
+  Finance: 'navigation.sections.finance',
   System: 'navigation.sections.system',
 };
 
@@ -245,6 +263,8 @@ const ITEM_TRANSLATION_KEYS: Record<string, string> = {
   'Overview Report': 'navigation.items.overviewReport',
   'Material Analyzer': 'navigation.items.materialAnalyzer',
   '3 Star Protection': 'navigation.items.threeStar',
+  'Warehouse Hub': 'navigation.items.warehouseHub',
+  'Project Finance': 'navigation.items.projectFinance',
   Log: 'navigation.items.log',
   Users: 'navigation.items.users',
   'Product Knowledge': 'navigation.items.productKnowledge',
@@ -275,7 +295,7 @@ export default function Sidebar({ visible, mobile = false }: { visible: boolean;
     const requiredFeature = ROUTE_FEATURES[leaf.to];
     return !requiredFeature || enabledFeatures[requiredFeature];
   };
-  const sections: NavSection[] = SECTIONS.map((section) => {
+  const sections: NavSection[] = SECTIONS.filter((section) => section.label !== 'Finance' || isTenantAdmin()).map((section) => {
     if (section.label !== 'Events' || !isTenantAdmin()) return section;
     return { ...section, items: [...section.items, SETTINGS_PARENT()] };
   })

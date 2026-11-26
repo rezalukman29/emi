@@ -96,6 +96,15 @@ checked at 390 px and tablets at 768 px.
 
 ## UI change log (newest first)
 
+### 2026-11-26 — Warehouse Hub + Project Finance (new menus; old menus unchanged)
+| Where | Before | After | Why |
+|---|---|---|---|
+| Sidebar | — | New sections "Warehouse Hub" (Gudang) and "Finance" (Keuangan Proyek, admins only) above Inventory | Task-first entry points |
+| `/warehouse-hub` | — | Warehouse picker (remembered), quick actions (Move stock, Start stock count, Receive items, Classic menu), 4 action cards (Out of stock, Low stock, Returns overdue, Stock counts open), Out & back list with pick list, Stock to fix with "Find in other warehouses → Move here", warehouse cards (virtual last), Data to tidy | Warehouse work as tasks |
+| Move stock | Table form in Warehouse Inventory | Guided 4-step modal, qty capped at source stock, summary sentence | Fewer mistakes |
+| `/finance` | — | KPIs (due in 7 days, overdue, to collect, average margin), filters, table per event with contract, cost, margin, billing state | Owner view of money |
+| Event Detail tabs | Items · Checklist · 3 Star | + "Finance" (admins): summary cards, contract + client, costs (vendor costs automatic), invoices (DP/final schedule, VAT, payments, print/PDF), extra charges | Money per project |
+
 ### 2026-11-24 — 3 Star Protection v3
 | Where | Before | After | Why |
 |---|---|---|---|

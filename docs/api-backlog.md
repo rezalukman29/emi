@@ -29,6 +29,8 @@ Last updated: 2026-11-23.
 | 9 | **PIC as a user id** (follow renames, "my events") | Not built — PIC saved as a name | Optional `pic_user_id` on events | Optional | — |
 | 11 | **Availability by date** (lending model) | Clash pill only | Per-item available qty for a date range; add-to-event checks by dates | **High** | — |
 | 12 | **3 Star Protection** (AI assistant per event) | Preview: mock AI rules in the browser | Settings, event brief, analyze endpoint with an LLM, suggestion states | Medium | `src/hooks/api/threeStarContract.ts` |
+| 13 | **Warehouse schedule** (out / back per warehouse, returns overdue) | Derived from event dates in the browser | `GET /v1/gudang/{id}/schedule`, `expected_return_date` per line, `?gudang_id=` on the summary | Medium | — |
+| 14 | **Project Finance** (contract, costs, invoices, payments) | Preview: browser only; vendor costs real | Client, contract, quotes, invoices + payments, manual costs, rental/replacement prices, PDF, reminders | High | — |
 | 10 | **Deleting an event that has items** | UI asks to type the name | Answer: what happens to items, stock and scans? Should the server refuse? | Question | — |
 
 ---
@@ -162,6 +164,26 @@ an LLM with the event + item lines + brief + availability by date (§11) and ret
 `code`), and checklist tasks; suggestion states (done / dismissed); adding tasks needs the checklist API (§1).
 Item knowledge (material, indoor/outdoor suitability, capacity per table) would improve results: optional new item
 fields `material`, `outdoor_ok`, `seats`. Full contract: `src/hooks/api/threeStarContract.ts`.
+
+## 13. Warehouse schedule (owner 2026-11-26)
+
+**Today:** the Warehouse Hub builds "Out & back" in the browser from `/v2/event-filter` (dates) + `/v3/fix-list-item-event`
+(lines with `gudang_id`), per active event. Slow with many events and only an estimate (load-in = out, event end = back).
+**Needed:** `GET /v1/gudang/{id}/schedule?from&to` → per event: lines, qty, out date, expected return date, scanned out/in,
+status (out / back / overdue); `expected_return_date` per line (ticket BE-16); `GET /v1/warehouse-inventory-summary?gudang_id=`;
+a flag that tells a physical warehouse from an ownership bucket (staging has "Rent", "Buy", "IHP", "Printing", "Venue" as
+warehouses — question for the owner).
+
+## 14. Project Finance (owner 2026-11-26)
+
+**Today:** preview. Contract value, client name, invoices (DP / final, VAT), payments, manual costs and extra charges are in
+`localStorage['emi.finance.v1']`; invoice numbers `INV-YYMM-###` per browser. Vendor costs are real: `GET /v1/loan-items`
+(`rental_cost`, `event_id`) and `GET /v1/outsource-items` (`total_cost`, `event_id`).
+**Needed:** `client` entity (+ `event.client_id`, NPWP, billing address); `/v1/events/{id}/finance` (contract value, tax rate);
+`/v1/events/{id}/costs` (manual costs with category and receipt); `/v1/invoices` (+ items, numbering per tenant, status,
+due date, PDF) and `/v1/invoices/{id}/payments`; extra charges linked to broken/lost reports; item `rental_price` and
+`replacement_price`; production cost; quotes with versions; due-date reminders; CSV export; finance permission
+(ADMIN or new FINANCE role) enforced on the server.
 
 ---
 

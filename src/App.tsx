@@ -19,6 +19,8 @@ import AreaPage from "./pages/AreaPage.jsx";
 import AiMaterialAnalyzerPage from "./pages/AiMaterialAnalyzerPage";
 import AiToolsPage from "./pages/AiToolsPage";
 import ThreeStarSettingsPage from "./pages/ThreeStarSettingsPage";
+import WarehouseHubPage from "./pages/WarehouseHubPage";
+import FinancePage from "./pages/FinancePage";
 import CategoryDetailPage from "./pages/CategoryDetailPage.jsx";
 import CategoryPage from "./pages/CategoryPage";
 import MainDashboardPage from "./pages/DashboardPage";
@@ -154,6 +156,8 @@ export default function App() {
               <Route path="ai-material-analyzer" element={<AiMaterialAnalyzerPage />} />
               <Route path="ai-tools" element={<AiToolsPage />} />
               <Route path="ai/three-star" element={<ThreeStarSettingsPage />} />
+              <Route path="warehouse-hub" element={<WarehouseHubPage />} />
+              <Route path="finance" element={<FinancePage />} />
               <Route path="log" element={<LogPage />} />
               <Route path="users" element={<UsersPage />} />
               <Route path="*" element={<Navigate to="/event" replace />} />

@@ -6,6 +6,21 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-26 — Warehouse Hub + Project Finance (preview)
+
+- Owner: build a new warehouse menu without changing the old ones; security fixes out of scope for now; start the rest.
+- Warehouse Hub: `src/lib/warehouseHub.ts` (fetchers, `stockLevel`: critical = stock ≤ 0, low = stock ≤ stok_minimum,
+  `fetchSchedule(14)` = active events × lines grouped by `gudang_id`; out = date_event, back = event_end, overdue = ended and
+  lifecycle not checking-inventory). Selected warehouse in localStorage `emi.whHub.warehouse.v1`. Virtual = `is_out_source`
+  or name "Outsource".
+- Finance: `src/lib/financeStore.ts` (localStorage `emi.finance.v1`; `summarize()` = contract + extras − (vendor + manual)),
+  `fetchAutoCosts()` aggregates real loan/outsource costs by event_id. Event Detail `?view=finance` (admins). Invoice due dates
+  never in the past. Print opens a new window and calls print.
+- Checks: build OK, tsc 0, lint 12/1, tests 38/40. Live staging (writes blocked): hub loads (all physical ~8 s, one
+  warehouse fast), Bali 70: 16 out of stock / 6 low, 2 overdue returns, move modal caps qty ("Only 257"), finance list 65
+  events, event 67 outsource Rp5.000 automatic; contract → 2 invoices with VAT, payment → Paid; 390 px no sideways scroll.
+- Open: staging has warehouses "Rent", "Buy", "IHP", "Printing", "Venue" — ownership buckets or real places? (owner question).
+
 ## 2026-11-24 — 3 Star v3 (second review)
 
 - `Handling.fp` = JSON of the suggestion params when handled; `analyzeEvent` treats a handling with a different fp as

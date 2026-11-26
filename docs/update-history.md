@@ -41,6 +41,25 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+# 2026-11-26 — New menus: Warehouse Hub and Project Finance (preview)
+
+- **Warehouse Hub (`/warehouse-hub`, sidebar "Warehouse Hub" / "Gudang"):** a task-first page; the old warehouse menus are
+  unchanged. Pick a warehouse (or all physical ones): action cards (out of stock, low stock, returns overdue, open stock
+  counts), "Out & back" for today/tomorrow or 14 days with a pick list per event (derived from event dates and event lines),
+  "Stock to fix" with other warehouses that hold the item and a one-click "Move here", warehouse cards (virtual
+  warehouses last), and "Data to tidy" (duplicate names, empty warehouses). Guided "Move stock" (existing moving-order API,
+  qty capped at the source stock).
+- **Project Finance (`/finance`, admins) + Event Detail → Finance tab (preview):** contract value and client, real vendor costs
+  (rentals, outsource) plus manual costs, margin, payment schedule (DP %, final payment H-x, VAT 11%), payments, extra
+  charges (broken / lost / late) invoiced together, invoice print/PDF, overview with receivables and overdue. Stored per
+  browser until the finance API exists (`docs/api-backlog.md` §14).
+- **Files:** new `src/lib/warehouseHub.ts`, `src/pages/WarehouseHubPage.tsx`, `src/components/warehouse/MoveStockModal.tsx`,
+  `src/warehouseHub.css`, `src/lib/financeStore.ts`, `src/components/finance/EventFinancePanel.tsx`, `src/pages/FinancePage.tsx`,
+  `src/finance.css`; changed `src/App.tsx`, `src/components/Sidebar.tsx`, `src/pages/EventDetailPage.tsx`, translations
+  (`whHub.*`, `fin.*`, navigation).
+
+---
+
 # 2026-11-24 — 3 Star Protection v3 (second review)
 
 - **Risks need proof:** marking a *Risk* as Done asks "What was done?" (e.g. "Genset 5 kVA booked with Vendor X");

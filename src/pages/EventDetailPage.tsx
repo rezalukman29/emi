@@ -1,6 +1,7 @@
 import { fmtNum as fmtDisplayNumber } from '../lib/format';
 import { useGetEventCalendarClashes, type EventCalendarClash } from '../hooks/api/useGetEventCalendar';
 import ThreeStarPanel, { StarRow } from '../components/ai/ThreeStarPanel';
+import EventFinancePanel from '../components/finance/EventFinancePanel';
 import { analyzeEvent, claimPendingBrief, EMPTY_BRIEF, pendingBriefKey, useThreeStar, type AnalysisEvent } from '../lib/threeStar';
 import { isTenantAdminUser as isTenantAdminForStars } from '../lib/tenantUser';
 import BrokenItemReport from '../components/BrokenItemReport';
@@ -1297,8 +1298,8 @@ export default function EventDetailPage() {
   // the Event Checklist page, kept in this browser by src/lib/checklistStore.ts. ?view=checklist opens it.
   // ?view=stars opens 3 Star Protection (owner 2026-11-24).
   const viewParam = searchParams.get('view');
-  const detailView: 'items' | 'checklist' | 'stars' = viewParam === 'checklist' ? 'checklist' : viewParam === 'stars' ? 'stars' : 'items';
-  const setDetailView = (view: 'items' | 'checklist' | 'stars') =>
+  const detailView: 'items' | 'checklist' | 'stars' | 'finance' = viewParam === 'checklist' ? 'checklist' : viewParam === 'stars' ? 'stars' : viewParam === 'finance' ? 'finance' : 'items';
+  const setDetailView = (view: 'items' | 'checklist' | 'stars' | 'finance') =>
     setSearchParams((params) => {
       if (view === 'items') params.delete('view'); else params.set('view', view);
       return params;
@@ -2853,9 +2854,12 @@ export default function EventDetailPage() {
           {showStars && <button type="button" role="tab" aria-selected={detailView === 'stars'} className={`ed-view-stars${detailView === 'stars' ? ' active' : ''}`} onClick={() => setDetailView('stars')}>
             {t('threeStar.tab')} {!threeStar.settings.enabled ? <span className="stage-tab-count">{t('threeStar.off')}</span> : starEarned < 0 ? <span className="badge badge-purple">{t('threeStar.tabSetup')}</span> : <StarRow earned={starEarned} size="sm" />}
           </button>}
+          {isTenantAdminForStars() && <button type="button" role="tab" aria-selected={detailView === 'finance'} className={detailView === 'finance' ? 'active' : ''} onClick={() => setDetailView('finance')}>{t('fin.tab')}</button>}
         </div>
 
-        {detailView === 'stars' && showStars ? (
+        {detailView === 'finance' && isTenantAdminForStars() ? (
+          eventDetail ? <EventFinancePanel key={eventId} event={{ id: eventId, name: eventDetail.name ?? '', start: String(eventDetail.event_start ?? '').slice(0, 10), end: String(eventDetail.event_end ?? '').slice(0, 10), address: eventDetail.address ?? '' }} /> : <p className="no-data">{t('wording.loading')}</p>
+        ) : detailView === 'stars' && showStars ? (
           eventDetail ? <ThreeStarPanel key={eventId} event={starEvent} items={starItems} clashes={starClashes} onOpenItems={(name) => { setDetailView('items'); setKwSearch(name ?? ''); }} onOpenChecklist={() => setDetailView('checklist')} onRent={loanEnabled && !addLocked ? () => setBorrowOpen(true) : undefined} /> : <p className="no-data">{t('wording.loading')}</p>
         ) : detailView === 'checklist' ? (
           <div className="ed-checklist">
