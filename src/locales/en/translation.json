@@ -1732,5 +1732,6 @@
     "youCompanyCom": "you@company.com",
     "youHave": "You have",
     "youreOnThe": "You're on the"
-  }
+  },
+  "uxFix": {"crashTitle": "This page hit a problem", "crashBody": "The rest of the app still works. Try again, or go back to the dashboard. If it keeps happening, tell the admin which page it was.", "retry": "Try again", "toDashboard": "Go to dashboard", "toEvents": "Go to events", "notFoundTitle": "Page not found", "notFoundBody": "There is no page at {{path}}. The link may be old or mistyped.", "sessionExpired": "Your session has ended. Please log in again."}
 }

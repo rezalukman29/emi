@@ -1,3 +1,4 @@
+import i18n from "../i18n";
 import React, { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { useFormik } from "formik";
@@ -239,6 +240,11 @@ export default function LoginPage({ initialMenu = "LOGIN" }: LoginPageProps) {
   const [token, setTokens] = useState("");
   // const searchParams = useSearchParams();
   // let scan: any = searchParams.get("scan");
+
+  // Arrived here because the session ended (401 from the API) — say so (UX review 2026-11-26).
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get("expired") === "1") toast.info(i18n.t("uxFix.sessionExpired"), { toastId: "session-expired" });
+  }, [location.search]);
 
   useEffect(() => {
     if (activeMenu !== "LOGIN") return;

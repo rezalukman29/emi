@@ -61,7 +61,7 @@ function ImgCell({ src, name, onClick }: any) {
       onMouseLeave={(e) => (e.currentTarget.style.background = "var(--bg)")}
     >
       {src ? (
-        <img
+        <img loading="lazy" decoding="async"
           src={src}
           alt={name}
           style={{
@@ -143,7 +143,7 @@ function ImageViewerModal({ open, name, src, onClose }: any) {
           }}
         >
           {src ? (
-            <img
+            <img loading="lazy" decoding="async"
               src={src}
               alt={name}
               style={{
@@ -1431,7 +1431,7 @@ export default function InventoryPage() {
               }
             >
               {base64 ? (
-                <img
+                <img loading="lazy" decoding="async"
                   src={base64}
                   alt="preview"
                   style={{

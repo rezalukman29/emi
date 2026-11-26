@@ -9,6 +9,13 @@ Format: date — change — endpoints/fields touched — impact — action neede
 
 ---
 
+## 2026-11-26 — UX review outside the event pages (fixes)
+
+- **Endpoints touched:** none changed. New client behaviour: any **401** response now logs the user out locally (removes
+  localStorage `auth`) and goes to `/login?expired=1`. Check: does the backend ever return 401 for something other than an
+  invalid/expired session? If yes, tell us and we narrow the rule.
+- **Needs API — waiting for backend:** §15 (server validation of event dates, no negative stock).
+
 ## 2026-11-26 — Warehouse Hub + Project Finance (preview)
 
 - **Endpoints touched:** none changed. Warehouse Hub reads `/v1/gudang`, `/v1/barang-gudang/gudang/{id}`, `/v2/event-filter`,

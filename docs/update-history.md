@@ -11,6 +11,13 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+## 2026-11-26 — UX review fixes outside Event
+
+Not-found page, page error boundary, session-expired redirect, pagination NaN fix, Event Report date fallback, lazy
+inventory photos. See ai-handoff.md for files; backend items in api-backlog §15.
+
+---
+
 ## Context every dev should know
 
 - **No backend.** Everything is a static React SPA (Vite, plain JSX, no TypeScript).

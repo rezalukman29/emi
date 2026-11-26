@@ -36,4 +36,19 @@ ax.interceptors.request.use(
   },
 );
 
+// Session expired / not accepted: go to login with a message and come back afterwards (UX review 2026-11-26, REG-02).
+ax.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error?.response?.status === 401 && !window.location.pathname.startsWith("/login") && !window.location.pathname.startsWith("/superadmin")) {
+      try {
+        window.sessionStorage.setItem("emi.returnTo", window.location.pathname + window.location.search);
+        window.localStorage.removeItem("auth");
+      } catch { /* storage blocked */ }
+      window.location.assign("/login?expired=1");
+    }
+    return Promise.reject(error);
+  },
+);
+
 export default ax;

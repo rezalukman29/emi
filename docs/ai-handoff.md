@@ -6,6 +6,17 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-26 — UX review outside the event pages (fixes)
+
+- Owner: "roast the features outside Event, make sure UX is good, fix; if there is no API, mark it".
+- Sweep of 31 routes, desktop 1440 + mobile 390 (live staging, writes blocked): no sideways scroll anywhere.
+- Fixed: `PageErrorBoundary` around `<Outlet />` in Layout (reset on path change); tenant `*` route → `NotFoundPage`
+  (was a silent jump to /event); axios 401 interceptor → `/login?expired=1` + toast (skips /login and /superadmin);
+  Pagination coerces total/page (category list showed "NaN"); Event Report date falls back to `event_start` and shows "—"
+  instead of "NaN-NaN-NaN"; Inventory images `loading="lazy"` (page took 13–16 s mostly downloading photos).
+- Strings: `uxFix.*` (en + id). CSS: `.page-crash` in index.css.
+- Not changed, data/backend: negative stock on Dashboard (-97), invalid `date_event` on events 85/73 → api-backlog §15.
+
 ## 2026-11-26 — Warehouse Hub + Project Finance (preview)
 
 - Owner: build a new warehouse menu without changing the old ones; security fixes out of scope for now; start the rest.

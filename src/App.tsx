@@ -21,6 +21,7 @@ import AiToolsPage from "./pages/AiToolsPage";
 import ThreeStarSettingsPage from "./pages/ThreeStarSettingsPage";
 import WarehouseHubPage from "./pages/WarehouseHubPage";
 import FinancePage from "./pages/FinancePage";
+import NotFoundPage from "./pages/NotFoundPage";
 import CategoryDetailPage from "./pages/CategoryDetailPage.jsx";
 import CategoryPage from "./pages/CategoryPage";
 import MainDashboardPage from "./pages/DashboardPage";
@@ -160,7 +161,7 @@ export default function App() {
               <Route path="finance" element={<FinancePage />} />
               <Route path="log" element={<LogPage />} />
               <Route path="users" element={<UsersPage />} />
-              <Route path="*" element={<Navigate to="/event" replace />} />
+              <Route path="*" element={<NotFoundPage />} />
             </Route>
           </Routes>
           <ToastContainer />

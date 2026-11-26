@@ -111,3 +111,9 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* Page error / not-found card (UX review 2026-11-26) */
+.page-crash { max-width: 560px; margin: 48px auto; padding: 28px; text-align: center; }
+.page-crash h2 { margin: 0 0 8px; color: var(--text, inherit); }
+.page-crash p { color: var(--muted, inherit); margin: 0 0 20px; }
+.page-crash-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }

@@ -96,6 +96,13 @@ checked at 390 px and tablets at 768 px.
 
 ## UI change log (newest first)
 
+### 2026-11-26 — UX review outside the event pages
+- Unknown address: before → silent jump to Events; after → "Page not found" card with "Go to dashboard" / "Go to events".
+- A page that crashes: before → whole app blank; after → "This page hit a problem" card, sidebar still works, "Try again".
+- Session ended (401): before → pages showed empty lists/errors; after → back to login with "Your session has ended".
+- Category list pagination: "NaN" pages gone. Event Report: broken dates show "—".
+- Inventory: photos load as you scroll (faster first view).
+
 ### 2026-11-26 — Warehouse Hub + Project Finance (new menus; old menus unchanged)
 | Where | Before | After | Why |
 |---|---|---|---|

@@ -31,6 +31,7 @@ Last updated: 2026-11-23.
 | 12 | **3 Star Protection** (AI assistant per event) | Preview: mock AI rules in the browser | Settings, event brief, analyze endpoint with an LLM, suggestion states | Medium | `src/hooks/api/threeStarContract.ts` |
 | 13 | **Warehouse schedule** (out / back per warehouse, returns overdue) | Derived from event dates in the browser | `GET /v1/gudang/{id}/schedule`, `expected_return_date` per line, `?gudang_id=` on the summary | Medium | — |
 | 14 | **Project Finance** (contract, costs, invoices, payments) | Preview: browser only; vendor costs real | Client, contract, quotes, invoices + payments, manual costs, rental/replacement prices, PDF, reminders | High | — |
+| 15 | **Data validation** (event dates, stock never below 0) | FE hides bad values ("—"), Dashboard still shows −97 | Reject invalid `date_event`/`event_start`; refuse moves/outs that push stock below 0; fix existing rows | Medium | — |
 | 10 | **Deleting an event that has items** | UI asks to type the name | Answer: what happens to items, stock and scans? Should the server refuse? | Question | — |
 
 ---
@@ -190,3 +191,12 @@ due date, PDF) and `/v1/invoices/{id}/payments`; extra charges linked to broken/
 ## Done
 
 _(Nothing yet. Move rows here with the date and the backend version when an API ships.)_
+
+## 15. Data validation (UX review 2026-11-26)
+
+**Status: Butuh API — waiting for backend.**
+- Events 85 and 73 on staging have a `date_event` that is not a date, so reports showed "NaN-NaN-NaN" (the FE now shows "—").
+  Backend: validate `date_event`, `event_start`, `event_end` as `YYYY-MM-DD` on create/update (422 with a field message) and
+  repair the existing rows.
+- Dashboard shows an item with stock **−97**. Stock must never go below 0: `POST /v1/moving-order`, item-out and stock-opname
+  adjustments should refuse (422, message "only N in stock") instead of saving. Provide a one-off report of rows < 0.

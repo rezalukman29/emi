@@ -1732,5 +1732,6 @@
     "youCompanyCom": "you@company.com",
     "youHave": "Anda memiliki",
     "youreOnThe": "Anda menggunakan paket"
-  }
+  },
+  "uxFix": {"crashTitle": "Halaman ini mengalami masalah", "crashBody": "Bagian lain aplikasi tetap bisa dipakai. Coba lagi, atau kembali ke dashboard. Kalau terus terjadi, beri tahu admin halaman mana.", "retry": "Coba lagi", "toDashboard": "Ke dashboard", "toEvents": "Ke daftar event", "notFoundTitle": "Halaman tidak ditemukan", "notFoundBody": "Tidak ada halaman di {{path}}. Tautannya mungkin lama atau salah ketik.", "sessionExpired": "Sesi Anda sudah berakhir. Silakan login lagi."}
 }

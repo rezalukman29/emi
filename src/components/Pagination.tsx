@@ -8,8 +8,11 @@ function visiblePages(cur: any, total: any) {
   return [1, '...', cur - 1, cur, cur + 1, '...', total];
 }
 
-export default function Pagination({ currentPage, total, pageSize, onPage, label }: any) {
+export default function Pagination({ currentPage: rawPage, total: rawTotal, pageSize, onPage, label }: any) {
   const { t } = useTranslation();
+  // Data may still be loading (undefined total) — never render NaN page buttons (UX review 2026-11-26).
+  const total = Number(rawTotal) || 0;
+  const currentPage = Math.max(1, Number(rawPage) || 1);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const from = (currentPage - 1) * pageSize + 1;
   const to = Math.min(currentPage * pageSize, total);
@@ -23,8 +26,8 @@ export default function Pagination({ currentPage, total, pageSize, onPage, label
       <button className="pg-btn" aria-label={t('pagination.previousPage')} onClick={() => onPage(currentPage - 1)} disabled={currentPage === 1}><IconChevronLeft /></button>
       {pages.map((p, i) =>
         p === '...'
-          ? <span key={i} className="pg-btn" style={{ cursor: 'default' }}>…</span>
-          : <button key={p} className={`pg-btn${p === currentPage ? ' active' : ''}`} onClick={() => onPage(p)}>{p}</button>
+          ? <span key={`gap-${i}`} className="pg-btn" style={{ cursor: 'default' }}>…</span>
+          : <button key={`p-${p}`} className={`pg-btn${p === currentPage ? ' active' : ''}`} onClick={() => onPage(p)}>{p}</button>
       )}
       <button className="pg-btn" aria-label={t('pagination.nextPage')} onClick={() => onPage(currentPage + 1)} disabled={currentPage === totalPages}><IconChevronRight /></button>
       <button className="pg-btn" aria-label={t('pagination.lastPage')} onClick={() => onPage(totalPages)} disabled={currentPage === totalPages}><IconChevronsRight /></button>
