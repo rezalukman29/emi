@@ -56,8 +56,8 @@ export default function EventCalendarPage() {
   const locale = i18n.resolvedLanguage || i18n.language || 'en';
   const monthLabel = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${first}T00:00:00Z`));
 
-  const serverDays = useMemo(() => eventsQuery.data?.data.days || [], [eventsQuery.data]);
-  const allClashes = useMemo(() => clashesQuery.data?.data.clashes || [], [clashesQuery.data]);
+  const serverDays = useMemo(() => eventsQuery.data?.data?.days || [], [eventsQuery.data]);
+  const allClashes = useMemo(() => clashesQuery.data?.data?.clashes || [], [clashesQuery.data]);
   const filtering = isFiltering(filters);
   const filtered = useMemo(
     () => filterCalendar(serverDays, allClashes, filters, month),
@@ -68,7 +68,7 @@ export default function EventCalendarPage() {
     serverDays.map(day => [calendarDate(day.date), day.events || []]),
   ), [filtering, filtered, serverDays]);
   const clashDataByDay = useMemo(() => new Map(
-    (clashesQuery.data?.data.days || []).map(day => [calendarDate(day.date), day]),
+    (clashesQuery.data?.data?.days || []).map(day => [calendarDate(day.date), day]),
   ), [clashesQuery.data]);
   const isShort = (row: typeof allClashes[number]) => row.shortage > 0;
   const shownClashes = filtered.clashes.slice()

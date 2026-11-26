@@ -289,11 +289,12 @@ export default function LoginPage({ initialMenu = "LOGIN" }: LoginPageProps) {
       setIsLoading(true);
       const response = await InventoryService.postLogin(payload);
       if (response.success) {
+        if (!response.data?.user_type?.trim()) throw new Error('Missing user role');
         const data = {
           id: response?.data?.id,
           fullname: response?.data?.fullname,
           email: response?.data?.email,
-          user_type: response?.data?.user_type,
+          user_type: response.data.user_type.toUpperCase() === 'ADMIN' ? 'ADMIN' : 'EMPLOYEE',
           token: response?.data?.token,
         };
         localStorage.setItem("auth", JSON.stringify(data));
@@ -310,7 +311,9 @@ export default function LoginPage({ initialMenu = "LOGIN" }: LoginPageProps) {
           const from = (location.state as {
             from?: { pathname?: string; search?: string; hash?: string };
           } | null)?.from;
-          const destination = from?.pathname
+          const savedDestination = sessionStorage.getItem('emi.returnTo');
+          sessionStorage.removeItem('emi.returnTo');
+          const destination = savedDestination?.startsWith('/') && !savedDestination.startsWith('//') && !savedDestination.startsWith('/superadmin') ? savedDestination : from?.pathname
             ? `${from.pathname}${from.search ?? ""}${from.hash ?? ""}`
             : "/event";
           navigate(destination, { replace: true });
@@ -321,7 +324,7 @@ export default function LoginPage({ initialMenu = "LOGIN" }: LoginPageProps) {
       }
     } catch (error: any) {
       setIsLoading(false);
-      toast(error?.response?.data?.message, { type: "error" });
+      toast(error?.response?.data?.message || t('auth.signInFailed'), { type: "error" });
     }
   };
 
@@ -397,6 +400,7 @@ export default function LoginPage({ initialMenu = "LOGIN" }: LoginPageProps) {
       <style>{spinKeyframes}</style>
 
       <div style={styles.card}>
+        {new URLSearchParams(location.search).get('expired') === '1' && <p role="status">{t('recovery.expired')}</p>}
         {/* Header */}
         <div style={styles.header}>
           <div style={styles.decorCircle1} />

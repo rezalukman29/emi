@@ -128,7 +128,7 @@ export default function UsersPage() {
     validationSchema: Yup.object({
       fullname: Yup.string().trim().required(t("wording.required")),
       email: Yup.string().trim().email("Invalid email address").required(t("wording.required")),
-      password: Yup.string().required(t("wording.required")),
+      password: Yup.string().min(8, t('recovery.passwordLength')).required(t("wording.required")),
       user_type: Yup.string().oneOf(ROLES).required(t("wording.required")),
       status: Yup.string().required(t("wording.required")),
     }),

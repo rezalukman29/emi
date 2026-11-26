@@ -75,6 +75,7 @@ export default function StockOpnamePage() {
     data: historyResponse,
     isLoading: isHistoryLoading,
     isError: isHistoryError,
+    refetch: refetchHistory,
   } = useGetStockOpname({
     params: {
       page: 1,
@@ -233,6 +234,7 @@ export default function StockOpnamePage() {
             {t("wording.unableToVerifyPendingStockOpnameSubmissions")}
           </p>
           <button className="btn-cancel-modal" onClick={() => navigate("/warehouse-inventory?tab=opnamehistory")}>{t("wording.backToHistory")}</button>
+          <button className="btn-save-modal" onClick={() => void refetchHistory()}>{t("recovery.retry")}</button>
         </div>
       </>
     );

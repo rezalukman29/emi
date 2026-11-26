@@ -644,3 +644,7 @@ one after this file's initial version is "Round 6"). Each entry should say **wha
 changed, **why** (the product reason, not just "user asked"), which **files** were
 touched, and any **gotcha** a future dev would otherwise have to rediscover the hard
 way.
+
+## 2026-11-26 — FE fixes
+
+Added role persistence and admin guards, session recovery, mandatory missing-stage selection, safer inventory editing and load/error fallbacks.

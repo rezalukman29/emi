@@ -253,7 +253,7 @@ function isTenantAdmin() {
     const raw = window.localStorage.getItem('auth');
     if (!raw) return false;
     const auth = JSON.parse(raw) as { user_type?: string; is_admin?: number };
-    return auth.user_type?.toUpperCase() === 'ADMIN' || auth.is_admin === 1;
+    return auth.user_type?.toUpperCase() === 'ADMIN';
   } catch {
     return false;
   }
@@ -268,6 +268,7 @@ export default function Sidebar({ visible, mobile = false }: { visible: boolean;
   const searchRef = useRef<HTMLInputElement>(null);
   const enabledFeatures = useUserPlanController();
   const allowed = (leaf: NavLeaf) => {
+    if (!isTenantAdmin() && ['/users', '/event-status', '/event-checklist-settings', '/upgrade'].includes(leaf.to)) return false;
     const requiredFeature = ROUTE_FEATURES[leaf.to];
     return !requiredFeature || enabledFeatures[requiredFeature];
   };

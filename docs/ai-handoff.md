@@ -439,3 +439,7 @@ Each entry: what changed, files, why, state left behind, open items.
   patch, the owner runs `git am` + `git push` on their Mac. After they push, `git fetch`
   and `git reset --hard origin/daniel-staging-web` only if `git diff HEAD origin/daniel-staging-web`
   is empty (git am rewrites hashes). Permanent fix: repo owner installs the app.
+
+## 2026-11-26 — FE reliability and access fixes
+
+Login persists the backend role; missing roles require login again. Admin-only navigation/actions are guarded, expired sessions return to login, and a missing event stage requires admin recovery. Inventory editing preserves stock; error handling and recovery screens were improved.

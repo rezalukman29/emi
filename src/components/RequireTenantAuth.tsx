@@ -19,7 +19,8 @@ export default function RequireTenantAuth({ children }: { children: ReactNode })
   const location = useLocation();
   const auth = getTenantAuth();
 
-  if (!auth?.id) {
+  if (!auth?.id || !auth.user_type?.trim()) {
+    if (auth?.id && !auth.user_type?.trim()) window.localStorage.removeItem('auth');
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 

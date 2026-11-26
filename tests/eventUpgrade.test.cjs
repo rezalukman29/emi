@@ -327,12 +327,12 @@ test('Next only unlocks the immediately following stage; scan gate permits retur
   assert.equal(canChangeStage({ ...state, target: 4, furthest: 4 }), true);
 });
 
-test('Cutting Stock is exclusive; hidden Stock Return does not constrain settings; production can repeat', () => {
+test('stock cut and return stages are exclusive; production can repeat', () => {
   const { hasExclusiveFlagConflict } = load('lib/eventStageRules.ts');
   const empty = { cuttingStock: false, stockReturn: false, productionItem: false };
   assert.equal(hasExclusiveFlagConflict({ ...empty, cuttingStock: true }, [{ ...empty, cuttingStock: true }]), true);
-  assert.equal(hasExclusiveFlagConflict({ ...empty, stockReturn: true }, [{ ...empty, stockReturn: true }]), false);
-  assert.equal(hasExclusiveFlagConflict({ ...empty, cuttingStock: true, stockReturn: true }, []), false);
+  assert.equal(hasExclusiveFlagConflict({ ...empty, stockReturn: true }, [{ ...empty, stockReturn: true }]), true);
+  assert.equal(hasExclusiveFlagConflict({ ...empty, cuttingStock: true, stockReturn: true }, []), true);
   assert.equal(hasExclusiveFlagConflict({ ...empty, stockReturn: true }, [{ ...empty, cuttingStock: true }]), false);
   assert.equal(hasExclusiveFlagConflict({ ...empty, productionItem: true }, [{ ...empty, productionItem: true }]), false);
 });
@@ -388,7 +388,8 @@ test('conversion loaders use backend pagination and stable inventory identifiers
 test('cards and list preserve backend return / transfer chips, and locked item actions disappear', () => {
   const { ItemCard, ItemTable, isPackableEventItem, mapEventItem } = load('pages/EventDetailPage.tsx', '\nexport { ItemCard, ItemTable, isPackableEventItem, mapEventItem };', {
     '../lib/eventLifecycle': { ownershipClass: () => 'badge-purple' },
-    '../utils/function': { isValidUrl: () => false, noImage: '/empty.jpg', STORAGE_BOOQABLE: '' },
+    '../utils/function': { isValidUrl: () => false, noImage: '/empty.jpg', STORAGE_BOOQABLE: '', getPhotoUrl: () => '' },
+    '../lib/uiVariant': { useUiVariant: () => 'A' },
   });
   const item = { id: 1, name: 'Chair', photo: '/chair.jpg', area: 'Entrance', qty: 2, unit: 'pcs', ownerships: ['IHP'], checking: true, isReturned: true, isTransferredFromOtherEvent: true, isTransferredToOtherEvent: true, isNewProductionItem: true, isConverted: true, convertedQty: 1 };
   const props = { item, onOpen() {}, onScan() {}, showScanButton: false, isScanned: false };

@@ -1,4 +1,6 @@
 import { fmtNum as fmtDisplayNumber } from '../lib/format';
+import { isTenantAdminUser } from '../lib/tenantUser';
+import LoadError from '../components/LoadError';
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate, useSearchParams, type NavigateFunction } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -473,7 +475,7 @@ export default function EventPage() {
     ...(filters.size === "medium" ? { items_min: 31, items_max: 150 } : {}),
     ...(filters.size === "large" ? { items_min: 151 } : {}),
   };
-  const { data: eventsResponse, isFetching, isError, error } = useGetEvents({
+  const { data: eventsResponse, isFetching, isError, refetch: refetchEvents } = useGetEvents({
     status: activeTab === 'invite' ? undefined : activeTab as LifecycleStatus,
     search: debouncedSearch || undefined,
     ...listFilterParams,
@@ -483,11 +485,11 @@ export default function EventPage() {
   const lifecycleCounts = Object.fromEntries(LIFECYCLE_STATUSES.map((flag, index) => [
     flag, countQueries[index].data?.data.total_records ?? 0,
   ]));
-  const events = eventsResponse?.data.data ?? [];
-  const totalRecords = eventsResponse?.data.total_records ?? 0;
+  const events = eventsResponse?.data?.data ?? [];
+  const totalRecords = eventsResponse?.data?.total_records ?? 0;
   const listLoading = isFetching || search !== debouncedSearch;
   useEffect(() => {
-    const pages = Math.max(1, eventsResponse?.data.total_pages ?? 1);
+    const pages = Math.max(1, eventsResponse?.data?.total_pages ?? 1);
     if (eventsResponse && pastPage > pages) setPastPage(pages);
   }, [eventsResponse, pastPage]);
 
@@ -584,11 +586,13 @@ export default function EventPage() {
   }
 
   function openDelete(id: number) {
+    if (!isTenantAdminUser()) return;
     setDeletingId(id);
     setDeleteConfirmText("");
     setDeleteOpen(true);
   }
   async function confirmDelete() {
+    if (!isTenantAdminUser()) return;
     if (deletingId === null || !deleteConfirmed) return;
     try {
       setIsDeleting(true);
@@ -772,13 +776,13 @@ export default function EventPage() {
           >
             <IconEdit />
           </button>
-          <button
+          {isTenantAdminUser() && <button
             className="btn-icon delete"
             data-tip={t("wording.delete")} data-tip-align="end" aria-label={t("wording.delete")}
             onClick={() => onDelete(r.id)}
           >
             <IconDelete />
-          </button>
+          </button>}
           <button className="btn-icon history" data-tip={t("wording.history")} data-tip-align="end" aria-label={t("wording.history")} onClick={() => navigate(`/event-history?id=${r.id}`)}>
             <IconHistory />
           </button>
@@ -952,13 +956,13 @@ export default function EventPage() {
           >
             <IconEdit />
           </button>
-          <button
+          {isTenantAdminUser() && <button
             className="btn-icon delete"
             data-tip={t("wording.delete")} data-tip-align="end" aria-label={t("wording.delete")}
             onClick={() => onDelete(r.id)}
           >
             <IconDelete />
-          </button>
+          </button>}
           <button className="btn-icon history" data-tip={t("wording.history")} data-tip-align="end" aria-label={t("wording.history")} onClick={() => navigate(`/event-history?id=${r.id}`)}>
             <IconHistory />
           </button></>}
@@ -1123,7 +1127,8 @@ export default function EventPage() {
       </div>
 
       {/* ── UPCOMING ── */}
-      {activeTab !== 'invite' && (listLoading || isError) && <div className="card" role="status" style={{ padding: 20 }}>{listLoading ? t('wording.loading') : (error instanceof Error ? error.message : t('wording.failedToLoadData'))}</div>}
+      {activeTab !== 'invite' && listLoading && <div className="card" role="status" style={{ padding: 20 }}>{t('wording.loading')}</div>}
+      {activeTab !== 'invite' && isError && !listLoading && <LoadError onRetry={() => void refetchEvents()} />}
       {activeTab !== 'invite' && activeTab !== 'returned-completed' && (
         <div>
           <div

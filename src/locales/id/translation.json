@@ -1,4 +1,5 @@
 {
+  "recovery": {"pageFailed":"Halaman ini gagal dimuat.","retry":"Coba lagi","dashboard":"Ke Dashboard","notFound":"Halaman tidak ditemukan.","expired":"Sesi Anda berakhir. Silakan login kembali.","missingStage":"Tahap event ini sudah tidak tersedia. Admin harus memilih tahap baru sebelum melakukan perubahan.","selectStage":"Pilih tahap baru","saveStage":"Perbarui tahap","adminOnly":"Hanya admin yang dapat memperbarui tahap.","loadFailed":"Data belum bisa dimuat. Coba lagi.","invalidStock":"Masukkan bilangan bulat minimal nol.","saveFailed":"Gagal menyimpan. Coba lagi.","passwordLength":"Password minimal 8 karakter."},
   "quickAdd": {"addNew":"Tambah baru"},
   "eventRules": {
     "pastEditLocked": "Event ini sudah selesai dan tidak dapat diedit lagi.",

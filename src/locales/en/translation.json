@@ -1,4 +1,5 @@
 {
+  "recovery": {"pageFailed":"This page could not be loaded.","retry":"Try again","dashboard":"Go to Dashboard","notFound":"Page not found.","expired":"Your session has expired. Please log in again.","missingStage":"This event's stage no longer exists. An admin must select a new stage before making changes.","selectStage":"Select a new stage","saveStage":"Update stage","adminOnly":"Only an admin can update the stage.","loadFailed":"Data could not be loaded. Please try again.","invalidStock":"Enter a whole number greater than or equal to zero.","saveFailed":"Could not save. Please try again.","passwordLength":"Password must contain at least 8 characters."},
   "quickAdd": {"addNew":"Add new"},
   "eventRules": {
     "pastEditLocked": "This event has ended and can no longer be edited.",

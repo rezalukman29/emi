@@ -56,8 +56,10 @@ export default function SuperAdminLogin() {
       dispatch(setProfile(data));
       localStorage.setItem("auth", JSON.stringify(data));
       markSuperAdminAuthed();
-      const destination =
-        location.state?.from?.pathname || "/superadmin/dashboard";
+      const savedDestination = sessionStorage.getItem('emi.returnTo');
+      sessionStorage.removeItem('emi.returnTo');
+      const destination = savedDestination?.startsWith('/superadmin/') && !savedDestination.startsWith('/superadmin/login')
+        ? savedDestination : location.state?.from?.pathname || "/superadmin/dashboard";
       navigate(destination, { replace: true });
     } catch (submitError) {
       const message = loginErrorMessage(submitError);
@@ -69,6 +71,7 @@ export default function SuperAdminLogin() {
   return (
     <div className="sa-theme sa-login-page">
       <div className="sa-login-card">
+        {new URLSearchParams(location.search).get('expired') === '1' && <p role="status">{t('recovery.expired')}</p>}
         <div className="sa-login-brand">
           <div className="sa-login-logo">EMI</div>
           <div>
