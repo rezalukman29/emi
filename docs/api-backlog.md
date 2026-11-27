@@ -238,3 +238,6 @@ _(Nothing yet. Move rows here with the date and the backend version when an API 
 - Venue photo as a file URL (not base64). Optional: reuse a layout per venue (`venue_id`) so new events at the same
   venue start from it (today: "copy from another event" in the same browser).
 - Live setup view for crew phones needs the layout on the server; progress already uses real scans.
+- **v2 (2026-11-27):** payload is a plan `{ spaces: [{ id, name, layout }] }`; shapes may carry `form`, `points`,
+  `rot`, and a layout may carry `outline` (venue polygon). Suggest one row per space (`event_layout_spaces`) with the
+  layout as JSON, so crews can open one room on a phone.

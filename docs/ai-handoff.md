@@ -6,6 +6,29 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-27 — Event layout v2: several spaces, round / free-form shapes, rotation
+
+- Owner: "think more realistically — an event never has just one area; arrangements are not always square, can
+  be round".
+- Event plan = several **spaces** (`EventPlan { spaces: [{ id, name, layout }] }`, localStorage `emi.eventLayout.v2`;
+  v1 single layouts migrate to one space "Main venue"). Start screen suggests spaces from the event areas (ceremony
+  area → Akad room, foyer/photo → Foyer, always Ballroom); each area becomes a zone in the space that fits its role,
+  in a free spot inside the venue. Space tabs (rename, duplicate, delete, add), "move to another space", area search
+  across spaces, per-space progress.
+- Shapes (shared model `src/lib/warehouseLayout.ts`): `form` rect | ellipse | semi | arc | L | U | hex | oct | tri |
+  poly (`points` relative 0..1), `rot` degrees; `shapePolygon`, `pointInPolygon`, `shapesOverlap`, `isOutside`;
+  layout `outline` (venue walls polygon, presets rect/round/oval/oct/L/T or drawn); grid routing blocks cells outside
+  the outline and rasterises shapes by polygon.
+- Canvas: polygons/ellipses, rotate handle (15° steps, Alt = 1°, key R), draw tool (click corners, click first point
+  / double-click / Enter to finish, Backspace, Esc), venue outline with darkened outside, small chairs unlabeled.
+- Templates: Ballroom (semicircle stage, staggered round tables, dance floor), Round ballroom (round outline, rings
+  of tables), Garden (oval, curved altar, chairs in arcs, ring of tables around a hexagon gazebo), Akad room (curved
+  chair rows), Foyer (L-shaped), Empty. Table generator: grid, staggered, ring, half ring facing the stage, curved
+  theatre rows; table shape round/rect/hex/oct; seats; chairs (1 seat) counted apart.
+- Verified on staging (writes blocked), event 91: 4 spaces created, 0 problems in each; free shape drawn + rotated
+  30°; round ballroom view; mobile 390 px no sideways scroll; warehouse template still 0 problems and routes OK.
+  Not checked on a real phone or with a real venue photo.
+
 ## 2026-11-27 — Event layout map (tab "Layout" in Event Detail, preview)
 
 - Owner: "use the same concept for an event layout map, reachable from every event detail".

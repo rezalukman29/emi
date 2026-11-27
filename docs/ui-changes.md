@@ -96,6 +96,13 @@ checked at 390 px and tablets at 768 px.
 
 ## UI change log (newest first)
 
+### 2026-11-27 — Event layout v2
+- Start: choose the spaces the event uses (Akad room, Ballroom, Round ballroom, Garden, Foyer, Empty) — suggested from
+  the event's areas; areas are placed in the matching space. Tabs per space above the plan.
+- Shapes are not only boxes: round, semicircle, arc, L, U, hexagon, octagon, triangle, or drawn freely; any rotation
+  (handle above the selected item, slider, R key). Venue shape: rectangle, round, oval, octagon, L, T, or drawn.
+- Table arrangements: grid, staggered, ring, half ring facing the stage, curved chair rows.
+
 ### 2026-11-27 — Event layout map
 - Event Detail has a new tab **Layout** (between 3 Star and Finance). Empty → choose Ballroom / Garden / Empty or copy
   from another event; event areas become zones automatically.

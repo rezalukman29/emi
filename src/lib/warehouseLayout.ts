@@ -26,11 +26,16 @@ export interface Shape {
   role?: ZoneRole;
   locked?: boolean;
   note?: string;
-  round?: boolean; // drawn as an ellipse (round tables, pillars)
+  round?: boolean; // drawn as an ellipse (round tables, pillars) — same as form 'ellipse'
+  form?: ShapeForm; // outline inside the w × h box (default rect)
+  points?: Array<[number, number]>; // form 'poly': points relative to the box, 0..1
+  rot?: number; // rotation in degrees around the centre
   seats?: number; // event tables
 }
+export type ShapeForm = 'rect' | 'ellipse' | 'semi' | 'arc' | 'L' | 'U' | 'hex' | 'oct' | 'tri' | 'poly';
 export interface LayoutBackground { src: string; opacity: number }
-export interface Layout { warehouseId: number; cols: number; rows: number; shapes: Shape[]; assign: Record<number, string>; bg?: LayoutBackground | null; updatedAt: string }
+/** `outline`: venue / building walls as an absolute polygon (metres). Empty = the whole rectangle. */
+export interface Layout { warehouseId: number; cols: number; rows: number; shapes: Shape[]; assign: Record<number, string>; bg?: LayoutBackground | null; outline?: Array<[number, number]> | null; updatedAt: string }
 interface State { version: 1; layouts: Record<number, Layout> }
 
 const KEY = 'emi.whLayout.v1';
@@ -201,9 +206,9 @@ export function validate(layout: Layout): LayoutIssue[] {
   const issues: LayoutIssue[] = [];
   const blocking = layout.shapes.filter((s) => BLOCKING.includes(s.kind));
   for (let i = 0; i < blocking.length; i += 1) for (let j = i + 1; j < blocking.length; j += 1) {
-    if (overlap(blocking[i], blocking[j])) issues.push({ type: 'overlap', ids: [blocking[i].id, blocking[j].id], label: `${blocking[i].name} ↔ ${blocking[j].name}` });
+    if (shapesOverlap(blocking[i], blocking[j])) issues.push({ type: 'overlap', ids: [blocking[i].id, blocking[j].id], label: `${blocking[i].name} ↔ ${blocking[j].name}` });
   }
-  for (const s of layout.shapes) if (s.x < 0 || s.y < 0 || s.x + s.w > layout.cols || s.y + s.h > layout.rows) issues.push({ type: 'outside', ids: [s.id], label: s.name });
+  for (const s of layout.shapes) if (isOutside(layout, s)) issues.push({ type: 'outside', ids: [s.id], label: s.name });
   const byCode = new Map<string, Shape[]>();
   for (const s of layout.shapes.filter((x) => STORAGE.includes(x.kind))) { const k = norm(s.code); byCode.set(k, [...(byCode.get(k) ?? []), s]); }
   for (const [code, list] of byCode) if (list.length > 1) issues.push({ type: 'dupCode', ids: list.map((s) => s.id), label: code.toUpperCase() });
@@ -230,8 +235,16 @@ export function buildGrid(layout: Layout, blockingKinds: ShapeKind[] = BLOCKING)
   const { cols, rows } = layout;
   const blocked = new Uint8Array(cols * rows);
   const cost = new Float32Array(cols * rows).fill(1.6);
+  // outside the venue outline = blocked
+  if (layout.outline && layout.outline.length >= 3) {
+    for (let y = 0; y < rows; y += 1) for (let x = 0; x < cols; x += 1) if (!pointInPolygon(x + 0.5, y + 0.5, layout.outline)) blocked[y * cols + x] = 1;
+  }
   for (const s of layout.shapes) {
-    for (let y = Math.max(0, Math.floor(s.y)); y < Math.min(rows, Math.ceil(s.y + s.h)); y += 1) for (let x = Math.max(0, Math.floor(s.x)); x < Math.min(cols, Math.ceil(s.x + s.w)); x += 1) {
+    const plain = isPlainRect(s);
+    const poly = plain ? null : shapePolygon(s);
+    const bb = plain ? { x: s.x, y: s.y, w: s.w, h: s.h } : bbox(poly!);
+    for (let y = Math.max(0, Math.floor(bb.y)); y < Math.min(rows, Math.ceil(bb.y + bb.h)); y += 1) for (let x = Math.max(0, Math.floor(bb.x)); x < Math.min(cols, Math.ceil(bb.x + bb.w)); x += 1) {
+      if (poly && !pointInPolygon(x + 0.5, y + 0.5, poly)) continue;
       const i = y * cols + x;
       if (blockingKinds.includes(s.kind)) blocked[i] = 1;
       else if (s.kind === 'aisle') cost[i] = Math.min(cost[i], 1);
@@ -340,4 +353,79 @@ export async function importLayout(file: File, warehouseId: number): Promise<Lay
   const l = data?.layout ?? data;
   if (!l || !Array.isArray(l.shapes) || !Number(l.cols) || !Number(l.rows)) throw new Error('invalid');
   return { warehouseId, cols: Number(l.cols), rows: Number(l.rows), shapes: l.shapes.map((s: Shape) => ({ ...s, id: s.id || newId() })), assign: l.warehouseId === warehouseId ? l.assign ?? {} : {}, bg: l.bg ?? null, updatedAt: '' };
+}
+
+// ── Free-form shapes (owner 2026-11-27: "not always square — can be round too") ──
+const FORM_POINTS: Partial<Record<ShapeForm, Array<[number, number]>>> = {
+  L: [[0, 0], [0.45, 0], [0.45, 0.55], [1, 0.55], [1, 1], [0, 1]],
+  U: [[0, 0], [0.3, 0], [0.3, 0.65], [0.7, 0.65], [0.7, 0], [1, 0], [1, 1], [0, 1]],
+  hex: [[0.25, 0], [0.75, 0], [1, 0.5], [0.75, 1], [0.25, 1], [0, 0.5]],
+  oct: [[0.3, 0], [0.7, 0], [1, 0.3], [1, 0.7], [0.7, 1], [0.3, 1], [0, 0.7], [0, 0.3]],
+  tri: [[0.5, 0], [1, 1], [0, 1]],
+};
+export const formOf = (s: Shape): ShapeForm => s.form ?? (s.round ? 'ellipse' : 'rect');
+export const isPlainRect = (s: Shape) => formOf(s) === 'rect' && !(s.rot ?? 0);
+/** Outline of a shape as absolute points (metres), rotation applied. */
+export function shapePolygon(s: Shape): Array<[number, number]> {
+  const f = formOf(s);
+  let rel: Array<[number, number]>;
+  if (f === 'ellipse') rel = Array.from({ length: 36 }, (_, i) => { const a = (i / 36) * Math.PI * 2; return [0.5 + 0.5 * Math.cos(a), 0.5 + 0.5 * Math.sin(a)]; });
+  else if (f === 'semi') rel = [[0, 0], [1, 0], ...Array.from({ length: 19 }, (_, i) => { const a = (i / 18) * Math.PI; return [0.5 + 0.5 * Math.cos(a), Math.sin(a)] as [number, number]; })];
+  else if (f === 'arc') rel = [...Array.from({ length: 19 }, (_, i) => { const a = Math.PI + (i / 18) * Math.PI; return [0.5 + 0.5 * Math.cos(a), 1 + Math.sin(a)] as [number, number]; }), ...Array.from({ length: 19 }, (_, i) => { const a = 2 * Math.PI - (i / 18) * Math.PI; return [0.5 + 0.28 * Math.cos(a), 1 + 0.55 * Math.sin(a)] as [number, number]; })];
+  else if (f === 'poly') rel = s.points && s.points.length >= 3 ? s.points : [[0, 0], [1, 0], [1, 1], [0, 1]];
+  else rel = FORM_POINTS[f] ?? [[0, 0], [1, 0], [1, 1], [0, 1]];
+  const cx = s.x + s.w / 2; const cy = s.y + s.h / 2;
+  const r = ((s.rot ?? 0) * Math.PI) / 180; const cos = Math.cos(r); const sin = Math.sin(r);
+  return rel.map(([u, v]) => { const px = s.x + u * s.w - cx; const py = s.y + v * s.h - cy; return [cx + px * cos - py * sin, cy + px * sin + py * cos]; });
+}
+export function bbox(pts: Array<[number, number]>) {
+  const xs = pts.map((p) => p[0]); const ys = pts.map((p) => p[1]);
+  const x = Math.min(...xs); const y = Math.min(...ys);
+  return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
+}
+export function pointInPolygon(x: number, y: number, poly: Array<[number, number]>) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i, i += 1) {
+    const [xi, yi] = poly[i]; const [xj, yj] = poly[j];
+    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+export function isOutside(layout: Layout, s: Shape) {
+  const pts = isPlainRect(s) ? [[s.x, s.y], [s.x + s.w, s.y], [s.x + s.w, s.y + s.h], [s.x, s.y + s.h]] as Array<[number, number]> : shapePolygon(s);
+  const out = pts.some(([x, y]) => x < -0.01 || y < -0.01 || x > layout.cols + 0.01 || y > layout.rows + 0.01);
+  if (out) return true;
+  if (layout.outline && layout.outline.length >= 3 && s.kind !== 'dock') {
+    // allow a little tolerance at the walls: check points pulled 0.2 m towards the centre
+    const c = { x: s.x + s.w / 2, y: s.y + s.h / 2 };
+    return pts.some(([x, y]) => { const dx = c.x - x; const dy = c.y - y; const d = Math.hypot(dx, dy) || 1; return !pointInPolygon(x + (dx / d) * 0.2, y + (dy / d) * 0.2, layout.outline!); });
+  }
+  return false;
+}
+export type OutlinePreset = 'rect' | 'round' | 'oval' | 'oct' | 'L' | 'T';
+export function outlinePreset(kind: OutlinePreset, cols: number, rows: number): Array<[number, number]> | null {
+  const m = 0.5;
+  if (kind === 'rect') return null;
+  if (kind === 'round' || kind === 'oval') {
+    const rx = kind === 'round' ? Math.min(cols, rows) / 2 - m : cols / 2 - m; const ry = kind === 'round' ? rx : rows / 2 - m;
+    return Array.from({ length: 48 }, (_, i) => { const a = (i / 48) * Math.PI * 2; return [cols / 2 + rx * Math.cos(a), rows / 2 + ry * Math.sin(a)] as [number, number]; });
+  }
+  const rel: Record<'oct' | 'L' | 'T', Array<[number, number]>> = {
+    oct: [[0.25, 0], [0.75, 0], [1, 0.25], [1, 0.75], [0.75, 1], [0.25, 1], [0, 0.75], [0, 0.25]],
+    L: [[0, 0], [0.55, 0], [0.55, 0.5], [1, 0.5], [1, 1], [0, 1]],
+    T: [[0, 0], [1, 0], [1, 0.45], [0.68, 0.45], [0.68, 1], [0.32, 1], [0.32, 0.45], [0, 0.45]],
+  };
+  return rel[kind].map(([u, v]) => [m + u * (cols - 2 * m), m + v * (rows - 2 * m)]);
+}
+
+/** Overlap that understands round / rotated / free-form shapes (vertex-in-polygon test, plus box test for plain boxes). */
+export function shapesOverlap(a: Shape, b: Shape) {
+  const boxHit = a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  if (isPlainRect(a) && isPlainRect(b)) return boxHit;
+  const pa = shapePolygon(a); const pb = shapePolygon(b);
+  const ba = bbox(pa); const bb = bbox(pb);
+  if (!(ba.x < bb.x + bb.w && bb.x < ba.x + ba.w && ba.y < bb.y + bb.h && bb.y < ba.y + ba.h)) return false;
+  const shrink = (pts: Array<[number, number]>, c: { x: number; y: number }) => pts.map(([x, y]) => [x + (c.x - x) * 0.04, y + (c.y - y) * 0.04] as [number, number]);
+  const ca = { x: ba.x + ba.w / 2, y: ba.y + ba.h / 2 }; const cb = { x: bb.x + bb.w / 2, y: bb.y + bb.h / 2 };
+  return shrink(pa, ca).some(([x, y]) => pointInPolygon(x, y, pb)) || shrink(pb, cb).some(([x, y]) => pointInPolygon(x, y, pa)) || pointInPolygon(ca.x, ca.y, pb) || pointInPolygon(cb.x, cb.y, pa);
 }

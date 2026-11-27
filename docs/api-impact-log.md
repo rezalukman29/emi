@@ -9,6 +9,10 @@ Format: date — change — endpoints/fields touched — impact — action neede
 
 ---
 
+## 2026-11-27 — Event layout v2: several spaces, round / free-form shapes, rotation
+
+- **Endpoints touched:** none. **Needs API — waiting for backend:** §17 now stores a plan with several spaces.
+
 ## 2026-11-27 — Event layout map (tab "Layout" in Event Detail, preview)
 
 - **Endpoints touched:** none. Reads `/v3/fix-list-item-event` (`area_name`, `sub_list_name`, `scan_out`, `scan_in`).

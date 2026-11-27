@@ -11,6 +11,12 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+## 2026-11-27 — Event layout v2
+
+Several spaces per event, round/free-form/rotated shapes, venue outlines, table arrangements. See ai-handoff.md.
+
+---
+
 ## 2026-11-27 — Event layout map
 
 Layout tab in every Event Detail: venue plan with areas, items, setup/return progress, load-in route. Preview (§17).

@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from 'react';
-import { baysOf, type Layout, type Shape, type ShapeStat } from '../../lib/warehouseLayout';
+import { baysOf, formOf, isPlainRect, shapePolygon, type Layout, type Shape, type ShapeStat } from '../../lib/warehouseLayout';
+
+const polyPath = (pts: Array<[number, number]>) => `M${pts.map(([x, y]) => `${x.toFixed(3)} ${y.toFixed(3)}`).join(' L')} Z`;
 
 // SVG floor plan shared by the layout editor and the Hub map. 1 grid unit = 1 metre; the viewBox does zoom/pan.
 // Editor: click / Shift+click select, drag on empty floor = box select (or pan in Pan tool), drag moves every
 // selected block, white corner resizes, alignment guides snap to other blocks' edges and centres.
 
 export type MapMode = 'stock' | 'issues' | 'route' | 'plain' | 'progress';
-export type CanvasTool = 'select' | 'pan';
+/** 'draw': click points, double-click (or click the first point) to finish — used for free-form areas and the venue outline. */
+export type CanvasTool = 'select' | 'pan' | 'draw';
 
 export interface CanvasProps {
   layout: Layout;
@@ -28,15 +31,30 @@ export interface CanvasProps {
   progress?: Map<string, number>;
   /** small count bubble per shape (e.g. item lines in an event area). */
   badges?: Map<string, number>;
+  /** finished free-form drawing (absolute points, metres) */
+  onDraw?: (points: Array<[number, number]>) => void;
   ariaLabel: string;
 }
 
 const heat = (r: number) => (r >= 0.9 ? 'h4' : r >= 0.75 ? 'h3' : r >= 0.5 ? 'h2' : r >= 0.2 ? 'h1' : r > 0 ? 'h0' : 'empty');
 const SNAP = 0.6;
 
-export default function LayoutCanvas({ layout, editable, selected, onSelect, onMove, onCursor, stats, mode = 'plain', maxUnits = 0, highlight, bad, route, zoom, tool = 'select', showBays = true, progress, badges, ariaLabel }: CanvasProps) {
+export default function LayoutCanvas({ layout, editable, selected, onSelect, onMove, onCursor, stats, mode = 'plain', maxUnits = 0, highlight, bad, route, zoom, tool = 'select', showBays = true, progress, badges, onDraw, ariaLabel }: CanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const drag = useRef<{ kind: 'move' | 'resize'; start: { x: number; y: number }; orig: Shape[]; moved: boolean } | null>(null);
+  const drag = useRef<{ kind: 'move' | 'resize' | 'rotate'; start: { x: number; y: number }; orig: Shape[]; moved: boolean } | null>(null);
+  const [drawPts, setDrawPts] = useState<Array<[number, number]>>([]);
+  const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
+  useEffect(() => { if (tool !== 'draw') setDrawPts([]); }, [tool]);
+  useEffect(() => {
+    if (tool !== 'draw') return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDrawPts([]);
+      if (e.key === 'Enter' && drawPts.length >= 3) { onDraw?.(drawPts); setDrawPts([]); }
+      if (e.key === 'Backspace' && drawPts.length) { e.preventDefault(); setDrawPts((p) => p.slice(0, -1)); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [tool, drawPts, onDraw]);
   const box = useRef<{ x: number; y: number; click?: string } | null>(null);
   const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const [guides, setGuides] = useState<{ v: number[]; h: number[] }>({ v: [], h: [] });
@@ -55,7 +73,8 @@ export default function LayoutCanvas({ layout, editable, selected, onSelect, onM
     return { x: pt.x, y: pt.y };
   };
 
-  const startShape = (e: RPointerEvent, shape: Shape, kind: 'move' | 'resize') => {
+  const startShape = (e: RPointerEvent, shape: Shape, kind: 'move' | 'resize' | 'rotate') => {
+    if (tool === 'draw') return; // let the click reach the floor so points can be placed on top of shapes
     e.stopPropagation();
     // Floor blocks (zones, aisles) cover most of the plan: dragging on one that is not selected yet draws a
     // selection box; a plain click still selects it.
@@ -68,7 +87,7 @@ export default function LayoutCanvas({ layout, editable, selected, onSelect, onM
     if (!sel.has(shape.id)) { next = new Set([shape.id]); onSelect?.(next); }
     if (!editable || shape.locked) return;
     try { (e.target as Element).setPointerCapture?.(e.pointerId); } catch { /* synthetic or already released */ }
-    const orig = kind === 'resize' ? [shape] : layout.shapes.filter((s) => next.has(s.id) && !s.locked);
+    const orig = kind !== 'move' ? [shape] : layout.shapes.filter((s) => next.has(s.id) && !s.locked);
     drag.current = { kind, start: toGrid(e), orig, moved: false };
   };
 
@@ -92,12 +111,18 @@ export default function LayoutCanvas({ layout, editable, selected, onSelect, onM
   const onPointerMove = (e: RPointerEvent) => {
     const g = toGrid(e);
     onCursor?.({ x: Math.max(0, Math.min(layout.cols, g.x)), y: Math.max(0, Math.min(layout.rows, g.y)) });
+    if (tool === 'draw') { setHover({ x: Math.round(g.x * 2) / 2, y: Math.round(g.y * 2) / 2 }); return; }
     if (drag.current && onMove) {
       const d = drag.current;
       const rawDx = g.x - d.start.x; const rawDy = g.y - d.start.y;
       if (!d.moved && Math.abs(rawDx) < 0.25 && Math.abs(rawDy) < 0.25) return;
       d.moved = true;
-      if (d.kind === 'move') {
+      if (d.kind === 'rotate') {
+        const o = d.orig[0]; const cx = o.x + o.w / 2; const cy = o.y + o.h / 2;
+        let deg = (Math.atan2(g.y - cy, g.x - cx) * 180) / Math.PI + 90;
+        deg = e.altKey ? Math.round(deg) : Math.round(deg / 15) * 15;
+        onMove([{ ...o, rot: ((deg % 360) + 360) % 360 }], false);
+      } else if (d.kind === 'move') {
         const minX = Math.min(...d.orig.map((s) => s.x)); const minY = Math.min(...d.orig.map((s) => s.y));
         const maxX = Math.max(...d.orig.map((s) => s.x + s.w)); const maxY = Math.max(...d.orig.map((s) => s.y + s.h));
         let { dx, dy } = snapMove(d.orig, rawDx, rawDy);
@@ -136,12 +161,20 @@ export default function LayoutCanvas({ layout, editable, selected, onSelect, onM
   return (
     <svg
       ref={svgRef}
-      className={`wl-canvas mode-${mode}${editable ? ' editable' : ''}${zoom > 1 || tool === 'pan' ? ' pannable' : ''}`}
+      className={`wl-canvas mode-${mode}${editable ? ' editable' : ''}${tool === 'draw' ? ' drawing' : ''}${zoom > 1 || tool === 'pan' ? ' pannable' : ''}`}
       viewBox={`${pan.x} ${pan.y} ${vw} ${vh}`}
       preserveAspectRatio="xMidYMid meet"
       role="img"
       aria-label={ariaLabel}
       onPointerDown={(e) => {
+        if (editable && tool === 'draw') {
+          const g = toGrid(e); const p: [number, number] = [Math.round(g.x * 2) / 2, Math.round(g.y * 2) / 2];
+          const first = drawPts[0];
+          if (first && drawPts.length >= 3 && Math.hypot(first[0] - p[0], first[1] - p[1]) < 0.8) { onDraw?.(drawPts); setDrawPts([]); return; }
+          if (e.detail >= 2 && drawPts.length >= 3) { onDraw?.(drawPts); setDrawPts([]); return; }
+          setDrawPts((pts) => [...pts, p]);
+          return;
+        }
         if (editable && tool === 'select') { box.current = toGrid(e); if (!e.shiftKey) onSelect?.(new Set()); return; }
         onSelect?.(new Set());
         panning.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y };
@@ -160,7 +193,10 @@ export default function LayoutCanvas({ layout, editable, selected, onSelect, onM
       {layout.bg?.src && <image href={layout.bg.src} x="0" y="0" width={layout.cols} height={layout.rows} preserveAspectRatio="none" opacity={layout.bg.opacity} />}
       <rect x="0" y="0" width={layout.cols} height={layout.rows} fill="url(#wl-grid)" />
       <rect x="0" y="0" width={layout.cols} height={layout.rows} fill="url(#wl-grid5)" />
-      <rect x="0.05" y="0.05" width={layout.cols - 0.1} height={layout.rows - 0.1} className="wl-wall-outline" />
+      {layout.outline && layout.outline.length >= 3 ? <>
+        <path d={`M0 0 H${layout.cols} V${layout.rows} H0 Z ${polyPath(layout.outline)}`} fillRule="evenodd" className="wl-outside" />
+        <path d={polyPath(layout.outline)} className="wl-venue" />
+      </> : <rect x="0.05" y="0.05" width={layout.cols - 0.1} height={layout.rows - 0.1} className="wl-wall-outline" />}
       {editable && <g className="wl-ruler">{Array.from({ length: Math.floor(layout.cols / 5) + 1 }, (_, i) => <text key={`x${i}`} x={i * 5 + 0.15} y="0.55" fontSize="0.45">{i * 5}</text>)}{Array.from({ length: Math.floor(layout.rows / 5) }, (_, i) => <text key={`y${i}`} x="0.15" y={(i + 1) * 5 - 0.15} fontSize="0.45">{(i + 1) * 5}</text>)}</g>}
 
       {ordered.map((s, i) => {
@@ -180,17 +216,22 @@ export default function LayoutCanvas({ layout, editable, selected, onSelect, onM
           highlight?.has(s.id) ? 'hit' : '', bad?.has(s.id) ? 'bad' : '',
           mode === 'route' && stopIndex.has(s.id) ? 'stop' : '',
           mode === 'progress' && progress?.has(s.id) ? `p${Math.min(4, Math.floor((progress.get(s.id) ?? 0) * 4))}` : '',
-          s.round ? 'round' : '',
+          formOf(s) !== 'rect' ? `f-${formOf(s)}` : '',
         ].filter(Boolean).join(' ');
-        const bays = s.kind === 'rack' ? baysOf(s) : 0;
+        const bays = s.kind === 'rack' && isPlainRect(s) ? baysOf(s) : 0;
+        const plain = isPlainRect(s);
+        const outline = plain ? '' : formOf(s) === 'ellipse' && !(s.rot ?? 0) ? '' : polyPath(shapePolygon(s));
+        const clipId = `wl-clip-${s.id}`;
         return (
           <g key={s.id} className={cls} style={{ animationDelay: `${Math.min(i, 40) * 12}ms` }}
             tabIndex={0} role="button" aria-label={`${s.name}${st ? `, ${st.units} units` : ''}`}
             onPointerDown={(e) => startShape(e, s, 'move')}>
-            {s.round
-              ? <ellipse cx={s.x + s.w / 2} cy={s.y + s.h / 2} rx={Math.max(0.05, s.w / 2 - 0.06)} ry={Math.max(0.05, s.h / 2 - 0.06)} className="wl-body" />
-              : <rect x={s.x + 0.06} y={s.y + 0.06} width={Math.max(0.1, s.w - 0.12)} height={Math.max(0.1, s.h - 0.12)} rx={s.kind === 'column' ? 0.1 : 0.2} className="wl-body" />}
-            {mode === 'progress' && progress?.has(s.id) && <rect x={s.x + 0.06} y={s.y + s.h - 0.06 - Math.max(0, s.h - 0.12) * (progress.get(s.id) ?? 0)} width={Math.max(0.1, s.w - 0.12)} height={Math.max(0, s.h - 0.12) * Math.min(1, progress.get(s.id) ?? 0)} rx="0.2" className="wl-fill" />}
+            {plain
+              ? <rect x={s.x + 0.06} y={s.y + 0.06} width={Math.max(0.1, s.w - 0.12)} height={Math.max(0.1, s.h - 0.12)} rx={s.kind === 'column' ? 0.1 : 0.2} className="wl-body" />
+              : outline ? <path d={outline} className="wl-body" />
+              : <ellipse cx={s.x + s.w / 2} cy={s.y + s.h / 2} rx={Math.max(0.05, s.w / 2 - 0.06)} ry={Math.max(0.05, s.h / 2 - 0.06)} className="wl-body" />}
+            {!plain && mode === 'progress' && <clipPath id={clipId}>{outline ? <path d={outline} /> : <ellipse cx={s.x + s.w / 2} cy={s.y + s.h / 2} rx={s.w / 2} ry={s.h / 2} />}</clipPath>}
+            {mode === 'progress' && progress?.has(s.id) && <rect clipPath={plain ? undefined : `url(#${clipId})`} x={s.x + 0.06} y={s.y + s.h - 0.06 - Math.max(0, s.h - 0.12) * (progress.get(s.id) ?? 0)} width={Math.max(0.1, s.w - 0.12)} height={Math.max(0, s.h - 0.12) * Math.min(1, progress.get(s.id) ?? 0)} rx="0.2" className="wl-fill" />}
             {s.kind === 'wall' && <rect x={s.x + 0.06} y={s.y + 0.06} width={Math.max(0.1, s.w - 0.12)} height={Math.max(0.1, s.h - 0.12)} fill="url(#wl-hatch)" />}
             {s.kind === 'aisle' && <rect x={s.x} y={s.y} width={s.w} height={s.h} fill="url(#wl-aisle)" className="wl-aisle-marks" />}
             {showBays && bays > 1 && Array.from({ length: bays - 1 }, (_, k) => {
@@ -199,7 +240,7 @@ export default function LayoutCanvas({ layout, editable, selected, onSelect, onM
                 ? <line key={k} x1={s.x + 0.15} x2={s.x + s.w - 0.15} y1={s.y + s.h * t} y2={s.y + s.h * t} className="wl-bay" />
                 : <line key={k} y1={s.y + 0.15} y2={s.y + s.h - 0.15} x1={s.x + s.w * t} x2={s.x + s.w * t} className="wl-bay" />;
             })}
-            {s.kind !== 'column' && (s.kind !== 'wall' || s.w * s.h > 6) && (
+            {s.kind !== 'column' && (s.kind !== 'wall' || s.w * s.h > 6) && !(s.kind === 'table' && Math.min(s.w, s.h) < 1.2) && (
               <text x={s.x + s.w / 2} y={s.y + s.h / 2} className={`wl-label${s.kind === 'aisle' ? ' faint' : ''}`} fontSize={s.kind === 'aisle' ? Math.min(fontSize, 0.7) : fontSize}
                 transform={rotated ? `rotate(90 ${s.x + s.w / 2} ${s.y + s.h / 2})` : undefined}>{s.kind === 'rack' ? s.code : s.name}</text>
             )}
@@ -214,7 +255,11 @@ export default function LayoutCanvas({ layout, editable, selected, onSelect, onM
               <g className="wl-stop"><circle cx={s.x + Math.min(0.8, s.w / 2)} cy={s.y + Math.min(0.8, s.h / 2)} r="0.6" /><text x={s.x + Math.min(0.8, s.w / 2)} y={s.y + Math.min(0.8, s.h / 2) + 0.02} fontSize="0.65">{stopIndex.get(s.id)}</text></g>
             )}
             {editable && isSel && sel.size === 1 && !s.locked && <rect x={s.x + s.w - 0.6} y={s.y + s.h - 0.6} width="0.6" height="0.6" className="wl-handle" onPointerDown={(e) => startShape(e, s, 'resize')} />}
-            {editable && isSel && sel.size === 1 && <text x={s.x + s.w / 2} y={s.y - 0.35} className="wl-dim" fontSize="0.5">{`${s.w} × ${s.h} m`}</text>}
+            {editable && isSel && sel.size === 1 && <text x={s.x + s.w / 2} y={s.y - 0.35} className="wl-dim" fontSize="0.5">{`${s.w} × ${s.h} m${s.rot ? ` · ${s.rot}°` : ''}`}</text>}
+            {editable && isSel && sel.size === 1 && !s.locked && s.kind !== 'aisle' && <>
+              <line x1={s.x + s.w / 2} x2={s.x + s.w / 2} y1={s.y} y2={s.y - 1.1} className="wl-rot-stem" />
+              <circle cx={s.x + s.w / 2} cy={s.y - 1.3} r="0.32" className="wl-rot-handle" onPointerDown={(e) => startShape(e, s, 'rotate')}><title>Rotate (15° steps, Alt = 1°)</title></circle>
+            </>}
           </g>
         );
       })}
@@ -222,6 +267,11 @@ export default function LayoutCanvas({ layout, editable, selected, onSelect, onM
       {guides.v.map((x) => <line key={`gv${x}`} x1={x} x2={x} y1={0} y2={layout.rows} className="wl-guide" />)}
       {guides.h.map((y) => <line key={`gh${y}`} y1={y} y2={y} x1={0} x2={layout.cols} className="wl-guide" />)}
       {marquee && <rect {...marquee} className="wl-marquee" />}
+      {tool === 'draw' && <g className="wl-draw">
+        {drawPts.length > 0 && <polyline points={[...drawPts, ...(hover ? [[hover.x, hover.y]] : [])].map((p) => p.join(',')).join(' ')} />}
+        {drawPts.map(([x, y], i) => <circle key={i} cx={x} cy={y} r={i === 0 ? 0.35 : 0.22} className={i === 0 ? 'first' : ''} />)}
+        {hover && <circle cx={hover.x} cy={hover.y} r="0.18" className="cursor" />}
+      </g>}
 
       {route?.d && <>
         <path d={route.d} className="wl-route-glow" filter="url(#wl-glow)" />
