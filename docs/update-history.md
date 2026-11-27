@@ -11,6 +11,12 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+## 2026-11-27 — Layout editor v2
+
+Slots, aisle-aware routes, validation, row generator, multi-select, floor photo, import/export. See ai-handoff.md.
+
+---
+
 ## 2026-11-27 — Warehouse layout editor + floor map (preview)
 
 Layout setup per warehouse and a live floor map in Warehouse Hub. Layouts stored in the browser until API §16.

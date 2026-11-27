@@ -7,7 +7,7 @@ import ax from '../service/axios';
 // schedule with expected return dates needs the API in docs/api-backlog.md §13.
 
 export interface Warehouse { id: number; name: string; location: string; pic: string; virtual: boolean; totalItems: number }
-export interface StockRow { bgId: number; barangId: number; name: string; stock: number; min: number; level: 'critical' | 'low' | 'ok'; rack?: string }
+export interface StockRow { bgId: number; barangId: number; name: string; stock: number; min: number; level: 'critical' | 'low' | 'ok'; rack?: string; shelfLevel?: string }
 export interface Movement {
   key: string;
   type: 'out' | 'return' | 'overdue';
@@ -45,12 +45,16 @@ export function stockLevel(stock: number, min: number): StockRow['level'] {
 }
 
 export async function fetchWarehouseStock(id: number): Promise<StockRow[]> {
-  const { data } = await ax.get(`/v1/barang-gudang/gudang/${id}`);
+  // The API answers 400 (not an empty list) for a warehouse without items — treat that as "no items".
+  const data = await ax.get(`/v1/barang-gudang/gudang/${id}`).then((r) => r.data).catch((error) => {
+    if (error?.response?.status === 400) return { data: [] };
+    throw error;
+  });
   const rows = (Array.isArray(data?.data) ? data.data : data?.data?.data ?? []) as Array<Record<string, unknown>>;
   return rows.map((row) => {
     const stock = Number(row.stok) || 0;
     const min = Number(row.stok_minimum) || 0;
-    return { bgId: Number(row.id), barangId: Number(row.barang_id), name: String(row.nama_barang ?? '').trim() || `#${row.barang_id} (no name)`, stock, min, level: stockLevel(stock, min), rack: String(row.rack ?? '') };
+    return { bgId: Number(row.id), barangId: Number(row.barang_id), name: String(row.nama_barang ?? '').trim() || `#${row.barang_id} (no name)`, stock, min, level: stockLevel(stock, min), rack: String(row.rack ?? ''), shelfLevel: String(row.level ?? '') };
   });
 }
 

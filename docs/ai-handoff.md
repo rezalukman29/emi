@@ -6,6 +6,30 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-27 — Layout editor v2 ("much more advanced and detailed")
+
+- Still PREVIEW (browser storage `emi.whLayout.v1`; same key, model extended, old layouts still load).
+- Model (`src/lib/warehouseLayout.ts`): new kinds aisle / wall / column; racks have `bays` × `levels` = slots with codes
+  `<rack>-<bay 2 digits>-<level>`; `locked`, `note`; layout `bg` (floor plan photo, data URL ≤ 1.5 MB).
+  Placement: manual `assign[bgId] = shapeId | shapeId@bay.level`, else item `rack` = rack code (uses item `level`
+  as shelf level) or `rack` = full slot code.
+- Routing: grid Dijkstra (4-way, walls/racks/bulk/columns blocked, aisles cheaper), nearest stop by walking
+  distance, entrance → stops → staging/shipping. Fixed a precision bug (Float32 → Float64) that made every cell
+  unreachable. `validate()`: overlap, outside floor, duplicate code, rack blocks an aisle, aisle < 2 m, no entrance,
+  unreachable from entrance. Template validates clean.
+- Editor (`WarehouseLayoutPage.tsx`): toolbar (Select/Pan, undo/redo, zoom, floor photo + transparency, export /
+  import JSON), rack row generator (prefix, count, size, gap, bays, levels, back-to-back; starts at a free spot),
+  layers panel with search + lock, checks panel (click → selects the blocks), multi-select (Shift+click or box drag;
+  dragging on an unselected aisle/zone starts a box), align/distribute/same size, snap guides, size label, rulers,
+  status bar (cursor m, floor, storage %, racks/slots, items placed, problems), overview KPIs, rack front view
+  (`RackElevation.tsx`) to put items in a slot, keyboard shortcuts (listed in the panel).
+- Hub map: uses the same canvas; detail panel shows the rack front view; routes follow aisles.
+- `fetchWarehouseStock`: API returns **400** for a warehouse with no items → treated as empty (was a console error).
+- Verified on staging (writes blocked) at 1500–1600 px: template 0 problems; generator 10 racks, 0 problems; box select
+  10 racks; slot assignment; save → Hub map front view. Route drawn with a **test-only fake outgoing event**
+  intercepted in Playwright (staging has none): 2 stops, ± 94 m, follows aisles. Not checked on a phone or a real
+  floor plan photo.
+
 ## 2026-11-27 — Warehouse layout editor + floor map (preview)
 
 - Owner showed WMS references (2D floor plan with pick route, 3D heatmap) and asked for a layout setup feature.

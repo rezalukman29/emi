@@ -96,6 +96,13 @@ checked at 390 px and tablets at 768 px.
 
 ## UI change log (newest first)
 
+### 2026-11-27 — Layout editor v2
+- Editor gets a toolbar (Select / Pan, Undo / Redo, zoom, floor plan photo, Export / Import), a **rack row
+  generator**, new blocks (aisle, wall, column, charging zone), **layers** and **checks** panels, box select +
+  align / distribute, snap guides, rulers, a status bar and keyboard shortcuts.
+- Racks now have bays × levels; selecting a rack shows its **front view** with slots (e.g. A01-03-2) to place items.
+- Hub map: rack detail shows the front view; pick routes now walk along aisles instead of straight lines.
+
 ### 2026-11-27 — Warehouse layout editor + floor map (preview)
 - New page **Warehouse layout** (`/warehouse-hub/layout`, admin, button "Layout setup" in Warehouse Hub): start from a
   template or empty, drag/resize racks, bulk areas, zones (receiving, shipping, staging, QA, returns) and entrance;

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import LayoutCanvas, { type MapMode } from './LayoutCanvas';
+import RackElevation from './RackElevation';
 import { pickRoute, shapeForItem, statsByShape, useLayout } from '../../lib/warehouseLayout';
 import type { Movement, StockRow, Warehouse } from '../../lib/warehouseHub';
 
@@ -35,7 +36,8 @@ export default function WarehouseMap({ warehouse, physical, rows, movements, loa
     if (!layout || mode !== 'route' || !movement) return null;
     const byName = new Map(rows.map((r) => [r.name.trim().toLowerCase(), r]));
     const stops = movement.lines.map((l) => byName.get(l.name.trim().toLowerCase())).map((r) => (r ? shapeForItem(layout, r) : null)).filter(Boolean) as NonNullable<ReturnType<typeof shapeForItem>>[];
-    return { ...pickRoute(layout, stops), missing: movement.lines.length - stops.length };
+    const r = pickRoute(layout, stops);
+    return { ...r, missing: movement.lines.length - stops.length + r.unreachable };
   }, [layout, mode, movement, rows]);
 
   if (!warehouse) {
@@ -95,7 +97,7 @@ export default function WarehouseMap({ warehouse, physical, rows, movements, loa
 
       <div className="wl-map-body">
         <div className="wl-frame dark">
-          <LayoutCanvas layout={layout} selectedId={picked} onSelect={setPicked} stats={stats?.map} mode={mode} maxUnits={maxUnits} highlight={hits} route={route} zoom={zoom} ariaLabel={t('whLayout.canvasAria', { name: warehouse.name })} />
+          <LayoutCanvas layout={layout} selected={picked ? new Set([picked]) : new Set()} onSelect={(ids) => setPicked([...ids][0] ?? null)} stats={stats?.map} mode={mode} maxUnits={maxUnits} highlight={hits} route={route} zoom={zoom} ariaLabel={t('whLayout.canvasAria', { name: warehouse.name })} />
           <div className="wl-zoom floating">
             <button type="button" onClick={() => setZoom((z) => Math.min(4, z + 0.5))} aria-label={t('whLayout.zoomIn')}>+</button>
             <button type="button" onClick={() => setZoom((z) => Math.max(1, z - 0.5))} aria-label={t('whLayout.zoomOut')}>−</button>
@@ -130,6 +132,7 @@ export default function WarehouseMap({ warehouse, physical, rows, movements, loa
                 <div><dt>{t('whLayout.map.lines')}</dt><dd>{st?.lines ?? 0}</dd></div>
                 <div><dt>{t('whLayout.map.toFix')}</dt><dd className={(st?.critical ?? 0) + (st?.low ?? 0) > 0 ? 'bad' : ''}>{(st?.critical ?? 0) + (st?.low ?? 0)}</dd></div>
               </dl>
+              {shape.kind === 'rack' && <RackElevation shape={shape} stat={st} />}
               <ul className="wl-detail-items">
                 {(st?.items ?? []).slice(0, 10).map((r) => <li key={r.bgId} className={r.level}><span>{r.name}</span><b>{r.stock}</b></li>)}
               </ul>

@@ -9,6 +9,13 @@ Format: date — change — endpoints/fields touched — impact — action neede
 
 ---
 
+## 2026-11-27 — Layout editor v2 ("much more advanced and detailed")
+
+- **Endpoints touched:** none. Reads `rack` and `level` from `/v1/barang-gudang/gudang/{id}` for placement.
+- Found: `/v1/barang-gudang/gudang/{id}` answers **400** for a warehouse without items (ids 25, 26, 28 on staging)
+  instead of an empty list. FE now treats it as empty; backend should return `200` with `[]`.
+- **Needs API — waiting for backend:** §16 extended (slots, floor photo, export format).
+
 ## 2026-11-27 — Warehouse layout editor + floor map (preview)
 
 - **Endpoints touched:** none. Reads existing `/v1/barang-gudang/gudang/{id}` (now also uses its `rack` field).

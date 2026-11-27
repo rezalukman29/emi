@@ -221,3 +221,8 @@ _(Nothing yet. Move rows here with the date and the backend version when an API 
   `internal_location` are empty. Decide one location scheme (block code + level) and migrate.
 - **Capacity:** units (or m³) per block for the "how full" heatmap; today an admin types it in the editor.
 - **Later:** aisle graph for real walking routes; scan events per location for live "where is the picker".
+- **v2 additions (2026-11-27):** a layout now also has `bg` (floor-plan image, store as a file URL, not base64),
+  rack `bays`, `locked`, `note`, kinds `aisle | wall | column`. Item placement can be a slot:
+  `{ barang_gudang_id, shape_code, bay, level }` (slot code `A01-03-2`). The export file
+  (`format: "emi-warehouse-layout", version: 1`) can be the API payload as-is.
+- **Bug to fix:** `GET /v1/barang-gudang/gudang/{id}` returns 400 for an empty warehouse; should be 200 with `[]`.
