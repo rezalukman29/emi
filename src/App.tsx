@@ -100,10 +100,6 @@ export default function App() {
               <Route index element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard" element={<DashboardPage />} />
               <Route path="customers" element={<CustomersPage />} />
-              <Route path="ai-tools" element={<AiToolsPage />} />
-              <Route path="ai/three-star" element={<ThreeStarSettingsPage />} />
-              <Route path="warehouse-hub" element={<WarehouseHubPage />} />
-              <Route path="finance" element={<FinancePage />} />
               <Route path="users" element={<SuperAdminUsersPage />} />
               <Route path="payments" element={<PaymentsPage />} />
               <Route path="pricing" element={<PricingPage />} />
@@ -164,6 +160,10 @@ export default function App() {
               <Route path="qr-code" element={<PlaceholderPage title="QR Code" />} />
               <Route path="ai-material-analyzer" element={<AiMaterialAnalyzerPage />} />
               <Route path="log" element={<LogPage />} />
+              <Route path="ai-tools" element={<AiToolsPage />} />
+              <Route path="ai/three-star" element={<ThreeStarSettingsPage />} />
+              <Route path="warehouse-hub" element={<WarehouseHubPage />} />
+              <Route path="finance" element={<FinancePage />} />
               <Route path="users" element={<RequireTenantAdmin><UsersPage /></RequireTenantAdmin>} />
               <Route path="*" element={<NotFound />} />
             </Route>

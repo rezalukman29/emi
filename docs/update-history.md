@@ -11,6 +11,12 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+## 2026-11-27 — Fix 404 on Warehouse Hub, Finance, AI Tools
+
+Routes were in the superadmin block after the merge; moved back to the tenant block.
+
+---
+
 ## 2026-11-27 — Merge from staging
 
 FE dev versions kept for error page, 404 page and session-expired redirect; ours removed. See ai-handoff.md.

@@ -6,6 +6,13 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-27 — Fix: new menus showed 404 after the staging merge
+
+- Cause: when the routes were re-added during the merge they landed in the `/superadmin` route block instead of the
+  tenant `/` block, so `/warehouse-hub`, `/finance`, `/ai-tools`, `/ai/three-star` hit the FE dev 404 page (seen by
+  owner on emi-dan.vercel.app). Moved them back into the tenant block in `src/App.tsx`.
+- Verified: all four pages open in the preview build with a staging login; build OK, tsc 0.
+
 ## 2026-11-27 — Merge from `staging` (FE dev commit e3e915c "fix feedback doc")
 
 - Conflicts in 4 files: `App.tsx`, `Layout.tsx`, `PageErrorBoundary.tsx`, `service/axios.ts`. Both sides built the same
