@@ -6,6 +6,27 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-27 — Layout polish, empty warehouse handling, backend notes
+
+- Owner: (1) perfect the event stage setup and warehouse mapping, (2) handle the empty-warehouse case, (3) write
+  backend notes for everything else discussed → **`docs/backend-notes.md`** (bugs B-01…B-16 with checks,
+  assumptions R-01…R-05, features F-01…F-15, open decisions, parked security items, Done table).
+- Re-checked staging (read-only) after the dev said "all fixed": only event 85's date is fixed; negative stock, stock
+  totals, duplicate C9, 400 on empty warehouses, orphan moving orders, outsource flag, ownership column are still
+  there (details in backend-notes "Still").
+- Empty warehouse: `useGetWarehouseItems` treats 400 as `[]` and its query key now includes the id (it was shared
+  across warehouses → could show another warehouse's items); Warehouse Detail empty state with actions; Hub card
+  "X has no items yet" (Move stock here / Receive / All warehouses); Move Stock modal says the source is empty.
+- Canvas polish (shared by both layouts): Ctrl/⌘ + wheel or trackpad pinch zooms around the cursor, wheel pans when
+  zoomed, minimap (click to jump) when zoomed, native tooltip per block (size, rotation, seats, items, %), chairs drawn
+  around tables (`showSeats`, event only). `alignShapes` moved to `src/lib/warehouseLayout.ts`.
+- Event editor: multi-select panel (align, distribute, same size, rotate each ±15°, move to another space), Ctrl+C /
+  Ctrl+V (also into another space), Ctrl+A. View: role legend. Warehouse map: search lists matches with slot code
+  (e.g. `A01-03-2`), click to select the rack.
+- Verified on staging (writes blocked): Gudang C9 (25) → Hub empty card, Move modal opens with "to" preset; Warehouse
+  Detail 25 shows the empty state; event 91 pinch-zoom keeps the cursor point, minimap shows, 320 seats drawn.
+  build OK, tsc 0, lint 12/1 (pre-existing), tests 40/40.
+
 ## 2026-11-27 — Event layout v2: several spaces, round / free-form shapes, rotation
 
 - Owner: "think more realistically — an event never has just one area; arrangements are not always square, can

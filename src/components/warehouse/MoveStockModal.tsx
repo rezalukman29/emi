@@ -64,8 +64,9 @@ export default function MoveStockModal({ warehouses, preset, onClose }: { wareho
         <div className="wh-step"><span>1</span><div className="form-group"><label>{t('whHub.move.from')}</label>
           <SearchableSelect value={fromId || ''} options={options} placeholder={t('whHub.move.pickWarehouse')} onChange={(v) => { setFromId(Number(v)); setBgId(0); setQty(''); }} /></div></div>
         <div className="wh-step"><span>2</span><div className="form-group"><label>{t('whHub.move.item')}</label>
-          <SearchableSelect value={bgId || ''} disabled={!fromId} placeholder={stock.isLoading ? t('wording.loading') : fromId ? t('whHub.move.pickItem') : t('whHub.move.pickFromFirst')}
-            options={rows.map((r) => ({ value: r.bgId, label: r.name, meta: t('whHub.inStock', { count: r.stock }) }))} onChange={(v) => { setBgId(Number(v)); setQty(''); }} /></div></div>
+          <SearchableSelect value={bgId || ''} disabled={!fromId} placeholder={stock.isLoading ? t('wording.loading') : fromId && !rows.length ? t('whEmpty.moveNone') : fromId ? t('whHub.move.pickItem') : t('whHub.move.pickFromFirst')}
+            options={rows.map((r) => ({ value: r.bgId, label: r.name, meta: t('whHub.inStock', { count: r.stock }) }))} onChange={(v) => { setBgId(Number(v)); setQty(''); }} />
+          {fromId > 0 && !stock.isLoading && !rows.length && <p className="wh-error" role="status">{t('whEmpty.moveNoneHint')}</p>}</div></div>
         <div className="wh-step"><span>3</span><div className="form-group"><label>{t('whHub.move.qty')}{row ? ` · ${t('whHub.inStock', { count: row.stock })}` : ''}</label>
           <div className="wh-qty"><input id="wh-move-qty" type="number" min={1} max={row?.stock} inputMode="numeric" value={qty} disabled={!row} onChange={(e) => setQty(e.target.value)} />
             {row && <button type="button" className="btn btn-ghost" onClick={() => setQty(String(row.stock))}>{t('whHub.move.all')}</button>}</div>

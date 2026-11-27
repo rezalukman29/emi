@@ -11,6 +11,12 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+## 2026-11-27 — Layout polish, empty warehouse, backend notes
+
+See ai-handoff.md and the new docs/backend-notes.md.
+
+---
+
 ## 2026-11-27 — Event layout v2
 
 Several spaces per event, round/free-form/rotated shapes, venue outlines, table arrangements. See ai-handoff.md.

@@ -195,3 +195,9 @@
   .whm *, .whm { animation: none !important; transition: none !important; }
 }
 .whm-bar.zero { visibility: hidden; }
+
+/* empty warehouse (owner 2026-11-27) */
+.wh-empty-card { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; padding: 20px 22px; border-style: dashed; animation: whm-rise .4s both; }
+.wh-empty-card h2 { margin: 0 0 4px; font-size: 16px; color: var(--text); } .wh-empty-card p { margin: 0 0 12px; color: var(--text-muted); font-size: 13px; max-width: 60ch; }
+.wh-empty-art { display: grid; grid-template-columns: repeat(3, 22px); gap: 5px; padding: 12px; border-radius: 12px; background: var(--bg); }
+.wh-empty-art span { height: 34px; border-radius: 4px; border: 2px dashed var(--border); }

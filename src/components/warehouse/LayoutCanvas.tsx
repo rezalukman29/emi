@@ -33,13 +33,17 @@ export interface CanvasProps {
   badges?: Map<string, number>;
   /** finished free-form drawing (absolute points, metres) */
   onDraw?: (points: Array<[number, number]>) => void;
+  /** zoom change from the mouse wheel / trackpad pinch (zooms around the cursor) */
+  onZoom?: (zoom: number) => void;
+  /** draw chairs around tables (event layouts) */
+  showSeats?: boolean;
   ariaLabel: string;
 }
 
 const heat = (r: number) => (r >= 0.9 ? 'h4' : r >= 0.75 ? 'h3' : r >= 0.5 ? 'h2' : r >= 0.2 ? 'h1' : r > 0 ? 'h0' : 'empty');
 const SNAP = 0.6;
 
-export default function LayoutCanvas({ layout, editable, selected, onSelect, onMove, onCursor, stats, mode = 'plain', maxUnits = 0, highlight, bad, route, zoom, tool = 'select', showBays = true, progress, badges, onDraw, ariaLabel }: CanvasProps) {
+export default function LayoutCanvas({ layout, editable, selected, onSelect, onMove, onCursor, stats, mode = 'plain', maxUnits = 0, highlight, bad, route, zoom, tool = 'select', showBays = true, progress, badges, onDraw, onZoom, showSeats = false, ariaLabel }: CanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const drag = useRef<{ kind: 'move' | 'resize' | 'rotate'; start: { x: number; y: number }; orig: Shape[]; moved: boolean } | null>(null);
   const [drawPts, setDrawPts] = useState<Array<[number, number]>>([]);
@@ -64,7 +68,35 @@ export default function LayoutCanvas({ layout, editable, selected, onSelect, onM
 
   const vw = layout.cols / zoom;
   const vh = layout.rows / zoom;
-  useEffect(() => { setPan((p) => ({ x: Math.min(Math.max(0, p.x), layout.cols - vw), y: Math.min(Math.max(0, p.y), layout.rows - vh) })); }, [zoom, layout.cols, layout.rows, vw, vh]);
+  const anchor = useRef<{ gx: number; gy: number; fx: number; fy: number } | null>(null);
+  useEffect(() => {
+    setPan((p) => {
+      let x = p.x; let y = p.y;
+      // keep the point under the cursor still when zooming with the wheel
+      if (anchor.current) { const a = anchor.current; x = a.gx - a.fx * vw; y = a.gy - a.fy * vh; anchor.current = null; }
+      return { x: Math.min(Math.max(0, x), Math.max(0, layout.cols - vw)), y: Math.min(Math.max(0, y), Math.max(0, layout.rows - vh)) };
+    });
+  }, [zoom, layout.cols, layout.rows, vw, vh]);
+  // wheel: pinch / Ctrl+wheel zooms around the cursor; plain wheel pans when zoomed in
+  useEffect(() => {
+    const svg = svgRef.current; if (!svg) return;
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (!onZoom) return;
+        e.preventDefault();
+        const r = svg.getBoundingClientRect();
+        const fx = (e.clientX - r.left) / r.width; const fy = (e.clientY - r.top) / r.height;
+        anchor.current = { gx: pan.x + fx * vw, gy: pan.y + fy * vh, fx, fy };
+        onZoom(Math.min(6, Math.max(1, Math.round((zoom * (e.deltaY < 0 ? 1.15 : 1 / 1.15)) * 100) / 100)));
+      } else if (zoom > 1) {
+        e.preventDefault();
+        const r = svg.getBoundingClientRect();
+        setPan((p) => ({ x: Math.min(Math.max(0, p.x + (e.deltaX / r.width) * vw), layout.cols - vw), y: Math.min(Math.max(0, p.y + (e.deltaY / r.height) * vh), layout.rows - vh) }));
+      }
+    };
+    svg.addEventListener('wheel', onWheel, { passive: false });
+    return () => svg.removeEventListener('wheel', onWheel);
+  }, [onZoom, zoom, pan.x, pan.y, vw, vh, layout.cols, layout.rows]);
 
   const toGrid = (e: { clientX: number; clientY: number }) => {
     const svg = svgRef.current; if (!svg) return { x: 0, y: 0 };
@@ -158,7 +190,20 @@ export default function LayoutCanvas({ layout, editable, selected, onSelect, onM
   const stopIndex = new Map((route?.order ?? []).map((s, i) => [s.id, i + 1]));
   const ordered = [...layout.shapes].sort((a, b) => order(a) - order(b));
 
+  const jump = (e: React.MouseEvent<SVGSVGElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const gx = ((e.clientX - r.left) / r.width) * layout.cols; const gy = ((e.clientY - r.top) / r.height) * layout.rows;
+    setPan({ x: Math.min(Math.max(0, gx - vw / 2), layout.cols - vw), y: Math.min(Math.max(0, gy - vh / 2), layout.rows - vh) });
+  };
   return (
+    <>
+    {zoom > 1 && (
+      <svg className="wl-minimap" viewBox={`0 0 ${layout.cols} ${layout.rows}`} preserveAspectRatio="xMidYMid meet" onClick={jump} aria-label="Overview" role="img">
+        <rect x="0" y="0" width={layout.cols} height={layout.rows} className="wl-mm-bg" />
+        {layout.shapes.filter((x) => x.kind !== 'aisle').map((x) => (isPlainRect(x) ? <rect key={x.id} x={x.x} y={x.y} width={x.w} height={x.h} className={`wl-mm-shape k-${x.kind}`} /> : <path key={x.id} d={polyPath(shapePolygon(x))} className={`wl-mm-shape k-${x.kind}`} />))}
+        <rect x={pan.x} y={pan.y} width={vw} height={vh} className="wl-mm-view" />
+      </svg>
+    )}
     <svg
       ref={svgRef}
       className={`wl-canvas mode-${mode}${editable ? ' editable' : ''}${tool === 'draw' ? ' drawing' : ''}${zoom > 1 || tool === 'pan' ? ' pannable' : ''}`}
@@ -226,6 +271,8 @@ export default function LayoutCanvas({ layout, editable, selected, onSelect, onM
           <g key={s.id} className={cls} style={{ animationDelay: `${Math.min(i, 40) * 12}ms` }}
             tabIndex={0} role="button" aria-label={`${s.name}${st ? `, ${st.units} units` : ''}`}
             onPointerDown={(e) => startShape(e, s, 'move')}>
+            <title>{[s.kind === 'rack' ? `${s.name} (${s.code})` : s.name, `${s.w} × ${s.h} m${s.rot ? ` · ${s.rot}°` : ''}`, s.seats && s.seats > 1 ? `${s.seats} seats` : '', st ? `${st.lines} lines · ${st.units} units` : '', badges?.get(s.id) ? `${badges.get(s.id)} item lines` : '', progress?.has(s.id) ? `${Math.round((progress.get(s.id) ?? 0) * 100)}%` : '', s.note ?? ''].filter(Boolean).join('\n')}</title>
+            {showSeats && s.kind === 'table' && (s.seats ?? 0) > 1 && seatDots(s).map(([x, y], k) => <circle key={`seat${k}`} cx={x} cy={y} r={0.22} className="wl-seat" />)}
             {plain
               ? <rect x={s.x + 0.06} y={s.y + 0.06} width={Math.max(0.1, s.w - 0.12)} height={Math.max(0.1, s.h - 0.12)} rx={s.kind === 'column' ? 0.1 : 0.2} className="wl-body" />
               : outline ? <path d={outline} className="wl-body" />
@@ -273,13 +320,33 @@ export default function LayoutCanvas({ layout, editable, selected, onSelect, onM
         {hover && <circle cx={hover.x} cy={hover.y} r="0.18" className="cursor" />}
       </g>}
 
+      {zoom > 1 && <g className="wl-viewport-hint" pointerEvents="none"><rect x={pan.x + 0.2} y={pan.y + 0.2} width={vw - 0.4} height={vh - 0.4} /></g>}
       {route?.d && <>
         <path d={route.d} className="wl-route-glow" filter="url(#wl-glow)" />
         <path d={route.d} className="wl-route" />
         <circle r="0.4" className="wl-runner"><animateMotion dur={`${Math.max(5, route.order.length * 1.8)}s`} repeatCount="indefinite" path={route.d} /></circle>
       </>}
     </svg>
+    </>
   );
+}
+
+/** Chairs around a table: evenly round a round/hex table, along both long sides of a long table. */
+function seatDots(s: Shape): Array<[number, number]> {
+  const n = Math.min(24, s.seats ?? 0);
+  const cx = s.x + s.w / 2; const cy = s.y + s.h / 2; const out: Array<[number, number]> = [];
+  const r = ((s.rot ?? 0) * Math.PI) / 180;
+  const rot = ([x, y]: [number, number]): [number, number] => [cx + (x - cx) * Math.cos(r) - (y - cy) * Math.sin(r), cy + (x - cx) * Math.sin(r) + (y - cy) * Math.cos(r)];
+  if (formOf(s) === 'rect' && s.w !== s.h) {
+    const long = s.w >= s.h; const perSide = Math.ceil(n / 2);
+    for (let i = 0; i < n; i += 1) {
+      const side = i < perSide ? -1 : 1; const k = i < perSide ? i : i - perSide; const t = (k + 0.5) / perSide;
+      out.push(rot(long ? [s.x + t * s.w, cy + side * (s.h / 2 + 0.3)] : [cx + side * (s.w / 2 + 0.3), s.y + t * s.h]));
+    }
+    return out;
+  }
+  for (let i = 0; i < n; i += 1) { const a = (i / n) * Math.PI * 2 - Math.PI / 2; out.push(rot([cx + (s.w / 2 + 0.32) * Math.cos(a), cy + (s.h / 2 + 0.32) * Math.sin(a)])); }
+  return out;
 }
 
 // draw floor things first so racks sit on top of aisles/zones

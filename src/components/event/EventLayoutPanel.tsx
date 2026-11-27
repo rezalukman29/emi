@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import LayoutCanvas, { type CanvasTool, type MapMode } from '../warehouse/LayoutCanvas';
 import useGetEventItem from '../../hooks/api/useGetEventItem';
 import {
-  KIND_DEFAULTS, bbox, exportLayout, importLayout, isOutside, newId, outlinePreset, pickRoute, shapesOverlap,
+  KIND_DEFAULTS, alignShapes, bbox, type Align, exportLayout, importLayout, isOutside, newId, outlinePreset, pickRoute, shapesOverlap,
   type Layout, type OutlinePreset, type Shape, type ShapeForm, type ShapeKind, type ZoneRole,
 } from '../../lib/warehouseLayout';
 import {
@@ -50,6 +50,7 @@ export default function EventLayoutPanel({ eventId, eventName }: { eventId: numb
   const [tables, setTables] = useState<Omit<TableSpec, 'x' | 'y' | 'start'>>({ arrangement: 'grid', rows: 3, cols: 4, count: 10, radius: 6, size: 2, gap: 2, seats: 10, form: 'ellipse', facing: false });
   const [picked, setPicked] = useState<SpaceTemplate[]>([]);
   const dragBase = useRef<EventPlan | null>(null);
+  const clipboard = useRef<Shape[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const bgRef = useRef<HTMLInputElement>(null);
 
@@ -152,6 +153,13 @@ export default function EventLayoutPanel({ eventId, eventName }: { eventId: numb
       const mod = e.metaKey || e.ctrlKey; const k = e.key.toLowerCase();
       if (mod && k === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); }
       else if (mod && k === 'd') { e.preventDefault(); duplicate(); }
+      else if (mod && k === 'c' && selected.length) { clipboard.current = selected; toast.info(t('evLayout.copied', { count: selected.length })); }
+      else if (mod && k === 'v' && clipboard.current.length) {
+        e.preventDefault();
+        const copies = clipboard.current.map((s) => ({ ...s, id: newId(), locked: false, x: Math.min(s.x + 1, Math.max(0, layout.cols - s.w)), y: Math.min(s.y + 1, Math.max(0, layout.rows - s.h)) }));
+        commit({ ...layout, shapes: [...layout.shapes, ...copies] }); setSel(new Set(copies.map((c) => c.id)));
+      }
+      else if (mod && k === 'a') { e.preventDefault(); setSel(new Set(layout.shapes.map((s) => s.id))); }
       else if (mod && k === 's') { e.preventDefault(); save(); }
       else if ((k === 'delete' || k === 'backspace') && selected.length) { e.preventDefault(); removeSel(); }
       else if (k === 'escape') setSel(new Set());
@@ -392,13 +400,14 @@ export default function EventLayoutPanel({ eventId, eventName }: { eventId: numb
 
         <div className="wl-stage">
           <div className="wl-frame dark el-print-area">
-            <LayoutCanvas layout={layout} editable={editing} selected={sel} onSelect={setSel} onMove={onMove} tool={tool} zoom={zoom} onDraw={onDraw}
+            <LayoutCanvas onZoom={setZoom} showSeats layout={layout} editable={editing} selected={sel} onSelect={setSel} onMove={onMove} tool={tool} zoom={zoom} onDraw={onDraw}
               mode={canvasMode} progress={progress} badges={editing || mode === 'areas' ? badges : undefined} highlight={hits} bad={editing ? badIds : undefined} route={route}
               ariaLabel={t('evLayout.aria', { name: `${eventName} · ${space.name}` })} />
             {!editing && <div className="wl-zoom floating">
               <button type="button" onClick={() => setZoom((z) => Math.min(5, z + 0.5))} aria-label={t('whLayout.zoomIn')}>+</button>
               <button type="button" onClick={() => setZoom((z) => Math.max(1, z - 0.5))} aria-label={t('whLayout.zoomOut')}>−</button>
             </div>}
+            {!editing && mode === 'areas' && <div className="wl-legend">{[...new Set(layout.shapes.filter((s) => s.kind === 'zone').map((s) => s.role ?? 'other'))].slice(0, 6).map((r) => <span key={r}><i className={`sw r-${r}`} />{t(`evLayout.roles.${r}`)}</span>)}{layout.shapes.some((s) => s.kind === 'stage') && <span><i className="sw k-stage" />{t('evLayout.el.stage')}</span>}</div>}
             {!editing && (mode === 'setup' || mode === 'return') && <div className="wl-legend"><span><i className="crit" />0–25%</span><span><i className="h2" />25–75%</span><span><i className="ok" />75–100%</span></div>}
             {!editing && mode === 'route' && <div className="wl-legend"><span><i className="route" />{t('evLayout.routeLegend', { stops: route?.order.length ?? 0, m: route?.length ?? 0 })}</span></div>}
             <span className="el-space-label">{space.name} · {layout.cols} × {layout.rows} m</span>
@@ -416,7 +425,16 @@ export default function EventLayoutPanel({ eventId, eventName }: { eventId: numb
 
         <aside className={editing ? 'wl-props' : 'wl-detail'}>
           {!one ? (
-            editing ? <p className="wl-tip">{selected.length > 1 ? t('whLayout.multi', { count: selected.length }) : t('evLayout.selectHint2')}</p> : (
+            editing ? (selected.length > 1 ? (
+              <>
+                <h3>{t('whLayout.multi', { count: selected.length })}</h3>
+                <div className="wl-align">{(['left', 'hcenter', 'right', 'top', 'vcenter', 'bottom', 'hdist', 'vdist', 'size'] as Align[]).map((a) => <button key={a} type="button" disabled={(a === 'hdist' || a === 'vdist') && selected.length < 3} onClick={() => patch(alignShapes(selected.filter((s) => !s.locked), a))}>{t(`whLayout.align.${a}`)}</button>)}</div>
+                <label>{t('evLayout.rotateAll')}<span className="el-rot"><button type="button" onClick={() => patch(selected.filter((s) => !s.locked).map((s) => ({ ...s, rot: (((s.rot ?? 0) - 15) % 360 + 360) % 360 })))}>−15°</button><button type="button" onClick={() => patch(selected.filter((s) => !s.locked).map((s) => ({ ...s, rot: ((s.rot ?? 0) + 15) % 360 })))}>+15°</button></span></label>
+                {plan.spaces.length > 1 && <label>{t('evLayout.moveTo')}<select value="" onChange={(e) => e.target.value && moveToSpace(e.target.value)}><option value="">—</option>{plan.spaces.filter((s) => s.id !== space.id).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>}
+                <div className="wl-row"><button type="button" className="btn btn-ghost" onClick={duplicate}>{t('whLayout.duplicate')}</button><button type="button" className="btn btn-ghost danger" onClick={removeSel}>{t('whLayout.delete')}</button></div>
+                <p className="wl-tip">{t('evLayout.copyHint')}</p>
+              </>
+            ) : <p className="wl-tip">{t('evLayout.selectHint2')}</p>) : (
               <>
                 <h3>{t('evLayout.areasIn', { space: space.name })}</h3>
                 <ul className="el-area-list">

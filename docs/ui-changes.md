@@ -96,6 +96,14 @@ checked at 390 px and tablets at 768 px.
 
 ## UI change log (newest first)
 
+### 2026-11-27 — Empty warehouse + layout polish
+- Empty warehouse: Warehouse Detail shows "This warehouse has no items yet" with Move stock here / Receive stock;
+  Warehouse Hub shows a card for an empty selected warehouse; the Move Stock form says when the source is empty.
+- Maps: pinch / Ctrl+scroll zooms where the cursor is; a small overview map appears when zoomed in; hovering a
+  block shows its details; event tables show their chairs; event map legend of area types.
+- Event editor: select several → align, space evenly, rotate, move to another space; copy-paste between spaces.
+- Warehouse map: searching an item lists where it is (rack-bay-level).
+
 ### 2026-11-27 — Event layout v2
 - Start: choose the spaces the event uses (Akad room, Ballroom, Round ballroom, Garden, Foyer, Empty) — suggested from
   the event's areas; areas are placed in the matching space. Tabs per space above the plan.

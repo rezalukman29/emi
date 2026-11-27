@@ -9,6 +9,12 @@ Format: date — change — endpoints/fields touched — impact — action neede
 
 ---
 
+## 2026-11-27 — Layout polish, empty warehouse handling, backend notes
+
+- **Endpoints touched:** none. `GET /v1/barang-gudang/gudang/{id}` 400 is now treated as an empty list in
+  `useGetWarehouseItems` too (Warehouse Detail). New doc `docs/backend-notes.md` lists every backend item outside
+  the layout features.
+
 ## 2026-11-27 — Event layout v2: several spaces, round / free-form shapes, rotation
 
 - **Endpoints touched:** none. **Needs API — waiting for backend:** §17 now stores a plan with several spaces.

@@ -338,3 +338,15 @@
 .el-space-label { position: absolute; right: 10px; bottom: 10px; padding: 3px 9px; border-radius: 99px; background: rgba(15, 23, 42, .72); color: #c7d2fe; font-size: 11px; }
 .wl-tgroup select { height: 28px; border: 1px solid var(--border); border-radius: 6px; background: var(--white); color: var(--text); font: inherit; font-size: 12px; }
 .sw.f-ellipse, .sw.f-semi { border-radius: 50%; }
+
+/* polish (owner 2026-11-27: "perfect it") — seats, minimap, viewport */
+.wl-seat { fill: rgba(226, 232, 240, .55); stroke: rgba(15, 23, 42, .6); stroke-width: .04; pointer-events: none; }
+.wl-minimap { position: absolute; left: 10px; top: 10px; width: 150px; height: auto; max-height: 110px; border-radius: 8px; border: 1px solid rgba(129, 140, 248, .45); background: rgba(13, 19, 36, .85); backdrop-filter: blur(6px); cursor: pointer; z-index: 2; }
+.wl-mm-bg { fill: rgba(30, 41, 59, .6); }
+.wl-mm-shape { fill: rgba(99, 102, 241, .55); } .wl-mm-shape.k-zone { fill: rgba(56, 189, 248, .25); } .wl-mm-shape.k-table { fill: rgba(226, 232, 240, .5); } .wl-mm-shape.k-stage { fill: rgba(217, 70, 239, .6); }
+.wl-mm-view { fill: rgba(34, 211, 238, .12); stroke: #22d3ee; stroke-width: .5; }
+.wl-viewport-hint rect { fill: none; }
+.wl-canvas { touch-action: none; }
+.wl-found li { padding: 0; } .wl-found button { flex: 1; display: flex; flex-direction: column; align-items: flex-start; border: 0; background: none; padding: 5px 8px; font: inherit; color: var(--text-2); cursor: pointer; text-align: left; }
+.wl-found button:disabled { cursor: default; opacity: .7; } .wl-found small { color: var(--brand); font-weight: 700; font-size: 11px; } .wl-found b { padding-right: 8px; align-self: center; }
+.wl-legend .sw { display: inline-block; width: 9px; height: 9px; margin-right: 6px; vertical-align: middle; }

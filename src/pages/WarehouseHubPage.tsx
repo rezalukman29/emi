@@ -170,6 +170,21 @@ export default function WarehouseHubPage() {
         <Link className="btn btn-ghost" to="/warehouse">{t('whHub.actions.oldMenu')}</Link>
       </div>
 
+      {selected > 0 && !stockLoading && !stockError && (stockByWarehouse.get(selected) ?? []).length === 0 && (
+        <section className="card wh-empty-card" role="status">
+          <div className="wh-empty-art" aria-hidden="true"><span /><span /><span /></div>
+          <div>
+            <h2>{t('whEmpty.hubTitle', { name: whName(selected) })}</h2>
+            <p>{t('whEmpty.hubBody')}</p>
+            <div className="wh-quick">
+              <button type="button" className="btn btn-primary" onClick={() => setOpenMove({ toId: selected })}>{t('whEmpty.move')}</button>
+              <Link className="btn btn-ghost" to="/warehouse-inventory">{t('whEmpty.receive')}</Link>
+              <button type="button" className="btn btn-ghost" onClick={() => choose(0)}>{t('whEmpty.all')}</button>
+            </div>
+          </div>
+        </section>
+      )}
+
       {!whQuery.isError && (
         <WarehouseMap
           warehouse={selected ? warehouses.find((w) => w.id === selected) ?? null : null}

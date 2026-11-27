@@ -1,5 +1,5 @@
 import { fmtNum as fmtDisplayNumber } from '../lib/format';
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { useMemo, useState } from "react";
 import Modal from "../components/Modal";
 import { IconEdit, IconDelete } from "../components/icons";
@@ -279,7 +279,12 @@ export default function WarehouseDetailPage() {
               fontSize: 13,
             }}
           >
-            {t("wording.noItemsFound")}
+            <b style={{ display: "block", color: "var(--text)", fontSize: 14, marginBottom: 4 }}>{t("whEmpty.title")}</b>
+            {t("whEmpty.body")}
+            <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 12, flexWrap: "wrap" }}>
+              <Link className="btn btn-primary" to={`/warehouse-hub`}>{t("whEmpty.move")}</Link>
+              <Link className="btn btn-ghost" to="/warehouse-inventory">{t("whEmpty.receive")}</Link>
+            </div>
           </div>
         ) : (
           <div className="table-wrap">

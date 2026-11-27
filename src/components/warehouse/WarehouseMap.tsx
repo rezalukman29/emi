@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import LayoutCanvas, { type MapMode } from './LayoutCanvas';
 import RackElevation from './RackElevation';
-import { pickRoute, shapeForItem, statsByShape, useLayout } from '../../lib/warehouseLayout';
+import { pickRoute, placementForItem, shapeForItem, slotCode, statsByShape, useLayout } from '../../lib/warehouseLayout';
 import type { Movement, StockRow, Warehouse } from '../../lib/warehouseHub';
 
 // Warehouse Hub map (owner 2026-11-27): live floor plan of one warehouse — stock heatmap, issues, pick route for an
@@ -97,7 +97,7 @@ export default function WarehouseMap({ warehouse, physical, rows, movements, loa
 
       <div className="wl-map-body">
         <div className="wl-frame dark">
-          <LayoutCanvas layout={layout} selected={picked ? new Set([picked]) : new Set()} onSelect={(ids) => setPicked([...ids][0] ?? null)} stats={stats?.map} mode={mode} maxUnits={maxUnits} highlight={hits} route={route} zoom={zoom} ariaLabel={t('whLayout.canvasAria', { name: warehouse.name })} />
+          <LayoutCanvas onZoom={setZoom} layout={layout} selected={picked ? new Set([picked]) : new Set()} onSelect={(ids) => setPicked([...ids][0] ?? null)} stats={stats?.map} mode={mode} maxUnits={maxUnits} highlight={hits} route={route} zoom={zoom} ariaLabel={t('whLayout.canvasAria', { name: warehouse.name })} />
           <div className="wl-zoom floating">
             <button type="button" onClick={() => setZoom((z) => Math.min(4, z + 0.5))} aria-label={t('whLayout.zoomIn')}>+</button>
             <button type="button" onClick={() => setZoom((z) => Math.max(1, z - 0.5))} aria-label={t('whLayout.zoomOut')}>−</button>
@@ -120,6 +120,14 @@ export default function WarehouseMap({ warehouse, physical, rows, movements, loa
                 <div><dt>{t('whLayout.map.hits')}</dt><dd>{needle.length >= 2 ? hits.size : '—'}</dd></div>
               </dl>
               {(stats?.unplaced ?? 0) > 0 && <p className="wl-note">{t('whLayout.map.unplacedNote', { count: stats?.unplaced ?? 0 })}</p>}
+              {needle.length >= 2 && (
+                <ul className="wl-detail-items wl-found">
+                  {rows.filter((r) => r.name.toLowerCase().includes(needle)).slice(0, 12).map((r) => {
+                    const p = placementForItem(layout, r);
+                    return <li key={r.bgId} className={r.level}><button type="button" disabled={!p} onClick={() => p && setPicked(p.shape.id)}><span>{r.name}</span><small>{p ? (p.bay && p.level ? slotCode(p.shape, p.bay, p.level) : p.shape.code) : t('whLayout.map.notPlaced')}</small></button><b>{r.stock}</b></li>;
+                  })}
+                </ul>
+              )}
               <p className="wl-tip">{t('whLayout.map.tapHint')}</p>
             </>
           ) : (

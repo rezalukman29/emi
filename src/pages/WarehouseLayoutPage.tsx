@@ -12,6 +12,7 @@ import {
   placementForItem, saveLayout, slotCode, statsByShape, templateLayout, useLayout, validate,
   type Layout, type RowSpec, type Shape, type ShapeKind, type ZoneRole,
 } from '../lib/warehouseLayout';
+import { alignShapes, type Align } from '../lib/warehouseLayout';
 import { isTenantAdminUser } from '../lib/tenantUser';
 import '../warehouseHub.css';
 import '../warehouseLayout.css';
@@ -22,39 +23,6 @@ import '../warehouseLayout.css';
 const ROLES: ZoneRole[] = ['receiving', 'shipping', 'staging', 'qa', 'returns', 'charging', 'office', 'other'];
 const KINDS: ShapeKind[] = ['rack', 'bulk', 'zone', 'aisle', 'wall', 'column', 'dock'];
 const MAX_BG = 1_500_000;
-
-type Align = 'left' | 'hcenter' | 'right' | 'top' | 'vcenter' | 'bottom' | 'hdist' | 'vdist' | 'size';
-
-function alignShapes(list: Shape[], how: Align): Shape[] {
-  if (list.length < 2) return list;
-  const minX = Math.min(...list.map((s) => s.x)); const maxX = Math.max(...list.map((s) => s.x + s.w));
-  const minY = Math.min(...list.map((s) => s.y)); const maxY = Math.max(...list.map((s) => s.y + s.h));
-  const first = list[0];
-  if (how === 'hdist' || how === 'vdist') {
-    const h = how === 'hdist';
-    // space each row (or column) on its own, so back-to-back rows are not mixed together
-    const lines = new Map<number, Shape[]>();
-    for (const s of list) { const k = Math.round(h ? s.y : s.x); lines.set(k, [...(lines.get(k) ?? []), s]); }
-    if (lines.size > 1) return [...lines.values()].flatMap((line) => (line.length > 2 ? alignShapes(line, how) : line));
-    const sorted = [...list].sort((a, b) => (h ? a.x - b.x : a.y - b.y));
-    const total = sorted.reduce((sum, s) => sum + (h ? s.w : s.h), 0);
-    const gap = ((h ? maxX - minX : maxY - minY) - total) / (sorted.length - 1);
-    let at = h ? minX : minY;
-    return sorted.map((s) => { const out = h ? { ...s, x: Math.round(at * 2) / 2 } : { ...s, y: Math.round(at * 2) / 2 }; at += (h ? s.w : s.h) + gap; return out; });
-  }
-  return list.map((s) => {
-    switch (how) {
-      case 'left': return { ...s, x: minX };
-      case 'right': return { ...s, x: maxX - s.w };
-      case 'hcenter': return { ...s, x: Math.round(((minX + maxX) / 2 - s.w / 2) * 2) / 2 };
-      case 'top': return { ...s, y: minY };
-      case 'bottom': return { ...s, y: maxY - s.h };
-      case 'vcenter': return { ...s, y: Math.round(((minY + maxY) / 2 - s.h / 2) * 2) / 2 };
-      case 'size': return { ...s, w: first.w, h: first.h };
-      default: return s;
-    }
-  });
-}
 
 function RowGenerator({ layout, onClose, onCreate }: { layout: Layout; onClose: () => void; onCreate: (s: Shape[]) => void }) {
   const { t } = useTranslation();
@@ -349,7 +317,7 @@ export default function WarehouseLayoutPage() {
 
             <div className="wl-stage">
               <div className="wl-frame">
-                <LayoutCanvas layout={draft} editable selected={sel} onSelect={setSel} onMove={onMove} onCursor={setCursor} stats={stats?.map} bad={badIds} mode="plain" tool={tool} zoom={zoom} ariaLabel={t('whLayout.canvasAria', { name: whName })} />
+                <LayoutCanvas onZoom={setZoom} layout={draft} editable selected={sel} onSelect={setSel} onMove={onMove} onCursor={setCursor} stats={stats?.map} bad={badIds} mode="plain" tool={tool} zoom={zoom} ariaLabel={t('whLayout.canvasAria', { name: whName })} />
               </div>
               <div className="wl-status">
                 <span>{cursor ? `X ${cursor.x.toFixed(1)} · Y ${cursor.y.toFixed(1)} m` : t('whLayout.status.hover')}</span>

@@ -429,3 +429,38 @@ export function shapesOverlap(a: Shape, b: Shape) {
   const ca = { x: ba.x + ba.w / 2, y: ba.y + ba.h / 2 }; const cb = { x: bb.x + bb.w / 2, y: bb.y + bb.h / 2 };
   return shrink(pa, ca).some(([x, y]) => pointInPolygon(x, y, pb)) || shrink(pb, cb).some(([x, y]) => pointInPolygon(x, y, pa)) || pointInPolygon(ca.x, ca.y, pb) || pointInPolygon(cb.x, cb.y, pa);
 }
+
+// ── Align / distribute (shared by the warehouse and event editors) ──
+export type Align = 'left' | 'hcenter' | 'right' | 'top' | 'vcenter' | 'bottom' | 'hdist' | 'vdist' | 'size';
+
+export function alignShapes(list: Shape[], how: Align): Shape[] {
+  if (list.length < 2) return list;
+  const minX = Math.min(...list.map((s) => s.x)); const maxX = Math.max(...list.map((s) => s.x + s.w));
+  const minY = Math.min(...list.map((s) => s.y)); const maxY = Math.max(...list.map((s) => s.y + s.h));
+  const first = list[0];
+  if (how === 'hdist' || how === 'vdist') {
+    const h = how === 'hdist';
+    // space each row (or column) on its own, so back-to-back rows are not mixed together
+    const lines = new Map<number, Shape[]>();
+    for (const s of list) { const k = Math.round(h ? s.y : s.x); lines.set(k, [...(lines.get(k) ?? []), s]); }
+    if (lines.size > 1) return [...lines.values()].flatMap((line) => (line.length > 2 ? alignShapes(line, how) : line));
+    const sorted = [...list].sort((a, b) => (h ? a.x - b.x : a.y - b.y));
+    const total = sorted.reduce((sum, s) => sum + (h ? s.w : s.h), 0);
+    const gap = ((h ? maxX - minX : maxY - minY) - total) / (sorted.length - 1);
+    let at = h ? minX : minY;
+    return sorted.map((s) => { const out = h ? { ...s, x: Math.round(at * 2) / 2 } : { ...s, y: Math.round(at * 2) / 2 }; at += (h ? s.w : s.h) + gap; return out; });
+  }
+  return list.map((s) => {
+    switch (how) {
+      case 'left': return { ...s, x: minX };
+      case 'right': return { ...s, x: maxX - s.w };
+      case 'hcenter': return { ...s, x: Math.round(((minX + maxX) / 2 - s.w / 2) * 2) / 2 };
+      case 'top': return { ...s, y: minY };
+      case 'bottom': return { ...s, y: maxY - s.h };
+      case 'vcenter': return { ...s, y: Math.round(((minY + maxY) / 2 - s.h / 2) * 2) / 2 };
+      case 'size': return { ...s, w: first.w, h: first.h };
+      default: return s;
+    }
+  });
+}
+
