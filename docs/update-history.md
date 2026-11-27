@@ -11,6 +11,12 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+## 2026-11-27 — Table sort state, rows per page, double buttons, Inventory table
+
+See ai-handoff.md for files and checks.
+
+---
+
 ## 2026-11-27 — Fix 404 on Warehouse Hub, Finance, AI Tools
 
 Routes were in the superadmin block after the merge; moved back to the tenant block.

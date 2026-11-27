@@ -9,6 +9,11 @@ Format: date — change — endpoints/fields touched — impact — action neede
 
 ---
 
+## 2026-11-27 — Tables: sort state, rows per page, no double "New", tidy Inventory
+
+- **Endpoints touched:** none changed. Server-paginated lists now send `limit` = 10/20/50/100 (user choice) instead of a
+  fixed value. Check: backend accepts `limit` up to 100 on these lists (verified on `/users`: 50 rows returned).
+
 ## 2026-11-26 — UX review outside the event pages (fixes)
 
 - **Endpoints touched:** none changed. New client behaviour: any **401** response now logs the user out locally (removes

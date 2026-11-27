@@ -28,9 +28,10 @@ import useUpdateSuperAdminPayment from "../../hooks/api/useUpdateSuperAdminPayme
 import { formatIDR, paymentStatusBadge } from "../../lib/superAdminUtils";
 import { useTranslation } from "react-i18next";
 import { translateApiValue } from "../../utils/function";
+import { usePageSize } from "../../lib/pageSize";
 
 
-const PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 10;
 const STATUS_FILTERS = ["paid", "pending", "failed", "refunded"];
 const PAYMENT_STATUSES = ["PAID", "PENDING", "FAILED", "REFUNDED"];
 const PAYMENT_METHODS = [
@@ -105,6 +106,7 @@ function paymentMethodLabel(value: string) {
 }
 
 export default function PaymentsPage() {
+  const PAGE_SIZE = usePageSize(DEFAULT_PAGE_SIZE);
   const { t } = useTranslation();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");

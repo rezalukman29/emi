@@ -5,8 +5,9 @@ import { initialActivityLogs } from '../data/activityLogs';
 import SearchableSelect from '../components/SearchableSelect';
 import { useTranslation } from "react-i18next";
 import { useEventLifecycle } from '../lib/eventLifecycle';
+import { usePageSize } from "../lib/pageSize";
 
-const PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 10;
 const ACTIONS = ['Login', 'Logout', 'Create', 'Update', 'Delete'];
 
 function actionBadgeClass(action: string) {
@@ -18,6 +19,7 @@ function actionBadgeClass(action: string) {
 }
 
 export default function LogPage() {
+  const PAGE_SIZE = usePageSize(DEFAULT_PAGE_SIZE);
   const lifecycle = useEventLifecycle();
   const activityLogs = useMemo(() => [...lifecycle.logs.map(log => ({ ...log, userName: log.user })), ...initialActivityLogs], [lifecycle.logs]);
   const modules = useMemo(() => [...new Set(activityLogs.map(log => log.module))].sort(), [activityLogs]);

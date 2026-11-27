@@ -609,6 +609,10 @@
     }
   },
   "pagination": {
+    "prev": "Prev",
+    "next": "Next",
+    "show": "Show",
+    "rowsPerPage": "Rows per page",
     "summary": "{{from}} to {{to}} of {{total}} {{label}}",
     "items": "items",
     "firstPage": "First page",

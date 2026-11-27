@@ -24,6 +24,7 @@ import TextInput from "../components/TextInput.js";
 import Loading from "../components/Loading.js";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
+import { usePageSize } from "../lib/pageSize";
 
 
 
@@ -168,7 +169,7 @@ function ImageViewerModal({ open, name, src, onClose }: any) {
   );
 }
 
-const PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 10;
 
 function formatDate(d: any) {
   const months = [
@@ -193,6 +194,7 @@ function formatDate(d: any) {
 }
 
 export default function WarehousePage() {
+  const PAGE_SIZE = usePageSize(DEFAULT_PAGE_SIZE);
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [nextId, setNextId] = useState(11);
@@ -406,9 +408,6 @@ export default function WarehousePage() {
             <button className="btn-search">{t("wording.search")}</button>
           </div>
           <div className="toolbar-right">
-            <button className="btn-new" onClick={openNew}>
-              <IconPlus /> {t("wording.new")}
-            </button>
           </div>
         </div>
 

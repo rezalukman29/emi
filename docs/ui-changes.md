@@ -96,6 +96,14 @@ checked at 390 px and tablets at 768 px.
 
 ## UI change log (newest first)
 
+### 2026-11-27 — Tables and lists
+- Sort arrows: before → both arrows always grey, no way to see the current sort; after → the sorted column is purple
+  and shows one arrow (↑ A→Z / ↓ Z→A).
+- Pagination: added "Show 10/20/50/100" and text "Prev"/"Next" buttons (arrows only on phones).
+- Removed the second "New" button inside the table card on Sub Area, Area, Category, Unit, Warehouse, Users, Inventory.
+- Inventory table: wider name column, numbers right-aligned, Action column stays visible on the right, time shows
+  minutes correctly.
+
 ### 2026-11-26 — UX review outside the event pages
 - Unknown address: before → silent jump to Events; after → "Page not found" card with "Go to dashboard" / "Go to events".
 - A page that crashes: before → whole app blank; after → "This page hit a problem" card, sidebar still works, "Try again".

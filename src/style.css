@@ -2549,3 +2549,28 @@ td.id-cell   { color: var(--text-muted); font-size: 12px; }
 .event-calendar-page .cal-filter-clear { border: 0; background: none; color: var(--text-muted); font-size: 12px; font-weight: 600; cursor: pointer; text-decoration: underline; padding: 2px 4px; }
 .event-calendar-page .cal-filter-clear:hover { color: var(--brand); }
 .cal-filter-hint { margin: 6px 0 0; font-size: 12px; color: var(--text-muted); }
+
+/* Sort state + pagination controls (UX review 2026-11-27) */
+th.sortable:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+th.sortable.sorted { color: var(--brand); }
+.sort-icon svg { transition: opacity .12s; }
+.sort-icon.is-none svg { opacity: .35; }
+.sort-icon.is-asc svg:last-child, .sort-icon.is-desc svg:first-child { opacity: .15; }
+.pagination-wrap { flex-wrap: wrap; row-gap: 8px; }
+.pg-btn.pg-step { width: auto; padding: 0 10px; gap: 4px; }
+.pg-size { display: inline-flex; align-items: center; gap: 6px; margin-left: 12px; font-size: 12px; color: var(--text-muted); }
+.pg-size select { height: 30px; padding: 0 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--white); color: var(--text-2); font: inherit; }
+@media (max-width: 640px) { .pg-step-label, .pg-edge { display: none; } .pg-btn.pg-step { padding: 0; width: 30px; } .pagination-info, .pg-size { margin-left: 0; width: 100%; justify-content: center; text-align: center; } }
+
+/* Inventory list table: readable columns, scroll sideways instead of squeezing (UX review 2026-11-27) */
+.inv-table { min-width: 1240px; }
+.inv-table th { white-space: nowrap; }
+.inv-table td:nth-child(1) { min-width: 220px; max-width: 320px; font-weight: 600; color: var(--text); }
+.inv-table td:nth-child(2), .inv-table td:nth-child(4), .inv-table td:nth-child(8),
+.inv-table td:nth-child(10), .inv-table td:nth-child(11) { white-space: nowrap; }
+.inv-table td:nth-child(5) { min-width: 150px; }
+.inv-table td:nth-child(6), .inv-table td:nth-child(10), .inv-table td:nth-child(11),
+.inv-table th:nth-child(10), .inv-table th:nth-child(11) { text-align: right; font-variant-numeric: tabular-nums; }
+.inv-table td:nth-child(9) img, .inv-table td:nth-child(9) > * { margin: 0 auto; }
+.inv-table th:last-child, .inv-table td:last-child { position: sticky; right: 0; background: var(--white); box-shadow: -8px 0 8px -8px rgba(0,0,0,.12); white-space: nowrap; }
+.inv-table thead th:last-child { z-index: 1; }

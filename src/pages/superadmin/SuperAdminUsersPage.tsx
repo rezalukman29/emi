@@ -21,9 +21,10 @@ import useGetSuperAdminUsers, {
 } from "../../hooks/api/useGetSuperAdminUsers";
 import { useTranslation } from "react-i18next";
 import { translateApiValue } from "../../utils/function";
+import { usePageSize } from "../../lib/pageSize";
 
 
-const PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 10;
 const USER_TYPES = ["ADMIN", "EMPLOYEE"];
 const SORT_FIELDS: Record<number, GetSuperAdminUsersParams["sort_by"]> = {
   0: "fullname",
@@ -71,6 +72,7 @@ function formatDate(value: string) {
 }
 
 export default function SuperAdminUsersPage() {
+  const PAGE_SIZE = usePageSize(DEFAULT_PAGE_SIZE);
   const { t } = useTranslation();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");

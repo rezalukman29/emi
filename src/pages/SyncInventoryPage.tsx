@@ -12,10 +12,11 @@ import useGetSyncInventory, {
 import useUpdateSyncInventory from "../hooks/api/useUpdateSyncInventory";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
+import { usePageSize } from "../lib/pageSize";
 
 
 
-const PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 20;
 
 function getWarehouseStock(item: SyncInventoryItem) {
   return item.barang_gudang.reduce(
@@ -57,6 +58,7 @@ function DiffBadge({ diff }: { diff: number }) {
 }
 
 export default function SyncInventoryPage() {
+  const PAGE_SIZE = usePageSize(DEFAULT_PAGE_SIZE);
   const { t } = useTranslation();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");

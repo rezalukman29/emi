@@ -23,9 +23,10 @@ import { useTranslation } from "react-i18next";
 import { eventStatusFeatures } from '../lib/eventStatusFeatures';
 import { hasExclusiveFlagConflict } from '../lib/eventStageRules';
 import "../eventUpgrade.css";
+import { usePageSize } from "../lib/pageSize";
 
 
-const PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 20;
 const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const EMPTY_FEATURES = { cuttingStock: false, stockReturn: false, productionItem: false };
@@ -195,6 +196,7 @@ function RuleSwitch({ checked, disabled, label, description, note, onChange }: {
 }
 
 export default function EventStatusPage() {
+  const PAGE_SIZE = usePageSize(DEFAULT_PAGE_SIZE);
   const queryClient = useQueryClient();
   const { t } = useTranslation();
   const [statuses, setStatuses] = useState<EventStatusRow[]>([]);

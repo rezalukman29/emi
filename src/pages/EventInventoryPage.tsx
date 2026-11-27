@@ -12,8 +12,9 @@ import useGetEventInventory, {
 import useGetEventStatus from "../hooks/api/useGetEventStatus";
 import useSearchEvents from "../hooks/api/useSearchEvents";
 import { useTranslation } from "react-i18next";
+import { usePageSize } from "../lib/pageSize";
 
-const PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 20;
 
 function nullableIntValue(value: NullableInt64) {
   return value.Valid ? value.Int64 : 0;
@@ -32,6 +33,7 @@ function getEventStatusId(item: EventInventoryItem) {
 }
 
 export default function EventInventoryPage() {
+  const PAGE_SIZE = usePageSize(DEFAULT_PAGE_SIZE);
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchInput, setSearchInput] = useState("");

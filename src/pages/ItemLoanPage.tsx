@@ -24,8 +24,9 @@ import {
 import { useGetLoanVendors } from "../hooks/api/useLoanVendors";
 import { fmtNum, formatIDR } from "../lib/format";
 import { translateApiValue } from "../utils/function";
+import { usePageSize } from "../lib/pageSize";
 
-const PAGE_SIZE = 15;
+const DEFAULT_PAGE_SIZE = 15;
 const STATUSES: LoanItemStatus[] = ["REQUESTED", "BORROWED", "OVERDUE", "RETURNED"];
 
 interface ItemLoanPageProps {
@@ -88,6 +89,7 @@ function errorMessage(error: unknown, fallback: string) {
 }
 
 export default function ItemLoanPage({ embedded = false, vendorId, allowCreate = true }: ItemLoanPageProps) {
+  const PAGE_SIZE = usePageSize(DEFAULT_PAGE_SIZE);
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
@@ -292,7 +294,7 @@ export default function ItemLoanPage({ embedded = false, vendorId, allowCreate =
           <SearchableSelect inline value={status} onChange={value => setStatus(String(value) as LoanItemStatus | "")} options={[{ value: "", label: t("borrowedItemsApi.allStatuses") }, ...STATUSES.map(value => ({ value, label: translateApiValue(value) }))]} placeholder={t("borrowedItemsApi.allStatuses")} />
           {!vendorId && <SearchableSelect inline value={selectedVendor} onChange={value => setSelectedVendor(String(value))} options={[{ value: "", label: t("borrowedItemsApi.allVendors") }, ...vendors.map(vendor => ({ value: vendor.id, label: vendor.name }))]} placeholder={t("borrowedItemsApi.allVendors")} />}
         </div>
-        <div className="toolbar-right loan-items-toolbar-right"><span>{t("borrowedItemsApi.totalCost")} <strong>{formatIDR(totalCost)}</strong></span>{allowCreate && <button className="btn-new" onClick={openCreate}><IconPlus /> {t("loanVendor.newRental")}</button>}</div>
+        <div className="toolbar-right loan-items-toolbar-right"><span>{t("borrowedItemsApi.totalCost")} <strong>{formatIDR(totalCost)}</strong></span>{allowCreate && embedded && <button className="btn-new" onClick={openCreate}><IconPlus /> {t("loanVendor.newRental")}</button>}</div>
       </div>
       <p className="loan-borrowed-description">{t("borrowedItemsApi.description")}</p>
       <div className="table-wrap"><table className="loan-items-table">

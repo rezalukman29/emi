@@ -8,8 +8,9 @@ import useGetOverviewReportEvents, {
 import useGetOverviewReportSummary from "../hooks/api/useGetOverviewReportSummary";
 import SearchableSelect from "../components/SearchableSelect";
 import { useTranslation } from "react-i18next";
+import { usePageSize } from "../lib/pageSize";
 
-const PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 10;
 const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 function fmtDate(value: string | null | undefined) {
@@ -38,6 +39,7 @@ function eventTypeLabel(type: string) {
 }
 
 export default function OverviewReportPage() {
+  const PAGE_SIZE = usePageSize(DEFAULT_PAGE_SIZE);
   const { t } = useTranslation();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");

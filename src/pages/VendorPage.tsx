@@ -20,8 +20,9 @@ import {
   useUpdateVendor,
 } from "../hooks/api/useVendors";
 import { useWarehouseController } from "./lib/useWarehouseController";
+import { usePageSize } from "../lib/pageSize";
 
-const PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 10;
 const EMPTY_FORM: VendorPayload = {
   name: "",
   origin: "External",
@@ -39,6 +40,7 @@ function errorMessage(error: unknown, fallback: string) {
 }
 
 export default function VendorPage({ kind = 'production' }: { kind?: 'production' | 'loan' }) {
+  const PAGE_SIZE = usePageSize(DEFAULT_PAGE_SIZE);
   const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();

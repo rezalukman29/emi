@@ -39,8 +39,9 @@ import "../eventUpgrade.css";
 import { briefHasContent, EMPTY_BRIEF, pendingBriefKey, saveBrief, savePendingBrief, useThreeStar, type EventBrief } from "../lib/threeStar";
 import BriefFields from "../components/ai/BriefFields";
 import { StarRow } from "../components/ai/ThreeStarPanel";
+import { usePageSize } from "../lib/pageSize";
 
-const PAGE_SIZE = 8;
+const DEFAULT_PAGE_SIZE = 8;
 const monthLabel = (month: number, style: "short" | "long" = "short") =>
   new Intl.DateTimeFormat(getDateLocale(), { month: style }).format(new Date(2020, month, 1));
 
@@ -274,6 +275,7 @@ function CountdownChip({ days }: { days: number | null }) {
 const EVENT_TAB_KEY = "emi.event.tab.v1";
 
 export default function EventPage() {
+  const PAGE_SIZE = usePageSize(DEFAULT_PAGE_SIZE);
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   // The active tab is kept in the URL (?tab=) and in this browser tab's session, so "Back to Events"

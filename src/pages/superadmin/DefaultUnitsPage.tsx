@@ -23,9 +23,10 @@ import useGetDefaultUnit, {
 } from "../../hooks/api/useGetDefaultUnit";
 import useUpdateDefaultUnit from "../../hooks/api/useUpdateDefaultUnit";
 import { useTranslation } from "react-i18next";
+import { usePageSize } from "../../lib/pageSize";
 
 
-const PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 20;
 const TYPES = ["Length", "Weight", "Volume", "Count"];
 
 interface DefaultUnitForm {
@@ -52,6 +53,7 @@ function requestErrorMessage(error: unknown, fallback: string) {
 }
 
 export default function DefaultUnitsPage() {
+  const PAGE_SIZE = usePageSize(DEFAULT_PAGE_SIZE);
   const { t } = useTranslation();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");

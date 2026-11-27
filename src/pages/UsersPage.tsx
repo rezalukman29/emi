@@ -15,9 +15,10 @@ import useDeleteUser from "../hooks/api/useDeleteUser";
 import SearchableSelect from "../components/SearchableSelect";
 import { useTranslation } from "react-i18next";
 import { translateApiValue } from "../utils/function";
+import { usePageSize } from "../lib/pageSize";
 
 
-const PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 10;
 const ROLES = ["ADMIN", "EMPLOYEE"] as const;
 type UserRole = (typeof ROLES)[number];
 type UserStatus = "active" | "inactive";
@@ -78,6 +79,7 @@ function Avatar({ name }: { name: string }) {
 }
 
 export default function UsersPage() {
+  const PAGE_SIZE = usePageSize(DEFAULT_PAGE_SIZE);
   const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState("");
@@ -272,7 +274,6 @@ export default function UsersPage() {
             />
           </div>
           <div className="toolbar-right">
-            <button className="btn-new" onClick={openNew}><IconPlus /> {t("wording.new")}</button>
           </div>
         </div>
 

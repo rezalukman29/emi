@@ -200,3 +200,5 @@ _(Nothing yet. Move rows here with the date and the backend version when an API 
   repair the existing rows.
 - Dashboard shows an item with stock **−97**. Stock must never go below 0: `POST /v1/moving-order`, item-out and stock-opname
   adjustments should refuse (422, message "only N in stock") instead of saving. Provide a one-off report of rows < 0.
+- Duplicate warehouses: three warehouses named "Gudang C9" (owner 2026-11-27: probably duplicates). Backend: merge
+  their stock into one and remove the others (or mark inactive); optionally refuse a new warehouse with an existing name.

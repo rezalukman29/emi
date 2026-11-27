@@ -12,8 +12,9 @@ import { useCategoryController } from "./lib/useCategoryController";
 import SearchableSelect from "../components/SearchableSelect";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
+import { usePageSize } from "../lib/pageSize";
 
-const PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 10;
 const STATUS_OPTIONS: Array<{ labelKey: string; value: BarangGudangStatus }> = [
   { labelKey: "common.status.available", value: "SAFE" },
   { labelKey: "common.status.lowStock", value: "WARNING" },
@@ -50,6 +51,7 @@ function EmptySummary({ children }: { children: string }) {
 }
 
 export default function InventoryReportPage() {
+  const PAGE_SIZE = usePageSize(DEFAULT_PAGE_SIZE);
   const { t } = useTranslation();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");

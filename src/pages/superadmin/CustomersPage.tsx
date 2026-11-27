@@ -28,9 +28,10 @@ import useUpdateSuperAdminCustomer from "../../hooks/api/useUpdateSuperAdminCust
 import { customerStatusBadge, formatIDR } from "../../lib/superAdminUtils";
 import { useTranslation } from "react-i18next";
 import { translateApiValue } from "../../utils/function";
+import { usePageSize } from "../../lib/pageSize";
 
 
-const PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 10;
 const STATUSES = ["Active", "Trial", "Suspended", "Cancelled"];
 const SUB_ROLES = ["Owner", "Admin", "Staff", "Viewer"];
 const SUB_STATUSES = ["active", "inactive"];
@@ -106,6 +107,7 @@ function requestErrorMessage(error: unknown, fallback: string) {
 }
 
 export default function CustomersPage() {
+  const PAGE_SIZE = usePageSize(DEFAULT_PAGE_SIZE);
   const { t } = useTranslation();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");

@@ -1,5 +1,6 @@
 import { IconChevronsLeft, IconChevronLeft, IconChevronRight, IconChevronsRight } from './icons';
 import { useTranslation } from 'react-i18next';
+import { PAGE_SIZE_OPTIONS, isPageSizeAdjustable, setPageSize } from '../lib/pageSize';
 
 function visiblePages(cur: any, total: any) {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
@@ -19,18 +20,28 @@ export default function Pagination({ currentPage: rawPage, total: rawTotal, page
   const pages = visiblePages(currentPage, totalPages);
 
   if (total === 0) return null;
+  const adjustable = isPageSizeAdjustable();
+  const sizeOptions = PAGE_SIZE_OPTIONS.includes(pageSize) ? PAGE_SIZE_OPTIONS : [...PAGE_SIZE_OPTIONS, pageSize].sort((a, b) => a - b);
 
   return (
     <div className="pagination-wrap">
-      <button className="pg-btn" aria-label={t('pagination.firstPage')} onClick={() => onPage(1)} disabled={currentPage === 1}><IconChevronsLeft /></button>
-      <button className="pg-btn" aria-label={t('pagination.previousPage')} onClick={() => onPage(currentPage - 1)} disabled={currentPage === 1}><IconChevronLeft /></button>
+      <button className="pg-btn pg-edge" aria-label={t('pagination.firstPage')} onClick={() => onPage(1)} disabled={currentPage === 1}><IconChevronsLeft /></button>
+      <button className="pg-btn pg-step" aria-label={t('pagination.previousPage')} onClick={() => onPage(currentPage - 1)} disabled={currentPage === 1}><IconChevronLeft /><span className="pg-step-label">{t('pagination.prev')}</span></button>
       {pages.map((p, i) =>
         p === '...'
           ? <span key={`gap-${i}`} className="pg-btn" style={{ cursor: 'default' }}>…</span>
           : <button key={`p-${p}`} className={`pg-btn${p === currentPage ? ' active' : ''}`} onClick={() => onPage(p)}>{p}</button>
       )}
-      <button className="pg-btn" aria-label={t('pagination.nextPage')} onClick={() => onPage(currentPage + 1)} disabled={currentPage === totalPages}><IconChevronRight /></button>
-      <button className="pg-btn" aria-label={t('pagination.lastPage')} onClick={() => onPage(totalPages)} disabled={currentPage === totalPages}><IconChevronsRight /></button>
+      <button className="pg-btn pg-step" aria-label={t('pagination.nextPage')} onClick={() => onPage(currentPage + 1)} disabled={currentPage === totalPages}><span className="pg-step-label">{t('pagination.next')}</span><IconChevronRight /></button>
+      <button className="pg-btn pg-edge" aria-label={t('pagination.lastPage')} onClick={() => onPage(totalPages)} disabled={currentPage === totalPages}><IconChevronsRight /></button>
+      {adjustable && (
+        <label className="pg-size">
+          <span>{t('pagination.show')}</span>
+          <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); onPage(1); }} aria-label={t('pagination.rowsPerPage')}>
+            {sizeOptions.map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </label>
+      )}
       <span className="pagination-info">
         {t('pagination.summary', {
           from,

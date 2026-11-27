@@ -23,14 +23,16 @@ import {
   outsourceItemPayload,
 } from "../hooks/api/useOutsource";
 import { fmtNum, formatIDR } from "../lib/format";
+import { usePageSize } from "../lib/pageSize";
 
 const EMPTY_VENDOR: OutsourceVendorPayload = { name: "", type: "External", description: "", phone: "", address: "" };
-const PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 10;
 
 function errorMessage(error: unknown, fallback: string) { return (error as { response?: { data?: { message?: string } } })?.response?.data?.message || (error as Error)?.message || fallback; }
 function dateLabel(value?: string | null) { if (!value) return "—"; const date = new Date(`${value.slice(0, 10)}T00:00:00`); return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }); }
 
 export default function OutsourcePage() {
+  const PAGE_SIZE = usePageSize(DEFAULT_PAGE_SIZE);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [params, setParams] = useSearchParams();

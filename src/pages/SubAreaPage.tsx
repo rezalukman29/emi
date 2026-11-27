@@ -21,9 +21,10 @@ import type { SubAreaItem } from "../hooks/api/useGetSubArea";
 import { InventoryService } from "../service/InventoryService";
 import { useAreaController } from "./lib/useAreaController";
 import { useTranslation } from "react-i18next";
+import { usePageSize } from "../lib/pageSize";
 
 
-const PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 10;
 const MONTHS_SHORT = [
   "Jan",
   "Feb",
@@ -62,6 +63,7 @@ function errorMessage(error: unknown, fallback: string) {
 }
 
 export default function SubAreaPage() {
+  const PAGE_SIZE = usePageSize(DEFAULT_PAGE_SIZE);
   const { t } = useTranslation();
   const [subAreas, setSubAreas] = useState<SubAreaItem[]>([]);
   const [query, setQuery] = useState("");
@@ -248,7 +250,6 @@ export default function SubAreaPage() {
             />
           </div>
           <div className="toolbar-right">
-            <button className="btn-new" onClick={openNew}><IconPlus /> {t("wording.new")}</button>
           </div>
         </div>
 

@@ -21,8 +21,9 @@ import { toast } from "react-toastify";
 import TextInput from "../components/TextInput";
 import TextArea from "../components/TextArea";
 import { useTranslation } from "react-i18next";
+import { usePageSize } from "../lib/pageSize";
 
-const PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 10;
 
 const MONTHS_SHORT = [
   "Jan",
@@ -114,6 +115,7 @@ const BADGE_COLORS = {
 };
 
 export default function CategoryPage() {
+  const PAGE_SIZE = usePageSize(DEFAULT_PAGE_SIZE);
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [nextId, setNextId] = useState(initialCategories.length + 1);
@@ -338,9 +340,6 @@ export default function CategoryPage() {
             <button className="btn-search">{t("wording.search")}</button>
           </div>
           <div className="toolbar-right">
-            <button className="btn-new" onClick={openNew}>
-              <IconPlus /> {t("wording.new")}
-            </button>
           </div>
         </div>
 

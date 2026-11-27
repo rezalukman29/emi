@@ -34,6 +34,7 @@ import SearchableSelect from "../components/SearchableSelect";
 import useGetInventorySummary from "../hooks/api/useGetInventorySummary";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
+import { usePageSize } from "../lib/pageSize";
 
 export interface ISelect {
   label: string;
@@ -183,7 +184,7 @@ function ImageViewerModal({ open, name, src, onClose }: any) {
   );
 }
 
-const PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 10;
 
 const inventoryData = [
   {
@@ -463,6 +464,7 @@ function stockBadge(s: any) {
 }
 
 export default function InventoryPage() {
+  const PAGE_SIZE = usePageSize(DEFAULT_PAGE_SIZE);
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { categoryOptions } = useCategoryController();
@@ -982,15 +984,6 @@ export default function InventoryPage() {
             </button>
           </div>
           <div className="toolbar-right">
-            <button
-              className="btn-new"
-              onClick={() => {
-                setModalOpen(true);
-                formik.resetForm();
-              }}
-            >
-              <IconPlus /> {t("wording.new")}
-            </button>
           </div>
         </div>
 
@@ -1014,7 +1007,7 @@ export default function InventoryPage() {
         )}
         {loadError && <LoadError onRetry={() => void getInventoryList()} />}
         <div className="table-wrap" hidden={loadError}>
-          <table>
+          <table className="inv-table">
             <thead>
               <tr>
                 <SortTh
@@ -1166,9 +1159,9 @@ export default function InventoryPage() {
                     >
                       {r.updated_at
                         ? moment(r.updated_at as any).format(
-                            "D MMM YYYY, HH:MM",
+                            "D MMM YYYY, HH:mm",
                           )
-                        : "-"}
+                        : "—"}
                     </td>
                     <td style={{ textAlign: "center" }}>
                       <ImgCell

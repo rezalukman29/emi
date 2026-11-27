@@ -609,6 +609,10 @@
     }
   },
   "pagination": {
+    "prev": "Sebelumnya",
+    "next": "Berikutnya",
+    "show": "Tampilkan",
+    "rowsPerPage": "Baris per halaman",
     "summary": "{{from}} sampai {{to}} dari {{total}} {{label}}",
     "items": "item",
     "firstPage": "Halaman pertama",

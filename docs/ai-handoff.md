@@ -6,6 +6,29 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-27 — Tables: sort state, rows per page, no double "New", tidy Inventory
+
+- Owner feedback with screenshots (Sub Area, Inventory).
+- `SortTh`: active column gets `.sorted` + `aria-sort`; icon shows only the active direction (`.is-asc` / `.is-desc`),
+  other columns faded (`.is-none`). Keyboard Enter/Space sorts. All 81 uses benefit; pages must pass `sortCol` +
+  `sortAsc` (they already do).
+- Rows per page: `src/lib/pageSize.ts` (`usePageSize(default)`, localStorage `emi.pageSize.v1` per path, options
+  10/20/50/100). 24 list pages renamed their `PAGE_SIZE` constant to `DEFAULT_PAGE_SIZE` and call the hook; Pagination
+  shows "Show [n]" only on pages that opted in, and goes back to page 1 on change. Server lists send it as the existing
+  `limit` param (query keys include params, so they refetch). Prev/Next now have text labels; on mobile the labels and
+  first/last buttons hide.
+- Double "New" button removed (kept the header button with the clear label): Sub Area, Area, Category, Unit,
+  Warehouse, Users, Inventory; Borrowed Items keeps the toolbar button only when embedded in a vendor page.
+- Inventory table: `.inv-table` (min width 1240 px, scrolls sideways inside the card, name column wider, numbers right
+  aligned, Action column sticky on the right). "Updated at" format bug fixed: `HH:MM` showed the month as minutes →
+  `HH:mm` (also in Warehouse Inventory).
+- Verified on staging (writes blocked): Sub Area 1 New button, sort arrow flips desc/asc, Show 20 → 20 rows, Users
+  Show 50 → 50 rows from the server, Inventory 1 New button, 390 px no sideways scroll. build OK, tsc 0, lint 12/1
+  (pre-existing), tests 40/40.
+- Owner decisions recorded: warehouses Rent/Buy/IHP/Printing/Venue are **labels only** (not places); the three
+  "Gudang C9" are **probably duplicates** → backend cleanup (api-backlog §15). Warehouse Hub still lists the labels as
+  warehouses; switching them to labels is the next UI task (no API needed).
+
 ## 2026-11-27 — Fix: new menus showed 404 after the staging merge
 
 - Cause: when the routes were re-added during the merge they landed in the `/superadmin` route block instead of the

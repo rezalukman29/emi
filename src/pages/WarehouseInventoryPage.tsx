@@ -59,8 +59,9 @@ import {
 import type { RootState } from "../store/store";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
+import { usePageSize } from "../lib/pageSize";
 
-const PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 10;
 const GET_ALL_LIMIT = 99999;
 
 function errorMessage(error: unknown, fallback: string) {
@@ -376,6 +377,7 @@ function ImageViewerModal({ open, name, src, onClose }: any) {
 }
 
 export default function WarehouseInventoryPage() {
+  const PAGE_SIZE = usePageSize(DEFAULT_PAGE_SIZE);
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -1466,7 +1468,7 @@ export default function WarehouseInventoryPage() {
                       >
                         {r.updated_at
                           ? moment(r.updated_at as any).format(
-                              "D MMM YYYY, HH:MM",
+                              "D MMM YYYY, HH:mm",
                             )
                           : "-"}
                       </td>

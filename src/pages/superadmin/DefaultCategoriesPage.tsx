@@ -23,9 +23,10 @@ import useGetDefaultCategories, {
 } from "../../hooks/api/useGetDefaultCategories";
 import useUpdateDefaultCategory from "../../hooks/api/useUpdateDefaultCategory";
 import { useTranslation } from "react-i18next";
+import { usePageSize } from "../../lib/pageSize";
 
 
-const PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 20;
 
 interface DefaultCategoryForm {
   name: string;
@@ -49,6 +50,7 @@ function requestErrorMessage(error: unknown, fallback: string) {
 }
 
 export default function DefaultCategoriesPage() {
+  const PAGE_SIZE = usePageSize(DEFAULT_PAGE_SIZE);
   const { t } = useTranslation();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");

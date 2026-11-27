@@ -20,8 +20,9 @@ import {
   useUpdateLoanVendor,
 } from "../hooks/api/useLoanVendors";
 import { fmtNum } from "../lib/format";
+import { usePageSize } from "../lib/pageSize";
 
-const PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 10;
 const TYPES: LoanVendorType[] = ["Internal", "External"];
 const EMPTY_FORM: LoanVendorPayload = {
   name: "",
@@ -43,6 +44,7 @@ function errorMessage(error: unknown, fallback: string) {
 }
 
 export default function LoanPage() {
+  const PAGE_SIZE = usePageSize(DEFAULT_PAGE_SIZE);
   const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
