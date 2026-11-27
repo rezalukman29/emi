@@ -10,8 +10,10 @@ import type { StockRow } from './warehouseHub';
 // editor (`assign[bgId] = "<shapeId>" | "<shapeId>@<bay>.<level>"`) or (2) by their existing `rack` text matching a
 // rack code or a full slot code.
 
-export type ShapeKind = 'rack' | 'bulk' | 'zone' | 'aisle' | 'wall' | 'column' | 'dock';
-export type ZoneRole = 'receiving' | 'shipping' | 'staging' | 'qa' | 'returns' | 'office' | 'charging' | 'other';
+// 'stage' | 'table' | 'decor' are used by event layouts (src/lib/eventLayout.ts), which share this model and canvas.
+export type ShapeKind = 'rack' | 'bulk' | 'zone' | 'aisle' | 'wall' | 'column' | 'dock' | 'stage' | 'table' | 'decor';
+export type ZoneRole = 'receiving' | 'shipping' | 'staging' | 'qa' | 'returns' | 'office' | 'charging' | 'other'
+  | 'ceremony' | 'reception' | 'foyer' | 'photo' | 'buffet' | 'vip' | 'backstage' | 'loading';
 export interface Shape {
   id: string;
   kind: ShapeKind;
@@ -24,6 +26,8 @@ export interface Shape {
   role?: ZoneRole;
   locked?: boolean;
   note?: string;
+  round?: boolean; // drawn as an ellipse (round tables, pillars)
+  seats?: number; // event tables
 }
 export interface LayoutBackground { src: string; opacity: number }
 export interface Layout { warehouseId: number; cols: number; rows: number; shapes: Shape[]; assign: Record<number, string>; bg?: LayoutBackground | null; updatedAt: string }
@@ -68,6 +72,9 @@ export const KIND_DEFAULTS: Record<ShapeKind, Pick<Shape, 'w' | 'h' | 'levels' |
   wall: { w: 8, h: 1, levels: 1, capacity: 0 },
   column: { w: 1, h: 1, levels: 1, capacity: 0 },
   dock: { w: 3, h: 1, levels: 1, capacity: 0 },
+  stage: { w: 8, h: 4, levels: 1, capacity: 0 },
+  table: { w: 2, h: 2, levels: 1, capacity: 0 },
+  decor: { w: 2, h: 1, levels: 1, capacity: 0 },
 };
 
 export function blankLayout(warehouseId: number): Layout {
@@ -219,14 +226,14 @@ export function validate(layout: Layout): LayoutIssue[] {
 
 // ── Walking routes on the grid (Dijkstra, 4 directions; aisles are cheaper so routes prefer them) ──
 interface Grid { cols: number; rows: number; blocked: Uint8Array; cost: Float32Array }
-export function buildGrid(layout: Layout): Grid {
+export function buildGrid(layout: Layout, blockingKinds: ShapeKind[] = BLOCKING): Grid {
   const { cols, rows } = layout;
   const blocked = new Uint8Array(cols * rows);
   const cost = new Float32Array(cols * rows).fill(1.6);
   for (const s of layout.shapes) {
     for (let y = Math.max(0, Math.floor(s.y)); y < Math.min(rows, Math.ceil(s.y + s.h)); y += 1) for (let x = Math.max(0, Math.floor(s.x)); x < Math.min(cols, Math.ceil(s.x + s.w)); x += 1) {
       const i = y * cols + x;
-      if (BLOCKING.includes(s.kind)) blocked[i] = 1;
+      if (blockingKinds.includes(s.kind)) blocked[i] = 1;
       else if (s.kind === 'aisle') cost[i] = Math.min(cost[i], 1);
     }
   }
@@ -286,10 +293,10 @@ function backtrack(g: Grid, dist: Float64Array, target: number): number[] {
 }
 
 /** Route from the entrance through every stop (nearest by walking distance) to staging/shipping, along free floor. */
-export function pickRoute(layout: Layout, stops: Shape[]) {
-  const g = buildGrid(layout);
-  const start = layout.shapes.find((s) => s.kind === 'dock') ?? layout.shapes.find((s) => s.role === 'shipping');
-  const end = layout.shapes.find((s) => s.role === 'staging') ?? layout.shapes.find((s) => s.role === 'shipping');
+export function pickRoute(layout: Layout, stops: Shape[], opts: { blocking?: ShapeKind[]; endAt?: Shape | null; startAt?: Shape | null } = {}) {
+  const g = buildGrid(layout, opts.blocking);
+  const start = opts.startAt ?? layout.shapes.find((s) => s.kind === 'dock') ?? layout.shapes.find((s) => s.role === 'shipping');
+  const end = opts.endAt !== undefined ? opts.endAt : layout.shapes.find((s) => s.role === 'staging') ?? layout.shapes.find((s) => s.role === 'shipping');
   const left = [...new Map(stops.map((s) => [s.id, s])).values()];
   const order: Shape[] = [];
   const cells: number[] = [];

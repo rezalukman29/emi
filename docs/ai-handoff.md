@@ -6,6 +6,29 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-27 — Event layout map (tab "Layout" in Event Detail, preview)
+
+- Owner: "use the same concept for an event layout map, reachable from every event detail".
+- New tab **Layout** in Event Detail (`?view=layout`, all users) → `src/components/event/EventLayoutPanel.tsx`.
+  Store `src/lib/eventLayout.ts` (localStorage `emi.eventLayout.v1`, per event id). Same `Layout`/`Shape` model and
+  `LayoutCanvas` as the warehouse; new kinds `stage | table | decor`, `round`, `seats`, event zone roles
+  (ceremony, reception, foyer, photo, buffet, vip, backstage, loading); canvas gains mode `progress` + `badges`.
+- Items: real event lines (`GET /v3/fix-list-item-event`). An item belongs to a zone by manual assignment
+  (`assign[eventItemId]`) or by its **event area / sub-area name = zone name or code** (zones first; never doors,
+  walls, walkways). Templates (Ballroom, Garden, Empty) add one zone per event area with the same name, so all lines
+  link at once; role guessed from the area name.
+- View modes: Areas & items (count bubbles, area list with %), Setup progress (scan_out / qty, fill + colour),
+  Return progress (scan_in / qty), Load-in route (from the loading door through areas not fully set up; walking grid
+  with stage/tables/decor/walls/pillars blocked), item search, Print (print CSS shows only the plan).
+- Editor: same tools as the warehouse editor (select/pan, box select, undo/redo, zoom, venue photo, export/import,
+  floor size, checks: overlap, outside, no entrance, event area missing), event-area quick add, elements, zones,
+  table generator (rows × cols, seats, round/long), link a zone to an event area, place items manually,
+  copy a layout from another event (same venue), keyboard shortcuts.
+- `pickRoute` got options `blocking`, `startAt`, `endAt`; `buildGrid(layout, blockingKinds)`.
+- Verified on staging (writes blocked), event 91 (6 lines, 4 areas): Ballroom template → 6 of 6 lines placed,
+  0 problems; views and route render; 1600 px and 390 px without sideways scroll, no console errors. Scan progress
+  shows 0% because this event has no scans; progress colouring with real scans not seen yet.
+
 ## 2026-11-27 — Layout editor v2 ("much more advanced and detailed")
 
 - Still PREVIEW (browser storage `emi.whLayout.v1`; same key, model extended, old layouts still load).

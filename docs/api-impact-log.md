@@ -9,6 +9,11 @@ Format: date — change — endpoints/fields touched — impact — action neede
 
 ---
 
+## 2026-11-27 — Event layout map (tab "Layout" in Event Detail, preview)
+
+- **Endpoints touched:** none. Reads `/v3/fix-list-item-event` (`area_name`, `sub_list_name`, `scan_out`, `scan_in`).
+- **Needs API — waiting for backend:** event layout storage + item placement (api-backlog §17).
+
 ## 2026-11-27 — Layout editor v2 ("much more advanced and detailed")
 
 - **Endpoints touched:** none. Reads `rack` and `level` from `/v1/barang-gudang/gudang/{id}` for placement.

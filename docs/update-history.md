@@ -11,6 +11,12 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+## 2026-11-27 — Event layout map
+
+Layout tab in every Event Detail: venue plan with areas, items, setup/return progress, load-in route. Preview (§17).
+
+---
+
 ## 2026-11-27 — Layout editor v2
 
 Slots, aisle-aware routes, validation, row generator, multi-select, floor photo, import/export. See ai-handoff.md.

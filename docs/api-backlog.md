@@ -32,6 +32,7 @@ Last updated: 2026-11-23.
 | 13 | **Warehouse schedule** (out / back per warehouse, returns overdue) | Derived from event dates in the browser | `GET /v1/gudang/{id}/schedule`, `expected_return_date` per line, `?gudang_id=` on the summary | Medium | — |
 | 14 | **Project Finance** (contract, costs, invoices, payments) | Preview: browser only; vendor costs real | Client, contract, quotes, invoices + payments, manual costs, rental/replacement prices, PDF, reminders | High | — |
 | 15 | **Data validation** (event dates, stock never below 0) | FE hides bad values ("—"), Dashboard still shows −97 | Reject invalid `date_event`/`event_start`; refuse moves/outs that push stock below 0; fix existing rows | Medium | — |
+| 17 | **Event layout map** (venue plan per event, items per area, setup progress) | Preview: browser only; items + scans real | Save/load layout per event, item ↔ zone placement, venue photo file | Medium | `src/lib/eventLayout.ts` |
 | 10 | **Deleting an event that has items** | UI asks to type the name | Answer: what happens to items, stock and scans? Should the server refuse? | Question | — |
 
 ---
@@ -226,3 +227,14 @@ _(Nothing yet. Move rows here with the date and the backend version when an API 
   `{ barang_gudang_id, shape_code, bay, level }` (slot code `A01-03-2`). The export file
   (`format: "emi-warehouse-layout", version: 1`) can be the API payload as-is.
 - **Bug to fix:** `GET /v1/barang-gudang/gudang/{id}` returns 400 for an empty warehouse; should be 200 with `[]`.
+
+## 17. Event layout map (owner 2026-11-27)
+
+**Status: Butuh API — waiting for backend.** UI built as a preview (Event Detail → Layout; browser storage).
+- `GET /v1/events/{id}/layout`, `PUT /v1/events/{id}/layout` — same JSON as the warehouse layout (`Layout` in
+  `src/lib/warehouseLayout.ts`) plus `venue`. Any event team member may write (owner to confirm roles).
+- Item placement: `assign` map `{ event_item_id: zone_id }` saved with the layout, or a `zone_code` on the event line.
+  Today items link by area name; a stable `area_id` on zones would survive renames.
+- Venue photo as a file URL (not base64). Optional: reuse a layout per venue (`venue_id`) so new events at the same
+  venue start from it (today: "copy from another event" in the same browser).
+- Live setup view for crew phones needs the layout on the server; progress already uses real scans.

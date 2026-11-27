@@ -5,7 +5,7 @@ import { baysOf, type Layout, type Shape, type ShapeStat } from '../../lib/wareh
 // Editor: click / Shift+click select, drag on empty floor = box select (or pan in Pan tool), drag moves every
 // selected block, white corner resizes, alignment guides snap to other blocks' edges and centres.
 
-export type MapMode = 'stock' | 'issues' | 'route' | 'plain';
+export type MapMode = 'stock' | 'issues' | 'route' | 'plain' | 'progress';
 export type CanvasTool = 'select' | 'pan';
 
 export interface CanvasProps {
@@ -24,13 +24,17 @@ export interface CanvasProps {
   zoom: number;
   tool?: CanvasTool;
   showBays?: boolean;
+  /** 0..1 per shape for mode 'progress' (event setup: scanned out / planned). */
+  progress?: Map<string, number>;
+  /** small count bubble per shape (e.g. item lines in an event area). */
+  badges?: Map<string, number>;
   ariaLabel: string;
 }
 
 const heat = (r: number) => (r >= 0.9 ? 'h4' : r >= 0.75 ? 'h3' : r >= 0.5 ? 'h2' : r >= 0.2 ? 'h1' : r > 0 ? 'h0' : 'empty');
 const SNAP = 0.6;
 
-export default function LayoutCanvas({ layout, editable, selected, onSelect, onMove, onCursor, stats, mode = 'plain', maxUnits = 0, highlight, bad, route, zoom, tool = 'select', showBays = true, ariaLabel }: CanvasProps) {
+export default function LayoutCanvas({ layout, editable, selected, onSelect, onMove, onCursor, stats, mode = 'plain', maxUnits = 0, highlight, bad, route, zoom, tool = 'select', showBays = true, progress, badges, ariaLabel }: CanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const drag = useRef<{ kind: 'move' | 'resize'; start: { x: number; y: number }; orig: Shape[]; moved: boolean } | null>(null);
   const box = useRef<{ x: number; y: number; click?: string } | null>(null);
@@ -175,13 +179,18 @@ export default function LayoutCanvas({ layout, editable, selected, onSelect, onM
           isSel ? 'selected' : '', s.locked ? 'locked' : '',
           highlight?.has(s.id) ? 'hit' : '', bad?.has(s.id) ? 'bad' : '',
           mode === 'route' && stopIndex.has(s.id) ? 'stop' : '',
+          mode === 'progress' && progress?.has(s.id) ? `p${Math.min(4, Math.floor((progress.get(s.id) ?? 0) * 4))}` : '',
+          s.round ? 'round' : '',
         ].filter(Boolean).join(' ');
         const bays = s.kind === 'rack' ? baysOf(s) : 0;
         return (
           <g key={s.id} className={cls} style={{ animationDelay: `${Math.min(i, 40) * 12}ms` }}
             tabIndex={0} role="button" aria-label={`${s.name}${st ? `, ${st.units} units` : ''}`}
             onPointerDown={(e) => startShape(e, s, 'move')}>
-            <rect x={s.x + 0.06} y={s.y + 0.06} width={Math.max(0.1, s.w - 0.12)} height={Math.max(0.1, s.h - 0.12)} rx={s.kind === 'column' ? 0.1 : 0.2} className="wl-body" />
+            {s.round
+              ? <ellipse cx={s.x + s.w / 2} cy={s.y + s.h / 2} rx={Math.max(0.05, s.w / 2 - 0.06)} ry={Math.max(0.05, s.h / 2 - 0.06)} className="wl-body" />
+              : <rect x={s.x + 0.06} y={s.y + 0.06} width={Math.max(0.1, s.w - 0.12)} height={Math.max(0.1, s.h - 0.12)} rx={s.kind === 'column' ? 0.1 : 0.2} className="wl-body" />}
+            {mode === 'progress' && progress?.has(s.id) && <rect x={s.x + 0.06} y={s.y + s.h - 0.06 - Math.max(0, s.h - 0.12) * (progress.get(s.id) ?? 0)} width={Math.max(0.1, s.w - 0.12)} height={Math.max(0, s.h - 0.12) * Math.min(1, progress.get(s.id) ?? 0)} rx="0.2" className="wl-fill" />}
             {s.kind === 'wall' && <rect x={s.x + 0.06} y={s.y + 0.06} width={Math.max(0.1, s.w - 0.12)} height={Math.max(0.1, s.h - 0.12)} fill="url(#wl-hatch)" />}
             {s.kind === 'aisle' && <rect x={s.x} y={s.y} width={s.w} height={s.h} fill="url(#wl-aisle)" className="wl-aisle-marks" />}
             {showBays && bays > 1 && Array.from({ length: bays - 1 }, (_, k) => {
@@ -194,11 +203,15 @@ export default function LayoutCanvas({ layout, editable, selected, onSelect, onM
               <text x={s.x + s.w / 2} y={s.y + s.h / 2} className={`wl-label${s.kind === 'aisle' ? ' faint' : ''}`} fontSize={s.kind === 'aisle' ? Math.min(fontSize, 0.7) : fontSize}
                 transform={rotated ? `rotate(90 ${s.x + s.w / 2} ${s.y + s.h / 2})` : undefined}>{s.kind === 'rack' ? s.code : s.name}</text>
             )}
+            {badges?.get(s.id) ? (
+              <g className="wl-badge info"><circle cx={s.x + s.w - 0.25} cy={s.y + 0.25} r="0.6" /><text x={s.x + s.w - 0.25} y={s.y + 0.27} fontSize="0.6">{badges.get(s.id)}</text></g>
+            ) : null}
+            {mode === 'progress' && progress?.has(s.id) && s.h >= 2 && <text x={s.x + s.w / 2} y={s.y + s.h / 2 + Math.min(1.4, s.h * 0.28)} className="wl-pct" fontSize={Math.max(0.45, Math.min(0.9, s.w * 0.12))}>{Math.round((progress.get(s.id) ?? 0) * 100)}%</text>}
             {mode === 'issues' && st && (st.critical + st.low) > 0 && (
               <g className="wl-badge"><circle cx={s.x + s.w - 0.2} cy={s.y + 0.2} r="0.55" /><text x={s.x + s.w - 0.2} y={s.y + 0.22} fontSize="0.6">{st.critical + st.low}</text></g>
             )}
             {mode === 'route' && stopIndex.has(s.id) && (
-              <g className="wl-stop"><circle cx={s.x + s.w / 2} cy={s.y + s.h / 2} r="0.6" /><text x={s.x + s.w / 2} y={s.y + s.h / 2 + 0.02} fontSize="0.65">{stopIndex.get(s.id)}</text></g>
+              <g className="wl-stop"><circle cx={s.x + Math.min(0.8, s.w / 2)} cy={s.y + Math.min(0.8, s.h / 2)} r="0.6" /><text x={s.x + Math.min(0.8, s.w / 2)} y={s.y + Math.min(0.8, s.h / 2) + 0.02} fontSize="0.65">{stopIndex.get(s.id)}</text></g>
             )}
             {editable && isSel && sel.size === 1 && !s.locked && <rect x={s.x + s.w - 0.6} y={s.y + s.h - 0.6} width="0.6" height="0.6" className="wl-handle" onPointerDown={(e) => startShape(e, s, 'resize')} />}
             {editable && isSel && sel.size === 1 && <text x={s.x + s.w / 2} y={s.y - 0.35} className="wl-dim" fontSize="0.5">{`${s.w} × ${s.h} m`}</text>}

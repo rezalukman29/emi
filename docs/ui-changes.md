@@ -96,6 +96,13 @@ checked at 390 px and tablets at 768 px.
 
 ## UI change log (newest first)
 
+### 2026-11-27 — Event layout map
+- Event Detail has a new tab **Layout** (between 3 Star and Finance). Empty → choose Ballroom / Garden / Empty or copy
+  from another event; event areas become zones automatically.
+- View: Areas & items, Setup progress, Return progress, Load-in route; item search; Print; side list of areas with %.
+- Edit layout: stage, decor, round/long tables (with a table generator and seat count), walkways, doors, walls,
+  pillars, zones; venue photo; checks; export/import. "Preview" badge: saved in this browser only.
+
 ### 2026-11-27 — Layout editor v2
 - Editor gets a toolbar (Select / Pan, Undo / Redo, zoom, floor plan photo, Export / Import), a **rack row
   generator**, new blocks (aisle, wall, column, charging zone), **layers** and **checks** panels, box select +
