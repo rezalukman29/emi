@@ -14,14 +14,15 @@ import EventReportPage from "./pages/EventReportPage";
 import StockOpnameReportPage from "./pages/StockOpnameReportPage";
 import RequireAuth from "./components/RequireAuth.jsx";
 import RequireTenantAuth from "./components/RequireTenantAuth";
-import AreaDetailPage from "./pages/AreaDetailPage.jsx";
-import AreaPage from "./pages/AreaPage.jsx";
-import AiMaterialAnalyzerPage from "./pages/AiMaterialAnalyzerPage";
+import RequireTenantAdmin from "./components/RequireTenantAdmin";
+import NotFound from "./components/NotFound";
 import AiToolsPage from "./pages/AiToolsPage";
 import ThreeStarSettingsPage from "./pages/ThreeStarSettingsPage";
 import WarehouseHubPage from "./pages/WarehouseHubPage";
 import FinancePage from "./pages/FinancePage";
-import NotFoundPage from "./pages/NotFoundPage";
+import AreaDetailPage from "./pages/AreaDetailPage.jsx";
+import AreaPage from "./pages/AreaPage.jsx";
+import AiMaterialAnalyzerPage from "./pages/AiMaterialAnalyzerPage";
 import CategoryDetailPage from "./pages/CategoryDetailPage.jsx";
 import CategoryPage from "./pages/CategoryPage";
 import MainDashboardPage from "./pages/DashboardPage";
@@ -68,7 +69,10 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
-      retry: 2,
+      retry: (count, error: unknown) => {
+        const status = (error as { response?: { status?: number } })?.response?.status;
+        return typeof status === 'number' && status >= 500 && count < 2;
+      },
       staleTime: 50,
     },
   },
@@ -96,6 +100,10 @@ export default function App() {
               <Route index element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard" element={<DashboardPage />} />
               <Route path="customers" element={<CustomersPage />} />
+              <Route path="ai-tools" element={<AiToolsPage />} />
+              <Route path="ai/three-star" element={<ThreeStarSettingsPage />} />
+              <Route path="warehouse-hub" element={<WarehouseHubPage />} />
+              <Route path="finance" element={<FinancePage />} />
               <Route path="users" element={<SuperAdminUsersPage />} />
               <Route path="payments" element={<PaymentsPage />} />
               <Route path="pricing" element={<PricingPage />} />
@@ -116,7 +124,7 @@ export default function App() {
               <Route path="dashboard" element={<MainDashboardPage />} />
               <Route path="prd" element={<PRDPage />} />
               <Route path="stock-opname" element={<StockOpnamePage />} />
-              <Route path="upgrade" element={<UpgradePage />} />
+              <Route path="upgrade" element={<RequireTenantAdmin><UpgradePage /></RequireTenantAdmin>} />
               <Route path="inventory-report" element={<InventoryReportPage />} />
               <Route path="overview-report" element={<OverviewReportPage />} />
               <Route path="event" element={<EventPage />} />
@@ -145,23 +153,19 @@ export default function App() {
               <Route path="stock-opname-report" element={<StockOpnameReportPage />} />
               <Route path="area-detail" element={<AreaDetailPage />} />
               <Route path="sub-area" element={<SubAreaPage />} />
-              <Route path="event-status" element={<EventStatusPage />} />
+              <Route path="event-status" element={<RequireTenantAdmin><EventStatusPage /></RequireTenantAdmin>} />
               <Route path="event-checklist" element={<EventChecklistPage />} />
               <Route path="event-history" element={<EventHistoryPage />} />
-              <Route path="event-checklist-settings" element={<EventChecklistSettingsPage />} />
+              <Route path="event-checklist-settings" element={<RequireTenantAdmin><EventChecklistSettingsPage /></RequireTenantAdmin>} />
               <Route path="category" element={<CategoryPage />} />
               <Route path="category-detail" element={<CategoryDetailPage />} />
               <Route path="unit" element={<UnitPage />} />
               <Route path="unit-detail" element={<UnitDetailPage />} />
               <Route path="qr-code" element={<PlaceholderPage title="QR Code" />} />
               <Route path="ai-material-analyzer" element={<AiMaterialAnalyzerPage />} />
-              <Route path="ai-tools" element={<AiToolsPage />} />
-              <Route path="ai/three-star" element={<ThreeStarSettingsPage />} />
-              <Route path="warehouse-hub" element={<WarehouseHubPage />} />
-              <Route path="finance" element={<FinancePage />} />
               <Route path="log" element={<LogPage />} />
-              <Route path="users" element={<UsersPage />} />
-              <Route path="*" element={<NotFoundPage />} />
+              <Route path="users" element={<RequireTenantAdmin><UsersPage /></RequireTenantAdmin>} />
+              <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>
           <ToastContainer />

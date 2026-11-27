@@ -1,25 +1,16 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
-import i18n from '../i18n';
+import { withTranslation, type WithTranslation } from 'react-i18next';
+import type { QueryClient } from 'react-query';
 
-// One page failing (e.g. an unexpected API response) must not blank the whole app (UX review 2026-11-26,
-// regression REG-03). Wraps the routed page in Layout; sidebar and header stay usable.
-
-export default class PageErrorBoundary extends Component<{ children: ReactNode; resetKey: string }, { error: Error | null }> {
-  state = { error: null as Error | null };
-  static getDerivedStateFromError(error: Error) { return { error }; }
-  componentDidCatch(error: Error, info: ErrorInfo) { console.error('Page crashed', error, info.componentStack); }
-  componentDidUpdate(prev: { resetKey: string }) { if (prev.resetKey !== this.props.resetKey && this.state.error) this.setState({ error: null }); }
+class PageErrorBoundary extends Component<WithTranslation & { children: ReactNode; queryClient: QueryClient }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(error: Error, info: ErrorInfo) { console.error('Page error', error, info.componentStack); }
   render() {
-    if (!this.state.error) return this.props.children;
-    return (
-      <div className="card page-crash" role="alert">
-        <h2>{i18n.t('uxFix.crashTitle')}</h2>
-        <p>{i18n.t('uxFix.crashBody')}</p>
-        <div className="page-crash-actions">
-          <button type="button" className="btn btn-primary" onClick={() => this.setState({ error: null })}>{i18n.t('uxFix.retry')}</button>
-          <a className="btn btn-ghost" href="/dashboard">{i18n.t('uxFix.toDashboard')}</a>
-        </div>
-      </div>
-    );
+    if (!this.state.failed) return this.props.children;
+    return <div className="card" role="alert"><p>{this.props.t('recovery.pageFailed')}</p>
+      <button type="button" className="btn btn-ghost" onClick={() => { void this.props.queryClient.resetQueries(); this.setState({ failed: false }); }}>{this.props.t('recovery.retry')}</button>{' '}
+      <a href="/dashboard">{this.props.t('recovery.dashboard')}</a></div>;
   }
 }
+export default withTranslation()(PageErrorBoundary);

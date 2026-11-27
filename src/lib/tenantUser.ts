@@ -18,7 +18,7 @@ function readAuth(): StoredTenantAuth | null {
 
 export function isTenantAdminUser() {
   const auth = readAuth();
-  return auth?.user_type?.toUpperCase() === 'ADMIN' || auth?.is_admin === 1;
+  return auth?.user_type?.toUpperCase() === 'ADMIN';
 }
 
 export function currentUserName(fallback = 'You') {

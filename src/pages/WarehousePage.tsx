@@ -14,6 +14,7 @@ import {
 import SortTh from "../components/SortTh.js";
 import { initialWarehouses } from "../data/warehouses.js";
 import { useWarehouseController } from "./lib/useWarehouseController.js";
+import LoadError from "../components/LoadError";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { APIResponse } from "../interfaces/BaseApiResponse.js";
@@ -218,7 +219,7 @@ export default function WarehousePage() {
     src: null,
   });
 
-  const { warehouses, refetchWarehouse } = useWarehouseController();
+  const { warehouses, refetchWarehouse, isWarehouseError } = useWarehouseController();
 
   const formik = useFormik<any>({
     initialValues: {
@@ -326,9 +327,14 @@ export default function WarehousePage() {
     }
   };
 
+  if (isWarehouseError && !warehouses.length) {
+    return <LoadError onRetry={() => void refetchWarehouse()} />;
+  }
+
   return (
     <>
       {isLoading && <Loading />}
+      {isWarehouseError && <LoadError onRetry={() => void refetchWarehouse()} />}
       <div
         style={{
           display: "flex",

@@ -186,3 +186,7 @@ Not verified on a real phone; checked in Chromium at 1440 px and 390 px with a m
 See `docs/update-history.md` (Event Detail B v1/v2 and switcher, Event Detail menu + print chooser + item
 drawer, PIC picker, event list chips/tooltips, foldable sidebar, Event Checklist v1, calendar filters,
 dark mode, sidebar redesign).
+
+## 2026-11-26 — FE fixes
+
+Admin-only actions are hidden from employees. Added a required event-stage recovery dialog and improved session, error, inventory and navigation feedback.

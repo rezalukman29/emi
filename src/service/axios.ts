@@ -23,32 +23,27 @@ ax.interceptors.request.use(
           configuration.headers["User-Id"] = parsedAuth.id;
           configuration.headers["User-Token"] = parsedAuth.token;
         }
-      } catch {
-        configuration.headers["User-Id"] = 8;
-      }
-    } else {
-      configuration.headers["User-Id"] = 8;
+      } catch { /* Invalid stored sessions are handled by the route guard. */ }
     }
     return configuration;
   },
   (error: any) => {
-    Promise.reject(error);
-  },
-);
-
-// Session expired / not accepted: go to login with a message and come back afterwards (UX review 2026-11-26, REG-02).
-ax.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error?.response?.status === 401 && !window.location.pathname.startsWith("/login") && !window.location.pathname.startsWith("/superadmin")) {
-      try {
-        window.sessionStorage.setItem("emi.returnTo", window.location.pathname + window.location.search);
-        window.localStorage.removeItem("auth");
-      } catch { /* storage blocked */ }
-      window.location.assign("/login?expired=1");
-    }
     return Promise.reject(error);
   },
 );
+
+ax.interceptors.response.use(response => response, error => {
+  if (error.response?.status === 401) {
+    const isSuperAdmin = window.location.pathname.startsWith('/superadmin');
+    const loginPath = isSuperAdmin ? '/superadmin/login' : '/login';
+    if (window.location.pathname !== loginPath && !window.location.pathname.startsWith('/forgot-password')) {
+      localStorage.removeItem('auth');
+      if (isSuperAdmin) localStorage.removeItem('emi_superadmin_auth');
+      sessionStorage.setItem('emi.returnTo', window.location.pathname + window.location.search + window.location.hash);
+      window.location.assign(`${loginPath}?expired=1`);
+    }
+  }
+  return Promise.reject(error);
+});
 
 export default ax;

@@ -1,4 +1,5 @@
 import { fmtNum as fmtDisplayNumber } from '../lib/format';
+import { isTenantAdminUser } from '../lib/tenantUser';
 import { useGetEventCalendarClashes, type EventCalendarClash } from '../hooks/api/useGetEventCalendar';
 import ThreeStarPanel, { StarRow } from '../components/ai/ThreeStarPanel';
 import EventFinancePanel from '../components/finance/EventFinancePanel';
@@ -854,6 +855,7 @@ export default function EventDetailPage() {
   >({});
   const [nextId, setNextId] = useState(-1);
   const [currentStatusId, setCurrentStatusId] = useState<number | null>(null);
+  const [replacementStatusId, setReplacementStatusId] = useState('');
   const [isChangingEventStatus, setIsChangingEventStatus] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [printPlanOpen, setPrintPlanOpen] = useState(false);
@@ -1047,6 +1049,9 @@ export default function EventDetailPage() {
     // Wait for the event itself: when the status list arrives first (cached, or simply a faster
     // response), deciding now falls back to the first stage and locks it (bug found 2026-11-20).
     if (!eventStatuses.length || !eventDetail || currentStatusId !== null) return;
+
+    // Do not infer a different stage when the backend references a deleted stage.
+    if (!eventStatuses.some(status => status.id === Number(eventDetail.status))) return;
 
     const eventRunningId = Number(eventDetail?.event_running);
     const directId = [eventDetail?.status, eventRunningId].find(
@@ -3123,6 +3128,30 @@ export default function EventDetailPage() {
         </>)}
         </div>
       </div>
+
+      <Modal open={Boolean(eventDetail && eventStatuses.length && currentStatusId === null && !eventStatuses.some(status => status.id === Number(eventDetail.status)))} dismissible={false} title={t('recovery.selectStage')} onClose={() => {}} footer={isTenantAdminUser() ? <button type="button" className="btn-save-modal" disabled={!replacementStatusId || isChangingEventStatus} onClick={async () => {
+        if (!eventDetail || !replacementStatusId) return;
+        try {
+          setIsChangingEventStatus(true);
+          const response = await InventoryService.editEvent({
+            id: eventDetail.id, name: eventDetail.name ?? '', description: eventDetail.description ?? '',
+            event_start: eventDetail.event_start, event_end: eventDetail.event_end, PIC: eventDetail.PIC ?? '',
+            event_code: eventDetail.event_code ?? '', is_complete: eventDetail.is_complete ?? 0,
+            is_finished: eventDetail.is_finished ?? 0, status: Number(replacementStatusId),
+            files: eventDetail.files ?? '', address: eventDetail.address ?? '', location_id: eventDetail.location_id, type: eventDetail.type ?? '',
+            latitude: eventDetail.latitude ?? '', longitude: eventDetail.longitude ?? '',
+            event_running: eventDetail.event_running ?? '', notes: eventDetail.notes ?? '',
+            scan_type: eventDetail.scan_type ?? '', date_event: eventDetail.date_event,
+          });
+          if (response.success === false) throw new Error(response.message);
+          await Promise.all([refetchEventDetail(), refetchEventItems()]);
+          setCurrentStatusId(Number(replacementStatusId));
+        } catch (error) { toast.error(getCheckoutErrorMessage(error)); }
+        finally { setIsChangingEventStatus(false); }
+      }}>{t('recovery.saveStage')}</button> : undefined}>
+        <p>{t('recovery.missingStage')}</p>
+        {isTenantAdminUser() ? <select value={replacementStatusId} onChange={event => setReplacementStatusId(event.target.value)}><option value="">{t('recovery.selectStage')}</option>{eventStatuses.map(status => <option key={status.id} value={status.id}>{status.name}</option>)}</select> : <p>{t('recovery.adminOnly')}</p>}
+      </Modal>
 
       <Modal open={pendingStage !== null && flowStep === 'ownership'} title={t('sourceUpgrade.checkOwnership')} onClose={cancelStageFlow} footer={<>
         <button className="btn-cancel-modal" onClick={cancelStageFlow}><IconClose /> {t('wording.cancel')}</button>

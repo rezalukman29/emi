@@ -13,6 +13,7 @@ interface ModalProps {
   className?: string;
   bodyClassName?: string;
   footerClassName?: string;
+  dismissible?: boolean;
 }
 
 const sizeStyles: Record<ModalSize, CSSProperties | undefined> = {
@@ -34,10 +35,11 @@ export default function Modal({
   className = '',
   bodyClassName = '',
   footerClassName = '',
+  dismissible = true,
 }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!open) return;
+    if (!open || !dismissible) return;
     const handler = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       // Let an open searchable dropdown consume Escape before its parent modal.
@@ -47,7 +49,7 @@ export default function Modal({
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [open, onClose]);
+  }, [open, onClose, dismissible]);
 
   if (!open) return null;
 
@@ -56,13 +58,13 @@ export default function Modal({
       ref={overlayRef}
       className="modal-overlay open"
       onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
+        if (dismissible && event.target === event.currentTarget) onClose();
       }}
     >
       <div className={`modal ${className}`.trim()} style={sizeStyles[size]}>
         <div className="modal-header">
           <h2 className="modal-title">{title}</h2>
-          <button className="modal-close" onClick={onClose}><IconClose /></button>
+          {dismissible && <button className="modal-close" onClick={onClose}><IconClose /></button>}
         </div>
         <div className={`modal-body ${bodyClassName}`.trim()}>{children}</div>
         {footer && <div className={`modal-footer ${footerClassName}`.trim()}>{footer}</div>}

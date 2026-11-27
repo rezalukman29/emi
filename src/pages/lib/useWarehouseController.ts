@@ -3,7 +3,7 @@ import useGetAreaList from "../../hooks/api/useGetAreaList";
 import useGetWarehouse from "../../hooks/api/useGetWarehouse";
 
 export const useWarehouseController = () => {
-  const { data: warehouses, refetch: refetchWarehouse } = useGetWarehouse({
+  const { data: warehouses, refetch: refetchWarehouse, isError: isWarehouseError, isLoading: isWarehouseLoading } = useGetWarehouse({
     options: {
       enabled: true,
     },
@@ -21,6 +21,8 @@ export const useWarehouseController = () => {
   return {
     warehouses: warehouses?.data?.data ?? [],
     warehouseOptions,
-    refetchWarehouse
+    refetchWarehouse,
+    isWarehouseError,
+    isWarehouseLoading
   };
 };

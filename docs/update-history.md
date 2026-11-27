@@ -11,6 +11,12 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+## 2026-11-27 — Merge from staging
+
+FE dev versions kept for error page, 404 page and session-expired redirect; ours removed. See ai-handoff.md.
+
+---
+
 ## 2026-11-26 — UX review fixes outside Event
 
 Not-found page, page error boundary, session-expired redirect, pagination NaN fix, Event Report date fallback, lazy
@@ -728,3 +734,7 @@ one after this file's initial version is "Round 6"). Each entry should say **wha
 changed, **why** (the product reason, not just "user asked"), which **files** were
 touched, and any **gotcha** a future dev would otherwise have to rediscover the hard
 way.
+
+## 2026-11-26 — FE fixes
+
+Added role persistence and admin guards, session recovery, mandatory missing-stage selection, safer inventory editing and load/error fallbacks.

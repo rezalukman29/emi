@@ -1,4 +1,5 @@
 import { needsInventorySetup } from "../lib/inventorySetup";
+import LoadError from '../components/LoadError';
 import { fmtNum, formatIDR } from "../lib/format";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
@@ -481,6 +482,7 @@ export default function InventoryPage() {
   });
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [loadError, setLoadError] = useState(false);
   const [isLoadingPrint, setIsLoadingPrint] = useState<boolean>(false);
   const [isModify, setIsModify] = useState<boolean>(false);
   const [listBarang, setListBarang] = useState<any[]>([]);
@@ -584,6 +586,7 @@ export default function InventoryPage() {
     const request = ++inventoryRequest.current;
     try {
       setIsLoading(true);
+      setLoadError(false);
       if (catFilter.length > 1) {
         const lists = await Promise.all(
           catFilter.map(async (category) => {
@@ -643,6 +646,7 @@ export default function InventoryPage() {
       setIsLoading(false);
     } catch (error) {
       if (request !== inventoryRequest.current) return;
+      setLoadError(true);
       setIsLoading(false);
       setPage(1);
       setFirst(0);
@@ -673,7 +677,7 @@ export default function InventoryPage() {
       code: Yup.string().required(t("wording.required")),
       kategori_id: Yup.string().required(t("wording.required")),
       satuan_id: Yup.string().required(t("wording.required")),
-      stok: Yup.string().required(t("wording.required")),
+      stok: Yup.number().typeError(t('recovery.invalidStock')).integer(t('recovery.invalidStock')).min(0, t('recovery.invalidStock')).required(t('wording.required')),
     }),
     validateOnChange: false,
     enableReinitialize: true,
@@ -683,7 +687,7 @@ export default function InventoryPage() {
         ...values,
         satuan_id: Number(values.satuan_id),
         kategori_id: Number(values.kategori_id),
-        stok: Number(values.stok),
+        stok: Number(isModify ? barang.stok_barang : values.stok),
       };
       if (isModify) {
         try {
@@ -704,16 +708,15 @@ export default function InventoryPage() {
             setIsLoading(false);
             getInventoryList();
             void refetchInventorySummary();
+          } else {
+            setIsLoading(false);
+            toast(result.message || t('recovery.saveFailed'), { type: 'error' });
           }
         } catch (error: any) {
           setIsLoading(false);
-          if (
-            error.response.data.message ===
-            "Error 1062: Duplicate entry '123' for key 'barang.code'"
-          ) {
-            formik.setFieldError("code", error.response.data.message);
-          }
-          toast(error.response.data.message, { type: "error" });
+          const message = error?.response?.data?.message || t('recovery.saveFailed');
+          if (error?.response?.data?.error_code === 'DUPLICATE_CODE') formik.setFieldError('code', message);
+          toast(message, { type: "error" });
         }
       } else {
         try {
@@ -733,16 +736,15 @@ export default function InventoryPage() {
             setIsLoading(false);
             getInventoryList();
             void refetchInventorySummary();
+          } else {
+            setIsLoading(false);
+            toast(result.message || t('recovery.saveFailed'), { type: 'error' });
           }
         } catch (error: any) {
           setIsLoading(false);
-          if (
-            error.response.data.message ===
-            "Error 1062: Duplicate entry '123' for key 'barang.code'"
-          ) {
-            formik.setFieldError("code", error.response.data.message);
-          }
-          toast(error.response.data.message, { type: "error" });
+          const message = error?.response?.data?.message || t('recovery.saveFailed');
+          if (error?.response?.data?.error_code === 'DUPLICATE_CODE') formik.setFieldError('code', message);
+          toast(message, { type: "error" });
         }
       }
     },
@@ -1010,7 +1012,8 @@ export default function InventoryPage() {
             </label>
           </div>
         )}
-        <div className="table-wrap">
+        {loadError && <LoadError onRetry={() => void getInventoryList()} />}
+        <div className="table-wrap" hidden={loadError}>
           <table>
             <thead>
               <tr>
@@ -1343,14 +1346,15 @@ export default function InventoryPage() {
             placeholder={t("wording.code")}
             errorText={formik.errors.code as string}
           />
-          <TextInput
+          {!isModify && <TextInput
             value={formik.values.stok}
             onChange={(e) => formik.setFieldValue("stok", e)}
             isRequired
             label={t("wording.stock")}
             placeholder={t("wording.itemStock")}
             errorText={formik.errors.stok as string}
-          />
+            inputType="number" min={0}
+          />}
         </div>
         <div className="form-row">
           <div className="form-group">

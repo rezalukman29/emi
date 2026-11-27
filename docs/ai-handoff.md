@@ -6,6 +6,18 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-27 — Merge from `staging` (FE dev commit e3e915c "fix feedback doc")
+
+- Conflicts in 4 files: `App.tsx`, `Layout.tsx`, `PageErrorBoundary.tsx`, `service/axios.ts`. Both sides built the same
+  three fixes (page error boundary, 404 page, 401 → login). **Owner decision: take the FE dev version.**
+- Removed ours: `NotFoundPage.tsx`, our `PageErrorBoundary`, our 401 interceptor, our Login toast, `uxFix.*` strings,
+  `.page-crash` CSS. Re-added our routes in App.tsx: ai-tools, ai/three-star, warehouse-hub, finance.
+- Kept ours: Pagination NaN fix, Event Report date "—", lazy inventory photos, Warehouse Hub, Finance, docs.
+- Note from staging: "admin" is now only `user_type === ADMIN` (`is_admin === 1` no longer counts). Finance tab/menu
+  follow this automatically.
+- Checks after merge: build OK, tsc 0, lint 12 errors / 1 warning (same as before), tests 40/40.
+- The 2026-11-26 entry below mentions our own boundary/404/401 code; that code is replaced by FE dev's.
+
 ## 2026-11-26 — UX review outside the event pages (fixes)
 
 - Owner: "roast the features outside Event, make sure UX is good, fix; if there is no API, mark it".
@@ -522,3 +534,7 @@ Each entry: what changed, files, why, state left behind, open items.
   patch, the owner runs `git am` + `git push` on their Mac. After they push, `git fetch`
   and `git reset --hard origin/daniel-staging-web` only if `git diff HEAD origin/daniel-staging-web`
   is empty (git am rewrites hashes). Permanent fix: repo owner installs the app.
+
+## 2026-11-26 — FE reliability and access fixes
+
+Login persists the backend role; missing roles require login again. Admin-only navigation/actions are guarded, expired sessions return to login, and a missing event stage requires admin recovery. Inventory editing preserves stock; error handling and recovery screens were improved.

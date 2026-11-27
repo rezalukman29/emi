@@ -1,7 +1,6 @@
 import useSidebar from './useSidebar';
 import { useState, useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
-import PageErrorBoundary from "./PageErrorBoundary";
 import Sidebar, {
   getFirstAccessibleRoute,
   getRequiredFeatureForPath,
@@ -30,6 +29,7 @@ import ThemeSwitcher from "./ThemeSwitcher";
 import UpgradeCTA from "./UpgradeCTA";
 import useUserPlanController from "../hooks/useUserPlanController";
 import { useTranslation } from "react-i18next";
+import PageErrorBoundary from './PageErrorBoundary';
 
 type StoredAuth = {
   id?: number;
@@ -144,7 +144,7 @@ export default function Layout() {
         </div>
         <GlobalSearch />
         <div className="header-actions">
-          <UpgradeCTA />
+          {isTenantAdminUser() && <UpgradeCTA />}
           {currentUser && (
             <span className="header-user">
               {currentUser.fullname || currentUser.email || t("common.user")}
@@ -162,7 +162,7 @@ export default function Layout() {
         <Sidebar visible={sidebarVisible} mobile={isMobile} />
         {isMobile && sidebarVisible && <button type="button" className="sidebar-backdrop" aria-label={t("wording.close")} onClick={close} />}
         <main className="main">
-          <PageErrorBoundary resetKey={location.pathname}><Outlet /></PageErrorBoundary>
+          <PageErrorBoundary key={location.pathname} queryClient={queryClient}><Outlet /></PageErrorBoundary>
         </main>
       </div>
       {/* EMI Assistant chatbot hidden for now (owner 2026-11-22). Set SHOW_ASSISTANT to true to bring it back. */}

@@ -243,3 +243,7 @@ calendar endpoints so the server filters and the summary counts stay server-side
 
 - **Endpoints touched:** none. Version is read from `package.json` at build time.
 - **Impact:** none.
+
+## 2026-11-26 — Perbaikan frontend
+
+Login menggunakan `user_type` dari respons yang sudah ada. Pemulihan status memakai endpoint update event yang sudah tersedia dan mempertahankan data event, termasuk `location_id`; tidak ada endpoint baru. Edit barang tetap mengirim stok lama.

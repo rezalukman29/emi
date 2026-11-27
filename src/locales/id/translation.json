@@ -1,4 +1,5 @@
 {
+  "recovery": {"pageFailed":"Halaman ini gagal dimuat.","retry":"Coba lagi","dashboard":"Ke Dashboard","notFound":"Halaman tidak ditemukan.","expired":"Sesi Anda berakhir. Silakan login kembali.","missingStage":"Tahap event ini sudah tidak tersedia. Admin harus memilih tahap baru sebelum melakukan perubahan.","selectStage":"Pilih tahap baru","saveStage":"Perbarui tahap","adminOnly":"Hanya admin yang dapat memperbarui tahap.","loadFailed":"Data belum bisa dimuat. Coba lagi.","invalidStock":"Masukkan bilangan bulat minimal nol.","saveFailed":"Gagal menyimpan. Coba lagi.","passwordLength":"Password minimal 8 karakter."},
   "quickAdd": {"addNew":"Tambah baru"},
   "eventRules": {
     "pastEditLocked": "Event ini sudah selesai dan tidak dapat diedit lagi.",
@@ -1732,6 +1733,5 @@
     "youCompanyCom": "you@company.com",
     "youHave": "Anda memiliki",
     "youreOnThe": "Anda menggunakan paket"
-  },
-  "uxFix": {"crashTitle": "Halaman ini mengalami masalah", "crashBody": "Bagian lain aplikasi tetap bisa dipakai. Coba lagi, atau kembali ke dashboard. Kalau terus terjadi, beri tahu admin halaman mana.", "retry": "Coba lagi", "toDashboard": "Ke dashboard", "toEvents": "Ke daftar event", "notFoundTitle": "Halaman tidak ditemukan", "notFoundBody": "Tidak ada halaman di {{path}}. Tautannya mungkin lama atau salah ketik.", "sessionExpired": "Sesi Anda sudah berakhir. Silakan login lagi."}
+  }
 }

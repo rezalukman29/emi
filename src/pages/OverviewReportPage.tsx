@@ -72,9 +72,9 @@ export default function OverviewReportPage() {
   }, [searchInput]);
 
   const summary = summaryResponse?.data;
-  const events = eventsResponse?.data.data ?? [];
-  const totalRecords = eventsResponse?.data.total_records ?? 0;
-  const totalPages = Math.max(1, eventsResponse?.data.total_pages ?? 1);
+  const events = eventsResponse?.data?.data ?? [];
+  const totalRecords = eventsResponse?.data?.total_records ?? 0;
+  const totalPages = Math.max(1, eventsResponse?.data?.total_pages ?? 1);
   const safePage = Math.min(page, totalPages);
   const locationBreakdown = summary?.location_breakdown ?? [];
   const maxLocationCount = Math.max(...locationBreakdown.map((item) => item.event_count), 1);
