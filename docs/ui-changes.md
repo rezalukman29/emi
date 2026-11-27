@@ -96,6 +96,14 @@ checked at 390 px and tablets at 768 px.
 
 ## UI change log (newest first)
 
+### 2026-11-27 — Warehouse layout editor + floor map (preview)
+- New page **Warehouse layout** (`/warehouse-hub/layout`, admin, button "Layout setup" in Warehouse Hub): start from a
+  template or empty, drag/resize racks, bulk areas, zones (receiving, shipping, staging, QA, returns) and entrance;
+  side panel to rename, set code, levels, capacity, and assign items. "Preview" badge: saved in this browser only.
+- Warehouse Hub: when one warehouse is chosen, a dark **Floor map** appears above the monitor with views Stock
+  heatmap / Issues / Pick route, item search, zoom, and a detail panel per block. No layout yet → card inviting an
+  admin to set one up. "All warehouses" → buttons to pick a warehouse.
+
 ### 2026-11-27 — Warehouse Hub live monitor
 - Top of Warehouse Hub: before → 4 plain number cards; after → "Live warehouse monitor": pulsing Live badge, last
   update + refresh, 6 animated tiles, stock-health ring, 14-day out/back chart, "Coming up" timeline, stock per

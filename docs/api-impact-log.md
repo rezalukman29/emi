@@ -9,6 +9,12 @@ Format: date — change — endpoints/fields touched — impact — action neede
 
 ---
 
+## 2026-11-27 — Warehouse layout editor + floor map (preview)
+
+- **Endpoints touched:** none. Reads existing `/v1/barang-gudang/gudang/{id}` (now also uses its `rack` field).
+- **Needs API — waiting for backend:** layout storage per warehouse, capacity per block, item ↔ block placement
+  (api-backlog §16). Until then layouts live in one browser only.
+
 ## 2026-11-27 — Warehouse Hub live monitor (motion, dashboard) + label warehouses
 
 - **Endpoints touched:** none changed. Hub queries now re-poll every 2 minutes while the page is open

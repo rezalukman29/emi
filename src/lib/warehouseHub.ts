@@ -7,7 +7,7 @@ import ax from '../service/axios';
 // schedule with expected return dates needs the API in docs/api-backlog.md §13.
 
 export interface Warehouse { id: number; name: string; location: string; pic: string; virtual: boolean; totalItems: number }
-export interface StockRow { bgId: number; barangId: number; name: string; stock: number; min: number; level: 'critical' | 'low' | 'ok' }
+export interface StockRow { bgId: number; barangId: number; name: string; stock: number; min: number; level: 'critical' | 'low' | 'ok'; rack?: string }
 export interface Movement {
   key: string;
   type: 'out' | 'return' | 'overdue';
@@ -50,7 +50,7 @@ export async function fetchWarehouseStock(id: number): Promise<StockRow[]> {
   return rows.map((row) => {
     const stock = Number(row.stok) || 0;
     const min = Number(row.stok_minimum) || 0;
-    return { bgId: Number(row.id), barangId: Number(row.barang_id), name: String(row.nama_barang ?? '').trim() || `#${row.barang_id} (no name)`, stock, min, level: stockLevel(stock, min) };
+    return { bgId: Number(row.id), barangId: Number(row.barang_id), name: String(row.nama_barang ?? '').trim() || `#${row.barang_id} (no name)`, stock, min, level: stockLevel(stock, min), rack: String(row.rack ?? '') };
   });
 }
 

@@ -6,6 +6,28 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-27 — Warehouse layout editor + floor map (preview)
+
+- Owner showed WMS references (2D floor plan with pick route, 3D heatmap) and asked for a layout setup feature.
+- Data check first: `barang_gudang` already has `lantai, lorong, asile, rack, level, internal_location`, but on staging
+  floor/aisle/internal are 0% filled and rack/level ~30%, mostly "TBC" or junk. So the map needs (a) a stored layout
+  and (b) clean item locations.
+- Built (PREVIEW, browser storage `emi.whLayout.v1`, per warehouse):
+  - `src/lib/warehouseLayout.ts`: shapes (rack, bulk, zone with role, entrance), template, `shapeForItem` (manual
+    assignment first, else item `rack` text = shape code, placeholders like TBC ignored), `statsByShape`, `pickRoute`
+    (nearest-neighbour from entrance to staging/shipping, right-angle lines; approximate, aisles not modelled).
+  - `LayoutCanvas.tsx` (SVG, 1 unit = 1 m, zoom/pan, drag/resize, arrow keys, heatmap/issues/route/search classes).
+  - `WarehouseLayoutPage.tsx` at `/warehouse-hub/layout?wh=` (admin only): template or blank start, add blocks,
+    properties (name, code, type, zone use, levels, capacity, x/y/w/h, rotate, duplicate, delete), assign items to a
+    block, undo, unsaved-changes warning.
+  - `WarehouseMap.tsx` on top of Warehouse Hub when one warehouse is selected: Stock heatmap (units/capacity, or
+    relative to the fullest block when capacity is 0), Issues (low/out badges), Pick route for an event going out
+    (stops numbered, animated path), item search highlight, block detail panel.
+  - Floor plan is always dark (control-room look, as in the references); the rest follows the theme.
+- Verified on staging (writes blocked), Bali 70: template → codes 1/2/5 → 3 of 2061 lines placed (data quality),
+  issues badge on Rack A, search highlight, route bar shows "no event going out" (none in 14 days). 1440 and 390:
+  no sideways scroll, no console errors. Route drawing not seen with real data (no outgoing events on staging).
+
 ## 2026-11-27 — Warehouse Hub live monitor (motion, dashboard) + label warehouses
 
 - Owner: Warehouse Hub should look futuristic/modern with motion and a monitoring dashboard, same style.

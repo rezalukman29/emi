@@ -206,3 +206,18 @@ _(Nothing yet. Move rows here with the date and the backend version when an API 
   adjustments should refuse (422, message "only N in stock") instead of saving. Provide a one-off report of rows < 0.
 - Duplicate warehouses: three warehouses named "Gudang C9" (owner 2026-11-27: probably duplicates). Backend: merge
   their stock into one and remove the others (or mark inactive); optionally refuse a new warehouse with an existing name.
+
+## 16. Warehouse layout + item locations (owner 2026-11-27)
+
+**Status: Butuh API — waiting for backend.** UI is built as a preview (`/warehouse-hub/layout`, browser storage).
+- **Layout per warehouse:** `GET /v1/gudang/{id}/layout`, `PUT /v1/gudang/{id}/layout` with
+  `{ cols, rows, shapes: [{ id, kind: rack|bulk|zone|dock, role?, code, name, x, y, w, h, levels, capacity }] }`
+  (FE shape is `Layout` in `src/lib/warehouseLayout.ts`; a JSON column is enough to start). Admin only to write.
+- **Item placement:** today the FE matches `barang_gudang.rack` to a block `code`, plus manual assignments stored in
+  the browser. Backend: let the item location point at a block (`location_code` or `shape_id`) and expose a bulk
+  update `PATCH /v1/barang-gudang/locations` `[{ barang_gudang_id, shape_code, level }]` so the editor can save
+  assignments. Optional validation: `rack` must be a known code of that warehouse.
+- **Data clean-up:** on staging `rack`/`asile`/`level` are mostly empty or "TBC"; `lantai`, `lorong`,
+  `internal_location` are empty. Decide one location scheme (block code + level) and migrate.
+- **Capacity:** units (or m³) per block for the "how full" heatmap; today an admin types it in the editor.
+- **Later:** aisle graph for real walking routes; scan events per location for live "where is the picker".

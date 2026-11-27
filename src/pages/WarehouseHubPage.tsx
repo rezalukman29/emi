@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQueries, useQuery } from 'react-query';
 import { useTranslation } from 'react-i18next';
+import WarehouseMap from '../components/warehouse/WarehouseMap';
+import { isTenantAdminUser } from '../lib/tenantUser';
 import HubMonitor, { type MonitorTile } from '../components/warehouse/HubMonitor';
 import MoveStockModal, { type MovePreset } from '../components/warehouse/MoveStockModal';
 import {
@@ -17,6 +19,7 @@ import {
   type Warehouse,
 } from '../lib/warehouseHub';
 import '../warehouseHub.css';
+import '../warehouseLayout.css';
 
 // Warehouse Hub "Gudang" (owner 2026-11-26): one task-first menu for warehouse work. New page only — the old
 // warehouse menus stay as they are. Data: existing endpoints (see src/lib/warehouseHub.ts).
@@ -161,10 +164,23 @@ export default function WarehouseHubPage() {
 
       <div className="wh-quick">
         <button type="button" className="btn btn-primary" onClick={() => setOpenMove({ fromId: selected || undefined })}>{t('whHub.actions.move')}</button>
+        {isTenantAdminUser() && <Link className="btn btn-ghost" to={`/warehouse-hub/layout${selected ? `?wh=${selected}` : ''}`}>{t('whLayout.setup')}</Link>}
         <Link className="btn btn-ghost" to="/stock-opname">{t('whHub.actions.opname')}</Link>
         <Link className="btn btn-ghost" to="/warehouse-inventory">{t('whHub.actions.receive')}</Link>
         <Link className="btn btn-ghost" to="/warehouse">{t('whHub.actions.oldMenu')}</Link>
       </div>
+
+      {!whQuery.isError && (
+        <WarehouseMap
+          warehouse={selected ? warehouses.find((w) => w.id === selected) ?? null : null}
+          physical={physical}
+          rows={selected ? stockByWarehouse.get(selected) ?? [] : []}
+          movements={movements}
+          loading={stockLoading}
+          onPick={choose}
+          canEdit={isTenantAdminUser()}
+        />
+      )}
 
       {whQuery.isError ? <LoadError onRetry={() => void whQuery.refetch()} /> : (
         <HubMonitor

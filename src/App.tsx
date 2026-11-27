@@ -19,6 +19,7 @@ import NotFound from "./components/NotFound";
 import AiToolsPage from "./pages/AiToolsPage";
 import ThreeStarSettingsPage from "./pages/ThreeStarSettingsPage";
 import WarehouseHubPage from "./pages/WarehouseHubPage";
+import WarehouseLayoutPage from "./pages/WarehouseLayoutPage";
 import FinancePage from "./pages/FinancePage";
 import AreaDetailPage from "./pages/AreaDetailPage.jsx";
 import AreaPage from "./pages/AreaPage.jsx";
@@ -163,6 +164,7 @@ export default function App() {
               <Route path="ai-tools" element={<AiToolsPage />} />
               <Route path="ai/three-star" element={<ThreeStarSettingsPage />} />
               <Route path="warehouse-hub" element={<WarehouseHubPage />} />
+              <Route path="warehouse-hub/layout" element={<WarehouseLayoutPage />} />
               <Route path="finance" element={<FinancePage />} />
               <Route path="users" element={<RequireTenantAdmin><UsersPage /></RequireTenantAdmin>} />
               <Route path="*" element={<NotFound />} />
