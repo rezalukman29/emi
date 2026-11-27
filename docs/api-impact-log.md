@@ -9,6 +9,13 @@ Format: date — change — endpoints/fields touched — impact — action neede
 
 ---
 
+## 2026-11-27 — Warehouse Hub live monitor (motion, dashboard) + label warehouses
+
+- **Endpoints touched:** none changed. Hub queries now re-poll every 2 minutes while the page is open
+  (`/v1/barang-gudang/gudang/{id}` per physical warehouse, `/v2/event-filter`, `/v3/fix-list-item-event`).
+- **Needs API — waiting for backend:** a field on `/v1/gudang` marking label/ownership buckets (e.g. `is_label` or
+  `type: physical|label`) so the FE stops matching names (§13).
+
 ## 2026-11-27 — Tables: sort state, rows per page, no double "New", tidy Inventory
 
 - **Endpoints touched:** none changed. Server-paginated lists now send `limit` = 10/20/50/100 (user choice) instead of a

@@ -18,6 +18,7 @@ export interface Movement {
   lines: Array<{ name: string; qty: number; area: string; scannedOut: number; scannedIn: number }>;
 }
 
+const LABEL_NAME = /^(outsource.*|rent|buy|ihp|printing|venue)$/i;
 const day = (value: unknown) => String(value ?? '').slice(0, 10);
 export const isoToday = () => new Date().toISOString().slice(0, 10);
 export const addIsoDays = (iso: string, n: number) => { const d = new Date(`${iso}T12:00:00`); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
@@ -30,8 +31,9 @@ export async function fetchWarehouses(): Promise<Warehouse[]> {
     name: String(row.nama ?? '').trim() || `#${row.id}`,
     location: String(row.lokasi ?? ''),
     pic: String(row.pic ?? ''),
-    // Warehouses that are not a physical place (e.g. "Outsource") are shown apart.
-    virtual: Number(row.is_out_source) === 1 || /outsource/i.test(String(row.nama ?? '')),
+    // Not a physical place, shown apart: outsource, and ownership/source LABELS (owner 2026-11-27: Rent, Buy, IHP,
+    // Printing, Venue are labels only). Matched by name until the API has a flag — docs/api-backlog.md §13.
+    virtual: Number(row.is_out_source) === 1 || LABEL_NAME.test(String(row.nama ?? '').trim()),
     totalItems: Number(row.total_items) || 0,
   }));
 }

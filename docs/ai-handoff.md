@@ -6,6 +6,22 @@ Each entry: what changed, files, why, state left behind, open items.
 
 ---
 
+## 2026-11-27 — Warehouse Hub live monitor (motion, dashboard) + label warehouses
+
+- Owner: Warehouse Hub should look futuristic/modern with motion and a monitoring dashboard, same style.
+- New `src/components/warehouse/HubMonitor.tsx` replaces the 4 action cards at the top of `/warehouse-hub`:
+  hero with "Live" pulse + last updated + refresh (stock and schedule queries now `refetchInterval: 120_000`);
+  6 tiles with count-up (units on hand, out of stock, low, units going out 14 d, returns overdue, open stock counts;
+  clicks keep the old actions); stock-health ring (ok/low/out); 14-day out/back diverging bar chart (tap → schedule);
+  "Coming up" timeline; "Stock per warehouse" bars (only for "all warehouses", tap = focus that warehouse).
+- All numbers come from data the Hub already loaded (no new API). CSS `.whm-*` in `warehouseHub.css`, tokens +
+  `color-mix` so dark mode works; all motion off under `prefers-reduced-motion`. Strings `whHub.monitor.*` en + id.
+- Label warehouses (owner decision): `LABEL_NAME` in `warehouseHub.ts` treats Rent/Buy/IHP/Printing/Venue/Outsource as
+  labels (not places): kept out of stock checks, schedule and totals; shown under "Labels (not a place)". Matched by
+  NAME — Butuh API: a flag on `/v1/gudang` (api-backlog §13).
+- Verified on staging (writes blocked) at 1440 light, 1440 dark, 390 mobile: no sideways scroll, no console errors.
+  Not checked on a real phone.
+
 ## 2026-11-27 — Tables: sort state, rows per page, no double "New", tidy Inventory
 
 - Owner feedback with screenshots (Sub Area, Inventory).

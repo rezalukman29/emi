@@ -175,6 +175,10 @@ status (out / back / overdue); `expected_return_date` per line (ticket BE-16); `
 a flag that tells a physical warehouse from an ownership bucket (staging has "Rent", "Buy", "IHP", "Printing", "Venue" as
 warehouses — question for the owner).
 
+- **Label warehouses (owner 2026-11-27):** Rent, Buy, IHP, Printing, Venue are ownership/source labels, not places.
+  FE matches these names for now. Backend: add `type: "physical" | "label" | "outsource"` (or `is_label`) on
+  `/v1/gudang`, editable in the Warehouse form. Status: **Butuh API — waiting for backend**.
+
 ## 14. Project Finance (owner 2026-11-26)
 
 **Today:** preview. Contract value, client name, invoices (DP / final, VAT), payments, manual costs and extra charges are in

@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useQueries, useQuery } from 'react-query';
 import { useTranslation } from 'react-i18next';
+import HubMonitor, { type MonitorTile } from '../components/warehouse/HubMonitor';
 import MoveStockModal, { type MovePreset } from '../components/warehouse/MoveStockModal';
 import {
   fetchItemWarehouses,
@@ -55,6 +56,7 @@ function OtherWarehouses({ row, warehouseId, onMove }: { row: StockRow; warehous
 
 export default function WarehouseHubPage() {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const [selected, setSelected] = useState<number>(readSaved());
   const [range, setRange] = useState<2 | 14>(2);
   const [openMove, setOpenMove] = useState<MovePreset | null>(null);
@@ -71,7 +73,7 @@ export default function WarehouseHubPage() {
   const virtual = warehouses.filter((w) => w.virtual);
   const scope = selected ? warehouses.filter((w) => w.id === selected) : physical;
 
-  const stockQueries = useQueries(scope.map((w) => ({ queryKey: ['whHubStock', w.id], queryFn: () => fetchWarehouseStock(w.id), staleTime: 60_000 })));
+  const stockQueries = useQueries(scope.map((w) => ({ queryKey: ['whHubStock', w.id], queryFn: () => fetchWarehouseStock(w.id), staleTime: 60_000, refetchInterval: 120_000 })));
   const stockByWarehouse = new Map<number, StockRow[]>(scope.map((w, i) => [w.id, (stockQueries[i]?.data as StockRow[] | undefined) ?? []]));
   const stockLoading = stockQueries.some((q) => q.isLoading);
   const stockError = stockQueries.some((q) => q.isError);
@@ -79,7 +81,7 @@ export default function WarehouseHubPage() {
   const critical = flagged.filter((r) => r.level === 'critical');
   const low = flagged.filter((r) => r.level === 'low');
 
-  const scheduleQuery = useQuery(['whHubSchedule', 14], () => fetchSchedule(14), { staleTime: 60_000 });
+  const scheduleQuery = useQuery(['whHubSchedule', 14], () => fetchSchedule(14), { staleTime: 60_000, refetchInterval: 120_000 });
   const opnameQuery = useQuery(['whHubOpname'], fetchOpenOpname, { staleTime: 60_000 });
   const inScope = (m: Movement) => (selected ? m.warehouseId === selected : physical.some((w) => w.id === m.warehouseId));
   const movements = (scheduleQuery.data ?? []).filter(inScope);
@@ -96,12 +98,20 @@ export default function WarehouseHubPage() {
   const whName = (id: number) => warehouses.find((w) => w.id === id)?.name ?? `#${id}`;
   const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-  const actionCards = [
-    { key: 'critical', tone: 'red', value: critical.length, label: t('whHub.cards.critical'), onClick: () => { setStockTab('critical'); scrollTo('wh-stock'); }, loading: stockLoading },
-    { key: 'low', tone: 'orange', value: low.length, label: t('whHub.cards.low'), onClick: () => { setStockTab('low'); scrollTo('wh-stock'); }, loading: stockLoading },
-    { key: 'overdue', tone: 'red', value: overdue.length, label: t('whHub.cards.overdue'), onClick: () => scrollTo('wh-schedule'), loading: scheduleQuery.isLoading },
-    { key: 'opname', tone: 'purple', value: opnameQuery.data ?? 0, label: t('whHub.cards.opname'), to: '/stock-opname', loading: opnameQuery.isLoading },
+  const unitsOnHand = scope.reduce((sum, w) => sum + (stockByWarehouse.get(w.id) ?? []).reduce((a, r) => a + Math.max(0, r.stock), 0), 0);
+  const itemTypes = scope.reduce((sum, w) => sum + (stockByWarehouse.get(w.id) ?? []).length, 0);
+  const outUnits = movements.filter((m) => m.type === 'out').reduce((sum, m) => sum + m.lines.reduce((a, l) => a + l.qty, 0), 0);
+  const tiles: MonitorTile[] = [
+    { key: 'units', tone: 'brand', value: unitsOnHand, label: t('whHub.monitor.units'), hint: t('whHub.monitor.types', { count: itemTypes }), loading: stockLoading },
+    { key: 'critical', tone: 'red', value: critical.length, label: t('whHub.cards.critical'), loading: stockLoading, onClick: () => { setStockTab('critical'); scrollTo('wh-stock'); } },
+    { key: 'low', tone: 'orange', value: low.length, label: t('whHub.cards.low'), loading: stockLoading, onClick: () => { setStockTab('low'); scrollTo('wh-stock'); } },
+    { key: 'out', tone: 'purple', value: outUnits, label: t('whHub.monitor.goingOut'), hint: t('whHub.monitor.next14'), loading: scheduleQuery.isLoading, onClick: () => { setRange(14); scrollTo('wh-schedule'); } },
+    { key: 'overdue', tone: 'red', value: overdue.length, label: t('whHub.cards.overdue'), loading: scheduleQuery.isLoading, onClick: () => scrollTo('wh-schedule') },
+    { key: 'opname', tone: 'green', value: opnameQuery.data ?? 0, label: t('whHub.cards.opname'), loading: opnameQuery.isLoading, href: '/stock-opname' },
   ];
+  const updatedAt = Math.max(scheduleQuery.dataUpdatedAt || 0, ...stockQueries.map((q) => q.dataUpdatedAt || 0));
+  const refreshing = scheduleQuery.isFetching || stockQueries.some((q) => q.isFetching);
+  const refreshAll = () => { void scheduleQuery.refetch(); void opnameQuery.refetch(); stockQueries.forEach((q) => void q.refetch()); };
 
   const renderMovement = (m: Movement) => {
     const qty = m.lines.reduce((sum, l) => sum + l.qty, 0);
@@ -157,14 +167,23 @@ export default function WarehouseHubPage() {
       </div>
 
       {whQuery.isError ? <LoadError onRetry={() => void whQuery.refetch()} /> : (
-        <div className="wh-cards">
-          {actionCards.map((card) => {
-            const inner = <><b>{card.loading ? '…' : card.value}</b><span>{card.label}</span></>;
-            return card.to
-              ? <Link key={card.key} to={card.to} className={`wh-card ${card.tone}${!card.loading && card.value === 0 ? ' zero' : ''}`}>{inner}</Link>
-              : <button key={card.key} type="button" className={`wh-card ${card.tone}${!card.loading && card.value === 0 ? ' zero' : ''}`} onClick={card.onClick}>{inner}</button>;
-          })}
-        </div>
+        <HubMonitor
+          scopeName={selected ? whName(selected) : t('whHub.allPhysical')}
+          selected={selected}
+          physical={physical}
+          stockByWarehouse={stockByWarehouse}
+          stockLoading={stockLoading || whQuery.isLoading}
+          movements={movements}
+          scheduleLoading={scheduleQuery.isLoading}
+          tiles={tiles}
+          updatedAt={updatedAt}
+          refreshing={refreshing}
+          onRefresh={refreshAll}
+          onPick={choose}
+          onNavigate={(href) => navigate(href)}
+          onShowSchedule={() => { setRange(14); scrollTo('wh-schedule'); }}
+          whName={whName}
+        />
       )}
 
       <div className="wh-grid">

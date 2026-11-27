@@ -96,6 +96,12 @@ checked at 390 px and tablets at 768 px.
 
 ## UI change log (newest first)
 
+### 2026-11-27 — Warehouse Hub live monitor
+- Top of Warehouse Hub: before → 4 plain number cards; after → "Live warehouse monitor": pulsing Live badge, last
+  update + refresh, 6 animated tiles, stock-health ring, 14-day out/back chart, "Coming up" timeline, stock per
+  warehouse bars. Cards fade/slide in, numbers count up, bars grow; turned off for users who prefer reduced motion.
+- Rent, Buy, IHP, Printing, Venue now appear as "Label" (not counted as warehouses).
+
 ### 2026-11-27 — Tables and lists
 - Sort arrows: before → both arrows always grey, no way to see the current sort; after → the sorted column is purple
   and shows one arrow (↑ A→Z / ↓ Z→A).

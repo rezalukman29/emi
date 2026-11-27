@@ -11,6 +11,12 @@ explains a few non-obvious conventions that the entries below assume you already
 
 ---
 
+## 2026-11-27 — Warehouse Hub live monitor
+
+Monitoring dashboard with motion on top of Warehouse Hub; label warehouses kept apart. See ai-handoff.md.
+
+---
+
 ## 2026-11-27 — Table sort state, rows per page, double buttons, Inventory table
 
 See ai-handoff.md for files and checks.
